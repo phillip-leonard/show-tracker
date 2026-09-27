@@ -237,6 +237,22 @@
   to = "/festivals/?festival=:festivalId"
   status = 301
 
+# Upcoming Shows was removed in 5.40.0. Old links go to My Shows. force =
+# true because app/upcoming/ is still pre-rendered (as a client-side
+# redirect, for the native app, which never sees these rules) and Netlify
+# would otherwise serve that file instead of applying the redirect.
+[[redirects]]
+  from = "/upcoming"
+  to = "/shows/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/upcoming/"
+  to = "/shows/"
+  status = 301
+  force = true
+
 # Catch-all SPA fallback — lets Next.js handle dynamic routes like /shows/[id]/
 # that are not pre-generated at build time (Firebase data is runtime-only).
 # Must be last so API rules above take priority.

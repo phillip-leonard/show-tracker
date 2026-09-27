@@ -30,7 +30,6 @@ export default function AppShell({
   isAdmin = false,
   isGuest = false,
   pendingNotificationCount = 0,
-  upcomingShowsBadgeCount = 0,
   onLogout,
   onCreateAccount,
   children,
@@ -52,7 +51,6 @@ export default function AppShell({
         isOpen={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         pendingNotificationCount={pendingNotificationCount}
-        upcomingShowsBadgeCount={upcomingShowsBadgeCount}
       />
 
       <MobileHeader onMenuClick={() => setDrawerOpen(true)} />

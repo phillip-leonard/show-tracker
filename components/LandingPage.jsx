@@ -275,10 +275,6 @@ export default function LandingPage({ onSignUp, onSignIn, onGuest, communityStat
                     Wishlist <span className="lp-ct">12</span>
                   </div>
                   <div className="lp-app-sb-item">
-                    <svg className="lp-ico lp-ico-sm" viewBox="0 0 24 24"><path d="M2 9a3 3 0 1 0 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 1 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z" /><path d="M13 5v2" /><path d="M13 17v2" /><path d="M13 11v2" /></svg>
-                    Upcoming <span className="lp-ct">4</span>
-                  </div>
-                  <div className="lp-app-sb-item">
                     <svg className="lp-ico lp-ico-sm" viewBox="0 0 24 24"><path d="M3 3v18h18" /><path d="M18 17V9" /><path d="M13 17V5" /><path d="M8 17v-3" /></svg>
                     Stats
                   </div>

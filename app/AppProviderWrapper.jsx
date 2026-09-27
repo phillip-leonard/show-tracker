@@ -79,7 +79,7 @@ function AppShell({ children }) {
     showMigrationPrompt, handleMigrateData, handleSkipMigration, localShowsToMigrate,
     showGuestPrompt, setShowGuestPrompt, openAuthModal,
     showCelebration, welcomeState, setWelcomeState,
-    pendingNotificationCount, upcomingShowsBadgeCount, unreadNotifications,
+    pendingNotificationCount, unreadNotifications,
     friends, handleLogout,
     enterGuestMode, exitGuestMode, communityStats,
     handleAuthSuccess,
@@ -324,7 +324,6 @@ function AppShell({ children }) {
         isGuest={guestMode}
         onCreateAccount={() => openAuthModal('signup')}
         pendingNotificationCount={pendingNotificationCount}
-        upcomingShowsBadgeCount={upcomingShowsBadgeCount}
         unreadNotificationCount={unreadNotifications?.length || null}
       />
 

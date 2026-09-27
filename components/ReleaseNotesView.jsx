@@ -13,6 +13,17 @@ const STREAMING_MENTION = /spotify|apple\s*music/i;
 function ReleaseNotesView() {
   const releases = [
     {
+      version: '5.40.0',
+      date: 'September 27, 2026',
+      title: 'A Roomier My Shows On Your Phone',
+      changes: [
+        'My Shows on a phone now shows your latest show straight away, without scrolling',
+        'Your stats sit in one compact row, and search, filters and sort fold away behind a Filters button \u2014 with a count so you can see when a filter is on',
+        'Festivals now sits right under Tours in the menu',
+        'The Upcoming page has been retired. An artist\u2019s upcoming dates are still there when you open them in the By artist view on My Shows',
+      ]
+    },
+    {
       version: '5.38.0',
       date: 'September 25, 2026',
       title: 'Email Settings You Control',

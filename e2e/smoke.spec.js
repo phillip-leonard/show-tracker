@@ -196,7 +196,7 @@ test.describe('Authenticated Flow', () => {
   });
 
   test('all authenticated pages load without error', async ({ page }) => {
-    const pages = ['/stats', '/friends', '/community', '/profile', '/upcoming', '/search', '/invite', '/feedback'];
+    const pages = ['/stats', '/friends', '/community', '/profile', '/search', '/invite', '/feedback'];
 
     for (const path of pages) {
       await page.goto(path, { waitUntil: 'load' });
