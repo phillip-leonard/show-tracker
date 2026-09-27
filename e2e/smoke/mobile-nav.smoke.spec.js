@@ -117,7 +117,7 @@ test.describe('Mobile header', () => {
 test.describe('Mobile layout', () => {
   // The routes a guest can actually reach. Each is checked for horizontal
   // overflow, which is the single most common way a phone layout breaks.
-  const GUEST_ROUTES = ['/shows/', '/stats/', '/upcoming/', '/search/', '/how-to-use/'];
+  const GUEST_ROUTES = ['/shows/', '/stats/', '/search/', '/how-to-use/'];
 
   for (const route of GUEST_ROUTES) {
     test(`${route} does not overflow horizontally at 390px`, async ({ page }) => {

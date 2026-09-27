@@ -4,6 +4,50 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.40.0] — 2026-09-27
+
+### Changed: My Shows fits a show above the fold on phones
+
+- **The first show card is now fully visible on load on a phone.** At
+  390×844 its bottom edge moved from ~1035px to ~587px on the web (~634px
+  in the iOS app with safe areas, against 810px of usable height), and it
+  also fits on a 375×667 iPhone SE. Everything below is phone-only (below
+  `md:`) — the desktop layout is pixel-identical at 768px and 1280px.
+  - Tighter spacing in the page header (new `compact` prop on
+    `PageHeader`), and the two action buttons now share one row.
+  - **Smaller stats**: Shows / Artists / Venues / Avg Rating are one
+    four-across row with an 18px figure (was a 2×2 grid at 22px), via a new
+    `compact` prop on `StatFigure`. Desktop keeps the original sizes.
+  - **Filters collapse**: the search/year/date/sort/saved-search card sits
+    behind a "Filters" toggle, collapsed by default on phones. A count
+    badge shows how many filters are applied, and they keep applying while
+    the panel is closed. The toggle is a `button` with `aria-expanded` /
+    `aria-controls`. Always open on desktop, as before.
+- **The "Invite Friends" button is gone from My Shows.** Inviting is still
+  on Profile and at `/invite`.
+
+### Changed: Festivals moved up in the menu
+
+- The sidebar and the mobile menu (one list, `components/layout/Sidebar.jsx`)
+  now read Tours → Festivals → Wishlist → Bucket List.
+
+### Removed: Upcoming
+
+- **The Upcoming page and its nav entry are gone.** `/upcoming` now
+  redirects to My Shows: a 301 in `netlify.toml` on the web, and a
+  client-side redirect in `app/upcoming/page.jsx` for the iOS app, which
+  never sees Netlify's rules. Also removed: `components/UpcomingShowsView.jsx`,
+  the unused `components/upcoming/UpcomingItem.jsx`, the
+  `upcomingShowsBadgeCount` state in `AppContext`, the How to Use section,
+  and the Upcoming row in the landing page's app mock-up.
+- **Kept, because other features use them:** the per-artist Upcoming Shows
+  panel (`components/UpcomingShows.jsx`, in My Shows' expanded By artist
+  rows and in `SetlistEditor`, used by Shows Together and Admin), the `ticketmaster-events` / `seatgeek-events` functions,
+  the `ticketCache` collection and its rules, and `TICKET_CACHE_TTL` /
+  `mergeTicketEvents` / `formatTicketDate`. No Firestore data was touched.
+
+---
+
 ## [5.39.0] — 2026-09-26
 
 ### New: Saved searches, on My Shows

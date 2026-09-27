@@ -16,7 +16,7 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-  Search, List, BarChart3, Ticket, Shield, Coffee,
+  Search, List, BarChart3, Shield, Coffee,
   LogOut, User, X, Heart, HelpCircle, ScrollText,
   Bookmark, GalleryVertical, Tent, Map,
 } from 'lucide-react';
@@ -42,7 +42,6 @@ export default function Sidebar({
   isGuest,
   onCreateAccount,
   pendingNotificationCount = 0,
-  upcomingShowsBadgeCount = 0,
   unreadNotificationCount = 0,
 }) {
   const pathname = usePathname() || '';
@@ -74,10 +73,9 @@ export default function Sidebar({
     { id: 'shows', label: 'My Shows', icon: List, href: '/' },
     { id: 'stats', label: 'Stats', icon: BarChart3, href: '/stats' },
     !isGuest && { id: 'tours', label: 'Tours', icon: Map, href: '/tours' },
+    !isGuest && { id: 'festivals', label: 'Festivals', icon: Tent, href: '/festivals' },
     !isGuest && { id: 'wishlist', label: 'Wishlist', icon: Heart, href: '/wishlist' },
     !isGuest && { id: 'bucket-list', label: 'Bucket List', icon: Bookmark, href: '/bucket-list' },
-    !isGuest && { id: 'festivals', label: 'Festivals', icon: Tent, href: '/festivals' },
-    { id: 'upcoming', label: 'Upcoming', icon: Ticket, href: '/upcoming', badge: upcomingShowsBadgeCount, beta: true },
     !isGuest && { id: 'profile', label: 'Profile', icon: User, href: '/profile', badge: profileBadge },
     !isGuest && { id: 'setlist-photos', label: 'Setlist Photos', icon: GalleryVertical, href: '/setlist-photos' },
   ].filter(Boolean);

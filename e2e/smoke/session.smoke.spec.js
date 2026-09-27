@@ -36,8 +36,8 @@ test.describe('Restored Session Smoke Tests', () => {
     await dismissOverlays(page);
 
     // Only links a signed-in user actually has. components/layout/Sidebar.jsx
-    // renders My Shows, Stats, Tours, Wishlist, Bucket List, Festivals,
-    // Upcoming, Profile and Setlist Photos for a signed-in account, plus
+    // renders My Shows, Stats, Tours, Festivals, Wishlist, Bucket List,
+    // Profile and Setlist Photos for a signed-in account, plus
     // "How to Use" in the utilities block below the nav.
     //
     // This list used to hold /friends/i and /search/i. Neither is a sidebar
@@ -47,12 +47,21 @@ test.describe('Restored Session Smoke Tests', () => {
     // entry. Same failure mode as the /roadmap/i assertion fixed in #286,
     // and it hid for just as long, because until the credentials were
     // replaced this test had never once run.
-    const navLabels = [/my shows/i, /stats/i, /tours/i, /festivals/i, /upcoming/i];
+    const navLabels = [/my shows/i, /stats/i, /tours/i, /festivals/i, /wishlist/i];
     for (const label of navLabels) {
       await expect(
         page.getByRole('link', { name: label }).first()
       ).toBeVisible();
     }
+
+    // Festivals sits directly under Tours, above Wishlist (5.40.0), and
+    // Upcoming is gone. One list feeds both the desktop sidebar and the
+    // mobile drawer, so checking it once covers both.
+    const order = (await page.locator('aside nav a').allInnerTexts()).map((t) => t.trim());
+    const tours = order.findIndex((t) => /^tours/i.test(t));
+    expect(order[tours + 1]).toMatch(/^festivals/i);
+    expect(order[tours + 2]).toMatch(/^wishlist/i);
+    expect(order.some((t) => /^upcoming/i.test(t))).toBe(false);
   });
 
   test('sign out returns to landing page', async ({ page }) => {

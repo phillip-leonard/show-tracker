@@ -87,7 +87,6 @@ test.describe('Shows Smoke Tests', () => {
       '/friends',
       '/community',
       '/profile',
-      '/upcoming',
       '/search',
       '/invite',
       '/feedback',

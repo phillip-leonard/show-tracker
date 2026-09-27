@@ -130,9 +130,9 @@ test.describe('Guest Mode', () => {
     });
 
     // Only links a GUEST actually has. components/layout/Sidebar.jsx hides
-    // Tours, Wishlist, Bucket List, Festivals, Profile and Setlist Photos
-    // behind `!isGuest`, leaving My Shows, Stats, Upcoming, "Search for a
-    // show" and "How to Use".
+    // Tours, Festivals, Wishlist, Bucket List, Profile and Setlist Photos
+    // behind `!isGuest`, leaving My Shows, Stats, "Search for a show" and
+    // "How to Use". (Upcoming was removed from the nav in 5.40.0.)
     //
     // This list used to end with /roadmap/i, which is not in the sidebar at
     // all — not for a guest, not for anyone (it exists only as
@@ -140,10 +140,25 @@ test.describe('Guest Mode', () => {
     // link that never existed. "Support" is deliberately excluded: it is an
     // external <a> to buymeacoffee.com, and clicking it would navigate the
     // test off the site.
-    for (const label of [/stats/i, /search for a show/i, /upcoming/i, /how to use/i]) {
+    for (const label of [/stats/i, /search for a show/i, /how to use/i]) {
       await page.getByRole('link', { name: label }).first().click();
       await expect(page.locator('body')).not.toContainText('Application error');
     }
+  });
+
+  // Upcoming Shows was removed in 5.40.0; an old link must land on My Shows
+  // rather than a blank page or the landing page. On the web netlify.toml
+  // 301s it; app/upcoming/page.jsx is the client-side fallback.
+  test('old /upcoming link redirects to My Shows', async ({ page }) => {
+    await page.goto('/', { waitUntil: 'load' });
+    await page.getByRole('button', { name: /try it first/i }).click();
+    await expect(page.getByText('Exit Guest Mode').first()).toBeVisible({
+      timeout: 15000,
+    });
+
+    await page.goto('/upcoming/', { waitUntil: 'load' });
+    await expect(page).toHaveURL(/\/shows\/?$/, { timeout: 15000 });
+    await expect(page.getByRole('link', { name: /^upcoming$/i })).toHaveCount(0);
   });
 
   test('exit guest mode returns to landing', async ({ page }) => {

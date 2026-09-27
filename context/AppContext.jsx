@@ -442,7 +442,6 @@ export function AppProvider({ children }) {
   const myConfirmedSuggestions = showSuggestions.filter(s => s.overallStatus === 'confirmed');
 
   const pendingNotificationCount = pendingInvites.length + pendingFriendRequests.length;
-  const [upcomingShowsBadgeCount, setUpcomingShowsBadgeCount] = useState(null);
 
   // Post-signup welcome + pending tags
   const [welcomeState, setWelcomeState] = useState(null);
@@ -3463,8 +3462,6 @@ export function AppProvider({ children }) {
     unreadNotifications,
     pendingNotificationCount,
     markNotificationsRead,
-    upcomingShowsBadgeCount,
-    setUpcomingShowsBadgeCount,
 
     // Welcome state
     welcomeState,

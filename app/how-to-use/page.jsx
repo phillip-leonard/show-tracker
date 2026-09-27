@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Search, BarChart3, Users, Music, Star, ChevronDown, ChevronUp, Ticket } from 'lucide-react';
+import { Search, BarChart3, Users, Music, Star, ChevronDown, ChevronUp } from 'lucide-react';
 import { PageHeader, Card, SectionHeader } from '@/components/ui';
 
 const sections = [
@@ -74,18 +74,6 @@ const sections = [
       {
         heading: 'Bulk Tagging',
         body: 'Use "Select Multiple Shows" on the Shows page to tag a friend in several shows at once — great for when you just added a bunch of past shows.',
-      },
-    ],
-  },
-  {
-    id: 'upcoming',
-    icon: Ticket,
-    title: 'Upcoming Shows',
-    description: 'Track shows you\'re planning to attend',
-    steps: [
-      {
-        heading: 'Add an Upcoming Show',
-        body: 'Go to Upcoming Shows (Beta) and add concerts you have tickets to. After the show date passes, you\'ll be prompted to move it to your show history.',
       },
     ],
   },
