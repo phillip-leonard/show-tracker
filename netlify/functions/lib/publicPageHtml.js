@@ -105,4 +105,25 @@ function notFoundPage(message) {
 // API token wired up for a real on-demand purge.
 const CACHE_HEADERS = { 'Cache-Control': 'public, max-age=60, s-maxage=60' };
 
-module.exports = { SITE_URL, escapeHtml, page, notFoundPage, CACHE_HEADERS };
+// Show dates aren't stored in one format: most add paths save YYYY-MM-DD,
+// but ticket-scanner shows carry setlist.fm's DD-MM-YYYY verbatim (see
+// toIsoDate in lib/utils.js, which this mirrors — that file is an ES
+// module and these functions are CommonJS). Returns '' for anything else,
+// so callers can fall back to the raw string. Never goes through
+// new Date(string), so the date can't shift by a timezone.
+function isoDate(dateStr) {
+  const s = String(dateStr || '');
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  const m = s.match(/^(\d{2})-(\d{2})-(\d{4})$/);
+  return m ? `${m[3]}-${m[2]}-${m[1]}` : '';
+}
+
+// "Sep 14, 2024" (month: 'short') or "September 14, 2024" (month: 'long').
+function formatShowDate(dateStr, month = 'short') {
+  const iso = isoDate(dateStr);
+  if (!iso) return dateStr || '';
+  const [y, m, d] = iso.split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString('en-US', { month, day: 'numeric', year: 'numeric' });
+}
+
+module.exports = { SITE_URL, escapeHtml, page, notFoundPage, CACHE_HEADERS, isoDate, formatShowDate };

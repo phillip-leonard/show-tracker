@@ -4,6 +4,94 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.41.0] — 2026-10-01
+
+### Added: one show filter on My Shows, Stats, Tours and Festivals
+
+- The My Shows filter (text search on artist or venue, Year, single date)
+  is now one component, `components/shows/ShowFilters.jsx`. It includes the
+  collapsing "Filters" toggle with a count badge on phones. The matching
+  logic moved out of `AppContext`'s `sortedFilteredShows` into
+  `lib/showFilters.js` unchanged, and that memo now calls it, so My Shows
+  filters exactly as before. Page-specific controls sit in the component's
+  two slots: `actions` and `children`.
+- **Stats** (overview): the breakdown tabs, the period tiles and the
+  heatmap are all computed from the filtered shows. `getSongStats`,
+  `getArtistStats`, `getVenueStats` and `getTopRatedShows` take an optional
+  show list. `useStatsPeriod` takes an optional source list, and falls back
+  to the newest remaining year if the selected one is filtered out.
+  - The separate Songs-tab Artist/Venue/Year filter in `StatsView` is
+    replaced by the shared one. A show opened from Stats still sees the
+    whole library (`allShows`) for its play counts and runs.
+- **Tours**: the list is rebuilt from the filtered shows, so a filter
+  narrows both which tours show and their stop counts. The tour page
+  itself always uses the full index.
+  - The shared filter replaces the Tours search and Year select. The
+    tour-only Artist select, Favorites and Sort stay in the slots.
+  - Search now matches artist or venue, as on My Shows, not tour name.
+- **Festivals**: with a filter on, only festivals with a matching show are
+  listed, and each count is the matching shows.
+- Every option applies on every page, so none are hidden.
+
+### Changed: a song played twice in one show counts once
+
+- "Times seen" is now the number of distinct shows a song was played at.
+  A sandwich (song > other song > song) or a reprise counts once. The rule
+  lives in `lib/songCounts.js` and is used by:
+  - Stats → Songs (`buildSongStats`)
+  - the song index (`timesSeen`, and gaps now measured between shows, so a
+    sandwich no longer produces a −1 longest gap)
+  - the show page's "Seen N×" pills
+  - the artist page's "Songs I've Seen"
+  - Year in Review's most-seen song
+- The setlist editor and the song history modal already counted per show.
+  Stored setlists are untouched, and both occurrences still render in the
+  setlist and in a song's performance list.
+
+### Fixed
+
+- **archive.org link uses YYYY-MM-DD.** `getStreamingPlatforms` normalizes
+  the show date with `toIsoDate` before building any link. Ticket-scanner
+  shows store setlist.fm's DD-MM-YYYY. The same fix covers the Relisten and
+  PlayDead links, which had the same bug.
+- **Public profile links.** `/u/{handle}` pages are Netlify functions, not
+  app routes, so the Activity feed's relative `/u/…` links were dead in the
+  iOS app. They are now absolute and open via the Capacitor Browser plugin
+  (`lib/publicProfile.js`). Profile gains Open and Copy link buttons for
+  your own public page. `public-profile.js` and `public-show.js` now
+  format and sort DD-MM-YYYY dates correctly (`isoDate` /
+  `formatShowDate` in `netlify/functions/lib/publicPageHtml.js`).
+- **Password reset copy.** The "check your email" screen no longer says
+  whether an address has an account, and the unreachable "No account found
+  with this email" error is gone. Firebase email-enumeration protection is
+  on for the project.
+
+### Removed
+
+- **"Select shows" on My Shows**, and everything that only it used:
+  - selection state and the bulk action bar
+  - `ArtistShowsRow`'s checkbox mode
+  - `TagFriendsModal`'s bulk mode
+  - `bulkTagFriendsAtShows` and the `skipEmail` option on
+    `tagFriendsAtShow`
+  - the `bulkShowTagNotification` email template
+
+  Festival bulk-select is unchanged.
+- **The landing page footer's "Product" column** (Browse shows, Artists,
+  Venues, Stats). The pages themselves and the signed-in navigation are
+  unchanged.
+
+### Changed: landing copy and logo size
+
+- "Built for the fan who calls the opener."
+- The "Auto-import your shows" description and Step 01 both read "Scan a
+  ticket, upload a photo of past ticket purchases, or search for a show".
+- The Pick + wordmark lockup is 10% larger on the mobile header, the
+  sidebar and the landing nav. The sizes live in one place,
+  `BRAND_LOCKUP` in `components/brand/Wordmark.jsx`.
+
+---
+
 ## [5.40.0] — 2026-09-27
 
 ### Changed: My Shows fits a show above the fold on phones

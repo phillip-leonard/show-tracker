@@ -37,6 +37,7 @@ import { apiUrl } from '@/lib/api';
 import { normalizeSongTitle, parseDate, humanizeGapDuration } from '@/lib/utils';
 import { artistKeyFor, loadWishlist, addWishlistSong, removeWishlistSong, listWishlistedArtists } from '@/lib/wishlist';
 import { artistSlugFromName, songSlugFromTitle } from '@/lib/songIndex';
+import { forEachSongOncePerShow, songTitleKey } from '@/lib/songCounts';
 
 const ERROR_FLASH_MS = 5000;
 
@@ -129,17 +130,19 @@ export default function WishlistView() {
   const seenSongs = useMemo(() => {
     if (!artist) return [];
     const target = artist.name.trim().toLowerCase();
+    // count = distinct shows; a song played twice in one show counts once
+    // (lib/songCounts.js).
     const counts = {}; // normalizedKey -> { count, spellings: { rawName: count } }
-    (shows || [])
-      .filter(s => (s.artist || '').trim().toLowerCase() === target)
-      .forEach(s => (s.setlist || []).forEach(song => {
+    forEachSongOncePerShow(
+      (shows || []).filter(s => (s.artist || '').trim().toLowerCase() === target),
+      song => songTitleKey(song.name || song.song || song.title || ''),
+      (key, song) => {
         const name = song.name || song.song || song.title || '';
-        if (!name) return;
-        const key = normalizeSongTitle(name) || name;
         if (!counts[key]) counts[key] = { count: 0, spellings: {} };
         counts[key].count++;
         counts[key].spellings[name] = (counts[key].spellings[name] || 0) + 1;
-      }));
+      }
+    );
     return Object.values(counts)
       .map(data => ({
         title: Object.entries(data.spellings).sort((a, b) => b[1] - a[1])[0][0],

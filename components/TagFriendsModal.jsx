@@ -6,10 +6,8 @@ import { formatDate } from '@/lib/utils';
 import { Button, Card, Input } from '@/components/ui';
 import { useDismissable } from '@/context/DismissStackContext';
 
-function TagFriendsModal({ show, shows: bulkShows, friends, onTag, onInviteByEmail, onClose }) {
+function TagFriendsModal({ show, friends, onTag, onInviteByEmail, onClose }) {
   useDismissable(true, onClose, { id: 'tag-friends' });
-  const isBulk = Array.isArray(bulkShows) && bulkShows.length > 0;
-  const displayShow = isBulk ? bulkShows[0] : show;
   const [selectedFriends, setSelectedFriends] = useState(new Set());
   const [sending, setSending] = useState(false);
   const [query, setQuery] = useState('');
@@ -50,7 +48,7 @@ function TagFriendsModal({ show, shows: bulkShows, friends, onTag, onInviteByEma
     setInviteSending(true);
     setInviteStatus(null);
     try {
-      await onInviteByEmail({ name: query.trim(), email: inviteEmail.trim(), message: inviteMessage.trim(), show: displayShow });
+      await onInviteByEmail({ name: query.trim(), email: inviteEmail.trim(), message: inviteMessage.trim(), show });
       setInviteStatus('success');
       setInviteEmail('');
       setInviteMessage('');
@@ -70,27 +68,16 @@ function TagFriendsModal({ show, shows: bulkShows, friends, onTag, onInviteByEma
             <h2 className="text-lg font-semibold text-primary">Tag Friends</h2>
             <Button variant="ghost" icon={X} onClick={onClose} />
           </div>
-          {isBulk ? (
-            <Card variant="inset" padding="none" className="rounded-xl p-3">
-              <div className="font-medium text-brand">{bulkShows.length} shows selected</div>
-              <div className="text-xs text-secondary mt-1 max-h-20 overflow-y-auto space-y-0.5">
-                {bulkShows.map(s => (
-                  <div key={s.id}>{s.artist} &middot; {formatDate(s.date)} &middot; {s.venue}</div>
-                ))}
-              </div>
-            </Card>
-          ) : (
-            <Card variant="inset" padding="none" className="rounded-xl p-3">
-              <div className="font-medium text-brand">{show.artist}</div>
-              <div className="flex items-center gap-2 text-sm text-secondary mt-1">
-                <Calendar className="w-3.5 h-3.5" />
-                <span>{formatDate(show.date)}</span>
-                <span className="text-muted">&middot;</span>
-                <MapPin className="w-3.5 h-3.5" />
-                <span>{show.venue}</span>
-              </div>
-            </Card>
-          )}
+          <Card variant="inset" padding="none" className="rounded-xl p-3">
+            <div className="font-medium text-brand">{show.artist}</div>
+            <div className="flex items-center gap-2 text-sm text-secondary mt-1">
+              <Calendar className="w-3.5 h-3.5" />
+              <span>{formatDate(show.date)}</span>
+              <span className="text-muted">&middot;</span>
+              <MapPin className="w-3.5 h-3.5" />
+              <span>{show.venue}</span>
+            </div>
+          </Card>
         </div>
 
         {/* Body */}
@@ -198,7 +185,7 @@ function TagFriendsModal({ show, shows: bulkShows, friends, onTag, onInviteByEma
                 </div>
               ) : (
                 <div className="space-y-2">
-                  <p className="text-sm text-secondary mb-3">{isBulk ? `Select friends to tag in ${bulkShows.length} shows:` : 'Select friends who were at this show:'}</p>
+                  <p className="text-sm text-secondary mb-3">Select friends who were at this show:</p>
                   {filteredFriends.map(friend => (
                     <label
                       key={friend.friendUid}
@@ -244,10 +231,9 @@ function TagFriendsModal({ show, shows: bulkShows, friends, onTag, onInviteByEma
               disabled={sending}
               loading={sending}
             >
-              {sending ? 'Tagging...' : isBulk
-                ? `Tag ${selectedFriends.size} Friend${selectedFriends.size !== 1 ? 's' : ''} in ${bulkShows.length} Shows →`
-                : `Tag ${selectedFriends.size} Friend${selectedFriends.size !== 1 ? 's' : ''} at This Show →`
-              }
+              {sending
+                ? 'Tagging...'
+                : `Tag ${selectedFriends.size} Friend${selectedFriends.size !== 1 ? 's' : ''} at This Show →`}
             </Button>
           </div>
         )}

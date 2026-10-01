@@ -1,22 +1,19 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Calendar, Music, Users, Building2, Star, ChevronDown, MapPin, Heart, X, Trash2 } from 'lucide-react';
+import { Calendar, Music, Users, Building2, Star, ChevronDown, MapPin, Heart, Trash2 } from 'lucide-react';
 import DeleteShowModal from '@/components/shows/DeleteShowModal';
 import ShowDetailView from '@/components/shows/ShowDetailView';
 import ShowCard from '@/components/shows/ShowCard';
-import { formatDate, parseDate, artistColor, normalizeSongTitle } from '@/lib/utils';
+import { formatDate, parseDate, artistColor } from '@/lib/utils';
 import { Button, Card, Badge, Tabs, SectionHeader } from '@/components/ui';
 import SongStatsRow from '@/components/SongStatsRow';
 import PlaylistCreatorModal from '@/components/PlaylistCreatorModal';
 import { PLAYLIST_CREATION_ENABLED } from '@/lib/constants';
 
-function StatsView({ shows, songStats, artistStats, venueStats, topRatedShows, onRateSong, onRateShow, onCommentShow, onUpdateVenueRating, onDeleteShow, onAddSong, onReorderSetlist, onResyncSetlist, onDeleteSong, onRestoreSong, initialTab, onTagFriends, onRateVenue, onToggleFavoriteArtist, isArtistFavorite, fetchVenueRatings, normalizeVenueKey, computeVenueAggregate, friends, user }) {
+function StatsView({ shows, allShows = shows, songStats, artistStats, venueStats, topRatedShows, onRateSong, onRateShow, onCommentShow, onUpdateVenueRating, onDeleteShow, onAddSong, onReorderSetlist, onResyncSetlist, onDeleteSong, onRestoreSong, initialTab, onTagFriends, onRateVenue, onToggleFavoriteArtist, isArtistFavorite, fetchVenueRatings, normalizeVenueKey, computeVenueAggregate, friends, user }) {
   const [tab, setTab] = useState(initialTab || 'years');
   const [selectedYear, setSelectedYear] = useState(null);
-  const [filterArtist, setFilterArtist] = useState('');
-  const [filterVenue, setFilterVenue] = useState('');
-  const [filterYear, setFilterYear] = useState('');
   const [expandedVenue, setExpandedVenue] = useState(null);
   const [expandedYear, setExpandedYear] = useState(null);
   const [expandedShow, setExpandedShow] = useState(null);
@@ -51,17 +48,13 @@ function StatsView({ shows, songStats, artistStats, venueStats, topRatedShows, o
   // Keep selectedShow in sync with shows data
   useEffect(() => {
     if (selectedShow) {
-      const updatedShow = shows.find(s => s.id === selectedShow.id);
+      const updatedShow = allShows.find(s => s.id === selectedShow.id);
       if (updatedShow) {
         setSelectedShow(updatedShow);
       }
     }
-  }, [shows, selectedShow?.id]);
+  }, [allShows, selectedShow?.id]);
 
-  const uniqueArtists = useMemo(() =>
-    [...new Set(shows.map(s => s.artist))].sort(), [shows]);
-  const uniqueVenues = useMemo(() =>
-    [...new Set(shows.map(s => s.venue))].sort(), [shows]);
   const uniqueYears = useMemo(() => {
     const years = new Set();
     shows.forEach(s => {
@@ -121,51 +114,6 @@ function StatsView({ shows, songStats, artistStats, venueStats, topRatedShows, o
       .sort((a, b) => b.showCount - a.showCount);
   }, [shows, normalizeVenueKey]);
 
-  const hasFilters = filterArtist || filterVenue || filterYear;
-
-  const filteredSongStats = useMemo(() => {
-    if (!hasFilters) return songStats;
-    const songMap = {};
-    shows.forEach(show => {
-      if (filterArtist && show.artist !== filterArtist) return;
-      if (filterVenue && show.venue !== filterVenue) return;
-      if (filterYear) {
-        const d = parseDate(show.date);
-        if (d.getFullYear() !== Number(filterYear)) return;
-      }
-      show.setlist.forEach(song => {
-        const key = normalizeSongTitle(song.name) || song.name;
-        if (!songMap[key]) {
-          songMap[key] = { count: 0, ratings: [], shows: [], spellings: {} };
-        }
-        const entry = songMap[key];
-        entry.count++;
-        entry.spellings[song.name] = (entry.spellings[song.name] || 0) + 1;
-        if (song.rating) entry.ratings.push(song.rating);
-        entry.shows.push({
-          showId: show.id,
-          songId: song.id,
-          date: show.date,
-          artist: show.artist,
-          venue: show.venue,
-          city: show.city,
-          rating: song.rating,
-          comment: song.comment
-        });
-      });
-    });
-    return Object.values(songMap)
-      .map(data => ({
-        name: Object.entries(data.spellings).sort((a, b) => b[1] - a[1])[0][0],
-        count: data.count,
-        avgRating: data.ratings.length ?
-          (data.ratings.reduce((a, b) => a + b, 0) / data.ratings.length).toFixed(1) : null,
-        shows: data.shows
-      }))
-      .sort((a, b) => b.count - a.count);
-  }, [shows, songStats, filterArtist, filterVenue, filterYear, hasFilters]);
-
-  const selectClass = "px-3 py-2.5 bg-surface border border-subtle rounded-xl text-sm font-medium text-secondary focus:outline-none focus:ring-2 focus:ring-brand/50 cursor-pointer";
 
   // Render the same full-page ShowDetailView used on /shows, in place of the
   // stats tabs, so a show looks identical no matter where it was clicked.
@@ -189,7 +137,7 @@ function StatsView({ shows, songStats, artistStats, venueStats, topRatedShows, o
           onRestoreSong={onRestoreSong}
           toggleFavoriteArtist={onToggleFavoriteArtist}
           isArtistFavorite={isArtistFavorite}
-          allShows={shows}
+          allShows={allShows}
           user={user}
         />
         {playlistShow && (
@@ -221,38 +169,10 @@ function StatsView({ shows, songStats, artistStats, venueStats, topRatedShows, o
         <div>
           <SectionHeader title="Song Statistics" className="mb-4" />
 
-          <Card padding="sm" className="mb-4">
-            <div className="flex items-center gap-3 flex-wrap">
-              <span className="text-sm font-medium text-secondary">Filter:</span>
-              <select value={filterArtist} onChange={(e) => setFilterArtist(e.target.value)} className={selectClass}>
-                <option value="" className="bg-elevated">All Artists</option>
-                {uniqueArtists.map(a => <option key={a} value={a} className="bg-elevated">{a}</option>)}
-              </select>
-              <select value={filterVenue} onChange={(e) => setFilterVenue(e.target.value)} className={selectClass}>
-                <option value="" className="bg-elevated">All Venues</option>
-                {uniqueVenues.map(v => <option key={v} value={v} className="bg-elevated">{v}</option>)}
-              </select>
-              <select value={filterYear} onChange={(e) => setFilterYear(e.target.value)} className={selectClass}>
-                <option value="" className="bg-elevated">All Years</option>
-                {uniqueYears.map(y => <option key={y} value={y} className="bg-elevated">{y}</option>)}
-              </select>
-              {hasFilters && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  icon={X}
-                  onClick={() => { setFilterArtist(''); setFilterVenue(''); setFilterYear(''); }}
-                  className="text-danger hover:bg-danger/10"
-                >
-                  Clear filters
-                </Button>
-              )}
-            </div>
-          </Card>
 
-          {filteredSongStats.length === 0 ? (
+          {songStats.length === 0 ? (
             <p className="text-center text-muted py-8 font-medium">
-              {hasFilters ? 'No songs match the current filters' : 'No songs tracked yet'}
+              {allShows.length > shows.length ? 'No songs match the current filters' : 'No songs tracked yet'}
             </p>
           ) : (
             <Card variant="elevated" padding="none" className="shadow-xl overflow-hidden">
@@ -265,13 +185,13 @@ function StatsView({ shows, songStats, artistStats, venueStats, topRatedShows, o
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-subtle">
-                  {filteredSongStats.map((song, i) => (
+                  {songStats.map((song, i) => (
                     <SongStatsRow
                       key={song.name}
                       song={song}
                       index={i}
                       onRateSong={onRateSong}
-                      onViewShow={(showId) => setSelectedShow(shows.find(s => s.id === showId))}
+                      onViewShow={(showId) => setSelectedShow(allShows.find(s => s.id === showId))}
                     />
                   ))}
                 </tbody>

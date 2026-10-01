@@ -8,6 +8,8 @@ import { PageHeader, StatTile, SectionHeader, Tag, Card } from '@/components/ui'
 import YearHeatmap from '@/components/stats/YearHeatmap';
 import StatsSubNav from '@/components/stats/StatsSubNav';
 import { useStatsPeriod } from '@/lib/useStatsPeriod';
+import ShowFilters from '@/components/shows/ShowFilters';
+import useShowFilters from '@/hooks/useShowFilters';
 
 export default function StatsPage() {
   const {
@@ -16,12 +18,19 @@ export default function StatsPage() {
     updateShowRating, updateShowComment, updateShowData, deleteShow,
     addSongToShow, updateSetlistOrder, resyncSetlistFromSource,
     deleteSong, restoreSongToShow,
-    user, friends, guestMode, setTagFriendsShow, setVenueRatingShow, statsTab,
+    user, friends, guestMode, setTagFriendsShow, setVenueRatingShow, statsTab, availableYears,
     getVenueRatings, normalizeVenueKey, computeVenueAggregate,
     toggleFavoriteArtist, isArtistFavorite,
   } = useApp();
 
-  const { period, setPeriod, periodShows, periodLabels } = useStatsPeriod();
+  // Everything on this page — the breakdown tabs, the period tiles and the
+  // heatmap — is computed from the filtered set, so every number moves with
+  // the filter. Song counts are distinct shows (lib/songCounts.js).
+  const {
+    filters, setSearchTerm, setFilterYear, setFilterDate, clearFilters, filteredShows,
+  } = useShowFilters(shows);
+  const { period, setPeriod, periodShows, periodLabels } = useStatsPeriod(filteredShows);
+
 
   const monthlyCounts = useMemo(() => {
     const counts = Array(12).fill(0);
@@ -56,18 +65,35 @@ export default function StatsPage() {
         title="Your year, in shows."
         subtitle={periodShows.length > 0
           ? `${periodShows.length} shows. ${uniqueArtists} artists. ${uniqueVenues} venues. Let's look at the tape.`
-          : 'Add some shows to start seeing your stats'}
+          : shows.length > 0
+            ? 'No shows match these filters.'
+            : 'Add some shows to start seeing your stats'}
       />
 
       <StatsSubNav active="overview" />
 
+      {shows.length > 0 && (
+        <ShowFilters
+          panelId="stats-filter-panel"
+          searchTerm={filters.searchTerm}
+          filterYear={filters.filterYear}
+          filterDate={filters.filterDate}
+          onSearchChange={setSearchTerm}
+          onYearChange={setFilterYear}
+          onDateChange={setFilterDate}
+          onClear={clearFilters}
+          availableYears={availableYears}
+        />
+      )}
+
       <SectionHeader title="Detailed breakdown" className="mb-4" />
       <StatsView
-        shows={shows}
-        songStats={getSongStats()}
-        artistStats={getArtistStats()}
-        venueStats={getVenueStats()}
-        topRatedShows={getTopRatedShows()}
+        shows={filteredShows}
+        allShows={shows}
+        songStats={getSongStats(filteredShows)}
+        artistStats={getArtistStats(filteredShows)}
+        venueStats={getVenueStats(filteredShows)}
+        topRatedShows={getTopRatedShows(filteredShows)}
         onRateSong={updateSongRating}
         onRateShow={updateShowRating}
         onCommentShow={updateShowComment}

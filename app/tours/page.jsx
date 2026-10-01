@@ -9,7 +9,7 @@
 
 import { useMemo, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { Map, Heart, ArrowLeft, Star, ChevronRight, X, Plus } from 'lucide-react';
+import { Map, Heart, ArrowLeft, Star, ChevronRight, Plus } from 'lucide-react';
 import Link from 'next/link';
 import { useApp } from '@/context/AppContext';
 import { useTourIndex } from '@/hooks/useRunIndex';
@@ -17,9 +17,11 @@ import useFavoriteTours from '@/hooks/useFavoriteTours';
 import TourDetailView from '@/components/runs/TourDetailView';
 import TourFavoriteButton from '@/components/runs/TourFavoriteButton';
 import TourBrowseModal from '@/components/tours/TourBrowseModal';
-import { Button, PageHeader, EmptyState, Card, SearchField } from '@/components/ui';
+import { Button, PageHeader, EmptyState, Card } from '@/components/ui';
+import ShowFilters from '@/components/shows/ShowFilters';
+import useShowFilters from '@/hooks/useShowFilters';
 import { formatDate } from '@/lib/utils';
-import { tourHref } from '@/lib/runIndex';
+import { tourHref, buildTourIndex } from '@/lib/runIndex';
 
 // Sorts a tour list. "stops" (most stops you caught first) is the default —
 // the Tours page is about which tours you followed hardest, so the tour you
@@ -34,19 +36,16 @@ const SORTS = {
   },
 };
 
-function ToursLandingView({ tours, favorites }) {
+// `tours` is built from the shows that pass the shared show filter
+// (components/shows/ShowFilters.jsx), so a filter narrows both which tours
+// appear and the stops counted on each. `hasAnyTours` says whether the user
+// has tours at all, so a filter that matches nothing shows "no match"
+// rather than the first-run empty state.
+function ToursLandingView({ tours, hasAnyTours, favorites, showFilters, availableYears }) {
   const [browseOpen, setBrowseOpen] = useState(false);
-  const [search, setSearch] = useState('');
-  const [filterYear, setFilterYear] = useState('');
   const [filterArtist, setFilterArtist] = useState('');
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [sortBy, setSortBy] = useState('stops');
-
-  const availableYears = useMemo(() => {
-    const set = new Set();
-    tours.forEach(t => (t.years || []).forEach(y => set.add(y)));
-    return Array.from(set).sort().reverse();
-  }, [tours]);
 
   const availableArtists = useMemo(
     () => Array.from(new Set(tours.map(t => t.artistName).filter(Boolean))).sort((a, b) => a.localeCompare(b)),
@@ -54,19 +53,16 @@ function ToursLandingView({ tours, favorites }) {
   );
 
   const visible = useMemo(() => {
-    const q = search.trim().toLowerCase();
     return tours
       .filter(t => !favoritesOnly || favorites.isFavorite(t.key))
-      .filter(t => !filterYear || (t.years || []).includes(filterYear))
       .filter(t => !filterArtist || t.artistName === filterArtist)
-      .filter(t => !q || t.tourName.toLowerCase().includes(q) || t.artistName.toLowerCase().includes(q))
       .sort(SORTS[sortBy].compare);
-  }, [tours, search, filterYear, filterArtist, favoritesOnly, sortBy, favorites]);
+  }, [tours, filterArtist, favoritesOnly, sortBy, favorites]);
 
-  const filtersActive = !!(search || filterYear || filterArtist || favoritesOnly);
+  const { filters, setSearchTerm, setFilterYear, setFilterDate } = showFilters;
+  const tourExtrasActive = [filterArtist, favoritesOnly].filter(Boolean).length;
   const clearFilters = () => {
-    setSearch('');
-    setFilterYear('');
+    showFilters.clearFilters();
     setFilterArtist('');
     setFavoritesOnly(false);
   };
@@ -81,7 +77,7 @@ function ToursLandingView({ tours, favorites }) {
         }
       />
 
-      {tours.length === 0 ? (
+      {!hasAnyTours ? (
         <EmptyState
           icon={Map}
           tone="brand"
@@ -91,69 +87,50 @@ function ToursLandingView({ tours, favorites }) {
         />
       ) : (
         <>
-          {/* Search, filter & sort — same Card + inline controls convention
-              as the Shows page's filter bar. */}
-          <Card padding="sm" className="mb-6 shadow-theme-sm">
-            <div className="flex gap-3 flex-wrap items-center">
-              <SearchField
-                value={search}
-                onChange={setSearch}
-                placeholder="Filter by tour or artist..."
-                className="flex-1 min-w-[200px]"
-              />
-
-              {availableYears.length > 1 && (
-                <select
-                  value={filterYear}
-                  onChange={(e) => setFilterYear(e.target.value)}
-                  aria-label="Filter tours by year"
-                  className="px-3 py-2.5 bg-surface border border-subtle rounded-xl text-sm font-medium text-secondary focus:outline-none focus:ring-2 focus:ring-brand/50 cursor-pointer"
-                >
-                  <option value="">All Years</option>
-                  {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
-                </select>
-              )}
-
-              {availableArtists.length > 1 && (
-                <select
-                  value={filterArtist}
-                  onChange={(e) => setFilterArtist(e.target.value)}
-                  aria-label="Filter tours by artist"
-                  className="px-3 py-2.5 bg-surface border border-subtle rounded-xl text-sm font-medium text-secondary focus:outline-none focus:ring-2 focus:ring-brand/50 cursor-pointer max-w-[200px]"
-                >
-                  <option value="">All Artists</option>
-                  {availableArtists.map(a => <option key={a} value={a}>{a}</option>)}
-                </select>
-              )}
-
-              <Button
-                size="sm"
-                variant="ghost"
-                icon={Star}
-                onClick={() => setFavoritesOnly(v => !v)}
-                aria-pressed={favoritesOnly}
-                className={favoritesOnly
-                  ? 'bg-amber/15 text-amber border border-amber/40'
-                  : 'text-secondary border border-subtle'}
-              >
-                Favorites
-              </Button>
-
-              {filtersActive && (
+          {/* The shared show filter (same as My Shows), with the
+              tour-only Artist and Favorites controls on its row and Sort
+              below it. */}
+          <ShowFilters
+            panelId="tours-filter-panel"
+            searchTerm={filters.searchTerm}
+            filterYear={filters.filterYear}
+            filterDate={filters.filterDate}
+            onSearchChange={setSearchTerm}
+            onYearChange={setFilterYear}
+            onDateChange={setFilterDate}
+            onClear={clearFilters}
+            availableYears={availableYears}
+            extraActiveCount={tourExtrasActive}
+            actions={
+              <>
+                {availableArtists.length > 1 && (
+                  <select
+                    value={filterArtist}
+                    onChange={(e) => setFilterArtist(e.target.value)}
+                    aria-label="Filter tours by artist"
+                    className="px-3 py-2.5 bg-surface border border-subtle rounded-xl text-sm font-medium text-secondary focus:outline-none focus:ring-2 focus:ring-brand/50 cursor-pointer max-w-[200px]"
+                  >
+                    <option value="">All Artists</option>
+                    {availableArtists.map(a => <option key={a} value={a}>{a}</option>)}
+                  </select>
+                )}
                 <Button
-                  variant="ghost"
                   size="sm"
-                  icon={X}
-                  onClick={clearFilters}
-                  className="text-danger hover:bg-danger/10"
+                  variant="ghost"
+                  icon={Star}
+                  onClick={() => setFavoritesOnly(v => !v)}
+                  aria-pressed={favoritesOnly}
+                  className={favoritesOnly
+                    ? 'bg-amber/15 text-amber border border-amber/40'
+                    : 'text-secondary border border-subtle'}
                 >
-                  Clear
+                  Favorites
                 </Button>
-              )}
-            </div>
-
+              </>
+            }
+          >
             {tours.length > 1 && (
-              <div className="flex items-center gap-2 mt-3 pt-3 border-t border-subtle flex-wrap">
+              <>
                 <span className="text-sm font-medium text-secondary">Sort:</span>
                 {Object.entries(SORTS).map(([key, { label }]) => (
                   <Button
@@ -168,9 +145,9 @@ function ToursLandingView({ tours, favorites }) {
                     {label}
                   </Button>
                 ))}
-              </div>
+              </>
             )}
-          </Card>
+          </ShowFilters>
 
           {visible.length === 0 ? (
             <EmptyState
@@ -232,13 +209,20 @@ function ToursLandingView({ tours, favorites }) {
 export default function TourPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user, guestMode, openAuthModal } = useApp();
+  const { user, guestMode, openAuthModal, shows, availableYears } = useApp();
   const tourIndex = useTourIndex();
   const favorites = useFavoriteTours();
+  const showFilters = useShowFilters(shows);
 
   const tourKey = searchParams.get('tour') || '';
   const tour = useMemo(() => tourIndex[tourKey] || null, [tourIndex, tourKey]);
   const allTours = useMemo(() => Object.values(tourIndex), [tourIndex]);
+  // The landing list is rebuilt from the filtered shows; a tour's own page
+  // (above) always uses the full index.
+  const filteredTours = useMemo(
+    () => Object.values(buildTourIndex(showFilters.filteredShows)),
+    [showFilters.filteredShows]
+  );
 
   if (guestMode || !user) {
     return (
@@ -270,5 +254,13 @@ export default function TourPage() {
     return <TourDetailView tour={tour} favorites={favorites} />;
   }
 
-  return <ToursLandingView tours={allTours} favorites={favorites} />;
+  return (
+    <ToursLandingView
+      tours={filteredTours}
+      hasAnyTours={allTours.length > 0}
+      favorites={favorites}
+      showFilters={showFilters}
+      availableYears={availableYears}
+    />
+  );
 }

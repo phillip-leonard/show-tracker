@@ -13,7 +13,6 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import Link from 'next/link';
 import { Activity, PlusCircle, Star, Users, MessageSquare, Camera } from 'lucide-react';
 import { Card, EmptyState, Spinner, Tabs, Avatar } from '@/components/ui';
 import { useApp } from '@/context/AppContext';
@@ -21,6 +20,7 @@ import { subscribeFriendActivity } from '@/lib/activityFeed';
 import { timeAgo } from '@/lib/utils';
 import { withoutBlocked } from '@/lib/moderation';
 import UserLink from '@/components/moderation/UserLink';
+import { publicShowUrl, externalLinkClick } from '@/lib/publicProfile';
 
 const FILTERS = [
   { id: 'all', label: 'All' },
@@ -35,9 +35,11 @@ const MEDIA_NOUN = { photo: 'a photo', video: 'a video', poster: 'a poster', set
 function ActivityRow({ item }) {
   // Only linkable when the actor's public profile was on at the time this
   // was logged — there's no route for viewing another user's private show
-  // (see lib/activityFeed.js's `handle` field for why).
-  const showHref = item.handle ? `/u/${item.handle}/shows/${item.showId}` : null;
-  const RowTag = showHref ? Link : 'div';
+  // (see lib/activityFeed.js's `handle` field for why). Absolute, and opened
+  // in the system browser on iOS: the public page is served by a Netlify
+  // function, not by the app (lib/publicProfile.js).
+  const showHref = item.handle && item.showId ? publicShowUrl(item.handle, item.showId) : null;
+  const RowTag = showHref ? 'a' : 'div';
 
   const Icon = {
     rated_show: Star,
@@ -49,7 +51,12 @@ function ActivityRow({ item }) {
 
   return (
     <RowTag
-      {...(showHref ? { href: showHref, target: '_blank', rel: 'noopener noreferrer' } : {})}
+      {...(showHref ? {
+        href: showHref,
+        target: '_blank',
+        rel: 'noopener noreferrer',
+        onClick: (e) => externalLinkClick(e, showHref),
+      } : {})}
       className="flex items-start gap-3 px-4 py-3.5 hover:bg-hover transition-colors border-b border-subtle last:border-0"
     >
       <Avatar name={item.userName} size="md" />

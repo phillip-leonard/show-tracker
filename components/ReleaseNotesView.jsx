@@ -13,6 +13,20 @@ const STREAMING_MENTION = /spotify|apple\s*music/i;
 function ReleaseNotesView() {
   const releases = [
     {
+      version: '5.41.0',
+      date: 'October 1, 2026',
+      title: 'One Filter Everywhere',
+      changes: [
+        'The search, year and date filter from My Shows is now on Stats, Tours and Festivals too. On Stats, every number, chart and top-songs list follows the filter',
+        'A song played twice in one show (a sandwich or a reprise) now counts as one show seen everywhere song counts appear. Both performances still show in the setlist',
+        'Fixed: the archive.org link on a show could search the wrong date format and come up empty. It now always uses the show\u2019s date as YYYY-MM-DD',
+        'Fixed: links to public profiles and shows in your Activity feed now open in the iPhone app, and Profile has Open and Copy link buttons for your own public page',
+        'The password reset screen no longer says whether an address has an account',
+        'The "Select shows" button is gone from My Shows. You can still tag friends at each show from the show itself',
+        'The MySetlists logo at the top of the app is a little bigger',
+      ]
+    },
+    {
       version: '5.40.0',
       date: 'September 27, 2026',
       title: 'A Roomier My Shows On Your Phone',

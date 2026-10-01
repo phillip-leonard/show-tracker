@@ -32,8 +32,12 @@ export default function ForgotPasswordForm({ onBackToLogin }) {
           <Mail className="w-8 h-8 text-brand" />
         </div>
         <h2 className="text-2xl font-bold text-primary mb-2">Check Your Email</h2>
+        {/* Worded the same whether or not the address has an account —
+            this screen must never confirm who is registered. The project
+            has Firebase email-enumeration protection on, so the request
+            succeeds either way and the copy has to match. */}
         <p className="text-secondary mb-6">
-          We've sent a password reset link to <span className="text-primary">{email}</span>
+          If an account exists for <span className="text-primary">{email}</span>, we&apos;ve sent it a link to reset your password. It can take a few minutes to arrive, so check your spam folder too.
         </p>
         <button
           onClick={onBackToLogin}
@@ -89,11 +93,13 @@ export default function ForgotPasswordForm({ onBackToLogin }) {
   );
 }
 
+// No message for auth/user-not-found: with email-enumeration protection on,
+// Firebase doesn't return it, and saying so would reveal who has an account.
 function getErrorMessage(code) {
   const messages = {
-    'auth/invalid-email': 'Invalid email address',
-    'auth/user-not-found': 'No account found with this email',
+    'auth/invalid-email': 'That doesn\'t look like a valid email address.',
     'auth/too-many-requests': 'Too many attempts. Please try again later.',
+    'auth/network-request-failed': 'Couldn\'t reach the server. Check your connection and try again.',
   };
   return messages[code] || 'Failed to send reset email. Please try again.';
 }

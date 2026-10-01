@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { Play } from 'lucide-react';
 import Pick from './brand/Pick';
+import { BRAND_LOCKUP } from './brand/Wordmark';
 import { Button, Card, Badge } from './ui';
 import { PLAYLIST_CREATION_ENABLED } from '@/lib/constants';
 import { isNativePlatform } from '@/lib/native-auth';
@@ -25,8 +26,8 @@ export default function LandingPage({ onSignUp, onSignIn, onGuest, communityStat
       <nav className="lp-nav">
         <div className="lp-nav-inner">
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <Pick width={28} height={32} />
-            <div style={{ fontSize: 20, fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--lp-text-primary)' }}>
+            <Pick size={BRAND_LOCKUP.landingNav.pick} />
+            <div style={{ fontSize: BRAND_LOCKUP.landingNav.wordmark, fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--lp-text-primary)' }}>
               <span style={{ fontWeight: 300, color: 'var(--lp-text-muted)' }}>my</span>
               <span style={{ color: 'var(--lp-amber)' }}>setlists</span>
             </div>
@@ -162,7 +163,7 @@ export default function LandingPage({ onSignUp, onSignIn, onGuest, communityStat
       <section className="lp-features">
         <div className="lp-section-head">
           <div className="lp-section-kicker">Features</div>
-          <h2>Built for the kind of fan who remembers the opener.</h2>
+          <h2>Built for the fan who calls the opener.</h2>
           <p>Not just a list. A searchable, sortable, sharable record of every live moment — with the setlists, venues, tour stops, and memories that make each show its own.</p>
         </div>
         <div className="lp-feature-grid">
@@ -173,12 +174,7 @@ export default function LandingPage({ onSignUp, onSignIn, onGuest, communityStat
               </svg>
             </div>
             <h3>Auto-import your shows</h3>
-            <p>
-              {PLAYLIST_CREATION_ENABLED
-                ? 'Scan a ticket, paste a setlist.fm link, or connect Spotify.'
-                : 'Scan a ticket or paste a setlist.fm link.'}
-              {' '}We pull dates, venues, openers, and the full setlist so you don&apos;t type a thing.
-            </p>
+            <p>Scan a ticket, upload a photo of past ticket purchases, or search for a show</p>
           </Card>
           <Card padding="none" interactive className="lp-feature lp-amber">
             <div className="lp-feature-icon">
@@ -364,7 +360,7 @@ export default function LandingPage({ onSignUp, onSignIn, onGuest, communityStat
             </div>
             <div className="lp-step-num">Step 01</div>
             <h3>Import anything</h3>
-            <p>Setlist.fm link, ticket scan, or manual entry. Most shows auto-fill in under a second.</p>
+            <p>Scan a ticket, upload a photo of past ticket purchases, or search for a show</p>
           </Card>
           <Card padding="none" className="lp-step">
             <div className="lp-step-visual">
@@ -423,13 +419,6 @@ export default function LandingPage({ onSignUp, onSignIn, onGuest, communityStat
               <span><span className="lp-fmy">my</span><span className="lp-fset">setlists</span></span>
             </div>
             <p>Your show history, beautifully kept. Track the live music moments that make up a life.</p>
-          </div>
-          <div className="lp-footer-col">
-            <h4>Product</h4>
-            <Link href="/shows">Browse shows</Link>
-            <Link href="/stats/top-artists">Artists</Link>
-            <Link href="/stats/top-venues">Venues</Link>
-            <Link href="/stats">Stats</Link>
           </div>
           <div className="lp-footer-col">
             <h4>Resources</h4>

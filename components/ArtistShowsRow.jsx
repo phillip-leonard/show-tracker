@@ -1,12 +1,12 @@
 'use client';
 
 import React from 'react';
-import { ChevronDown, Calendar, MapPin, Music, MessageSquare, X, Check } from 'lucide-react';
+import { ChevronDown, Calendar, MapPin, Music, MessageSquare, X } from 'lucide-react';
 import { formatDate, artistColor, avgSongRating } from '@/lib/utils';
 import RatingSelect from '@/components/ui/RatingSelect';
 import UpcomingShows from '@/components/UpcomingShows';
 
-function ArtistShowsRow({ artist, shows, expanded, onToggle, onSelectShow, onDeleteShow, onRateShow, selectionMode, selectedShowIds, onToggleSelect }) {
+function ArtistShowsRow({ artist, shows, expanded, onToggle, onSelectShow, onDeleteShow, onRateShow }) {
   const avgRating = (() => {
     const rated = shows.filter(s => s.rating);
     if (rated.length === 0) return null;
@@ -47,22 +47,12 @@ function ArtistShowsRow({ artist, shows, expanded, onToggle, onSelectShow, onDel
               <div className="space-y-3">
                 {shows.map(show => {
                   const songAvg = avgSongRating(show.setlist);
-                  const isBulkSelected = selectionMode && selectedShowIds?.has(show.id);
                   return (
                     <div
                       key={show.id}
-                      className={`group flex items-start justify-between bg-hover rounded-2xl p-4 border cursor-pointer transition-all ${
-                        isBulkSelected ? 'border-brand ring-2 ring-brand/30 bg-brand-subtle' : 'border-subtle hover:bg-hover hover:border-active'
-                      }`}
-                      onClick={() => selectionMode ? onToggleSelect?.(show.id) : onSelectShow(show)}
+                      className="group flex items-start justify-between bg-hover rounded-2xl p-4 border cursor-pointer transition-all border-subtle hover:bg-hover hover:border-active"
+                      onClick={() => onSelectShow(show)}
                     >
-                      {selectionMode && (
-                        <div className={`w-5 h-5 rounded-md border flex items-center justify-center flex-shrink-0 mr-3 mt-0.5 ${
-                          isBulkSelected ? 'bg-brand border-brand' : 'border-active'
-                        }`}>
-                          {isBulkSelected && <Check className="w-3.5 h-3.5 text-primary" />}
-                        </div>
-                      )}
                       <div className="flex-1">
                         <div className="flex items-center gap-2 text-sm flex-wrap">
                           <Calendar className="w-3.5 h-3.5 text-muted" />

@@ -30,7 +30,7 @@ import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { ChevronLeft, Menu } from 'lucide-react';
 import Pick from '../brand/Pick';
-import Wordmark from '../brand/Wordmark';
+import Wordmark, { BRAND_LOCKUP } from '../brand/Wordmark';
 import { resolveRoute } from '@/lib/navRoutes';
 import { useDismissStack } from '@/context/DismissStackContext';
 
@@ -145,8 +145,8 @@ export default function MobileHeader({ onMenuClick, actions = null }) {
         <div className="flex-1 min-w-0 flex items-center justify-center px-1">
           {isRoot ? (
             <Link href="/" className="flex items-center gap-1.5" aria-label="MySetlists home">
-              <Pick size={24} />
-              <Wordmark size={13} />
+              <Pick size={BRAND_LOCKUP.mobileHeader.pick} />
+              <Wordmark size={BRAND_LOCKUP.mobileHeader.wordmark} />
             </Link>
           ) : (
             <h1

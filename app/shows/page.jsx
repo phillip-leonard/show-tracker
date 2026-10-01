@@ -11,8 +11,9 @@ import PlaylistCreatorModal from '@/components/PlaylistCreatorModal';
 import { PLAYLIST_CREATION_ENABLED } from '@/lib/constants';
 import ArtistShowsRow from '@/components/ArtistShowsRow';
 import ShowsListSkeleton from '@/components/ui/ShowsListSkeleton';
-import { Button, Card, SearchField, PageHeader, StatFigure } from '@/components/ui';
+import { Button, Card, PageHeader, StatFigure } from '@/components/ui';
 import ShowCard from '@/components/shows/ShowCard';
+import ShowFilters from '@/components/shows/ShowFilters';
 import useRunIndex, { useTourIndex } from '@/hooks/useRunIndex';
 import { tourKeyFor, tourHref } from '@/lib/runIndex';
 import DeleteShowModal from '@/components/shows/DeleteShowModal';
@@ -24,9 +25,9 @@ import { showHref } from '@/lib/showRouting';
 import { getSavedSearches } from '@/lib/savedSearches';
 import { filterShows } from '@/lib/advancedSearch';
 import {
-  Search, Camera, X, Upload,
-  Bell, ChevronRight, ChevronLeft, ChevronDown, Crown, Calendar, MapPin, Check, Tag, Sparkles, CheckSquare, Square, ArrowLeft,
-  Bookmark, SlidersHorizontal,
+  Search, Camera, Upload,
+  Bell, ChevronRight, ChevronLeft, Calendar, MapPin, Check, Tag, Sparkles, ArrowLeft,
+  Bookmark,
 } from 'lucide-react';
 
 export default function ShowsPage() {
@@ -47,7 +48,7 @@ export default function ShowsPage() {
     addShow, updateShowRating, updateShowComment, deleteShow, updateShowData, backfillArtistImages,
     addSongToShow, updateSetlistOrder, resyncSetlistFromSource,
     deleteSong, restoreSongToShow,
-    tagFriendsAtShow, bulkTagFriendsAtShows, tagFriendByEmail,
+    tagFriendsAtShow, tagFriendByEmail,
     tagFriendsShow, setTagFriendsShow,
     friends, festivals,
     pendingNotificationCount, pendingFriendRequests, pendingShowTags,
@@ -60,15 +61,7 @@ export default function ShowsPage() {
 
   const [playlistShow, setPlaylistShow] = useState(null);
   const [showToDelete, setShowToDelete] = useState(null);
-  const [selectionMode, setSelectionMode] = useState(false);
-  const [selectedShowIds, setSelectedShowIds] = useState(new Set());
   const [showsTab, setShowsTab] = useState('timeline'); // 'timeline' | 'artist'
-  const [bulkTagShows, setBulkTagShows] = useState(null); // array of shows for bulk tag modal
-  // Phones only: the Search/Filter/Sort card starts collapsed behind a
-  // "Filters" toggle so the first show is above the fold. From md: up the
-  // panel is always shown by CSS and the toggle is hidden, so this state
-  // never affects desktop. Deliberately not persisted.
-  const [filtersOpen, setFiltersOpen] = useState(false);
 
   // Saved searches from Advanced Search (lib/savedSearches.js), surfaced
   // here as quick-filter toggles next to Sort — see toggleSavedSearch below.
@@ -153,10 +146,6 @@ export default function ShowsPage() {
   // one is active, otherwise the simple searchTerm/year/date filter from
   // context. Kept as one name so the render below never has to choose.
   const displayedShows = activeSavedSearch ? (savedSearchShows || []) : sortedFilteredShows;
-  // How many filters are narrowing the list — shown as a badge on the
-  // collapsed mobile Filters toggle so an applied filter is never invisible.
-  // Sort order isn't a filter, so it doesn't count.
-  const activeFilterCount = [searchTerm, filterYear, filterDate, activeSavedSearch].filter(Boolean).length;
 
   // Arriving from a Top Artists / Top Venues row: seed the filter from the
   // URL once, then drop it from the URL so refreshing doesn't re-trigger it.
@@ -223,29 +212,6 @@ export default function ShowsPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  const toggleSelectShow = (showId) => {
-    setSelectedShowIds(prev => {
-      const next = new Set(prev);
-      if (next.has(showId)) next.delete(showId);
-      else next.add(showId);
-      return next;
-    });
-  };
-
-  const exitSelectionMode = () => {
-    setSelectionMode(false);
-    setSelectedShowIds(new Set());
-  };
-
-  const selectAllShows = () => {
-    setSelectedShowIds(new Set(displayedShows.map(s => s.id)));
-  };
-
-  const openBulkTagModal = () => {
-    const selected = shows.filter(s => selectedShowIds.has(s.id));
-    if (selected.length > 0) setBulkTagShows(selected);
-  };
 
   // Backfill artist images for existing shows — runs once after shows load, non-blocking
   useEffect(() => {
@@ -498,148 +464,75 @@ export default function ShowsPage() {
             </div>
           )}
 
-          {shows.length > 0 && !guestMode && friends.length > 0 && (
-            <div className="flex justify-end mb-3 md:mb-4">
-              <Button
-                size="sm"
-                variant={selectionMode ? 'secondary' : 'ghost'}
-                icon={selectionMode ? CheckSquare : Square}
-                onClick={() => selectionMode ? exitSelectionMode() : setSelectionMode(true)}
-              >
-                {selectionMode ? 'Done selecting' : 'Select shows'}
-              </Button>
-            </div>
-          )}
-
-          {/* Search, Filter & Sort. On phones it collapses behind the
-              Filters toggle (see filtersOpen); from md: up the toggle is
-              hidden and the panel always shows, exactly as before. Filters
-              keep applying while collapsed — only the controls are hidden. */}
-          <Card padding="none" className="mb-4 md:mb-6 shadow-theme-sm">
-            <button
-              type="button"
-              onClick={() => setFiltersOpen(o => !o)}
-              aria-expanded={filtersOpen}
-              aria-controls="shows-filter-panel"
-              className="md:hidden w-full flex items-center gap-2 px-4 py-2.5 min-h-touch text-left text-sm font-semibold text-secondary rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-brand/40"
-            >
-              <SlidersHorizontal className="w-4 h-4" aria-hidden="true" />
-              <span className="text-primary">Filters</span>
-              {activeFilterCount > 0 && (
-                <span className="bg-brand-subtle text-brand border border-brand/30 text-[11px] font-bold px-1.5 py-0.5 rounded-full min-w-[20px] text-center">
-                  {activeFilterCount}
-                  <span className="sr-only"> active</span>
-                </span>
-              )}
-              <ChevronDown
-                className={`w-4 h-4 ml-auto text-muted transition-transform ${filtersOpen ? 'rotate-180' : ''}`}
-                aria-hidden="true"
-              />
-            </button>
-            <div
-              id="shows-filter-panel"
-              className={`${filtersOpen ? 'block border-t border-subtle' : 'hidden'} md:block md:border-t-0 p-4`}
-            >
-              <div className="flex gap-3 flex-wrap items-center">
-                {/* Text search */}
-                <SearchField
-                  value={searchTerm}
-                  onChange={setSearchTerm}
-                  placeholder="Filter by artist or venue..."
-                  className="flex-1 min-w-[200px]"
-                />
-
-                {/* Year dropdown */}
-                {availableYears.length > 1 && (
-                  <select
-                    value={filterYear}
-                    onChange={(e) => { setFilterYear(e.target.value); setFilterDate(''); }}
-                    className="px-3 py-2.5 bg-surface border border-subtle rounded-xl text-sm font-medium text-secondary focus:outline-none focus:ring-2 focus:ring-brand/50 cursor-pointer"
-                  >
-                    <option value="">All Years</option>
-                    {availableYears.map(y => (
-                      <option key={y} value={y}>{y}</option>
+          {/* Search, Filter & Sort — the shared filter card (also on Stats,
+              Tours and Festivals), with My Shows' own extras in its slots:
+              Advanced search on the filter row, Sort and saved searches
+              below it. */}
+          <ShowFilters
+            panelId="shows-filter-panel"
+            searchTerm={searchTerm}
+            filterYear={filterYear}
+            filterDate={filterDate}
+            onSearchChange={setSearchTerm}
+            onYearChange={(y) => { setFilterYear(y); setFilterDate(''); }}
+            onDateChange={(d) => { setFilterDate(d); setFilterYear(''); }}
+            onClear={() => { setFilterYear(''); setFilterDate(''); setSearchTerm(''); setFilterLabel(null); setActiveSavedSearch(null); }}
+            availableYears={availableYears}
+            extraActiveCount={activeSavedSearch ? 1 : 0}
+            actions={
+              <Link href="/advanced-search/">
+                <Button variant="ghost" size="sm" icon={Search}>Advanced search</Button>
+              </Link>
+            }
+          >
+            {/* Sort buttons, plus any saved searches from Advanced Search as
+                quick-filter toggles — a saved search replaces sortBy's
+                artist/rating ordering with its own filtered, date-sorted
+                list (see displayedShows above), so the two button groups
+                are visually separated rather than implying they combine. */}
+            {(shows.length > 1 || savedSearches.length > 0) && (
+              <>
+                {shows.length > 1 && (
+                  <>
+                    <span className="text-sm font-medium text-secondary">Sort:</span>
+                    {['artist', 'rating'].map(opt => (
+                      <Button
+                        key={opt}
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setSortBy(opt)}
+                        className={sortBy === opt
+                          ? 'bg-brand-subtle text-brand border border-brand/30'
+                          : 'text-secondary border border-subtle'}
+                      >
+                        {opt.charAt(0).toUpperCase() + opt.slice(1)}
+                      </Button>
                     ))}
-                  </select>
+                  </>
                 )}
-
-                {/* Date picker */}
-                <div className="relative">
-                  <input
-                    type="date"
-                    value={filterDate}
-                    onChange={(e) => { setFilterDate(e.target.value); setFilterYear(''); }}
-                    className="px-3 py-2.5 bg-surface border border-subtle rounded-xl text-sm font-medium text-secondary focus:outline-none focus:ring-2 focus:ring-brand/50"
-                  />
-                </div>
-
-                {/* Clear filters */}
-                {(filterYear || filterDate || searchTerm || activeSavedSearch) && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    icon={X}
-                    onClick={() => { setFilterYear(''); setFilterDate(''); setSearchTerm(''); setFilterLabel(null); setActiveSavedSearch(null); }}
-                    className="text-danger hover:bg-danger/10"
-                  >
-                    Clear
-                  </Button>
+                {savedSearches.length > 0 && (
+                  <>
+                    {shows.length > 1 && <span className="w-px h-4 bg-subtle mx-1" aria-hidden="true" />}
+                    <span className="text-sm font-medium text-secondary">Saved:</span>
+                    {savedSearches.map(s => (
+                      <Button
+                        key={s.name}
+                        size="sm"
+                        variant="ghost"
+                        icon={Bookmark}
+                        onClick={() => toggleSavedSearch(s)}
+                        className={activeSavedSearch?.name === s.name
+                          ? 'bg-brand-subtle text-brand border border-brand/30'
+                          : 'text-secondary border border-subtle'}
+                      >
+                        {s.name}
+                      </Button>
+                    ))}
+                  </>
                 )}
-
-                <Link href="/advanced-search/">
-                  <Button variant="ghost" size="sm" icon={Search}>Advanced search</Button>
-                </Link>
-              </div>
-
-              {/* Sort buttons, plus any saved searches from Advanced Search as
-                  quick-filter toggles — a saved search replaces sortBy's
-                  artist/rating ordering with its own filtered, date-sorted
-                  list (see displayedShows above), so the two button groups
-                  are visually separated rather than implying they combine. */}
-              {(shows.length > 1 || savedSearches.length > 0) && (
-                <div className="flex items-center gap-2 mt-3 pt-3 border-t border-subtle flex-wrap">
-                  {shows.length > 1 && (
-                    <>
-                      <span className="text-sm font-medium text-secondary">Sort:</span>
-                      {['artist', 'rating'].map(opt => (
-                        <Button
-                          key={opt}
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => setSortBy(opt)}
-                          className={sortBy === opt
-                            ? 'bg-brand-subtle text-brand border border-brand/30'
-                            : 'text-secondary border border-subtle'}
-                        >
-                          {opt.charAt(0).toUpperCase() + opt.slice(1)}
-                        </Button>
-                      ))}
-                    </>
-                  )}
-                  {savedSearches.length > 0 && (
-                    <>
-                      {shows.length > 1 && <span className="w-px h-4 bg-subtle mx-1" aria-hidden="true" />}
-                      <span className="text-sm font-medium text-secondary">Saved:</span>
-                      {savedSearches.map(s => (
-                        <Button
-                          key={s.name}
-                          size="sm"
-                          variant="ghost"
-                          icon={Bookmark}
-                          onClick={() => toggleSavedSearch(s)}
-                          className={activeSavedSearch?.name === s.name
-                            ? 'bg-brand-subtle text-brand border border-brand/30'
-                            : 'text-secondary border border-subtle'}
-                        >
-                          {s.name}
-                        </Button>
-                      ))}
-                    </>
-                  )}
-                </div>
-              )}
-            </div>
-          </Card>
+              </>
+            )}
+          </ShowFilters>
 
           {/* Empty state */}
           {displayedShows.length === 0 && !showForm && (
@@ -766,9 +659,6 @@ export default function ShowsPage() {
                       onSelectShow={(show) => router.push(showHref(show.id))}
                       onDeleteShow={(show) => setShowToDelete(show)}
                       onRateShow={updateShowRating}
-                      selectionMode={selectionMode}
-                      selectedShowIds={selectedShowIds}
-                      onToggleSelect={toggleSelectShow}
                     />
                   ))}
                 </tbody>
@@ -793,42 +683,6 @@ export default function ShowsPage() {
               show={playlistShow}
               onClose={() => setPlaylistShow(null)}
             />
-          )}
-
-          {/* Bulk tag friends modal */}
-          {bulkTagShows && (
-            <TagFriendsModal
-              shows={bulkTagShows}
-              friends={friends}
-              onTag={async (selectedFriendUids) => {
-                await bulkTagFriendsAtShows(bulkTagShows, selectedFriendUids);
-                setBulkTagShows(null);
-                exitSelectionMode();
-              }}
-              onInviteByEmail={(params) => tagFriendByEmail({ ...params, show: bulkTagShows[0] })}
-              onClose={() => setBulkTagShows(null)}
-            />
-          )}
-
-          {/* Bulk action bar */}
-          {selectionMode && selectedShowIds.size > 0 && (
-            <div
-              // Clears the home indicator, and rides above the keyboard —
-              // bottom-keyboard resolves to --keyboard-height, which
-              // lib/keyboardInset.js keeps current on both platforms.
-              className="fixed bottom-keyboard left-0 md:left-64 right-0 bg-surface border-t border-subtle p-4 pb-[calc(1rem+var(--safe-bottom))] z-50 shadow-xl"
-            >
-              <div className="max-w-2xl mx-auto flex items-center justify-between gap-3">
-                <span className="text-sm font-medium text-primary">
-                  {selectedShowIds.size} show{selectedShowIds.size !== 1 ? 's' : ''} selected
-                </span>
-                <div className="flex items-center gap-2">
-                  <Button variant="ghost" size="sm" onClick={selectAllShows}>Select All</Button>
-                  <Button variant="ghost" size="sm" onClick={() => setSelectedShowIds(new Set())}>Clear</Button>
-                  <Button variant="primary" size="sm" icon={Tag} onClick={openBulkTagModal}>Tag Friends</Button>
-                </div>
-              </div>
-            </div>
           )}
 
           {/* Delete show confirmation modal */}
