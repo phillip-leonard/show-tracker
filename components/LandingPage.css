@@ -728,7 +728,7 @@
   margin: 0 auto;
   padding: 0 32px calc(48px + env(safe-area-inset-bottom));
   display: grid;
-  grid-template-columns: 2fr 1fr 1fr 1fr;
+  grid-template-columns: 2fr 1fr 1fr;
   gap: 48px;
 }
 .lp-footer-brand p {

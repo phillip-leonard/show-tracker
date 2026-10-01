@@ -15,7 +15,7 @@
 // resolvePublicTaggedFriends), wishlists, venueRatings, or friends — none
 // of which this function's Firestore reads even touch.
 
-const { escapeHtml, page, notFoundPage, CACHE_HEADERS, SITE_URL } = require('./lib/publicPageHtml');
+const { escapeHtml, page, notFoundPage, CACHE_HEADERS, SITE_URL, isoDate, formatShowDate } = require('./lib/publicPageHtml');
 
 function getDb() {
   const privateKey = (process.env.FIREBASE_PRIVATE_KEY || '').replace(/\\n/g, '\n');
@@ -32,12 +32,7 @@ function getDb() {
 
 const PAGE_SIZE = 30;
 
-function formatDate(dateStr) {
-  const m = (dateStr || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (!m) return dateStr || '';
-  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-}
+const formatDate = (dateStr) => formatShowDate(dateStr, 'short');
 
 exports.handler = async function (event) {
   const db = getDb();
@@ -69,11 +64,13 @@ exports.handler = async function (event) {
     const showsSnap = await db.collection('users').doc(uid).collection('shows').get();
     const shows = showsSnap.docs
       .map(d => ({ id: d.id, ...d.data() }))
-      .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+      // Sort on the normalized date: a DD-MM-YYYY show sorted as a raw
+      // string would land in the wrong place.
+      .sort((a, b) => (isoDate(b.date) || b.date || '').localeCompare(isoDate(a.date) || a.date || ''));
 
     const artistCount = new Set(shows.map(s => s.artist)).size;
     const venueCount = new Set(shows.map(s => s.venue)).size;
-    const years = new Set(shows.map(s => (s.date || '').slice(0, 4)).filter(Boolean));
+    const years = new Set(shows.map(s => isoDate(s.date).slice(0, 4)).filter(Boolean));
 
     const totalPages = Math.max(1, Math.ceil(shows.length / PAGE_SIZE));
     const pageShows = shows.slice((pageNum - 1) * PAGE_SIZE, pageNum * PAGE_SIZE);

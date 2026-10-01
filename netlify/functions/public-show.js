@@ -18,7 +18,7 @@
 // lib/__tests__/popupManager.test.js re-implements logic inline instead
 // of importing its ES module target directly).
 
-const { escapeHtml, page, notFoundPage, CACHE_HEADERS, SITE_URL } = require('./lib/publicPageHtml');
+const { escapeHtml, page, notFoundPage, CACHE_HEADERS, SITE_URL, isoDate, formatShowDate } = require('./lib/publicPageHtml');
 
 function getDb() {
   const privateKey = (process.env.FIREBASE_PRIVATE_KEY || '').replace(/\\n/g, '\n');
@@ -74,12 +74,7 @@ function groupSongsBySet(setlist = []) {
   return keys.map(label => ({ label, songs: groups[label] }));
 }
 
-function formatDate(dateStr) {
-  const m = (dateStr || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (!m) return dateStr || '';
-  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
-  return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-}
+const formatDate = (dateStr) => formatShowDate(dateStr, 'long');
 
 // A tagged friend is only ever named on a public page if THEY have
 // independently opted their own profile public — attendance is other
@@ -148,7 +143,7 @@ exports.handler = async function (event) {
       '@context': 'https://schema.org',
       '@type': 'MusicEvent',
       name: `${show.artist} at ${show.venue}`,
-      startDate: show.date,
+      startDate: isoDate(show.date) || show.date,
       performer: { '@type': 'MusicGroup', name: show.artist },
       location: {
         '@type': 'Place',

@@ -32,6 +32,8 @@ import {
   recordTermsAcceptance,
 } from '@/lib/terms';
 import { saveDisplayName } from '@/lib/handles';
+import { buildSongStats } from '@/lib/songCounts';
+import { applyShowFilters, availableYearsFor } from '@/lib/showFilters';
 import { sendEmailIfAllowed } from '@/lib/email';
 import {
   inviteEmail,
@@ -39,7 +41,6 @@ import {
   tagByEmailNotification,
   tagAcceptedEmail,
   showTagNotification,
-  bulkShowTagNotification,
   suggestionNudgeEmail,
 } from '@/lib/emailTemplates';
 
@@ -2370,7 +2371,7 @@ export function AppProvider({ children }) {
     })),
   });
 
-  const tagFriendsAtShow = async (show, selectedFriendUids, { skipEmail = false } = {}) => {
+  const tagFriendsAtShow = async (show, selectedFriendUids) => {
     if (!user || selectedFriendUids.length === 0) return;
     const sanitizedShow = sanitizeShowForTag(show);
     try {
@@ -2388,33 +2389,31 @@ export function AppProvider({ children }) {
       }
       await batch.commit();
 
-      // Send email notifications to tagged friends (skip if bulk caller handles emails)
-      if (!skipEmail) {
-        const taggerName = user.displayName || 'A friend';
-        console.log('[TagEmail] Starting email notifications for', selectedFriendUids.length, 'friend(s)');
-        for (const friendUid of selectedFriendUids) {
-          try {
-            const friend = friends.find(f => f.friendUid === friendUid);
-            const friendEmail = friend?.friendEmail;
-            console.log('[TagEmail] Friend:', friendUid, '| email:', friendEmail || 'NONE');
-            if (friendEmail) {
-              const email = showTagNotification({
-                taggerName,
-                artist: sanitizedShow.artist,
-                venue: sanitizedShow.venue || '',
-                date: sanitizedShow.date ? formatDate(sanitizedShow.date) : '',
-              });
-              const result = await sendEmailIfAllowed({ to: friendEmail, ...email }, { type: 'tag' });
-              console.log('[TagEmail] sendEmailIfAllowed result:', result);
-            } else {
-              console.warn('[TagEmail] No email found for friend:', friendUid);
-            }
-          } catch (emailErr) {
-            console.error('[TagEmail] Failed to send tag notification email:', emailErr);
+      // Send email notifications to tagged friends
+      const taggerName = user.displayName || 'A friend';
+      console.log('[TagEmail] Starting email notifications for', selectedFriendUids.length, 'friend(s)');
+      for (const friendUid of selectedFriendUids) {
+        try {
+          const friend = friends.find(f => f.friendUid === friendUid);
+          const friendEmail = friend?.friendEmail;
+          console.log('[TagEmail] Friend:', friendUid, '| email:', friendEmail || 'NONE');
+          if (friendEmail) {
+            const email = showTagNotification({
+              taggerName,
+              artist: sanitizedShow.artist,
+              venue: sanitizedShow.venue || '',
+              date: sanitizedShow.date ? formatDate(sanitizedShow.date) : '',
+            });
+            const result = await sendEmailIfAllowed({ to: friendEmail, ...email }, { type: 'tag' });
+            console.log('[TagEmail] sendEmailIfAllowed result:', result);
+          } else {
+            console.warn('[TagEmail] No email found for friend:', friendUid);
           }
+        } catch (emailErr) {
+          console.error('[TagEmail] Failed to send tag notification email:', emailErr);
         }
-        console.log('[TagEmail] Done sending notifications');
       }
+      console.log('[TagEmail] Done sending notifications');
 
       const existingUids = show.taggedFriendUids || [];
       const mergedUids = [...new Set([...existingUids, ...selectedFriendUids])];
@@ -2427,56 +2426,6 @@ export function AppProvider({ children }) {
       setToast(`Tagged ${selectedFriendUids.length} friend${selectedFriendUids.length !== 1 ? 's' : ''} at ${show.artist}!`);
     } catch (error) {
       console.error('Failed to tag friends:', error);
-      alert('Failed to tag friends. Please try again.');
-    }
-  };
-
-  // Bulk tag: tag friends across multiple shows, send one consolidated email per friend
-  const bulkTagFriendsAtShows = async (showsList, selectedFriendUids) => {
-    if (!user || selectedFriendUids.length === 0 || showsList.length === 0) return;
-    try {
-      // Tag each show (skip per-show emails)
-      for (const show of showsList) {
-        await tagFriendsAtShow(show, selectedFriendUids, { skipEmail: true });
-      }
-
-      // Send one consolidated email per friend
-      const taggerName = user.displayName || 'A friend';
-      console.log('[TagEmail] Sending bulk notifications:', showsList.length, 'shows to', selectedFriendUids.length, 'friend(s)');
-      for (const friendUid of selectedFriendUids) {
-        try {
-          const friend = friends.find(f => f.friendUid === friendUid);
-          const friendEmail = friend?.friendEmail;
-          if (!friendEmail) continue;
-
-          const showsData = showsList.map(s => ({
-            artist: s.artist,
-            venue: s.venue || '',
-            date: s.date ? formatDate(s.date) : '',
-          }));
-
-          const email = showsList.length === 1
-            ? showTagNotification({
-                taggerName,
-                artist: showsData[0].artist,
-                venue: showsData[0].venue,
-                date: showsData[0].date,
-              })
-            : bulkShowTagNotification({
-                taggerName,
-                showsList: showsData,
-              });
-
-          await sendEmailIfAllowed({ to: friendEmail, ...email }, { type: 'tag' });
-          console.log('[TagEmail] Bulk email sent to', friendEmail, 'for', showsList.length, 'shows');
-        } catch (emailErr) {
-          console.error('[TagEmail] Failed to send bulk tag notification:', emailErr);
-        }
-      }
-
-      setToast(`Tagged ${selectedFriendUids.length} friend${selectedFriendUids.length !== 1 ? 's' : ''} in ${showsList.length} show${showsList.length !== 1 ? 's' : ''}!`);
-    } catch (error) {
-      console.error('Failed to bulk tag friends:', error);
       alert('Failed to tag friends. Please try again.');
     }
   };
@@ -3040,48 +2989,15 @@ export function AppProvider({ children }) {
   };
 
   // ── Stats helpers ───────────────────────────────────────────────────
-  // Keyed by normalizeSongTitle (the same normalizer song pages and the
-  // Wishlist use) rather than raw song.name, so two spellings of one song
-  // (e.g. "Ashes//Dust" vs "Ashes // Dust") merge into a single row here
-  // too. The displayed name is the most-common raw spelling seen.
-  const getSongStats = () => {
-    const songMap = {};
-    shows.forEach(show => {
-      show.setlist.forEach(song => {
-        const key = normalizeSongTitle(song.name) || song.name;
-        if (!songMap[key]) {
-          songMap[key] = { count: 0, ratings: [], shows: [], spellings: {} };
-        }
-        const entry = songMap[key];
-        entry.count++;
-        entry.spellings[song.name] = (entry.spellings[song.name] || 0) + 1;
-        if (song.rating) entry.ratings.push(song.rating);
-        entry.shows.push({
-          showId: show.id,
-          songId: song.id,
-          date: show.date,
-          artist: show.artist,
-          venue: show.venue,
-          city: show.city,
-          rating: song.rating,
-          comment: song.comment,
-        });
-      });
-    });
-    return Object.values(songMap)
-      .map(data => ({
-        name: Object.entries(data.spellings).sort((a, b) => b[1] - a[1])[0][0],
-        count: data.count,
-        avgRating: data.ratings.length ?
-          (data.ratings.reduce((a, b) => a + b, 0) / data.ratings.length).toFixed(1) : null,
-        shows: data.shows,
-      }))
-      .sort((a, b) => b.count - a.count);
-  };
+  // Each takes an optional show list so the Stats page can pass its
+  // filtered set (components/shows/ShowFilters.jsx); everything else gets
+  // the full library. Song counts are distinct shows — see
+  // lib/songCounts.js.
+  const getSongStats = (showList = shows) => buildSongStats(showList);
 
-  const getArtistStats = () => {
+  const getArtistStats = (showList = shows) => {
     const artistMap = {};
-    shows.forEach(show => {
+    showList.forEach(show => {
       if (!artistMap[show.artist]) {
         artistMap[show.artist] = { count: 0, ratings: [], uniqueSongs: new Set() };
       }
@@ -3137,9 +3053,9 @@ export function AppProvider({ children }) {
     return favoriteArtists.some(a => a.name === artistName);
   };
 
-  const getVenueStats = () => {
+  const getVenueStats = (showList = shows) => {
     const venueMap = {};
-    shows.forEach(show => {
+    showList.forEach(show => {
       const key = show.venue + (show.city ? `, ${show.city}` : '');
       if (!venueMap[key]) {
         venueMap[key] = { count: 0, artists: new Set() };
@@ -3185,8 +3101,8 @@ export function AppProvider({ children }) {
     };
   };
 
-  const getTopRatedShows = () => {
-    return shows
+  const getTopRatedShows = (showList = shows) => {
+    return showList
       .filter(s => s.rating)
       .sort((a, b) => b.rating - a.rating || parseDate(b.date) - parseDate(a.date))
       .slice(0, 10);
@@ -3258,28 +3174,12 @@ export function AppProvider({ children }) {
   // ── Derived / memoized data ─────────────────────────────────────────
   const importedIds = useMemo(() => new Set(shows.map(s => s.setlistfmId).filter(Boolean)), [shows]);
 
-  const availableYears = useMemo(() => {
-    const years = [...new Set(shows.map(s => {
-      const d = parseDate(s.date);
-      return d.getFullYear();
-    }).filter(y => y > 1900))];
-    return years.sort((a, b) => b - a);
-  }, [shows]);
+  const availableYears = useMemo(() => availableYearsFor(shows), [shows]);
 
+  // My Shows' list. The filtering itself is lib/showFilters.js, shared with
+  // Stats, Tours and Festivals; only My Shows sorts the result.
   const sortedFilteredShows = useMemo(() => {
-    let filtered = shows.filter(show =>
-      show.artist.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      show.venue.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-    if (filterYear) {
-      filtered = filtered.filter(show => {
-        const d = parseDate(show.date);
-        return d.getFullYear() === parseInt(filterYear);
-      });
-    }
-    if (filterDate) {
-      filtered = filtered.filter(show => show.date === filterDate);
-    }
+    const filtered = applyShowFilters(shows, { searchTerm, filterYear, filterDate });
     return filtered.sort((a, b) => {
       if (sortBy === 'date') return parseDate(b.date) - parseDate(a.date);
       if (sortBy === 'artist') return a.artist.localeCompare(b.artist);
@@ -3427,7 +3327,6 @@ export function AppProvider({ children }) {
 
     // Show tagging
     tagFriendsAtShow,
-    bulkTagFriendsAtShows,
     acceptShowTag,
     declineShowTag,
     bulkAcceptAll,

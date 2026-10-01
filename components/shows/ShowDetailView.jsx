@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { parseDate } from '@/lib/utils';
 import { groupSongsBySet, getSetLabels, getSetOptions, moveSongToSet, reorderSongWithinSet } from '@/lib/setlistGrouping';
 import { artistSlugFromName, songSlugFromTitle } from '@/lib/songIndex';
+import { countSongsByShow } from '@/lib/songCounts';
 import { buildRunIndex, buildTourIndex, tourKeyFor, tourHref } from '@/lib/runIndex';
 import { festivalHref } from '@/lib/festivalGrouping';
 import { venueKeyFor } from '@/lib/venues';
@@ -314,16 +315,12 @@ export default function ShowDetailView({
     () => allShows.filter(s => s.venue === show?.venue).length,
     [allShows, show?.venue]
   );
-  const playCounts = useMemo(() => {
-    const counts = {};
-    allShows
-      .filter(s => s.artist === show?.artist)
-      .forEach(s => (s.setlist || []).forEach(song => {
-        const name = song.song || song.title || song.name || '';
-        if (name) counts[name] = (counts[name] || 0) + 1;
-      }));
-    return counts;
-  }, [allShows, show?.artist]);
+  // Shows seen per song title — a song played twice in one show counts
+  // once (lib/songCounts.js).
+  const playCounts = useMemo(() => countSongsByShow(
+    allShows.filter(s => s.artist === show?.artist),
+    song => song.song || song.title || song.name || ''
+  ), [allShows, show?.artist]);
   // Reuses lib/runIndex.js's pure builder directly off the `allShows` prop
   // (which every caller already passes as the full context `shows` array)
   // rather than the useRunIndex hook, since this component takes shows as a

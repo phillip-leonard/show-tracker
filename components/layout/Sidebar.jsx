@@ -21,7 +21,7 @@ import {
   Bookmark, GalleryVertical, Tent, Map,
 } from 'lucide-react';
 import Pick from '../brand/Pick';
-import Wordmark from '../brand/Wordmark';
+import Wordmark, { BRAND_LOCKUP } from '../brand/Wordmark';
 import Badge from '../ui/Badge';
 import { useDismissable } from '@/context/DismissStackContext';
 import useDrawerSwipeClose from '@/hooks/useDrawerSwipeClose';
@@ -144,9 +144,9 @@ export default function Sidebar({
         <div className="px-5 py-5 border-b border-white/[0.08]">
           <div className="flex items-center justify-between gap-2">
             <Link href="/" onClick={onClose} className="flex items-center gap-2.5 outline-none focus-visible:opacity-80">
-              <Pick size={32} />
+              <Pick size={BRAND_LOCKUP.sidebar.pick} />
               <div>
-                <Wordmark size={16} inverse />
+                <Wordmark size={BRAND_LOCKUP.sidebar.wordmark} inverse />
                 <div className="text-[10px] text-on-dark-muted tracking-[0.08em] uppercase mt-0.5">
                   Track All Your Shows
                 </div>

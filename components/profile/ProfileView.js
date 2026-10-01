@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect, useMemo } from 'react';
-import { User, Mail, Calendar, Music, MapPin, Star, Trophy, Edit2, Save, X, Camera, Trash2, MailX, LogOut, MessageSquare, Eye, Heart, Info, Sparkles, Globe, Lock } from 'lucide-react';
+import { User, Mail, Calendar, Music, MapPin, Star, Trophy, Edit2, Save, X, Camera, Trash2, MailX, LogOut, MessageSquare, Eye, Heart, Info, Sparkles, Globe, Lock, ExternalLink, Copy, Check } from 'lucide-react';
 import { Button, Card, Badge, Input, Modal } from '@/components/ui';
 import { doc, updateDoc, getDoc } from 'firebase/firestore';
 import { updateProfile, signOut } from 'firebase/auth';
@@ -9,6 +9,7 @@ import { apiUrl } from '@/lib/api';
 import { artistColor, parseDate } from '@/lib/utils';
 import { claimHandle, handleFormatError, normalizeHandle, saveDisplayName } from '@/lib/handles';
 import { contentProblem } from '@/lib/contentFilter';
+import { publicProfileUrl, openExternalUrl, externalLinkClick } from '@/lib/publicProfile';
 import BlockedAccountsSection from '@/components/moderation/BlockedAccountsSection';
 import NotificationSettings from '@/components/notifications/NotificationSettings';
 import TourInfoModal from '@/components/TourInfoModal';
@@ -208,6 +209,18 @@ export default function ProfileView({ user, shows, userRank, onProfileUpdate, on
       setEmailPrefsError("Couldn't save that change. Please try again.");
     } finally {
       setEmailOptOutLoading(false);
+    }
+  };
+
+  const [copiedProfileLink, setCopiedProfileLink] = useState(false);
+  const handleCopyProfileLink = async () => {
+    try {
+      await navigator.clipboard.writeText(publicProfileUrl(handle));
+      setCopiedProfileLink(true);
+      setTimeout(() => setCopiedProfileLink(false), 2000);
+    } catch {
+      // Clipboard blocked (permissions, insecure context): the link is
+      // still right there to open or copy by hand.
     }
   };
 
@@ -663,13 +676,39 @@ export default function ProfileView({ user, shows, userRank, onProfileUpdate, on
         ) : (
           <div className="space-y-3">
             <div className="flex items-center justify-between gap-3 flex-wrap">
-              <div className="flex items-center gap-2 text-sm">
+              <div className="flex items-center gap-2 text-sm min-w-0">
                 <span className="text-secondary">Your page:</span>
-                <span className="font-mono text-primary">mysetlists.net/u/{handle}</span>
+                {/* A real link only while the page is actually public —
+                    while private, /u/{handle} is a "not found" page. */}
+                {publicProfile ? (
+                  <a
+                    href={publicProfileUrl(handle)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => externalLinkClick(e, publicProfileUrl(handle))}
+                    className="font-mono text-brand underline truncate"
+                  >
+                    mysetlists.net/u/{handle}
+                  </a>
+                ) : (
+                  <span className="font-mono text-primary truncate">mysetlists.net/u/{handle}</span>
+                )}
               </div>
-              <Button variant="ghost" size="sm" icon={Eye} onClick={() => setShowPublicPreview(true)}>
-                Preview
-              </Button>
+              <div className="flex items-center gap-1 flex-wrap">
+                {publicProfile && (
+                  <>
+                    <Button variant="ghost" size="sm" icon={ExternalLink} onClick={() => openExternalUrl(publicProfileUrl(handle))}>
+                      Open
+                    </Button>
+                    <Button variant="ghost" size="sm" icon={copiedProfileLink ? Check : Copy} onClick={handleCopyProfileLink}>
+                      {copiedProfileLink ? 'Copied' : 'Copy link'}
+                    </Button>
+                  </>
+                )}
+                <Button variant="ghost" size="sm" icon={Eye} onClick={() => setShowPublicPreview(true)}>
+                  Preview
+                </Button>
+              </div>
             </div>
             <label className="flex items-start gap-3 cursor-pointer group">
               <input
