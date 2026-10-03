@@ -82,6 +82,25 @@ test.describe('Setlists Integration Tests', () => {
     }
   });
 
+  test('search-setlists by venue and year needs no artist', async ({ request }) => {
+    const res = await request.get(
+      `${BASE}/.netlify/functions/search-setlists?venueName=Red%20Rocks%20Amphitheatre&year=2024`
+    );
+    expect(res.status()).toBe(200);
+    const body = await res.json();
+    expect(Array.isArray(body.setlist)).toBe(true);
+    expect(body.setlist.length).toBeGreaterThan(0);
+    // Several different artists — this is a venue search, not an artist one.
+    const artists = new Set(body.setlist.map(s => s.artist?.name));
+    expect(artists.size).toBeGreaterThan(1);
+    body.setlist.forEach(s => expect(s.eventDate).toContain('2024'));
+  });
+
+  test('search-setlists with only a year is rejected', async ({ request }) => {
+    const res = await request.get(`${BASE}/.netlify/functions/search-setlists?year=2024`);
+    expect(res.status()).toBe(400);
+  });
+
   // ---------------------------------------------------------------------------
   // Admin populate-setlist (requires auth but validates endpoint is reachable)
   // ---------------------------------------------------------------------------

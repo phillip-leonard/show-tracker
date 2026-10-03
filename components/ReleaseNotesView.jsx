@@ -13,6 +13,15 @@ const STREAMING_MENTION = /spotify|apple\s*music/i;
 function ReleaseNotesView() {
   const releases = [
     {
+      version: '5.42.0',
+      date: 'October 3, 2026',
+      title: 'Add A Whole Venue\u2019s Year At Once',
+      changes: [
+        'New: the artist is now optional when you search for a show. Enter a venue or a city, and a year, to see every show there',
+        'New: Add all. Add every show from a search in one go. You see the venues first and can untick any you didn\u2019t mean, and shows already in your history are skipped',
+      ]
+    },
+    {
       version: '5.41.0',
       date: 'October 1, 2026',
       title: 'One Filter Everywhere',

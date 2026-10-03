@@ -97,22 +97,27 @@ exports.handler = async function(event) {
 
   const { artistName, artistMbid, year, venueName, cityName, p } = event.queryStringParameters || {};
 
-  if (!artistName && !artistMbid) {
-    return { statusCode: 400, headers: CORS_HEADERS, body: JSON.stringify({ error: 'Artist name or MBID is required' }) };
+  // An artist is optional: a venue or a city on its own is a real search
+  // ("every show at Red Rocks in 2024"). A year on its own is not — that
+  // is every show on setlist.fm for twelve months.
+  if (!artistName && !artistMbid && !venueName && !cityName) {
+    return { statusCode: 400, headers: CORS_HEADERS, body: JSON.stringify({ error: 'An artist, venue or city is required' }) };
   }
 
   const params = new URLSearchParams({ p: p || '1' });
   // Use artistMbid for exact artist match if available, otherwise fall back to artistName
   if (artistMbid) {
     params.set('artistMbid', artistMbid);
-  } else {
+  } else if (artistName) {
     params.set('artistName', artistName);
   }
   if (year) params.set('year', year);
   if (venueName) params.set('venueName', venueName);
   if (cityName) params.set('cityName', cityName);
 
-  const artistLabel = artistMbid ? `mbid:${artistMbid}` : artistName;
+  const artistLabel = artistMbid
+    ? `mbid:${artistMbid}`
+    : (artistName || `venue:${venueName || ''} city:${cityName || ''}`);
   const cacheKey = buildCacheKey(artistName, artistMbid, year, venueName, cityName, p);
   const db = getDb();
   let staleDoc = null;

@@ -4,6 +4,40 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.42.0] — 2026-10-03
+
+### New: search without an artist, and add every result at once
+
+- **The artist is optional on Search → Search by Show.** A venue or a
+  city, with or without a year, is a search of its own: "Madison Square
+  Garden" + 2024 lists every show there that year, across artists.
+  `netlify/functions/search-setlists.js` now accepts a venue or city
+  without an artist. A year on its own is still refused (400) because
+  that's every show on setlist.fm for twelve months. The form's button
+  stays disabled until there's an artist, venue or city, and reads
+  "Search Shows" when there's no artist. Enter in any field now runs the
+  search. Before, Year and Venue did nothing until an artist was picked.
+- **Add all.** Search results with more than one show get an "Add all N"
+  button (signed-in accounts only; guest shows are added one at a time).
+  It fetches every page of the search one at a time, 600 ms apart, to
+  stay inside setlist.fm's rate limit. The cap is 10 pages / 200 shows,
+  and it says so when a search has more. It then opens a review grouped
+  by venue: setlist.fm matches venue names loosely, so "Madison Square
+  Garden" also brings back the Hulu Theater at Madison Square Garden, and
+  each venue can be unticked. Shows already in the account are excluded
+  and counted. Confirming writes through `addShowsFromTour`, the same
+  throttled, de-duplicating bulk add the tour browser uses, so the shows
+  are identical to ones added one at a time.
+- Paging and Add all use the query that produced the results on screen,
+  not whatever the form says after it was edited.
+- Shared helpers in `lib/setlistSearch.js` (`hasSearchTarget`,
+  `setlistToShowData` — now also used by the single Add Show button,
+  `fetchAllSetlistPages`, `groupShowsByVenue`), with unit tests in
+  `lib/__tests__/setlistSearch.test.js`. Integration tests cover a
+  venue + year search with no artist and the year-only 400.
+
+---
+
 ## [5.41.0] — 2026-10-01
 
 ### Added: one show filter on My Shows, Stats, Tours and Festivals
