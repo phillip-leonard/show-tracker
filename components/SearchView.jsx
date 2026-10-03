@@ -1,13 +1,20 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Search, X, ChevronDown, ChevronLeft, ChevronRight, Check, Download, Plus, Users } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { Search, X, ChevronDown, ChevronLeft, ChevronRight, Check, Download, Plus, Users, ListPlus, AlertCircle } from 'lucide-react';
 import Tip from '@/components/ui/Tip';
-import { Card, Button, Input, EmptyState } from '@/components/ui';
+import { Card, Button, Input, EmptyState, Modal, Spinner } from '@/components/ui';
 import { apiUrl } from '@/lib/api';
 import { extractSongsFromSetlist } from '@/lib/setlistParser';
+import {
+  hasSearchTarget, setlistToShowData, fetchAllSetlistPages, groupShowsByVenue, MAX_ADD_ALL_PAGES,
+} from '@/lib/setlistSearch';
+import { buildExistingShowIndex, existingShowStatus } from '@/lib/tourBrowse';
 
-function SearchView({ onImport, importedIds, onAddManually }) {
+// The artist is optional: a venue or a city, with or without a year, is a
+// search of its own. That's what makes "every show at Red Rocks in 2024"
+// one search, and "Add all" adds the lot (see the review modal below).
+function SearchView({ onImport, onImportMany, bulkAddProgress, existingShows = [], importedIds, onAddManually }) {
   const [artistName, setArtistName] = useState('');
   const [year, setYear] = useState('');
   const [venueName, setVenueName] = useState('');
@@ -19,6 +26,16 @@ function SearchView({ onImport, importedIds, onAddManually }) {
   const [totalPages, setTotalPages] = useState(1);
   const [imported, setImported] = useState(new Set());
   const [expandedSetlist, setExpandedSetlist] = useState(null);
+  const [totalResults, setTotalResults] = useState(0);
+  // The query that produced the results on screen. Paging and "Add all"
+  // use this rather than the live inputs, so editing a field after
+  // searching can't change what "Add all" adds.
+  const [activeQuery, setActiveQuery] = useState(null);
+  // "Add all": null | { phase: 'loading', progress } | { phase: 'review',
+  // shows, truncated, total } | { phase: 'adding' } | { phase: 'done',
+  // outcome } | { phase: 'error', message }
+  const [addAll, setAddAll] = useState(null);
+  const [excludedVenues, setExcludedVenues] = useState(() => new Set());
 
   // Artist disambiguation state
   const [artistOptions, setArtistOptions] = useState([]);
@@ -115,31 +132,51 @@ function SearchView({ onImport, importedIds, onAddManually }) {
     }
   };
 
-  const searchSetlists = async (pageNum = 1, artistOverride = null) => {
-    const artist = artistOverride || selectedArtist;
-    const searchArtist = artist?.name || artistName.trim();
-    if (!searchArtist) return;
+  // The query as it stands in the form right now. `artistOverride` is a
+  // just-picked artist that isn't in state yet; `artistless` searches by
+  // venue/city alone even if the artist box has text in it.
+  const queryFromForm = (artistOverride = null, { artistless = false } = {}) => {
+    const artist = artistless ? null : (artistOverride || selectedArtist);
+    return {
+      artistMbid: artist?.mbid || '',
+      artistName: artistless ? '' : (artist?.name || artistName.trim()),
+      year: year.trim(),
+      venueName: venueName.trim(),
+      cityName: cityName.trim(),
+    };
+  };
+
+  const fetchSetlistPage = async (query, pageNum) => {
+    const params = new URLSearchParams({ p: pageNum.toString() });
+    // Use artistMbid for exact match if we have a selected artist with mbid
+    if (query.artistMbid) params.set('artistMbid', query.artistMbid);
+    else if (query.artistName) params.set('artistName', query.artistName);
+    if (query.year) params.set('year', query.year);
+    if (query.venueName) params.set('venueName', query.venueName);
+    if (query.cityName) params.set('cityName', query.cityName);
+    return fetch(apiUrl(`/.netlify/functions/search-setlists?${params.toString()}`));
+  };
+
+  const searchSetlists = async (pageNum = 1, artistOverride = null, options = {}) => {
+    // Paging re-asks the query that produced the results on screen, not
+    // whatever the form says now.
+    const query = options.paging && activeQuery ? activeQuery : queryFromForm(artistOverride, options);
+    if (!hasSearchTarget({ artist: query.artistMbid || query.artistName, venueName: query.venueName, cityName: query.cityName })) {
+      setError('Enter an artist, a venue or a city to search.');
+      return;
+    }
 
     setIsSearching(true);
     setError('');
 
     try {
-      const params = new URLSearchParams({ p: pageNum.toString() });
-      // Use artistMbid for exact match if we have a selected artist with mbid
-      if (artist?.mbid) {
-        params.set('artistMbid', artist.mbid);
-      } else {
-        params.set('artistName', searchArtist);
-      }
-      if (year.trim()) params.set('year', year.trim());
-      if (venueName.trim()) params.set('venueName', venueName.trim());
-      if (cityName.trim()) params.set('cityName', cityName.trim());
-      const response = await fetch(apiUrl(`/.netlify/functions/search-setlists?${params.toString()}`));
+      const response = await fetchSetlistPage(query, pageNum);
 
       if (response.status === 404) {
         setError('No setlists found. Try adjusting your search.');
         setResults([]);
         setTotalPages(1);
+        setTotalResults(0);
         return;
       }
 
@@ -155,11 +192,14 @@ function SearchView({ onImport, importedIds, onAddManually }) {
         setError('No setlists found. Try adjusting your search.');
         setResults([]);
         setTotalPages(1);
+        setTotalResults(0);
       } else {
         setResults(data.setlist);
         setPage(pageNum);
+        setActiveQuery(query);
         const total = data.total || 0;
         const perPage = data.itemsPerPage || 20;
+        setTotalResults(total || data.setlist.length);
         setTotalPages(Math.max(1, Math.ceil(total / perPage)));
       }
     } catch (err) {
@@ -172,25 +212,83 @@ function SearchView({ onImport, importedIds, onAddManually }) {
   };
 
   const importSetlist = (setlist) => {
-    const songs = extractSongsFromSetlist(setlist);
-
-    const showData = {
-      artist: setlist.artist.name,
-      venue: setlist.venue.name,
-      city: setlist.venue.city.name,
-      country: setlist.venue.city.country.name,
-      date: (() => {
-        // setlist.fm returns DD-MM-YYYY; normalize to YYYY-MM-DD for storage
-        const parts = (setlist.eventDate || '').split('-');
-        return parts.length === 3 ? `${parts[2]}-${parts[1]}-${parts[0]}` : setlist.eventDate;
-      })(),
-      setlist: songs,
-      setlistfmId: setlist.id,
-      tour: setlist.tour ? setlist.tour.name : null
-    };
-
-    onImport(showData);
+    onImport(setlistToShowData(setlist, extractSongsFromSetlist));
     setImported(prev => new Set([...prev, setlist.id]));
+  };
+
+  // The one button on the Search form. With an artist: the existing
+  // pick-the-artist-then-search flow. Without one: straight to setlists by
+  // venue and/or city.
+  const submitSearch = () => {
+    if (isSearching) return;
+    if (selectedArtist) return searchSetlists(1);
+    if (artistName.trim()) return searchArtists();
+    return searchSetlists(1, null, { artistless: true });
+  };
+  const canSubmit = hasSearchTarget({ artist: selectedArtist?.name || artistName, venueName, cityName });
+
+  // ── Add all ─────────────────────────────────────────────────────────
+  // Fetches every page of the current search (one at a time — see
+  // lib/setlistSearch.js), then opens a review grouped by venue before
+  // anything is written.
+  const existingIndex = useMemo(() => buildExistingShowIndex(existingShows), [existingShows]);
+
+  const startAddAll = async () => {
+    if (!activeQuery || !onImportMany) return;
+    setExcludedVenues(new Set());
+    setAddAll({ phase: 'loading', progress: null });
+    try {
+      const { setlists, total, truncated } = await fetchAllSetlistPages(
+        async (pageNum) => {
+          const res = await fetchSetlistPage(activeQuery, pageNum);
+          if (res.status === 404) return null;
+          if (!res.ok) throw new Error(`setlist.fm search failed (${res.status})`);
+          return res.json();
+        },
+        { onProgress: (progress) => setAddAll({ phase: 'loading', progress }) }
+      );
+      const shows = setlists.map(sl => setlistToShowData(sl, extractSongsFromSetlist));
+      setAddAll({ phase: 'review', shows, total, truncated });
+    } catch (err) {
+      console.error('Add all: fetching pages failed:', err);
+      setAddAll({ phase: 'error', message: 'Couldn\u2019t load all the shows from setlist.fm. Please try again in a minute.' });
+    }
+  };
+
+  const reviewGroups = useMemo(() => {
+    if (addAll?.phase !== 'review') return [];
+    return groupShowsByVenue(addAll.shows).map(group => {
+      const statuses = group.shows.map(show => existingShowStatus(existingIndex, show));
+      return {
+        ...group,
+        newShows: group.shows.filter((_, i) => statuses[i] !== 'added'),
+        alreadyAdded: statuses.filter(st => st === 'added').length,
+        possible: statuses.filter(st => st === 'possible').length,
+      };
+    });
+  }, [addAll, existingIndex]);
+
+  const toAdd = reviewGroups.filter(g => !excludedVenues.has(g.key)).flatMap(g => g.newShows);
+  const alreadyAddedCount = reviewGroups.reduce((n, g) => n + g.alreadyAdded, 0);
+  const possibleCount = reviewGroups.filter(g => !excludedVenues.has(g.key)).reduce((n, g) => n + g.possible, 0);
+
+  const toggleVenue = (key) => setExcludedVenues(prev => {
+    const next = new Set(prev);
+    if (next.has(key)) next.delete(key); else next.add(key);
+    return next;
+  });
+
+  const confirmAddAll = async () => {
+    if (toAdd.length === 0) return;
+    setAddAll({ phase: 'adding' });
+    const outcome = await onImportMany(toAdd);
+    setAddAll({ phase: 'done', outcome });
+  };
+
+  const closeAddAll = () => {
+    // Closing mid-write doesn't stop it: the run lives in AppContext and
+    // finishes in the background, the same as the tour browser.
+    setAddAll(null);
   };
 
   const isImported = (id) => importedIds.has(id) || imported.has(id);
@@ -264,12 +362,13 @@ function SearchView({ onImport, importedIds, onAddManually }) {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
               <div>
                 <Input
-                  label="Artist Name *"
+                  label="Artist Name"
                   type="text"
                   placeholder="e.g., Radiohead"
                   value={artistName}
                   onChange={(e) => setArtistName(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && searchArtists()}
+                  onKeyPress={(e) => e.key === 'Enter' && submitSearch()}
+                  hint={selectedArtist ? undefined : 'Optional. Leave blank to find every show at a venue or in a city.'}
                   enterKeyHint="search"
                   autoCapitalize="words"
                   autoCorrect="off"
@@ -301,7 +400,7 @@ function SearchView({ onImport, importedIds, onAddManually }) {
                 placeholder="e.g., 2024"
                 value={year}
                 onChange={(e) => setYear(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && selectedArtist && searchSetlists(1)}
+                onKeyPress={(e) => e.key === 'Enter' && submitSearch()}
                 // A numeric pad for a year, but type stays text so a
                 // partial entry is not silently rejected by the browser.
                 inputMode="numeric"
@@ -313,7 +412,7 @@ function SearchView({ onImport, importedIds, onAddManually }) {
                 placeholder="e.g., Madison Square Garden"
                 value={venueName}
                 onChange={(e) => setVenueName(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && selectedArtist && searchSetlists(1)}
+                onKeyPress={(e) => e.key === 'Enter' && submitSearch()}
                 enterKeyHint="search"
                 autoCapitalize="words"
               />
@@ -323,7 +422,7 @@ function SearchView({ onImport, importedIds, onAddManually }) {
                 placeholder="e.g., New York"
                 value={cityName}
                 onChange={(e) => setCityName(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && (selectedArtist ? searchSetlists(1) : searchArtists())}
+                onKeyPress={(e) => e.key === 'Enter' && submitSearch()}
                 enterKeyHint="search"
                 autoCapitalize="words"
               />
@@ -332,11 +431,13 @@ function SearchView({ onImport, importedIds, onAddManually }) {
               variant="primary"
               full
               icon={Search}
-              onClick={() => selectedArtist ? searchSetlists(1) : searchArtists()}
-              disabled={isSearching || !artistName.trim()}
+              onClick={submitSearch}
+              disabled={isSearching || !canSubmit}
               loading={isSearching}
             >
-              {isSearching ? 'Searching...' : (selectedArtist ? 'Search Setlists' : 'Search Artists')}
+              {isSearching
+                ? 'Searching...'
+                : selectedArtist ? 'Search Setlists' : artistName.trim() ? 'Search Artists' : 'Search Shows'}
             </Button>
           </>
         )}
@@ -508,9 +609,24 @@ function SearchView({ onImport, importedIds, onAddManually }) {
       {/* Results */}
       {results.length > 0 && (
         <div className="space-y-3">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-primary">Search Results</h2>
-            <span className="text-sm text-secondary">Page {page} of {totalPages}</span>
+          <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
+            <div>
+              <h2 className="text-lg font-semibold text-primary">Search Results</h2>
+              <span className="text-sm text-secondary">
+                {totalResults} show{totalResults !== 1 ? 's' : ''} · Page {page} of {totalPages}
+              </span>
+            </div>
+            {onImportMany && totalResults > 1 && (
+              <Button
+                size="sm"
+                variant="secondary"
+                icon={ListPlus}
+                onClick={startAddAll}
+                disabled={isSearching || !!addAll}
+              >
+                Add all {totalResults > MAX_ADD_ALL_PAGES * 20 ? `(first ${MAX_ADD_ALL_PAGES * 20})` : totalResults}
+              </Button>
+            )}
           </div>
 
           {results.map((setlist) => {
@@ -602,7 +718,7 @@ function SearchView({ onImport, importedIds, onAddManually }) {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => searchSetlists(page - 1)}
+                onClick={() => searchSetlists(page - 1, null, { paging: true })}
                 disabled={page === 1 || isSearching}
                 className="!px-2"
               >
@@ -614,7 +730,7 @@ function SearchView({ onImport, importedIds, onAddManually }) {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => searchSetlists(page + 1)}
+                onClick={() => searchSetlists(page + 1, null, { paging: true })}
                 disabled={page === totalPages || isSearching}
                 className="!px-2"
               >
@@ -632,9 +748,127 @@ function SearchView({ onImport, importedIds, onAddManually }) {
           title={searchMode === 'artist' ? 'Find an artist' : 'Find a show'}
           body={searchMode === 'artist'
             ? 'Enter a performer name to find their shows across all bands and projects'
-            : 'Enter an artist name to search for setlists'}
+            : 'Search by artist, or leave the artist blank and enter a venue or city (and a year) to find every show there'}
         />
       )}
+
+      {/* Add all — review before anything is written */}
+      <Modal
+        open={!!addAll}
+        onClose={closeAddAll}
+        title="Add all shows"
+        subtitle={activeQuery ? [
+          activeQuery.artistName,
+          activeQuery.venueName,
+          activeQuery.cityName,
+          activeQuery.year,
+        ].filter(Boolean).join(' · ') : undefined}
+        size="md"
+      >
+        {addAll?.phase === 'loading' && (
+          <div className="py-8">
+            <Spinner
+              size="md"
+              label={addAll.progress
+                ? `Loading shows from setlist.fm… page ${addAll.progress.page} of ${addAll.progress.pageCount}`
+                : 'Loading shows from setlist.fm…'}
+            />
+          </div>
+        )}
+
+        {addAll?.phase === 'error' && (
+          <div className="flex items-start gap-2 bg-danger/10 border border-danger/30 rounded-xl p-3 text-sm text-danger">
+            <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" aria-hidden="true" />
+            <span>{addAll.message}</span>
+          </div>
+        )}
+
+        {addAll?.phase === 'review' && (
+          <div className="flex flex-col gap-4">
+            {addAll.truncated && (
+              <p className="text-sm text-secondary bg-hover border border-subtle rounded-xl px-3 py-2">
+                This search has {addAll.total} shows. Only the first {addAll.shows.length} can be added at once. Add a year or a venue to narrow it down.
+              </p>
+            )}
+            <p className="text-sm text-secondary">
+              setlist.fm matches venue names loosely, so check the venues below and untick any you didn&apos;t mean.
+            </p>
+            <div className="border border-subtle rounded-xl divide-y divide-subtle overflow-hidden">
+              {reviewGroups.map(group => {
+                const checked = !excludedVenues.has(group.key);
+                return (
+                  <label key={group.key} className="flex items-start gap-3 px-3 py-2.5 cursor-pointer hover:bg-hover transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => toggleVenue(group.key)}
+                      disabled={group.newShows.length === 0}
+                      className="mt-1 w-4 h-4 rounded border-active bg-hover text-brand focus:ring-brand/50 focus:ring-offset-0"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-semibold text-primary">
+                        {group.venue}{group.city ? <span className="font-normal text-secondary">, {group.city}</span> : null}
+                      </div>
+                      <div className="text-xs text-secondary mt-0.5">
+                        {group.newShows.length} to add
+                        {group.alreadyAdded > 0 && ` · ${group.alreadyAdded} already in your shows`}
+                      </div>
+                    </div>
+                  </label>
+                );
+              })}
+            </div>
+            {possibleCount > 0 && (
+              <p className="text-xs text-muted">
+                {possibleCount} of these share an artist and date with a show you already have at a different venue. They&apos;ll be added; delete any duplicates afterwards.
+              </p>
+            )}
+            {alreadyAddedCount > 0 && (
+              <p className="text-xs text-muted">
+                {alreadyAddedCount} show{alreadyAddedCount !== 1 ? 's are' : ' is'} already in your shows and won&apos;t be added again.
+              </p>
+            )}
+            <div className="flex gap-2 justify-end">
+              <Button variant="ghost" onClick={closeAddAll}>Cancel</Button>
+              <Button variant="primary" icon={ListPlus} onClick={confirmAddAll} disabled={toAdd.length === 0}>
+                {toAdd.length === 0 ? 'Nothing new to add' : `Add ${toAdd.length} show${toAdd.length !== 1 ? 's' : ''}`}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {addAll?.phase === 'adding' && (
+          <div className="py-8">
+            <Spinner
+              size="md"
+              label={bulkAddProgress?.running
+                ? `Adding shows… ${bulkAddProgress.completed} of ${bulkAddProgress.total}`
+                : 'Adding shows…'}
+            />
+            <p className="text-xs text-muted text-center mt-3">You can close this. Adding keeps going in the background.</p>
+          </div>
+        )}
+
+        {addAll?.phase === 'done' && (
+          <div className="flex flex-col gap-3">
+            <p className="text-sm text-primary">
+              Added {addAll.outcome?.added?.length || 0} show{(addAll.outcome?.added?.length || 0) !== 1 ? 's' : ''}.
+              {addAll.outcome?.skipped?.length > 0 && ` ${addAll.outcome.skipped.length} were already in your shows.`}
+            </p>
+            {addAll.outcome?.failed?.length > 0 && (
+              <div className="flex items-start gap-2 bg-danger/10 border border-danger/30 rounded-xl p-3 text-sm text-danger">
+                <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" aria-hidden="true" />
+                <span>
+                  {addAll.outcome.failed.length} couldn&apos;t be added. Search again and use Add all to retry; shows already added are skipped.
+                </span>
+              </div>
+            )}
+            <div className="flex justify-end">
+              <Button variant="primary" onClick={closeAddAll}>Done</Button>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }
