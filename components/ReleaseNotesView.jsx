@@ -13,6 +13,19 @@ const STREAMING_MENTION = /spotify|apple\s*music/i;
 function ReleaseNotesView() {
   const releases = [
     {
+      version: '5.43.0',
+      date: 'October 11, 2026',
+      title: 'Upcoming Shows, With Your Friends',
+      changes: [
+        'New: add a show you\u2019re going to. Find the date on Ticketmaster or SeatGeek, or type it in. Your upcoming shows sit in a short list at the top of My Shows',
+        'New: tag the friends you\u2019re going with. They get a notification and an email, and can add it to their own upcoming shows',
+        'Upcoming shows don\u2019t count in your stats or totals. Once the date has passed, add it to My Shows in one tap and we\u2019ll pull the setlist from setlist.fm, keeping your friends tagged',
+        'A show you\u2019ve just added can now be opened straight away, from the "View show" message or from the search result',
+        'Feedback is back in the menu',
+        'The Ask AI button on Favorite Artists has been removed',
+      ]
+    },
+    {
       version: '5.42.0',
       date: 'October 3, 2026',
       title: 'Add A Whole Venue\u2019s Year At Once',

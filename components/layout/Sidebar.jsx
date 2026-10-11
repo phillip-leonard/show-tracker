@@ -18,7 +18,7 @@ import { usePathname } from 'next/navigation';
 import {
   Search, List, BarChart3, Shield, Coffee,
   LogOut, User, X, Heart, HelpCircle, ScrollText,
-  Bookmark, GalleryVertical, Tent, Map,
+  Bookmark, GalleryVertical, Tent, Map, MessageSquare,
 } from 'lucide-react';
 import Pick from '../brand/Pick';
 import Wordmark, { BRAND_LOCKUP } from '../brand/Wordmark';
@@ -209,6 +209,25 @@ export default function Sidebar({
             </>
           )}
           {isAdmin && navItem('admin', '/admin', Shield, 'Admin', { tone: 'danger' })}
+          {/* Feedback left the sidebar in the August nav trim (1dfb4c1) and
+              was only reachable from Profile and How to Use after that. It
+              lives here with the other utilities rather than in the primary
+              list, and since this one component is also the phone/iOS
+              drawer, that one entry covers every platform. */}
+          <Link
+            href="/feedback"
+            onClick={onClose}
+            aria-current={segment === 'feedback' ? 'page' : undefined}
+            className={[
+              'w-full flex items-center gap-3 px-4 py-2 rounded-lg text-[13px] transition-colors',
+              segment === 'feedback'
+                ? 'bg-white/10 text-brand'
+                : 'text-on-dark-muted hover:bg-white/[0.06] hover:text-on-dark',
+            ].join(' ')}
+          >
+            <MessageSquare size={15} strokeWidth={2} />
+            <span className="font-medium">Feedback</span>
+          </Link>
           <Link
             href="/how-to-use"
             onClick={onClose}

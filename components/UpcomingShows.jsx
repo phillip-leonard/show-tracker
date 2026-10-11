@@ -2,11 +2,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { Calendar, ExternalLink } from 'lucide-react';
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { db, getFirebaseAnalytics } from '@/lib/firebase';
-import { mergeTicketEvents, formatTicketDate } from '@/lib/utils';
-import { TICKET_CACHE_TTL } from '@/lib/constants';
-import { apiUrl } from '@/lib/api';
+import { getFirebaseAnalytics } from '@/lib/firebase';
+import { formatTicketDate } from '@/lib/utils';
+import { fetchArtistEvents } from '@/lib/ticketEvents';
 import AddToBucketListButton from '@/components/bucketlist/AddToBucketListButton';
 
 function UpcomingShows({ artistName }) {
@@ -18,83 +16,10 @@ function UpcomingShows({ artistName }) {
     if (!artistName) return;
     let cancelled = false;
 
-    const slug = artistName.toLowerCase().replace(/[^a-z0-9]/g, '_');
-    const tmCacheKey = `tm_${slug}`;
-    const sgCacheKey = `sg_${slug}`;
-
-    // Ticketmaster fetch — supports Attraction ID caching for exact artist matching.
-    // On first call the Netlify function resolves and returns the Attraction ID;
-    // subsequent calls pass it directly, skipping the TM attractions lookup entirely.
-    async function fetchTmWithCache(cacheKey) {
-      let cachedAttractionId = null;
-      try {
-        const cacheDoc = await getDoc(doc(db, 'ticketCache', cacheKey));
-        if (cacheDoc.exists()) {
-          const cached = cacheDoc.data();
-          // Preserve the attraction ID even when the event cache has expired
-          cachedAttractionId = cached.tmAttractionId || null;
-          const cachedAt = cached.cachedAt && cached.cachedAt.toMillis ? cached.cachedAt.toMillis() : 0;
-          if (Date.now() - cachedAt < TICKET_CACHE_TTL) {
-            return cached.data || [];
-          }
-        }
-      } catch (_) { /* cache miss — continue */ }
-
-      try {
-        let url = apiUrl(`/.netlify/functions/ticketmaster-events?artistName=${encodeURIComponent(artistName)}`);
-        // Pass the cached attraction ID so the function skips the attractions lookup
-        if (cachedAttractionId) url += `&attractionId=${encodeURIComponent(cachedAttractionId)}`;
-        const res = await fetch(url);
-        if (!res.ok) return [];
-        const json = await res.json();
-        const evts = json.events || [];
-        const returnedAttractionId = json.attractionId || cachedAttractionId || null;
-        try {
-          const cacheData = { data: evts, cachedAt: serverTimestamp() };
-          if (returnedAttractionId) cacheData.tmAttractionId = returnedAttractionId;
-          await setDoc(doc(db, 'ticketCache', cacheKey), cacheData);
-        } catch (_) { /* cache write failed — non-fatal */ }
-        return evts;
-      } catch (_) {
-        return [];
-      }
-    }
-
-    // SeatGeek fetch — simple cache wrapper (server-side exact filter handles matching)
-    async function fetchSgWithCache(cacheKey) {
-      try {
-        const cacheDoc = await getDoc(doc(db, 'ticketCache', cacheKey));
-        if (cacheDoc.exists()) {
-          const cached = cacheDoc.data();
-          const cachedAt = cached.cachedAt && cached.cachedAt.toMillis ? cached.cachedAt.toMillis() : 0;
-          if (Date.now() - cachedAt < TICKET_CACHE_TTL) {
-            return cached.data || [];
-          }
-        }
-      } catch (_) { /* cache miss — continue */ }
-
-      try {
-        const res = await fetch(apiUrl(`/.netlify/functions/seatgeek-events?artistName=${encodeURIComponent(artistName)}`));
-        if (!res.ok) return [];
-        const json = await res.json();
-        const evts = json.events || [];
-        try {
-          await setDoc(doc(db, 'ticketCache', cacheKey), { data: evts, cachedAt: serverTimestamp() });
-        } catch (_) { /* cache write failed — non-fatal */ }
-        return evts;
-      } catch (_) {
-        return [];
-      }
-    }
-
     async function load() {
       setLoading(true);
-      const [tmEvents, sgEvents] = await Promise.all([
-        fetchTmWithCache(tmCacheKey),
-        fetchSgWithCache(sgCacheKey)
-      ]);
+      const merged = await fetchArtistEvents(artistName);
       if (cancelled) return;
-      const merged = mergeTicketEvents(tmEvents, sgEvents);
       setEvents(merged);
       setHasNoShows(merged.length === 0);
       setLoading(false);

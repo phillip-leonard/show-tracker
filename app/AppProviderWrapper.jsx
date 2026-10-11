@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import { usePathname } from 'next/navigation';
+import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { AppProvider, useApp } from '@/context/AppContext';
 import Sidebar from '@/components/layout/Sidebar';
@@ -367,6 +368,7 @@ function AppShell({ children }) {
           className={[
             'fixed bottom-[calc(1.5rem+var(--safe-bottom))] left-1/2 -translate-x-1/2 z-[90] px-5 py-3 rounded-2xl',
             'shadow-lg font-medium text-sm animate-fade-in',
+            toast?.href ? 'flex items-center gap-3 w-max max-w-[calc(100vw-2rem)]' : '',
             toast?.type === 'error'
               ? 'bg-danger text-white shadow-danger/40'
               : 'bg-brand text-[#2a2a4e] shadow-brand/40',
@@ -374,6 +376,17 @@ function AppShell({ children }) {
           role="status"
         >
           {typeof toast === 'string' ? toast : toast?.message || ''}
+          {/* Optional action: { message, href, actionLabel }. Used after a
+              show is added so it can be opened straight from the toast. */}
+          {toast?.href && (
+            <Link
+              href={toast.href}
+              onClick={() => setToast(null)}
+              className="flex-shrink-0 inline-flex items-center min-h-touch md:min-h-0 font-bold underline underline-offset-2 whitespace-nowrap"
+            >
+              {toast.actionLabel || 'View'}
+            </Link>
+          )}
         </div>
       )}
     </div>

@@ -13,7 +13,6 @@ import { publicProfileUrl, openExternalUrl, externalLinkClick } from '@/lib/publ
 import BlockedAccountsSection from '@/components/moderation/BlockedAccountsSection';
 import NotificationSettings from '@/components/notifications/NotificationSettings';
 import TourInfoModal from '@/components/TourInfoModal';
-import ArtistAIChat from '@/components/ArtistAIChat';
 
 export default function ProfileView({ user, shows, userRank, onProfileUpdate, onViewShow, friends = [], favoriteArtists = [], onToggleFavoriteArtist }) {
   const [isEditing, setIsEditing] = useState(false);
@@ -53,7 +52,6 @@ export default function ProfileView({ user, shows, userRank, onProfileUpdate, on
   // Comments state
   const [myCommentsPage, setMyCommentsPage] = useState(1);
   const [tourInfoArtist, setTourInfoArtist] = useState(null);
-  const [aiChatArtist, setAiChatArtist] = useState(null);
   const COMMENTS_PER_PAGE = 20;
 
   useEffect(() => {
@@ -505,15 +503,6 @@ export default function ProfileView({ user, shows, userRank, onProfileUpdate, on
                     </div>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      icon={Sparkles}
-                      onClick={() => setAiChatArtist(artist)}
-                      className="bg-brand/10 text-brand hover:bg-brand/20 border border-brand/20"
-                    >
-                      Ask AI
-                    </Button>
                     {artist.mbid && (
                       <Button
                         variant="ghost"
@@ -908,16 +897,6 @@ export default function ProfileView({ user, shows, userRank, onProfileUpdate, on
           artistName={tourInfoArtist.name}
           mbid={tourInfoArtist.mbid}
           onClose={() => setTourInfoArtist(null)}
-        />
-      )}
-
-      {/* Artist AI Chat Modal */}
-      {aiChatArtist && (
-        <ArtistAIChat
-          artistName={aiChatArtist.name}
-          mbid={aiChatArtist.mbid}
-          userShows={shows.filter(s => s.artist === aiChatArtist.name)}
-          onClose={() => setAiChatArtist(null)}
         />
       )}
     </div>

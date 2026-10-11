@@ -5,7 +5,7 @@ import { PageHeader } from '@/components/ui';
 import { useApp } from '@/context/AppContext';
 
 export default function FeedbackPage() {
-  const { user, navigateTo, unreadNotifications, markNotificationsRead } = useApp();
+  const { user, navigateTo, unreadNotifications, markNotificationsRead, openAuthModal } = useApp();
 
   return (
     <>
@@ -19,6 +19,7 @@ export default function FeedbackPage() {
         onNavigate={navigateTo}
         unreadNotifications={unreadNotifications}
         onMarkRead={markNotificationsRead}
+        onCreateAccount={() => openAuthModal('signup')}
       />
     </>
   );

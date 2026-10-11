@@ -356,7 +356,8 @@ function ImportView({ onImport, onUpdateShow, existingShows, onNavigate }) {
           tour: row.raw.tour || '',
           setlist: [],
         };
-        const showId = await onImport(showData);
+        // Silent: a row-by-row import would otherwise flash one "Added" toast per row.
+        const showId = await onImport(showData, { silent: true });
         imported++;
         if (showId) {
           importedShows.push({ showId, artist: showData.artist, date: showData.date, venue: showData.venue, city: showData.city });

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { Search, X, ChevronDown, ChevronLeft, ChevronRight, Check, Download, Plus, Users, ListPlus, AlertCircle } from 'lucide-react';
 import Tip from '@/components/ui/Tip';
 import { Card, Button, Input, EmptyState, Modal, Spinner } from '@/components/ui';
@@ -10,11 +11,13 @@ import {
   hasSearchTarget, setlistToShowData, fetchAllSetlistPages, groupShowsByVenue, MAX_ADD_ALL_PAGES,
 } from '@/lib/setlistSearch';
 import { buildExistingShowIndex, existingShowStatus } from '@/lib/tourBrowse';
+import { showHref } from '@/lib/showRouting';
 
 // The artist is optional: a venue or a city, with or without a year, is a
 // search of its own. That's what makes "every show at Red Rocks in 2024"
 // one search, and "Add all" adds the lot (see the review modal below).
-function SearchView({ onImport, onImportMany, bulkAddProgress, existingShows = [], importedIds, onAddManually }) {
+function SearchView({ onImport, onImportMany, bulkAddProgress, existingShows = [], importedIds, showIdBySetlistfmId, onAddManually }) {
+  const router = useRouter();
   const [artistName, setArtistName] = useState('');
   const [year, setYear] = useState('');
   const [venueName, setVenueName] = useState('');
@@ -293,6 +296,40 @@ function SearchView({ onImport, onImportMany, bulkAddProgress, existingShows = [
 
   const isImported = (id) => importedIds.has(id) || imported.has(id);
 
+  // A result already in the library opens it. "Added" used to be a
+  // disabled label, which left a just-added show with no way in from
+  // here; the show id is the library's own (see showIdBySetlistfmId in
+  // AppContext), so this is the same detail view My Shows opens.
+  const renderAddButton = (setlist, className = '') => {
+    const showId = showIdBySetlistfmId?.get(setlist.id);
+    if (showId) {
+      return (
+        <Button
+          size="sm"
+          variant="ghost"
+          icon={Check}
+          onClick={() => router.push(showHref(showId))}
+          className={`bg-brand-subtle text-brand hover:bg-brand/20 ${className}`}
+        >
+          View show
+        </Button>
+      );
+    }
+    const pending = isImported(setlist.id);
+    return (
+      <Button
+        size="sm"
+        variant={pending ? 'ghost' : 'secondary'}
+        icon={pending ? Check : Download}
+        onClick={() => importSetlist(setlist)}
+        disabled={pending}
+        className={`${pending ? 'bg-brand-subtle text-brand cursor-default' : ''} ${className}`}
+      >
+        {pending ? 'Added' : 'Add Show'}
+      </Button>
+    );
+  };
+
   const formatSetlistDate = (dateStr) => {
     const parts = dateStr.split('-');
     if (parts.length === 3) {
@@ -569,16 +606,7 @@ function SearchView({ onImport, onImportMany, bulkAddProgress, existingShows = [
                                 </div>
                               )}
                             </div>
-                            <Button
-                              size="sm"
-                              variant={isImported(setlist.id) ? 'ghost' : 'secondary'}
-                              icon={isImported(setlist.id) ? Check : Download}
-                              onClick={() => importSetlist(setlist)}
-                              disabled={isImported(setlist.id)}
-                              className={`flex-shrink-0 ${isImported(setlist.id) ? 'bg-brand-subtle text-brand cursor-default' : ''}`}
-                            >
-                              {isImported(setlist.id) ? 'Added' : 'Add Show'}
-                            </Button>
+                            {renderAddButton(setlist, 'flex-shrink-0')}
                           </div>
                         </div>
                       );
@@ -660,16 +688,7 @@ function SearchView({ onImport, onImportMany, bulkAddProgress, existingShows = [
                         </button>
                       )}
                     </div>
-                    <Button
-                      size="sm"
-                      variant={isImported(setlist.id) ? 'ghost' : 'secondary'}
-                      icon={isImported(setlist.id) ? Check : Download}
-                      onClick={() => importSetlist(setlist)}
-                      disabled={isImported(setlist.id)}
-                      className={isImported(setlist.id) ? 'bg-brand-subtle text-brand cursor-default' : ''}
-                    >
-                      {isImported(setlist.id) ? 'Added' : 'Add Show'}
-                    </Button>
+                    {renderAddButton(setlist, 'flex-shrink-0')}
                   </div>
                 </div>
 

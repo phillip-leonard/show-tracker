@@ -289,7 +289,8 @@ function FriendsView({
                     <div className="flex items-center gap-2 mb-3">
                       <Tag className="w-4 h-4 text-brand" />
                       <span className="text-secondary text-sm">
-                        <span className="font-medium text-primary">{tag.fromName}</span> tagged you at a show
+                        <span className="font-medium text-primary">{tag.fromName}</span>{' '}
+                        {tag.showData?.upcoming ? 'tagged you as going to an upcoming show' : 'tagged you at a show'}
                       </span>
                     </div>
                     <div className="bg-hover rounded-xl p-3 mb-3">
@@ -309,7 +310,9 @@ function FriendsView({
                       )}
                     </div>
                     <div className="flex gap-2">
-                      <Button variant="primary" size="sm" icon={Check} onClick={() => onAcceptShowTag(tag.id)}>Add to My Shows</Button>
+                      <Button variant="primary" size="sm" icon={Check} onClick={() => onAcceptShowTag(tag.id)}>
+                        {tag.showData?.upcoming ? 'I\u2019m Going' : 'Add to My Shows'}
+                      </Button>
                       <Button variant="ghost" size="sm" onClick={() => onDeclineShowTag(tag.id)}>Decline</Button>
                     </div>
                   </Card>

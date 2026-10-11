@@ -140,7 +140,8 @@ test.describe('Guest Mode', () => {
     // link that never existed. "Support" is deliberately excluded: it is an
     // external <a> to buymeacoffee.com, and clicking it would navigate the
     // test off the site.
-    for (const label of [/stats/i, /search for a show/i, /how to use/i]) {
+    // Feedback came back to the sidebar's bottom group in 5.43.0.
+    for (const label of [/stats/i, /search for a show/i, /^feedback$/i, /how to use/i]) {
       await page.getByRole('link', { name: label }).first().click();
       await expect(page.locator('body')).not.toContainText('Application error');
     }
