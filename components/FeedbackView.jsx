@@ -6,7 +6,7 @@ import { collection, addDoc, updateDoc, serverTimestamp } from 'firebase/firesto
 import { db } from '@/lib/firebase';
 import { Card, Button, Tag, Textarea } from '@/components/ui';
 
-function FeedbackView({ user, onNavigate, unreadNotifications, onMarkRead }) {
+function FeedbackView({ user, onNavigate, unreadNotifications, onMarkRead, onCreateAccount }) {
   const [feedbackType, setFeedbackType] = useState('general'); // 'feature' | 'bug' | 'general'
   const [category, setCategory] = useState('other');
   const [message, setMessage] = useState('');
@@ -85,6 +85,28 @@ function FeedbackView({ user, onNavigate, unreadNotifications, onMarkRead }) {
     { id: 'search', label: 'Search'      },
     { id: 'other',  label: 'Other'       },
   ];
+
+  // Guests have no account to attribute feedback to (and the feedback
+  // collection only accepts signed-in writes), so Submit used to do nothing
+  // at all for them. Say why, and offer the way in.
+  if (!user) {
+    return (
+      <div className="max-w-xl mx-auto">
+        <Card padding="lg" className="text-center">
+          <h2 className="text-xl font-bold text-primary mb-2">Sign in to send feedback</h2>
+          <p className="text-secondary mb-6">
+            Feedback is tied to your account so we can follow up when your idea ships.
+            You can also email <a href="mailto:support@mysetlists.net" className="text-brand underline">support@mysetlists.net</a>.
+          </p>
+          {onCreateAccount && (
+            <Button variant="primary" onClick={onCreateAccount} className="mx-auto">
+              Create an account
+            </Button>
+          )}
+        </Card>
+      </div>
+    );
+  }
 
   if (submitted) {
     return (

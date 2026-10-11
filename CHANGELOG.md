@@ -4,6 +4,87 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.43.0] — 2026-10-11
+
+Ships in iOS 3.6 (`MARKETING_VERSION` 3.5 → 3.6; the build number is left
+to Xcode Cloud).
+
+### New: upcoming shows, with friends tagged as going
+
+- **Add a show you're going to** from the new compact "Upcoming" list on
+  My Shows. Search an artist's dates on Ticketmaster and SeatGeek and pick
+  one, or type the show in yourself (artist, venue, city, date, optional
+  notes). With nothing upcoming the list is one slim row, so My Shows on a
+  phone still opens on your latest show. No new nav item: the old Upcoming
+  page stays retired.
+- **Stored apart from your history**, in `users/{uid}/upcomingShows`
+  (owner-only rule in `firestore.rules`). That collection is read by no
+  stat, total, song count, tour, run, year-in-review, public profile or
+  server function, so upcoming shows can't count toward any of them. See
+  `lib/upcomingShows.js`.
+- **Detail view** at `/shows/?upcoming=<id>`: a query param on the real,
+  pre-rendered `/shows` route, the same pattern as `?show=` (CLAUDE.md's
+  routing section). `lib/navRoutes.js` declares it a `/shows` detail param,
+  so the back control returns to the list. Shows the date, time, venue,
+  notes, a ticket link, and who's going (Going / Invited).
+- **Tag friends** through the existing flow: the same `showTags` documents,
+  with `upcoming: true` on the show data and `upcomingShowId` on the tag.
+  The tagged friend gets the existing in-app request ("tagged you as going
+  to an upcoming show", button "I'm Going") and the existing tag email,
+  whose copy now branches on `upcoming` (no new email type, so the tag
+  preference and unsubscribe cover it). Accepting adds the show to their
+  own upcoming list.
+- **Edit, delete, remove a friend.** Editing updates any tag the friend
+  hasn't answered yet; deleting or removing a friend marks their pending
+  tag `revoked`, so it disappears from their Requests.
+- **Did you go?** Once the date has passed, the show offers "Yes, add to My
+  Shows": it finds the setlist on setlist.fm (artist + year search, matched
+  on the date, venue as tie-break) and adds it through `addShow`, carrying
+  over the tagged friends and notes. "I didn't go" deletes it.
+- **Blocks.** Blocked accounts never appear in "who's going" or the tag
+  picker. Blocking someone now also revokes every pending tag you sent
+  them (past or upcoming) and takes them off your upcoming shows. Pending
+  tags *from* someone you've blocked are now hidden (they weren't before).
+- The Ticketmaster/SeatGeek fetch-and-cache moved unchanged from
+  `components/UpcomingShows.jsx` to `lib/ticketEvents.js` so both features
+  share it.
+
+### Fixed: a show you just added can be opened straight away
+
+- Every single add (search result, manual form, ticket scan, bucket list)
+  now shows an "Added … — View show" toast that opens the normal show
+  detail view. The id is the Firestore doc id, minted on the device, so it
+  works immediately with no reload.
+- Search results already in your library say **View show** instead of a
+  disabled "Added" label.
+- "Add Manually" on Search now takes you to My Shows, where the form opens.
+  Before, it opened the form on a page you weren't looking at.
+- Tagging friends from the manual add form recorded nothing on the new
+  show (it saved to `users/{uid}/shows/undefined`) and could drop the new
+  show from the list until a reload. Both fixed.
+- Closing a show goes back to where you opened it from (Search, a toast,
+  My Shows), on desktop as it already did on phones.
+
+### Feedback is back in the sidebar
+
+- In the bottom group with How to Use and Release Notes. The sidebar is
+  also the phone and iOS menu, so this covers every platform. It left in
+  the August nav trim (`1dfb4c1`).
+- Guests see a "Sign in to send feedback" card instead of a Submit button
+  that did nothing.
+
+### Removed: Ask AI on Profile → Favorite Artists
+
+- Removed the "Ask AI" button, `components/ArtistAIChat.jsx` and
+  `netlify/functions/ask-artist-ai.js`. The Favorite Artists list, its
+  Tour Info button and the heart stay. Ticket-stub scanning
+  (`analyze-tickets.js`) has its own Anthropic call and is untouched, as is
+  `ANTHROPIC_API_KEY`.
+- No Firestore data was involved: the chat's daily limit lived in each
+  browser's `localStorage` (`artist_ai_daily`), which is now simply unused.
+
+---
+
 ## [5.42.0] — 2026-10-03
 
 ### New: search without an artist, and add every result at once

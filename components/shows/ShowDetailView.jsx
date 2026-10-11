@@ -252,6 +252,7 @@ export default function ShowDetailView({
   show,
   friends = [],
   onClose,
+  backLabel = 'All shows',
   onUpdateRating,
   onUpdateVenueRating,
   onUpdateComment,
@@ -456,7 +457,7 @@ export default function ShowDetailView({
         className="hidden md:flex items-center gap-1.5 text-sm text-muted hover:text-primary mb-5 transition-colors py-2 -my-2"
       >
         <ArrowLeft className="w-4 h-4" />
-        All shows
+        {backLabel}
       </button>
 
       {/* ── Header card ────────────────────────────────────────────────────── */}

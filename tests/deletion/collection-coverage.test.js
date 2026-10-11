@@ -36,6 +36,8 @@ const NOT_USER_OWNED = {
   communityStats: 'A single aggregate doc (id "global") across all users. No uid anywhere.',
   friends: 'Subcollection name. The user\'s own is removed with the subtree; inbound edges are removed by collectionGroup.',
   shows: 'Subcollection name under users/{uid}; removed with the subtree.',
+  upcomingShows: 'Subcollection name under users/{uid} (5.43.0); removed with the subtree.',
+  ticketCache: 'Cache of Ticketmaster/SeatGeek events, keyed by artist slug. No uid anywhere. (Its reads moved from components/UpcomingShows.jsx to lib/ticketEvents.js in 5.43.0, which is when this scan first saw it.)',
   appleMusicTokens: 'One app-level developer token (doc id "developer"). No per-user token is ever stored server-side.',
   archivalAudioArtistMap: 'Static artist-to-archive mapping.',
   archivalAudioShowCache: 'Cache of third-party audio lookups.',

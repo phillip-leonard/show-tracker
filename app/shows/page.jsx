@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
+import { useDismissStack } from '@/context/DismissStackContext';
 import { formatDate } from '@/lib/utils';
 import ShowForm from '@/components/ShowForm';
 import TagFriendsModal from '@/components/TagFriendsModal';
@@ -21,6 +22,9 @@ import { removeFromBucketList } from '@/lib/bucketList';
 import YearInReviewCard from '@/components/yearInReview/YearInReviewCard';
 import ShowDetailView from '@/components/shows/ShowDetailView';
 import VenueShowsView from '@/components/shows/VenueShowsView';
+import UpcomingShowsSection from '@/components/upcoming/UpcomingShowsSection';
+import UpcomingShowForm from '@/components/upcoming/UpcomingShowForm';
+import UpcomingShowDetailView from '@/components/upcoming/UpcomingShowDetailView';
 import { showHref } from '@/lib/showRouting';
 import { getSavedSearches } from '@/lib/savedSearches';
 import { filterShows } from '@/lib/advancedSearch';
@@ -35,6 +39,7 @@ export default function ShowsPage() {
   const searchParams = useSearchParams();
   const detailShowId = searchParams.get('show');
   const venueKeyParam = searchParams.get('venueKey');
+  const upcomingParam = searchParams.get('upcoming');
 
   const {
     shows, isLoading, user, guestMode,
@@ -50,16 +55,31 @@ export default function ShowsPage() {
     deleteSong, restoreSongToShow,
     tagFriendsAtShow, tagFriendByEmail,
     tagFriendsShow, setTagFriendsShow,
-    friends, festivals,
+    friends, visibleFriends, festivals,
     pendingNotificationCount, pendingFriendRequests, pendingShowTags,
     setFriendsInitialTab, navigateTo,
     summaryStats, userRank, statsTab, setStatsTab,
     sortedFilteredShows, artistGroups, importedIds,
     pendingTagsForReview, acceptPendingEmailTag, declinePendingEmailTag,
     toggleFavoriteArtist, isArtistFavorite,
+    blockedUserIds,
+    upcomingShows, upcomingLoaded, addUpcomingShow, updateUpcomingShow, deleteUpcomingShow,
+    tagFriendsAtUpcomingShow, untagFriendFromUpcomingShow, loadUpcomingTagStatuses,
+    findSetlistForUpcomingShow, convertUpcomingShow,
   } = useApp();
 
+  // Closing a show returns to wherever it was opened from — Search after
+  // adding one, a toast's "View show", My Shows itself — the same rule the
+  // mobile header's back control follows. With no in-app history (a cold
+  // deep link) it falls back to the list.
+  const { canGoBack } = useDismissStack();
+  const closeDetail = () => (canGoBack ? router.back() : router.push('/shows/'));
+
   const [playlistShow, setPlaylistShow] = useState(null);
+  // Upcoming shows (5.43.0): the add/edit form ({ show } when editing) and
+  // the friend picker, shared by the list section and the detail view.
+  const [upcomingForm, setUpcomingForm] = useState(null);
+  const [upcomingTagShow, setUpcomingTagShow] = useState(null);
   const [showToDelete, setShowToDelete] = useState(null);
   const [showsTab, setShowsTab] = useState('timeline'); // 'timeline' | 'artist'
 
@@ -72,6 +92,37 @@ export default function ShowsPage() {
     if (!user) return;
     setSavedSearches(getSavedSearches(user.uid));
   }, [user]);
+
+  const upcomingDetail = useMemo(() =>
+    upcomingParam ? (upcomingShows || []).find(u => u.id === upcomingParam) || null : null,
+    [upcomingShows, upcomingParam]
+  );
+
+  // Rendered by both the list and the upcoming detail view.
+  const upcomingModals = (
+    <>
+      {upcomingForm && (
+        <UpcomingShowForm
+          open
+          initial={upcomingForm.show || null}
+          onClose={() => setUpcomingForm(null)}
+          onSave={(input) => (upcomingForm.show
+            ? updateUpcomingShow(upcomingForm.show, input)
+            : addUpcomingShow(input))}
+        />
+      )}
+      {upcomingTagShow && (
+        <TagFriendsModal
+          upcoming
+          show={upcomingTagShow}
+          // Friends already on the list aren't offered again.
+          friends={visibleFriends.filter(f => !(upcomingTagShow.taggedFriendUids || []).includes(f.friendUid))}
+          onTag={async (uids) => { await tagFriendsAtUpcomingShow(upcomingTagShow, uids); setUpcomingTagShow(null); }}
+          onClose={() => setUpcomingTagShow(null)}
+        />
+      )}
+    </>
+  );
 
   const detailShow = useMemo(() =>
     detailShowId ? shows.find(s => s.id === detailShowId) : null,
@@ -247,7 +298,8 @@ export default function ShowsPage() {
         <ShowDetailView
           show={detailShow}
           friends={friends}
-          onClose={() => router.push('/shows/')}
+          onClose={closeDetail}
+          backLabel={canGoBack ? 'Back' : 'All shows'}
           onUpdateRating={updateShowRating}
           onUpdateVenueRating={(showId, venueRating) => updateShowData(showId, { venueRating })}
           onUpdateComment={!guestMode ? (showId, comment) => updateShowComment(showId, comment) : undefined}
@@ -268,7 +320,7 @@ export default function ShowsPage() {
         {tagFriendsShow && (
           <TagFriendsModal
             show={tagFriendsShow}
-            friends={friends}
+            friends={visibleFriends}
             onTag={(selectedFriendUids) => tagFriendsAtShow(tagFriendsShow, selectedFriendUids)}
             onInviteByEmail={(params) => tagFriendByEmail({ ...params, show: tagFriendsShow })}
             onClose={() => setTagFriendsShow(null)}
@@ -280,6 +332,46 @@ export default function ShowsPage() {
             onClose={() => setPlaylistShow(null)}
           />
         )}
+      </>
+    );
+  }
+
+  // Upcoming show detail: ?upcoming=<id>. Same real /shows route as a past
+  // show (CLAUDE.md's routing section), its own view.
+  if (upcomingParam) {
+    if (!upcomingLoaded) return <ShowsListSkeleton />;
+    if (!upcomingDetail) {
+      return (
+        <div className="flex flex-col items-center justify-center py-24 text-center">
+          <p className="text-lg text-primary mb-4">That upcoming show isn&apos;t here any more.</p>
+          <Button variant="ghost" icon={ArrowLeft} onClick={() => router.push('/shows/')}>
+            Back to shows
+          </Button>
+        </div>
+      );
+    }
+    return (
+      <>
+        <UpcomingShowDetailView
+          show={upcomingDetail}
+          friends={visibleFriends}
+          blockedUserIds={blockedUserIds}
+          backLabel={canGoBack ? 'Back' : 'All shows'}
+          onClose={closeDetail}
+          onEdit={(show) => setUpcomingForm({ show })}
+          onDelete={async (show) => { await deleteUpcomingShow(show); router.replace('/shows/'); }}
+          onTagFriends={(show) => setUpcomingTagShow(show)}
+          onUntagFriend={untagFriendFromUpcomingShow}
+          loadTagStatuses={loadUpcomingTagStatuses}
+          onConvert={async (show) => {
+            const setlist = await findSetlistForUpcomingShow(show);
+            const result = await convertUpcomingShow(show, { setlist });
+            // replace, not push: the upcoming show no longer exists, so
+            // back from the new show shouldn't land on "not here any more".
+            if (result?.id) router.replace(showHref(result.id));
+          }}
+        />
+        {upcomingModals}
       </>
     );
   }
@@ -435,6 +527,15 @@ export default function ShowsPage() {
               <Card padding="none" className="px-2.5 py-2 md:p-4"><StatFigure compact value={summaryStats.uniqueVenues} label="Venues" /></Card>
               <Card padding="none" className="px-2.5 py-2 md:p-4"><StatFigure compact value={summaryStats.avgRating ? `${summaryStats.avgRating}★` : '--'} label="Avg Rating" /></Card>
             </div>
+          )}
+
+          {/* Upcoming shows — signed-in only (they live in Firestore), and
+              out of the way while a filter or saved search narrows the list. */}
+          {user && !guestMode && !filterLabel && !activeSavedSearch && upcomingLoaded && (
+            <UpcomingShowsSection
+              upcomingShows={upcomingShows}
+              onAdd={() => setUpcomingForm({})}
+            />
           )}
 
           {/* View tabs — Timeline (card grid) vs By Artist (table). Hidden
@@ -611,7 +712,7 @@ export default function ShowsPage() {
             <ShowForm
               onSubmit={bucketListPrefill ? handleAddShowFromBucketList : addShow}
               onCancel={() => { setShowForm(false); setBucketListPrefill(null); }}
-              friends={user && !guestMode ? friends : []}
+              friends={user && !guestMode ? visibleFriends : []}
               onTagFriends={tagFriendsAtShow}
               initialData={bucketListPrefill}
             />
@@ -670,7 +771,7 @@ export default function ShowsPage() {
           {tagFriendsShow && (
             <TagFriendsModal
               show={tagFriendsShow}
-              friends={friends}
+              friends={visibleFriends}
               onTag={(selectedFriendUids) => tagFriendsAtShow(tagFriendsShow, selectedFriendUids)}
               onInviteByEmail={(params) => tagFriendByEmail({ ...params, show: tagFriendsShow })}
               onClose={() => setTagFriendsShow(null)}
@@ -684,6 +785,8 @@ export default function ShowsPage() {
               onClose={() => setPlaylistShow(null)}
             />
           )}
+
+          {upcomingModals}
 
           {/* Delete show confirmation modal */}
           <DeleteShowModal

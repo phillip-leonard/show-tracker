@@ -6,7 +6,11 @@ import { formatDate } from '@/lib/utils';
 import { Button, Card, Input } from '@/components/ui';
 import { useDismissable } from '@/context/DismissStackContext';
 
-function TagFriendsModal({ show, friends, onTag, onInviteByEmail, onClose }) {
+// `upcoming` (5.43.0): the same picker for a show that hasn't happened yet,
+// worded as "going" rather than "were at". Inviting someone without an
+// account is a past-show flow (it lands in their history when they sign
+// up), so it is offered only when onInviteByEmail is passed.
+function TagFriendsModal({ show, friends, onTag, onInviteByEmail, onClose, upcoming = false }) {
   useDismissable(true, onClose, { id: 'tag-friends' });
   const [selectedFriends, setSelectedFriends] = useState(new Set());
   const [sending, setSending] = useState(false);
@@ -26,7 +30,7 @@ function TagFriendsModal({ show, friends, onTag, onInviteByEmail, onClose }) {
       )
     : friends;
 
-  const showInvitePrompt = normalizedQuery.length > 0 && filteredFriends.length === 0;
+  const showInvitePrompt = !!onInviteByEmail && normalizedQuery.length > 0 && filteredFriends.length === 0;
 
   const toggleFriend = (uid) => {
     setSelectedFriends(prev => {
@@ -185,7 +189,7 @@ function TagFriendsModal({ show, friends, onTag, onInviteByEmail, onClose }) {
                 </div>
               ) : (
                 <div className="space-y-2">
-                  <p className="text-sm text-secondary mb-3">Select friends who were at this show:</p>
+                  <p className="text-sm text-secondary mb-3">{upcoming ? 'Select friends who are going:' : 'Select friends who were at this show:'}</p>
                   {filteredFriends.map(friend => (
                     <label
                       key={friend.friendUid}
@@ -233,7 +237,9 @@ function TagFriendsModal({ show, friends, onTag, onInviteByEmail, onClose }) {
             >
               {sending
                 ? 'Tagging...'
-                : `Tag ${selectedFriends.size} Friend${selectedFriends.size !== 1 ? 's' : ''} at This Show →`}
+                : upcoming
+                  ? `Tag ${selectedFriends.size} Friend${selectedFriends.size !== 1 ? 's' : ''} as Going →`
+                  : `Tag ${selectedFriends.size} Friend${selectedFriends.size !== 1 ? 's' : ''} at This Show →`}
             </Button>
           </div>
         )}

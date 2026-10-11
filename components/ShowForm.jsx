@@ -24,9 +24,14 @@ function ShowForm({ onSubmit, onCancel, friends = [], onTagFriends, initialData 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (formData.artist && formData.venue && formData.date) {
-      await onSubmit(formData);
-      if (selectedTagFriends.size > 0 && onTagFriends) {
-        await onTagFriends(formData, [...selectedTagFriends]);
+      const result = await onSubmit(formData);
+      // addShow returns the new show's id, or { id, duplicate } when the
+      // show was already there. Tagging needs that id: without it the tags
+      // went out but were never recorded on the show (the save targeted
+      // users/{uid}/shows/undefined).
+      const showId = typeof result === 'string' ? result : result?.id;
+      if (showId && selectedTagFriends.size > 0 && onTagFriends) {
+        await onTagFriends({ ...formData, id: showId }, [...selectedTagFriends]);
       }
     }
   };

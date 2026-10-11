@@ -7,12 +7,19 @@ import { nativeOAuthSignIn, isNativePlatform } from '@/lib/native-auth';
 import {
   collection, doc, setDoc, getDoc, getDocs, deleteDoc, updateDoc,
   serverTimestamp, onSnapshot, query, where, addDoc, writeBatch, limit,
+  arrayUnion, arrayRemove,
 } from 'firebase/firestore';
 import { auth, db, googleProvider, browserPopupRedirectResolver } from '@/lib/firebase';
 import { formatDate, parseDate, normalizeSongTitle } from '@/lib/utils';
 import { ADMIN_EMAILS } from '@/lib/constants';
 import { storage, STORAGE_KEYS } from '@/lib/storage';
 import { apiUrl } from '@/lib/api';
+import { showHref, upcomingShowHref } from '@/lib/showRouting';
+import { setlistToShowData } from '@/lib/setlistSearch';
+import {
+  UPCOMING_COLLECTION, normalizeUpcomingInput, validateUpcomingInput, sortUpcoming,
+  upcomingTagShowData, upcomingInputFromTag, findSetlistForDate, upcomingToShowData,
+} from '@/lib/upcomingShows';
 import { fetchArtistImage } from '@/lib/artistImage';
 import { isReturningUser as checkIsReturningUser } from '@/lib/popupManager';
 import { extractSongsFromSetlist } from '@/lib/setlistParser';
@@ -100,6 +107,32 @@ function isBandSourced(showData) {
 async function writeShowDoc(uid, show) {
   const { id, ...showData } = show;
   await setDoc(doc(db, 'users', uid, 'shows', id), { ...showData, createdAt: serverTimestamp() });
+}
+
+// ── Helpers: pending tags a tagger takes back ───────────────────────────
+// Status 'revoked' rather than a delete: the recipient's listener filters
+// on status === 'pending', so the tag disappears from their Requests, and
+// the record of who tagged whom stays for the account-deletion purge
+// (showTags is purged by fromUid/toUid). Best-effort — a failure here never
+// blocks the action that triggered it.
+//
+// Both queries are equality-only, which Firestore serves from single-field
+// indexes; no composite index is needed.
+async function revokePendingTags(constraints, keep = () => true) {
+  try {
+    const snap = await getDocs(query(collection(db, 'showTags'), ...constraints));
+    const batch = writeBatch(db);
+    let count = 0;
+    snap.docs.forEach(d => {
+      const tag = d.data();
+      if (tag.status !== 'pending' || !keep(tag)) return;
+      batch.update(d.ref, { status: 'revoked', revokedAt: serverTimestamp() });
+      count++;
+    });
+    if (count) await batch.commit();
+  } catch (e) {
+    console.error('Failed to revoke pending tags:', e);
+  }
 }
 
 // ── Helper: update the user's profile doc with current stats ────────────
@@ -377,7 +410,14 @@ export function AppProvider({ children }) {
   const [friends, setFriends] = useState([]);
   const [pendingFriendRequests, setPendingFriendRequests] = useState([]);
   const [sentFriendRequests, setSentFriendRequests] = useState([]);
-  const [pendingShowTags, setPendingShowTags] = useState([]);
+  const [incomingShowTags, setPendingShowTags] = useState([]);
+  // Upcoming shows (5.43.0) — users/{uid}/upcomingShows, kept out of
+  // `shows` so nothing that counts shows can count them. See
+  // lib/upcomingShows.js.
+  const [upcomingShows, setUpcomingShows] = useState([]);
+  // False until the first snapshot lands, so a deep link to an upcoming
+  // show waits instead of flashing "not found".
+  const [upcomingLoaded, setUpcomingLoaded] = useState(false);
   const [tagFriendsShow, setTagFriendsShow] = useState(null);
 
   // Show Suggestions
@@ -438,6 +478,14 @@ export function AppProvider({ children }) {
     [friends, blockedUserIds],
   );
 
+  // A pending tag from someone you've since blocked is their content in
+  // front of you, so it goes the same way as their comments and photos.
+  // Blocking also drops the friendship both ways, so they can't send new ones.
+  const pendingShowTags = useMemo(
+    () => withoutBlocked(incomingShowTags, blockedUserIds, 'fromUid'),
+    [incomingShowTags, blockedUserIds],
+  );
+
   // Derived suggestion state
   const myPendingSuggestions = showSuggestions.filter(s => s.responses?.[user?.uid] === 'pending' && s.overallStatus !== 'declined');
   const myConfirmedSuggestions = showSuggestions.filter(s => s.overallStatus === 'confirmed');
@@ -456,7 +504,8 @@ export function AppProvider({ children }) {
 
   useEffect(() => {
     if (!toast) return;
-    const t = setTimeout(() => setToast(null), 3000);
+    // A toast with an action stays up long enough to reach for it.
+    const t = setTimeout(() => setToast(null), toast?.href ? 6000 : 3000);
     return () => clearTimeout(t);
   }, [toast]);
 
@@ -525,6 +574,17 @@ export function AppProvider({ children }) {
       // pressed rather than after a Firestore round trip.
       setBlockedUserIds(prev => (prev.includes(targetUid) ? prev : [...prev, targetUid]));
       setFriends(prev => prev.filter(f => f.friendUid !== targetUid));
+      // Anything still on its way to them from us goes too: pending tags
+      // (past or upcoming) are revoked, and they come off the "who's going"
+      // list of every upcoming show we tagged them on. Best-effort and not
+      // awaited — the block itself has already happened.
+      revokePendingTags([where('fromUid', '==', user.uid), where('toUid', '==', targetUid)]);
+      getDocs(query(
+        collection(db, 'users', user.uid, UPCOMING_COLLECTION),
+        where('taggedFriendUids', 'array-contains', targetUid),
+      )).then(snap => Promise.all(snap.docs.map(d =>
+        updateDoc(d.ref, { taggedFriendUids: arrayRemove(targetUid) })
+      ))).catch(e => console.error('Failed to remove blocked user from upcoming shows:', e));
       setToast('Blocked. You won\u2019t see their posts, and they\u2019ve been removed from your friends.');
     } catch (error) {
       console.error('Failed to block user:', error);
@@ -672,6 +732,30 @@ export function AppProvider({ children }) {
       unsubFavorites();
     };
   }, [user, guestMode, loadFriends]);
+
+  // Upcoming shows — live, so a show accepted from a friend's tag on one
+  // device appears on another without a reload.
+  useEffect(() => {
+    if (!user || guestMode) {
+      setUpcomingShows([]);
+      // Nothing to wait for: guests have no upcoming shows.
+      setUpcomingLoaded(true);
+      return;
+    }
+    setUpcomingLoaded(false);
+    const unsub = onSnapshot(
+      collection(db, 'users', user.uid, UPCOMING_COLLECTION),
+      (snapshot) => {
+        setUpcomingShows(sortUpcoming(snapshot.docs.map(d => ({ id: d.id, ...d.data() }))));
+        setUpcomingLoaded(true);
+      },
+      (error) => {
+        console.log('Upcoming shows listener error:', error.message);
+        setUpcomingLoaded(true);
+      },
+    );
+    return unsub;
+  }, [user, guestMode]);
 
   // ── Local data migration check ──────────────────────────────────────
   const checkForLocalData = useCallback(() => {
@@ -1233,13 +1317,30 @@ export function AppProvider({ children }) {
     return existingShow.id;
   };
 
-  const addShow = async (showData) => {
+  // Every single-show add lands on the same "you can open it now" toast.
+  // The id is minted on the device (mintShowId) and is the Firestore doc
+  // id, and the show is already in `shows` by the time this runs, so the
+  // link resolves immediately — no reload, no temp id. Callers that add in
+  // a loop (CSV import) or that say something more specific themselves
+  // (accepting a friend's tag) pass { silent: true }.
+  const announceAddedShow = (showId, artist, { duplicate = false } = {}) => {
+    setToast({
+      message: duplicate
+        ? `${artist || 'That show'} is already in your shows.`
+        : `Added ${artist || 'show'} to your shows.`,
+      href: showHref(showId),
+      actionLabel: 'View show',
+    });
+  };
+
+  const addShow = async (showData, { silent = false } = {}) => {
     // Check for duplicate before adding
     const existing = findDuplicateShow(showData);
     if (existing) {
       // Merge tag metadata into existing show rather than creating a duplicate
       await mergeTagDataIntoShow(existing, showData);
       setShowForm(false);
+      if (!silent) announceAddedShow(existing.id, existing.artist, { duplicate: true });
       return { id: existing.id, duplicate: true };
     }
 
@@ -1293,6 +1394,7 @@ export function AppProvider({ children }) {
         });
       }).catch(() => {});
 
+      if (!silent && !isFirstShow) announceAddedShow(showId, newShow.artist);
       return showId;
     }
 
@@ -1331,6 +1433,7 @@ export function AppProvider({ children }) {
         setShows(prev => prev.map(s => s.id === showId ? { ...s, artistImage: imageUrl } : s));
       }).catch(() => {});
 
+      if (!silent) announceAddedShow(showId, newShow.artist);
       return showId;
     } catch (error) {
       console.error('Failed to add show:', error);
@@ -2418,8 +2521,10 @@ export function AppProvider({ children }) {
       const existingUids = show.taggedFriendUids || [];
       const mergedUids = [...new Set([...existingUids, ...selectedFriendUids])];
       const updatedShow = { ...show, taggedFriendUids: mergedUids };
-      const updatedShows = shows.map(s => s.id === show.id ? updatedShow : s);
-      setShows(updatedShows);
+      // Functional update: the manual add form tags straight after addShow,
+      // from a closure whose `shows` predates the new show. Mapping that
+      // stale list would drop the show it just added.
+      setShows(prev => prev.map(s => s.id === show.id ? { ...s, taggedFriendUids: mergedUids } : s));
       await saveShow(updatedShow);
 
       setTagFriendsShow(null);
@@ -2428,6 +2533,250 @@ export function AppProvider({ children }) {
       console.error('Failed to tag friends:', error);
       alert('Failed to tag friends. Please try again.');
     }
+  };
+
+  // === UPCOMING SHOWS ===
+  // Shows the user is going to. Stored apart from `shows` (see
+  // lib/upcomingShows.js for why), tagged through the same showTags flow
+  // as past shows, and converted into a normal show once the date passes.
+
+  const upcomingRef = (id) => doc(db, 'users', user.uid, UPCOMING_COLLECTION, id);
+
+  const findDuplicateUpcoming = (data) => upcomingShows.find(u =>
+    (u.artist || '').trim().toLowerCase() === (data.artist || '').trim().toLowerCase()
+    && u.date === data.date
+  ) || null;
+
+  // Returns the new (or existing duplicate) id, or null when nothing was
+  // saved. Throws a readable Error for invalid input so the form can show it.
+  const addUpcomingShow = async (input, { silent = false, extra = {} } = {}) => {
+    if (!user || guestMode) return null;
+    const problem = validateUpcomingInput(input);
+    if (problem) throw new Error(problem);
+    const data = normalizeUpcomingInput(input);
+
+    const existing = findDuplicateUpcoming(data);
+    if (existing) {
+      if (extra.taggedBy && !existing.taggedBy) {
+        await updateDoc(upcomingRef(existing.id), {
+          taggedBy: extra.taggedBy,
+          taggedByUid: extra.taggedByUid || null,
+          originUpcomingId: extra.originUpcomingId || null,
+          updatedAt: serverTimestamp(),
+        });
+      }
+      if (!silent) {
+        setToast({
+          message: `${data.artist} on that date is already in your upcoming shows.`,
+          href: upcomingShowHref(existing.id),
+          actionLabel: 'View',
+        });
+      }
+      return existing.id;
+    }
+
+    const ref = doc(collection(db, 'users', user.uid, UPCOMING_COLLECTION));
+    const record = {
+      ...data,
+      taggedFriendUids: [],
+      taggedBy: extra.taggedBy || null,
+      taggedByUid: extra.taggedByUid || null,
+      originUpcomingId: extra.originUpcomingId || null,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    };
+    await setDoc(ref, record);
+    // The listener will deliver it too; adding it here means the "View"
+    // link resolves on this tick rather than after the round trip.
+    setUpcomingShows(prev => sortUpcoming([...prev.filter(u => u.id !== ref.id), { id: ref.id, ...record }]));
+    if (!silent) {
+      setToast({ message: `Added ${data.artist} to your upcoming shows.`, href: upcomingShowHref(ref.id), actionLabel: 'View' });
+    }
+    return ref.id;
+  };
+
+  const updateUpcomingShow = async (show, input) => {
+    if (!user || !show?.id) return;
+    const problem = validateUpcomingInput(input);
+    if (problem) throw new Error(problem);
+    const data = normalizeUpcomingInput(input);
+    await updateDoc(upcomingRef(show.id), { ...data, updatedAt: serverTimestamp() });
+    setUpcomingShows(prev => sortUpcoming(prev.map(u => (u.id === show.id ? { ...u, ...data } : u))));
+
+    // A friend who hasn't answered yet should be answering about the right
+    // date and venue. Accepted copies are theirs and are left alone.
+    try {
+      const snap = await getDocs(query(
+        collection(db, 'showTags'),
+        where('fromUid', '==', user.uid),
+        where('upcomingShowId', '==', show.id),
+      ));
+      const updated = upcomingTagShowData({ ...show, ...data });
+      await Promise.all(snap.docs
+        .filter(d => d.data().status === 'pending')
+        .map(d => updateDoc(d.ref, { showData: updated })));
+    } catch (e) {
+      console.error('Failed to update pending tags for upcoming show:', e);
+    }
+    setToast('Upcoming show updated.');
+  };
+
+  const deleteUpcomingShow = async (show, { silent = false } = {}) => {
+    if (!user || !show?.id) return;
+    await deleteDoc(upcomingRef(show.id));
+    setUpcomingShows(prev => prev.filter(u => u.id !== show.id));
+    revokePendingTags(
+      [where('fromUid', '==', user.uid), where('upcomingShowId', '==', show.id)],
+    );
+    if (!silent) setToast('Upcoming show deleted.');
+  };
+
+  // Same showTags documents and the same email as tagging a past show;
+  // `upcoming: true` on the show data is what tells the recipient's app (and
+  // the email copy) that this is "going to", not "was at".
+  const tagFriendsAtUpcomingShow = async (show, selectedFriendUids) => {
+    if (!user || !show?.id || selectedFriendUids.length === 0) return;
+    // Never a blocked account, even if a stale friend list still holds one.
+    const uids = selectedFriendUids.filter(uid => !blockedUserIds.includes(uid));
+    if (uids.length === 0) return;
+    const showData = upcomingTagShowData(show);
+    try {
+      const batch = writeBatch(db);
+      uids.forEach(friendUid => {
+        batch.set(doc(collection(db, 'showTags')), {
+          fromUid: user.uid,
+          fromName: user.displayName || 'Anonymous',
+          toUid: friendUid,
+          showData,
+          upcomingShowId: show.id,
+          status: 'pending',
+          createdAt: serverTimestamp(),
+        });
+      });
+      batch.update(upcomingRef(show.id), {
+        taggedFriendUids: arrayUnion(...uids),
+        updatedAt: serverTimestamp(),
+      });
+      await batch.commit();
+      setUpcomingShows(prev => prev.map(u => (u.id === show.id
+        ? { ...u, taggedFriendUids: [...new Set([...(u.taggedFriendUids || []), ...uids])] }
+        : u)));
+
+      const taggerName = user.displayName || 'A friend';
+      for (const friendUid of uids) {
+        const friendEmail = friends.find(f => f.friendUid === friendUid)?.friendEmail;
+        if (!friendEmail) continue;
+        try {
+          const email = showTagNotification({
+            taggerName,
+            artist: showData.artist,
+            venue: showData.venue,
+            date: showData.date ? formatDate(showData.date) : '',
+            upcoming: true,
+          });
+          await sendEmailIfAllowed({ to: friendEmail, ...email }, { type: 'tag' });
+        } catch (emailErr) {
+          console.error('[TagEmail] Failed to send upcoming tag email:', emailErr);
+        }
+      }
+
+      setTagFriendsShow(null);
+      setToast(`Tagged ${uids.length} friend${uids.length !== 1 ? 's' : ''} as going to ${show.artist}!`);
+    } catch (error) {
+      console.error('Failed to tag friends at upcoming show:', error);
+      setToast({ message: 'Failed to tag friends. Please try again.', type: 'error' });
+    }
+  };
+
+  const untagFriendFromUpcomingShow = async (show, friendUid) => {
+    if (!user || !show?.id || !friendUid) return;
+    try {
+      await updateDoc(upcomingRef(show.id), {
+        taggedFriendUids: arrayRemove(friendUid),
+        updatedAt: serverTimestamp(),
+      });
+      setUpcomingShows(prev => prev.map(u => (u.id === show.id
+        ? { ...u, taggedFriendUids: (u.taggedFriendUids || []).filter(uid => uid !== friendUid) }
+        : u)));
+      await revokePendingTags(
+        [where('fromUid', '==', user.uid), where('toUid', '==', friendUid)],
+        tag => tag.upcomingShowId === show.id,
+      );
+    } catch (error) {
+      console.error('Failed to remove tagged friend:', error);
+      setToast({ message: 'Failed to remove that friend. Please try again.', type: 'error' });
+    }
+  };
+
+  // uid -> 'pending' | 'accepted' | 'declined' | 'revoked' for the tags this
+  // user sent on one upcoming show, so its detail view can say who has
+  // confirmed. Only the tagger's own tags: a friend's copy of the show
+  // never reveals who else they were tagged alongside.
+  const loadUpcomingTagStatuses = useCallback(async (upcomingShowId) => {
+    if (!user || !upcomingShowId) return {};
+    try {
+      const snap = await getDocs(query(
+        collection(db, 'showTags'),
+        where('fromUid', '==', user.uid),
+        where('upcomingShowId', '==', upcomingShowId),
+      ));
+      const statuses = {};
+      snap.docs.forEach(d => {
+        const t = d.data();
+        // Latest wins if a friend was tagged, removed and tagged again.
+        if (!statuses[t.toUid] || t.status === 'pending' || t.status === 'accepted') statuses[t.toUid] = t.status;
+      });
+      return statuses;
+    } catch (e) {
+      console.error('Failed to load tag statuses:', e);
+      return {};
+    }
+  }, [user]);
+
+  // setlist.fm's setlist for an upcoming show's date, or null. Searches the
+  // artist's shows that year, newest first, a few pages deep: a show that
+  // has just happened is on page one.
+  const findSetlistForUpcomingShow = async (show) => {
+    const year = (show.date || '').slice(0, 4);
+    if (!show.artist || !year) return null;
+    for (let page = 1; page <= 3; page++) {
+      try {
+        const params = new URLSearchParams({ artistName: show.artist, year, p: String(page) });
+        const res = await fetch(apiUrl(`/.netlify/functions/search-setlists?${params.toString()}`));
+        if (!res.ok) return null;
+        const data = await res.json();
+        const found = findSetlistForDate(data.setlist || [], show.date, show.venue || '');
+        if (found) return found;
+        const perPage = data.itemsPerPage || 20;
+        if (!data.setlist?.length || page * perPage >= (data.total || 0)) return null;
+        await new Promise(r => setTimeout(r, 600));
+      } catch (e) {
+        console.error('Setlist lookup for upcoming show failed:', e);
+        return null;
+      }
+    }
+    return null;
+  };
+
+  // The date has passed and the user says they went: becomes a normal show
+  // through addShow (so band sources, activity, profile counts all happen as
+  // for any add), with the setlist.fm setlist when there is one and the
+  // friend tags carried over. Returns { id, setlistFound } or null.
+  const convertUpcomingShow = async (show, { setlist = null } = {}) => {
+    if (!user || !show?.id) return null;
+    const setlistData = setlist ? setlistToShowData(setlist, extractSongsFromSetlist) : null;
+    const result = await addShow(upcomingToShowData(show, setlistData), { silent: true });
+    const newId = typeof result === 'string' ? result : result?.id;
+    if (!newId) return null;
+    await deleteUpcomingShow(show, { silent: true });
+    setToast({
+      message: setlistData
+        ? `${show.artist} moved to your shows, with the setlist.`
+        : `${show.artist} moved to your shows.`,
+      href: showHref(newId),
+      actionLabel: 'View show',
+    });
+    return { id: newId, setlistFound: !!setlistData };
   };
 
   // === SHOWS TOGETHER ===
@@ -2595,11 +2944,30 @@ export function AppProvider({ children }) {
       if (!tagSnap.exists()) return;
       const tagData = tagSnap.data();
 
+      // A tag on an upcoming show goes to the upcoming list, not history.
+      if (tagData.showData?.upcoming) {
+        const input = upcomingInputFromTag({ id: tagId, ...tagData });
+        const { taggedBy, taggedByUid, originUpcomingId, ...fields } = input;
+        // A tag accepted after the date has passed would fail validation;
+        // a show that already happened belongs in history instead.
+        if (validateUpcomingInput(fields)) {
+          await addShow({ artist: fields.artist, venue: fields.venue, city: fields.city, date: fields.date, setlist: [], taggedBy, taggedByUid }, { silent: true });
+        } else {
+          await addUpcomingShow(fields, { silent: true, extra: { taggedBy, taggedByUid, originUpcomingId } });
+        }
+        await setDoc(tagRef, { status: 'accepted' }, { merge: true });
+        if (!silent) {
+          setToast(`${tagData.showData.artist || 'Show'} added to your upcoming shows!`);
+          navigateTo('shows');
+        }
+        return;
+      }
+
       const result = await addShow({
         ...tagData.showData,
         taggedBy: tagData.fromName,
         taggedByUid: tagData.fromUid,
-      });
+      }, { silent: true });
 
       await setDoc(tagRef, { status: 'accepted' }, { merge: true });
 
@@ -2655,7 +3023,7 @@ export function AppProvider({ children }) {
   const acceptPendingEmailTag = async (tag) => {
     if (!user) return;
     try {
-      const result = await addShow({ ...tag.showData, taggedBy: tag.fromName, taggedByUid: tag.fromUid });
+      const result = await addShow({ ...tag.showData, taggedBy: tag.fromName, taggedByUid: tag.fromUid }, { silent: true });
       await setDoc(doc(db, 'pendingEmailTags', tag.id), { status: 'accepted' }, { merge: true });
       if (tag.fromEmail) {
         const email = tagAcceptedEmail({
@@ -3173,6 +3541,13 @@ export function AppProvider({ children }) {
 
   // ── Derived / memoized data ─────────────────────────────────────────
   const importedIds = useMemo(() => new Set(shows.map(s => s.setlistfmId).filter(Boolean)), [shows]);
+  // setlist.fm id -> this user's show id, so a search result that is
+  // already in the library can link straight to it (SearchView).
+  const showIdBySetlistfmId = useMemo(() => {
+    const map = new Map();
+    shows.forEach(s => { if (s.setlistfmId) map.set(s.setlistfmId, s.id); });
+    return map;
+  }, [shows]);
 
   const availableYears = useMemo(() => availableYearsFor(shows), [shows]);
 
@@ -3436,6 +3811,17 @@ export function AppProvider({ children }) {
 
     // Derived data
     importedIds,
+    showIdBySetlistfmId,
+    upcomingShows,
+    upcomingLoaded,
+    addUpcomingShow,
+    updateUpcomingShow,
+    deleteUpcomingShow,
+    tagFriendsAtUpcomingShow,
+    untagFriendFromUpcomingShow,
+    loadUpcomingTagStatuses,
+    findSetlistForUpcomingShow,
+    convertUpcomingShow,
     sortedFilteredShows,
     artistGroups,
     summaryStats,

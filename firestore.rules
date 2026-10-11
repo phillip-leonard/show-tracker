@@ -47,6 +47,16 @@ service cloud.firestore {
       allow write: if request.auth != null && request.auth.uid == userId;
     }
 
+    // Upcoming shows (v5.43.0) — shows the user is going to. Owner-only,
+    // unlike shows above: nothing needs to read someone else's (Shows
+    // Together compares past shows), and a friend tagged on one gets their
+    // own copy through showTags when they accept. Kept out of
+    // users/{uid}/shows so no stat, total or server function counts them.
+    // Removed with the users/{uid} subtree on account deletion.
+    match /users/{userId}/upcomingShows/{upcomingId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
     // Per-user festival ATTENDANCE records (v5.30.0). Same path and the
     // same owner-only rule these have always had — what changed is what
     // they contain: a pointer (`festivalId`) to a shared canonical
