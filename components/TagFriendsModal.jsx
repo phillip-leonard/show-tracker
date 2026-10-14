@@ -4,14 +4,12 @@ import React, { useState } from 'react';
 import { Calendar, MapPin, Check, Search, ChevronLeft, Users, Send, RefreshCw, X } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 import { Button, Card, Input } from '@/components/ui';
-import { useDismissable } from '@/context/DismissStackContext';
 
 // `upcoming` (5.43.0): the same picker for a show that hasn't happened yet,
 // worded as "going" rather than "were at". Inviting someone without an
 // account is a past-show flow (it lands in their history when they sign
 // up), so it is offered only when onInviteByEmail is passed.
 function TagFriendsModal({ show, friends, onTag, onInviteByEmail, onClose, upcoming = false }) {
-  useDismissable(true, onClose, { id: 'tag-friends' });
   const [selectedFriends, setSelectedFriends] = useState(new Set());
   const [sending, setSending] = useState(false);
   const [query, setQuery] = useState('');

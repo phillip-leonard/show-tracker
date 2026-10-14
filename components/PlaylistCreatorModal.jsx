@@ -17,13 +17,11 @@ import {
 import { apiUrl } from '@/lib/api';
 import { isNativePlatform } from '@/lib/native-auth';
 import { PLAYLIST_CREATION_ENABLED } from '@/lib/constants';
-import { useDismissable } from '@/context/DismissStackContext';
 
 // States: select | authenticating | searching | creating | results | error
 const SPOTIFY_GREEN = '#1DB954';
 
 function PlaylistCreatorModalInner({ show, onClose }) {
-  useDismissable(true, onClose, { id: 'playlist-creator' });
   const [step, setStep] = useState('select');
   const [platform, setPlatform] = useState(null);
   const [progress, setProgress] = useState({ current: 0, total: 0, matches: [] });

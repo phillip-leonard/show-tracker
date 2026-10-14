@@ -5,7 +5,6 @@ import { X, MapPin, Calendar, Music, RefreshCw, Clock, Search, ChevronDown, Chev
 import { Button, Card, Badge, Input } from '@/components/ui';
 import { apiUrl } from '@/lib/api';
 import { artistColor } from '@/lib/utils';
-import { useDismissable } from '@/context/DismissStackContext';
 
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
@@ -49,7 +48,6 @@ function formatSetlistFmDate(dateStr) {
 }
 
 export default function TourInfoModal({ artistName, mbid, onClose }) {
-  useDismissable(true, onClose, { id: 'tour-info' });
   const [tourData, setTourData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -200,7 +198,7 @@ export default function TourInfoModal({ artistName, mbid, onClose }) {
         </div>
 
         {/* Tabs */}
-        <div data-no-swipe className="flex gap-1 px-4 py-2 border-b border-subtle bg-hover overflow-x-auto">
+        <div className="flex gap-1 px-4 py-2 border-b border-subtle bg-hover overflow-x-auto">
           {tabs.map(t => (
             <Button
               key={t.id}

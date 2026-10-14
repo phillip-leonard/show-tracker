@@ -14,21 +14,9 @@ import UpcomingShows from '@/components/UpcomingShows';
 import EntityInfoPanel from '@/components/EntityInfoPanel';
 import SongHistoryModal from '@/components/SongHistoryModal';
 import StreamingLinks from '@/components/StreamingLinks';
-import { useDismissable } from '@/context/DismissStackContext';
-import useSheetDrag from '@/hooks/useSheetDrag';
-import useIsMobile from '@/hooks/useIsMobile';
 import { showHref } from '@/lib/showRouting';
 
 function SetlistEditor({ show, allShows, onAddSong, onRateSong, onCommentSong, onDeleteSong, onRateShow, onCommentShow, onBatchRate, onClose, onCreatePlaylist, onTagFriends, onRateVenue, onToggleFavoriteArtist, isArtistFavorite, friendAnnotations, isReturningUser }) {
-  useDismissable(true, onClose, { id: 'setlist-editor' });
-
-  // Presents as a bottom sheet on mobile (items-end, rounded-t-2xl) and a
-  // centred dialog from md: up, so the downward drag is mobile-only.
-  const isMobileViewport = useIsMobile();
-  const { sheetRef, backdropRef, scrollRef, dragHandleProps } = useSheetDrag({
-    enabled: isMobileViewport,
-    onDismiss: onClose,
-  });
   const router = useRouter();
   const [songName, setSongName] = useState('');
   const [songSet, setSongSet] = useState('');
@@ -153,27 +141,21 @@ function SetlistEditor({ show, allShows, onAddSong, onRateSong, onCommentSong, o
 
   return (
     <div className="fixed inset-0 md:left-64 flex items-end md:items-center justify-center md:p-4 z-[60]">
-      {/* Backdrop split out of the wrapper so the swipe-down drag can fade
-          it in step with the sheet. */}
       <div
-        ref={backdropRef}
         aria-hidden="true"
         className="absolute inset-0 bg-sidebar/50 backdrop-blur-xl"
       />
       <div
-        ref={sheetRef}
         className="relative bg-surface border border-subtle rounded-t-2xl md:rounded-3xl max-w-[100vw] sm:max-w-lg md:max-w-2xl w-full max-h-[92dvh] md:max-h-[90dvh] overflow-hidden flex flex-col shadow-2xl pb-safe-bottom md:pb-0"
       >
-        {/* Grabber — mobile only; the drag region is this plus the top bar. */}
+        {/* Grabber — mobile only. */}
         <div
-          {...dragHandleProps}
           className="md:hidden flex-shrink-0 flex items-center justify-center pt-2.5 pb-1"
         >
           <div className="sheet-grabber" />
         </div>
         {/* Compact top bar with close, share, and tag */}
         <div
-          {...dragHandleProps}
           className="flex items-center justify-between px-4 py-3 md:px-6 md:py-4 border-b border-subtle bg-surface flex-shrink-0"
         >
           <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -279,7 +261,7 @@ function SetlistEditor({ show, allShows, onAddSong, onRateSong, onCommentSong, o
         </div>
 
         {/* Scrollable content area with show info + setlist */}
-        <div ref={scrollRef} className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto">
           {/* Show details */}
           <div className="px-4 py-3 md:px-6 md:py-4 border-b border-subtle bg-surface">
             <p className="text-secondary text-sm">

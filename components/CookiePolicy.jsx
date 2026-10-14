@@ -50,7 +50,7 @@ export default function CookiePolicy() {
 
               <h3 className="text-lg font-medium text-primary mb-4">Strictly Necessary Cookies</h3>
               <p className="mb-4">These cookies are essential for the Service to function and cannot be disabled. They include:</p>
-              <div data-no-swipe className="overflow-x-auto">
+              <div className="overflow-x-auto">
                 <table className="w-full text-sm border border-subtle rounded-xl overflow-hidden">
                   <thead>
                     <tr className="bg-hover">
@@ -76,7 +76,7 @@ export default function CookiePolicy() {
 
               <h3 className="text-lg font-medium text-primary mt-8 mb-4">Functional Cookies</h3>
               <p className="mb-4">These cookies enable enhanced functionality and personalization:</p>
-              <div data-no-swipe className="overflow-x-auto">
+              <div className="overflow-x-auto">
                 <table className="w-full text-sm border border-subtle rounded-xl overflow-hidden">
                   <thead>
                     <tr className="bg-hover">

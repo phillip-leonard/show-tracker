@@ -24,14 +24,8 @@
 import React from 'react';
 import { ShieldOff } from 'lucide-react';
 import { Button } from '@/components/ui';
-import { useDismissable } from '@/context/DismissStackContext';
 
 export default function SuspendedScreen({ onSignOut }) {
-  // Top of the dismiss stack with a no-op dismiss, so the back gesture
-  // cannot fall through to navigation and walk the app out from under
-  // it — same reasoning as TermsGate.
-  useDismissable(true, () => {}, { id: 'suspended' });
-
   return (
     <div
       className="fixed inset-0 z-[100] bg-base overflow-y-auto"

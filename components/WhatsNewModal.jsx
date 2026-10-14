@@ -4,7 +4,6 @@ import React, { useState, useEffect } from 'react';
 import { X, Sparkles, Music, ArrowLeft, Smartphone, ChevronRight } from 'lucide-react';
 import { Button, Card } from '@/components/ui';
 import { storage, STORAGE_KEYS } from '@/lib/storage';
-import { useDismissable } from '@/context/DismissStackContext';
 
 // Bump this version string whenever you add new features to announce.
 // Users who have seen this version won't see the modal again.
@@ -39,9 +38,6 @@ const FEATURES = [
 
 function WhatsNewModal({ onClose, navigateTo }) {
   const [visible, setVisible] = useState(false);
-  // Routed through onClose rather than handleClose: handleClose is defined
-  // below and the stack only needs the overlay gone.
-  useDismissable(true, onClose, { id: 'whats-new' });
 
   useEffect(() => {
     // Animate in after mount

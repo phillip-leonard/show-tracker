@@ -17,33 +17,17 @@
 // screen with no exit, and signing out puts them back at the landing page
 // where the app's own /terms and /privacy links still work. Their account
 // and data are untouched; they can come back and agree at any time.
-//
-// ── WHY IT REGISTERS WITH THE DISMISS STACK WITH A NO-OP ────────────────
-//
-// The brief requires that a swipe-back cannot get a user past the gate.
-// Registering here puts the gate at the top of the LIFO stack, so the
-// back gesture pops it and calls dismiss() — which does nothing. The
-// important part is what it does NOT do: an unregistered overlay lets the
-// gesture fall through to navigation, which would move the page
-// underneath the gate and, on the last history entry, leave the app.
-// Claiming the top of the stack and doing nothing with it is what makes
-// the gesture inert here.
 
 'use client';
 
 import React, { useState } from 'react';
 import { ShieldCheck, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui';
-import { useDismissable } from '@/context/DismissStackContext';
 import { TERMS_SUMMARY } from '@/lib/terms';
 
 export default function TermsGate({ onAgree, onSignOut }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-
-  // Top of the dismiss stack, with a dismiss that deliberately does
-  // nothing — see the note above.
-  useDismissable(true, () => {}, { id: 'terms-gate' });
 
   const handleAgree = async () => {
     if (saving) return;

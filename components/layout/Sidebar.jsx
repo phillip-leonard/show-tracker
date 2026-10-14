@@ -23,9 +23,6 @@ import {
 import Pick from '../brand/Pick';
 import Wordmark, { BRAND_LOCKUP } from '../brand/Wordmark';
 import Badge from '../ui/Badge';
-import { useDismissable } from '@/context/DismissStackContext';
-import useDrawerSwipeClose from '@/hooks/useDrawerSwipeClose';
-import useIsMobile from '@/hooks/useIsMobile';
 import { isNativePlatform } from '@/lib/native-auth';
 
 function getActiveId(pathname) {
@@ -46,21 +43,6 @@ export default function Sidebar({
 }) {
   const pathname = usePathname() || '';
   const segment = getActiveId(pathname);
-
-  // The mobile drawer is a dismissable overlay like any other, driven by the
-  // isOpen/onClose pair AppShell and AppProviderWrapper already pass in — so
-  // an edge swipe with the drawer open closes the drawer rather than
-  // navigating the page behind it.
-  useDismissable(!!isOpen, onClose, { id: 'nav-drawer' });
-
-  // Leftward swipe-to-close. Close only: a right-edge open gesture would
-  // collide with the back swipe.
-  const isMobileViewport = useIsMobile();
-  const { drawerRef } = useDrawerSwipeClose({
-    isOpen: !!isOpen,
-    onClose,
-    enabled: isMobileViewport,
-  });
 
   // Profile's badge folds together everything that needs the user's
   // attention there: pending friend requests/invites (pendingNotificationCount)
@@ -126,7 +108,6 @@ export default function Sidebar({
       )}
 
       <aside
-        ref={drawerRef}
         className={[
           // dvh, not vh: with the iOS URL bar showing, h-screen made the
           // drawer taller than the visible viewport and cut off the logout

@@ -4,14 +4,9 @@ import { useState } from 'react';
 import { Trash2 } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 import Button from '@/components/ui/Button';
-import { useDismissable } from '@/context/DismissStackContext';
 
 export default function DeleteShowModal({ show, isOpen, onClose, onConfirm }) {
   const [isDeleting, setIsDeleting] = useState(false);
-
-  // Above the early return — hooks cannot be called conditionally — and
-  // gated on the same condition, so the stack only holds it while it shows.
-  useDismissable(!!(isOpen && show), onClose, { id: 'delete-show' });
 
   if (!isOpen || !show) return null;
 

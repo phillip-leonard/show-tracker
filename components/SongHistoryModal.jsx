@@ -4,18 +4,8 @@ import React, { useMemo } from 'react';
 import { X, Star, MapPin, MessageSquare, Calendar, Music, ExternalLink } from 'lucide-react';
 import { Button, Card, Badge } from '@/components/ui';
 import { formatDate, normalizeSongTitle } from '@/lib/utils';
-import { useDismissable } from '@/context/DismissStackContext';
-import useSheetDrag from '@/hooks/useSheetDrag';
-import useIsMobile from '@/hooks/useIsMobile';
 
 function SongHistoryModal({ songName, artistName, allShows, onClose, onViewShow }) {
-  useDismissable(true, onClose, { id: 'song-history' });
-
-  const isMobileViewport = useIsMobile();
-  const { sheetRef, backdropRef, scrollRef, dragHandleProps } = useSheetDrag({
-    enabled: isMobileViewport,
-    onDismiss: onClose,
-  });
   const performances = useMemo(() => {
     const targetTitle = normalizeSongTitle(songName);
     const results = [];
@@ -65,14 +55,14 @@ function SongHistoryModal({ songName, artistName, allShows, onClose, onViewShow 
 
   return (
     <div className="fixed inset-0 md:left-64 flex items-end md:items-center justify-center md:p-4 z-[70]" onClick={onClose}>
-      <div ref={backdropRef} aria-hidden="true" className="absolute inset-0 bg-sidebar/50 backdrop-blur-xl" />
-      <Card ref={sheetRef} variant="elevated" padding="none" className="relative rounded-t-2xl md:rounded-3xl max-w-[100vw] sm:max-w-lg md:max-w-xl w-full max-h-[85dvh] md:max-h-[80dvh] overflow-hidden flex flex-col shadow-2xl pb-safe-bottom md:pb-0" onClick={e => e.stopPropagation()}>
+      <div aria-hidden="true" className="absolute inset-0 bg-sidebar/50 backdrop-blur-xl" />
+      <Card variant="elevated" padding="none" className="relative rounded-t-2xl md:rounded-3xl max-w-[100vw] sm:max-w-lg md:max-w-xl w-full max-h-[85dvh] md:max-h-[80dvh] overflow-hidden flex flex-col shadow-2xl pb-safe-bottom md:pb-0" onClick={e => e.stopPropagation()}>
         {/* Grabber — mobile only */}
-        <div {...dragHandleProps} className="md:hidden flex-shrink-0 flex items-center justify-center pt-2.5 pb-1">
+        <div className="md:hidden flex-shrink-0 flex items-center justify-center pt-2.5 pb-1">
           <div className="sheet-grabber" />
         </div>
         {/* Header */}
-        <div {...dragHandleProps} className="flex items-start justify-between px-4 py-3 md:px-6 md:py-4 border-b border-subtle flex-shrink-0">
+        <div className="flex items-start justify-between px-4 py-3 md:px-6 md:py-4 border-b border-subtle flex-shrink-0">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
               <Music className="w-5 h-5 text-brand flex-shrink-0" />
@@ -84,7 +74,7 @@ function SongHistoryModal({ songName, artistName, allShows, onClose, onViewShow 
         </div>
 
         {/* Scrollable content */}
-        <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 md:p-6">
+        <div className="flex-1 overflow-y-auto p-4 md:p-6">
           {/* Count header */}
           <div className="text-center mb-4">
             <Badge tone="navy" size="sm">

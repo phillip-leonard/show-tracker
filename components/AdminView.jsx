@@ -17,7 +17,6 @@ import AnnouncementsTab from '@/components/admin/AnnouncementsTab';
 import UnsubscribesTab from '@/components/admin/UnsubscribesTab';
 import { sendEmailIfAllowed } from '@/lib/email';
 import { PageHeader, Button } from '@/components/ui';
-import { useDismissable } from '@/context/DismissStackContext';
 
 export default
 function AdminView() {
@@ -102,11 +101,6 @@ function AdminView() {
   // Delete user state
   const [deleteConfirmUser, setDeleteConfirmUser] = useState(null); // null | { id, firstName, email }
 
-  // AdminView renders two ad-hoc confirmation overlays of its own (bulk
-  // delete, delete user). Two separate registrations, because either can be
-  // the topmost thing on screen.
-  useDismissable(!!bulkResetConfirm, () => setBulkResetConfirm(false), { id: 'admin-bulk-reset' });
-  useDismissable(!!deleteConfirmUser, () => setDeleteConfirmUser(null), { id: 'admin-delete-user' });
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteError, setDeleteError] = useState(null);
 
@@ -1491,7 +1485,7 @@ function AdminView() {
                     explain it. Collapsed, so it costs nothing to have. */}
                 <details className="text-[11px]">
                   <summary className="text-muted cursor-pointer hover:text-secondary">Raw report</summary>
-                  <pre data-no-swipe className="mt-2 p-2 bg-surface border border-subtle rounded-lg overflow-x-auto whitespace-pre text-[10px] text-secondary max-h-64">
+                  <pre className="mt-2 p-2 bg-surface border border-subtle rounded-lg overflow-x-auto whitespace-pre text-[10px] text-secondary max-h-64">
 {JSON.stringify(resyncPlan, null, 2)}
                   </pre>
                 </details>
@@ -1648,7 +1642,7 @@ function AdminView() {
           />
 
           {/* Tab Navigation */}
-          <div data-no-swipe className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
             <button
               onClick={() => setAdminTab('users')}
               className={`shrink-0 whitespace-nowrap flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
@@ -2757,7 +2751,7 @@ function AdminView() {
                   {errorRows.length > 0 && <span className="px-3 py-1.5 bg-danger/15 text-danger rounded-lg text-sm font-medium">{errorRows.length} with errors</span>}
                   {duplicateRows.length > 0 && <span className="px-3 py-1.5 bg-brand-subtle text-brand rounded-lg text-sm font-medium">{duplicateRows.length} duplicate{duplicateRows.length !== 1 ? 's' : ''} (will skip)</span>}
                 </div>
-                <div data-no-swipe className="overflow-x-auto mb-6 max-h-96 overflow-y-auto">
+                <div className="overflow-x-auto mb-6 max-h-96 overflow-y-auto">
                   <table className="w-full text-sm">
                     <thead className="sticky top-0 bg-elevated/95">
                       <tr className="border-b border-subtle">
@@ -3005,7 +2999,7 @@ function AdminView() {
                     </div>
 
                     {/* Results Table */}
-                    <div data-no-swipe className="overflow-x-auto rounded-xl border border-subtle">
+                    <div className="overflow-x-auto rounded-xl border border-subtle">
                       <table className="w-full text-sm">
                         <thead>
                           <tr className="bg-base border-b border-subtle">

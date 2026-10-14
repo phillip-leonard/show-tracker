@@ -16,9 +16,6 @@
 
 import React, { useEffect } from 'react';
 import { X } from 'lucide-react';
-import { useDismissable } from '@/context/DismissStackContext';
-import useSheetDrag from '@/hooks/useSheetDrag';
-import useIsMobile from '@/hooks/useIsMobile';
 import useKeyboardInset from '@/hooks/useKeyboardInset';
 
 const SIZES = {
@@ -53,17 +50,6 @@ export default function Modal({
   // ride above the keyboard, and correct on native as well as on web.
   const keyboardInset = useKeyboardInset();
 
-  // This call went missing in 5.36.0, while the refs and drag props it
-  // returns stayed in the markup below. They were left as free variables, so
-  // opening any Modal threw a ReferenceError before it painted — the delete-
-  // account and block-user confirmations among them. `if (!open) return null`
-  // meant a closed Modal was fine, which is why nothing caught it.
-  const isMobileViewport = useIsMobile();
-  const { sheetRef, backdropRef, scrollRef, dragHandleProps } = useSheetDrag({
-    enabled: isMobileViewport,
-    onDismiss: onClose,
-  });
-
   // Escape to close + scroll lock
   useEffect(() => {
     if (!open) return;
@@ -88,15 +74,11 @@ export default function Modal({
       aria-modal="true"
       aria-labelledby={title ? 'modal-title' : undefined}
     >
-      {/* Backdrop as its own element so the swipe-down drag can fade it
-          with the sheet. */}
       <div
-        ref={backdropRef}
         aria-hidden="true"
         className="absolute inset-0 bg-sidebar/60 backdrop-blur-sm animate-fade-in"
       />
       <div
-        ref={sheetRef}
         onClick={(e) => e.stopPropagation()}
         style={
           keyboardInset
@@ -114,20 +96,13 @@ export default function Modal({
           SIZES[size],
         ].join(' ')}
       >
-        {/* Grabber — mobile only, and the primary drag region. Also the
-            affordance that tells you the sheet can be dragged at all. */}
-        <div
-          {...dragHandleProps}
-          className="md:hidden flex-shrink-0 flex items-center justify-center pt-2.5 pb-1 cursor-grab"
-        >
+        {/* Grabber — mobile only. */}
+        <div className="md:hidden flex-shrink-0 flex items-center justify-center pt-2.5 pb-1">
           <div className="sheet-grabber" />
         </div>
         {/* Header */}
         {(title || showClose) && (
-          <div
-            {...dragHandleProps}
-            className="flex items-start justify-between gap-4 px-5 pb-5 pt-2 md:p-6 border-b border-subtle"
-          >
+          <div className="flex items-start justify-between gap-4 px-5 pb-5 pt-2 md:p-6 border-b border-subtle">
             <div className="min-w-0 flex-1">
               {title && (
                 <h2 id="modal-title" className="text-xl md:text-2xl font-bold tracking-[-0.015em] text-primary">
@@ -152,7 +127,7 @@ export default function Modal({
         )}
 
         {/* Body */}
-        <div ref={scrollRef} className="flex-1 overflow-y-auto p-5 md:p-6">{children}</div>
+        <div className="flex-1 overflow-y-auto p-5 md:p-6">{children}</div>
 
         {/* Footer */}
         {footer && (

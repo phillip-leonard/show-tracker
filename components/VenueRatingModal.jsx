@@ -5,10 +5,8 @@ import { Star, X, RefreshCw } from 'lucide-react';
 import { Button, Card } from '@/components/ui';
 import { collection, doc, setDoc, getDocs, query, where, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { useDismissable } from '@/context/DismissStackContext';
 
 function VenueRatingModal({ show, currentUser, onClose, onSaved }) {
-  useDismissable(true, onClose, { id: 'venue-rating' });
   const SUB_LABELS = [
     { key: 'soundQuality', label: 'Sound Quality' },
     { key: 'sightlines', label: 'Sightlines' },

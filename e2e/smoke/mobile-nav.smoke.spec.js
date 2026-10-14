@@ -1,16 +1,10 @@
 // @ts-check
 /**
- * Mobile navigation smoke tests — the driveable half of the mobile
- * navigation rework.
+ * Mobile navigation smoke tests.
  *
- * WHAT IS AND IS NOT HERE. Playwright cannot drive a native-feeling
- * pointer gesture: the edge-swipe recognizer's thresholds, direction lock
- * and abort conditions are unit-tested as pure functions in
- * lib/__tests__/swipeGesture.test.js, and the feel of the gesture is a
- * physical-device check. What IS driveable is everything structural — does
- * a pushed route have a back control, does a cold deep link land on the
- * right parent, does anything overflow at 390px — and that is what this
- * file pins.
+ * What this pins is everything structural: does a pushed route have a
+ * back control, does a cold deep link land on the right parent, does
+ * anything overflow at 390px.
  *
  * Runs in GUEST MODE so it needs no credentials and creates no data, which
  * also keeps it in the unauthenticated `smoke` project.

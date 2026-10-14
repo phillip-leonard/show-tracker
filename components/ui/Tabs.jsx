@@ -25,9 +25,6 @@ export default function Tabs({ tabs, value, onChange, className = '' }) {
   return (
     <div
       role="tablist"
-      // The back gesture must not hijack a horizontal swipe across the tab
-      // strip — see hooks/useEdgeSwipeBack.js.
-      data-no-swipe
       className={`flex gap-1 border-b border-subtle overflow-x-auto scrollbar-hide ${className}`}
     >
       {tabs.map((t) => {

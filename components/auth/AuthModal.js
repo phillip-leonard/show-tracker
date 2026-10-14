@@ -5,12 +5,10 @@ import LoginForm from './LoginForm';
 import SignupForm from './SignupForm';
 import ForgotPasswordForm from './ForgotPasswordForm';
 import TermsAgreement from './TermsAgreement';
-import { useDismissable } from '@/context/DismissStackContext';
 import { getPendingAcceptance, setPendingAcceptance, TERMS_VERSION } from '@/lib/terms';
 import useKeyboardInset from '@/hooks/useKeyboardInset';
 
 export default function AuthModal({ mode, onClose, onSwitchMode, onSuccess }) {
-  useDismissable(true, onClose, { id: 'auth-modal' });
   const keyboardInset = useKeyboardInset();
 
   // ── The Guideline 1.2 agreement gate ──────────────────────────────────

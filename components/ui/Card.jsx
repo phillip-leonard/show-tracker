@@ -31,9 +31,8 @@ const PAD = {
 const INTERACTIVE =
   'cursor-pointer transition-all hover:border-active hover:-translate-y-0.5 hover:shadow-theme-md';
 
-// forwardRef so a caller can reach the DOM node — the bottom-sheet drag
-// (hooks/useSheetDrag.js) has to transform the sheet directly, and several
-// overlays are built on <Card>. Purely additive: rendering is unchanged.
+// forwardRef so a caller can reach the DOM node. Purely additive: rendering
+// is unchanged.
 const Card = forwardRef(function Card({
   children,
   variant = 'default',

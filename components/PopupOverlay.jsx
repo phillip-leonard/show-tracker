@@ -2,7 +2,6 @@
 
 import React, { useEffect, useRef, useCallback } from 'react';
 import { X, Info, AlertTriangle, Sparkles, Megaphone, ExternalLink } from 'lucide-react';
-import { useDismissable } from '@/context/DismissStackContext';
 
 const VARIANT_CONFIG = {
   info: {
@@ -60,8 +59,6 @@ export default function PopupOverlay({
   learnMoreLabel = 'Learn More',
   dismissLabel = 'Got It',
 }) {
-  useDismissable(true, onDismiss, { id: `popup-${popupId || 'overlay'}` });
-
   const overlayRef = useRef(null);
   const contentRef = useRef(null);
   const previousFocusRef = useRef(null);

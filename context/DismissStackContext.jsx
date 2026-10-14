@@ -1,43 +1,30 @@
 // context/DismissStackContext.jsx
 //
-// Two things the back gesture and the back button both need, and neither
-// of which the app tracked before:
+// In-app navigation depth, for the back control.
 //
-//   1. THE DISMISS STACK. On release, the gesture has to answer "what is
-//      the topmost dismissable thing right now?" LIFO, so a sheet opened
-//      over a modal closes first. Every overlay registers with
-//      useDismissable(); the gesture is only as good as its worst-covered
-//      overlay.
-//
-//   2. IN-APP NAVIGATION DEPTH. "Can we go back?" must not come from
-//      window.history.length — in a Capacitor SPA it is never zero and
-//      counts entries that are not ours, so it reports "yes" on a cold
-//      deep link where going back leaves the app. Instead we keep our own
-//      stack of visited paths. Depth 0 means there is nothing of ours to
-//      go back to.
+// "Can we go back?" must not come from window.history.length — in a
+// Capacitor SPA it is never zero and counts entries that are not ours, so
+// it reports "yes" on a cold deep link where going back leaves the app.
+// Instead we keep our own stack of visited paths. Depth 0 means there is
+// nothing of ours to go back to.
 //
 // Root routes (lib/navRoutes.js ROOT_ROUTES) reset the stack, which is what
-// makes them floors: you can never swipe back out of one.
+// makes them floors: back never leaves one.
+//
+// The name is historical: this used to also hold a stack of open overlays
+// for the edge-swipe-back gesture, which was removed in 5.43.1.
 
 'use client';
 
 import React, {
-  createContext, useCallback, useContext, useEffect, useMemo, useRef, useState,
+  createContext, useContext, useEffect, useMemo, useRef, useState,
 } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { isRootRoute, normalizePath } from '@/lib/navRoutes';
 
 const DismissStackContext = createContext(null);
 
-let autoId = 0;
-
 export function DismissStackProvider({ children }) {
-  // The live stack. Kept in a ref because the gesture layer reads it at
-  // pointerup, where a stale closure would pop the wrong overlay; `depth`
-  // mirrors its length for anything that needs to re-render on change.
-  const stackRef = useRef([]);
-  const [depth, setDepth] = useState(0);
-
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const historyRef = useRef([]);
@@ -71,40 +58,9 @@ export function DismissStackProvider({ children }) {
     setNavDepth(Math.max(0, historyRef.current.length - 1));
   }, [pathname, search]);
 
-  const push = useCallback((entry) => {
-    stackRef.current = [...stackRef.current, entry];
-    setDepth(stackRef.current.length);
-  }, []);
-
-  const remove = useCallback((id) => {
-    stackRef.current = stackRef.current.filter((e) => e.id !== id);
-    setDepth(stackRef.current.length);
-  }, []);
-
-  /**
-   * Dismiss the topmost overlay. Returns true if there was one.
-   *
-   * The entry is removed here as well as by the overlay's own unmount
-   * cleanup — an overlay that ignores its onDismiss would otherwise sit at
-   * the top of the stack forever and swallow every subsequent gesture.
-   */
-  const popTop = useCallback(() => {
-    const stack = stackRef.current;
-    if (stack.length === 0) return false;
-    const top = stack[stack.length - 1];
-    stackRef.current = stack.slice(0, -1);
-    setDepth(stackRef.current.length);
-    try {
-      top.dismiss?.();
-    } catch (e) {
-      console.warn('Dismissable threw on dismiss:', e);
-    }
-    return true;
-  }, []);
-
   const value = useMemo(
-    () => ({ push, remove, popTop, depth, navDepth, canGoBack: navDepth > 0 }),
-    [push, remove, popTop, depth, navDepth],
+    () => ({ navDepth, canGoBack: navDepth > 0 }),
+    [navDepth],
   );
 
   return (
@@ -113,8 +69,8 @@ export function DismissStackProvider({ children }) {
 }
 
 /**
- * Read the stack. Safe to call with no provider mounted (desktop, tests):
- * reports an empty stack and no history rather than throwing.
+ * Read the navigation depth. Safe to call with no provider mounted
+ * (desktop, tests): reports no history rather than throwing.
  */
 export function useDismissStack() {
   const ctx = useContext(DismissStackContext);
@@ -122,42 +78,8 @@ export function useDismissStack() {
 }
 
 const EMPTY_STACK = {
-  push: () => {},
-  remove: () => {},
-  popTop: () => false,
-  depth: 0,
   navDepth: 0,
   canGoBack: false,
 };
-
-/**
- * Register an overlay as dismissable while it is open.
- *
- *   useDismissable(isOpen, onClose, { id: 'venue-rating' });
- *
- * Pushes on open, pops on close or unmount. `onDismiss` is read through a
- * ref, so an inline arrow function does not churn the stack on every
- * render of the host component.
- */
-export function useDismissable(isOpen, onDismiss, options = {}) {
-  const ctx = useContext(DismissStackContext);
-  const onDismissRef = useRef(onDismiss);
-  onDismissRef.current = onDismiss;
-
-  const idRef = useRef(null);
-  if (idRef.current === null) {
-    autoId += 1;
-    idRef.current = options.id || `dismissable-${autoId}`;
-  }
-
-  const { push, remove } = ctx || EMPTY_STACK;
-
-  useEffect(() => {
-    if (!ctx || !isOpen) return undefined;
-    const id = idRef.current;
-    push({ id, dismiss: () => onDismissRef.current?.() });
-    return () => remove(id);
-  }, [ctx, isOpen, push, remove]);
-}
 
 export default DismissStackContext;

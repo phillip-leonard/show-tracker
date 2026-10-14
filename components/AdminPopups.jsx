@@ -291,7 +291,7 @@ export default function AdminPopups() {
                 {copied ? 'Copied' : 'Copy'}
               </button>
             </div>
-            <pre data-no-swipe className="text-xs text-secondary bg-surface rounded-xl p-3 border border-subtle overflow-x-auto max-h-60 overflow-y-auto">
+            <pre className="text-xs text-secondary bg-surface rounded-xl p-3 border border-subtle overflow-x-auto max-h-60 overflow-y-auto">
               {JSON.stringify(popupManager.getAllDismissedPopups(), null, 2)}
             </pre>
           </div>

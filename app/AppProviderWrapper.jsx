@@ -14,8 +14,7 @@ import { extractFirstName } from '@/lib/utils';
 import { initCapacitorPlugins } from '@/lib/capacitor';
 import { initKeyboardInsetTracking } from '@/lib/keyboardInset';
 import { registerServiceWorker } from '@/lib/service-worker';
-import { DismissStackProvider, useDismissable } from '@/context/DismissStackContext';
-import SwipeBackLayer from '@/components/layout/SwipeBackLayer';
+import { DismissStackProvider } from '@/context/DismissStackContext';
 import { Music, Check, Sparkles } from 'lucide-react';
 
 // Code-split: each of these only renders behind a runtime condition (logged
@@ -98,15 +97,6 @@ function AppShell({ children }) {
     return initKeyboardInsetTracking();
   }, []);
 
-  // The three overlays this component renders inline. Each registers with
-  // the dismiss stack so the back gesture closes it rather than navigating
-  // the page out from under it.
-  useDismissable(showMigrationPrompt, handleSkipMigration, { id: 'migration-prompt' });
-  useDismissable(showGuestPrompt, () => setShowGuestPrompt(false), { id: 'guest-prompt' });
-  useDismissable(!!welcomeState, () => setWelcomeState(null), { id: 'welcome-modal' });
-  // The first-show celebration is deliberately absent: it is
-  // pointer-events-none and self-dismissing, so it is not a dismiss target.
-
   // Show loading state while auth initializes
   if (authLoading) {
     return (
@@ -146,9 +136,9 @@ function AppShell({ children }) {
   // new registrations only.
   //
   // Placed here, ahead of the signed-in shell, so the app never renders
-  // behind it: an early `return` cannot be swiped, scrolled or
-  // back-gestured past, which is a stronger guarantee than an overlay
-  // stacked on top of a live screen. `termsAccepted === false` and not
+  // behind it: an early `return` cannot be scrolled or navigated past,
+  // which is a stronger guarantee than an overlay stacked on top of a live
+  // screen. `termsAccepted === false` and not
   // `!termsAccepted`, because `null` means the profile read has not come
   // back yet and must not flash the gate.
   //
@@ -189,7 +179,6 @@ function AppShell({ children }) {
   }
 
   return (
-    <SwipeBackLayer>
     <div className="min-h-screen bg-base text-primary">
       {/* Migration Prompt Modal */}
       {showMigrationPrompt && (
@@ -390,6 +379,5 @@ function AppShell({ children }) {
         </div>
       )}
     </div>
-    </SwipeBackLayer>
   );
 }

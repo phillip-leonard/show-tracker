@@ -607,7 +607,7 @@ function ImportView({ onImport, onUpdateShow, existingShows, onNavigate }) {
           {/* Preview of first 3 rows */}
           <div className="mb-6">
             <h3 className="text-sm font-medium text-secondary mb-3">Preview (first 3 rows)</h3>
-            <div data-no-swipe className="overflow-x-auto">
+            <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-subtle">
@@ -695,7 +695,7 @@ function ImportView({ onImport, onUpdateShow, existingShows, onNavigate }) {
             </p>
           )}
 
-          <div data-no-swipe className="overflow-x-auto mb-6 max-h-96 overflow-y-auto">
+          <div className="overflow-x-auto mb-6 max-h-96 overflow-y-auto">
             <table className="w-full text-sm">
               <thead className="sticky top-0 bg-elevated/95">
                 <tr className="border-b border-subtle">
