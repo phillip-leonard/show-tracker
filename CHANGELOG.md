@@ -4,6 +4,40 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.43.1] — 2026-10-14
+
+Web only. No iOS build: nothing in this release is reachable in iOS 3.6
+(see below).
+
+### Fixed: `impact` Finally Exists
+
+- `lib/capacitor.js` now exports `impact(style = 'light')`, the haptic the
+  three swipe gestures (`SwipeBackLayer`, `useSheetDrag`,
+  `useDrawerSwipeClose`) have imported since 5.36.0. Until now the import
+  resolved to `undefined`, which is the `Attempted import error` every
+  `npm run build` printed three times.
+- No-op off native (`isNativePlatform()` from `lib/platform.js`). On native
+  it lazy-loads `@capacitor/haptics` the same way the file loads StatusBar
+  and SplashScreen. It never rejects: the platform check, the import and the
+  plugin call all sit inside one try/catch, because every caller fires it
+  unawaited just before it navigates, dismisses or closes.
+- All three call sites were already right: once per commit, after the
+  decision, never on the cancel path. They are unchanged.
+- New `lib/__tests__/haptics.test.js` (in `test:unit`) covers web as a no-op,
+  native default light, and resolving when the plugin rejects, fails to
+  load, or the platform check throws.
+
+### Unchanged: The Gestures Are Still Off
+
+- `TOUCH_GESTURES_ENABLED` in `lib/platform.js` stays `false`. It was turned
+  off in 5.36.1 for two reasons: the missing `impact`, and that none of the
+  three gestures had run on a device. This release fixes the first. The
+  second still needs the device pass before the switch is flipped, so the
+  missing export was never actually reachable in any shipped build, on web
+  or in iOS 3.6.
+
+---
+
 ## [5.43.0] — 2026-10-11
 
 Ships in iOS 3.6 (`MARKETING_VERSION` 3.5 → 3.6; the build number is left
