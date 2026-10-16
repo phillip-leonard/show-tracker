@@ -7,7 +7,7 @@ import { nativeOAuthSignIn, isNativePlatform } from '@/lib/native-auth';
 import {
   collection, doc, setDoc, getDoc, getDocs, deleteDoc, updateDoc,
   serverTimestamp, onSnapshot, query, where, addDoc, writeBatch, limit,
-  arrayUnion, arrayRemove,
+  arrayUnion, arrayRemove, Timestamp,
 } from 'firebase/firestore';
 import { auth, db, googleProvider, browserPopupRedirectResolver } from '@/lib/firebase';
 import { formatDate, parseDate, normalizeSongTitle } from '@/lib/utils';
@@ -172,6 +172,29 @@ async function updateUserProfile(user, shows = []) {
   }
 
   await setDoc(profileRef, profileData, { merge: true });
+}
+
+// ── Helper: stamp createdAt on a brand-new profile (v5.44.0) ────────────
+// updateUserProfile() only writes createdAt when the profile does not
+// exist yet, but since 5.36.2 sign-in writes to the profile first (terms
+// acceptance, then the server-side name sync), so by the time it runs the
+// document already exists and createdAt was never written. This runs at
+// the very top of the signed-in branch of the auth listener, before any
+// of those writes, so a new account's profile is created carrying its
+// real signup date: Auth's creationTime, not the moment of this write.
+//
+// Forward-only by design: an existing profile is left alone, even one
+// missing createdAt. The admin Users tab reads signup dates from Auth
+// (netlify/functions/admin-list-auth-users.js) and does not depend on it.
+async function ensureProfileCreatedAt(user) {
+  if (!user) return;
+  const profileRef = doc(db, 'userProfiles', user.uid);
+  const existing = await getDoc(profileRef);
+  if (existing.exists()) return;
+  const authCreated = new Date(user.metadata?.creationTime || '');
+  await setDoc(profileRef, {
+    createdAt: Number.isNaN(authCreated.getTime()) ? serverTimestamp() : Timestamp.fromDate(authCreated),
+  }, { merge: true });
 }
 
 // ── Helper: rebuild community-wide leaderboard stats ────────────────────
@@ -922,6 +945,13 @@ export function AppProvider({ children }) {
         // different account from landing on the previous user's show.
         router.push('/shows/');
 
+        // Before anything else writes to the profile — see
+        // ensureProfileCreatedAt above.
+        try {
+          await ensureProfileCreatedAt(currentUser);
+        } catch (err) {
+          console.error('Could not stamp profile createdAt:', err);
+        }
 
         // ── Terms agreement (Guideline 1.2) ───────────────────────────
         // First thing after sign-in, because everything below it is
@@ -1052,6 +1082,30 @@ export function AppProvider({ children }) {
                 friendPhotoURL: currentUser.photoURL || '',
                 addedAt: serverTimestamp(),
               });
+
+              // Record who invited them (v5.44.0). Until now only the
+              // email-invite path below wrote invitedBy*, so anyone who
+              // joined from a shared ?ref= link showed as not invited.
+              // Only for an account made in the last day: the referrer is
+              // parked in storage until the next sign-in, and an existing
+              // user who once opened a friend's link was not invited by
+              // them. Never overwrites an inviter already on the profile.
+              const createdMs = Date.parse(currentUser.metadata?.creationTime || '');
+              if (createdMs && Date.now() - createdMs < 24 * 60 * 60 * 1000) {
+                try {
+                  const ownProfile = await getDoc(doc(db, 'userProfiles', currentUser.uid));
+                  if (!ownProfile.exists() || !ownProfile.data().invitedByUid) {
+                    await setDoc(doc(db, 'userProfiles', currentUser.uid), {
+                      invitedByUid: referrerUid,
+                      invitedByName: referrerData.displayName || referrerData.firstName || '',
+                      invitedByEmail: referrerData.email || '',
+                      inviteAcceptedAt: serverTimestamp(),
+                    }, { merge: true });
+                  }
+                } catch (err) {
+                  console.warn('Could not record referral inviter:', err);
+                }
+              }
             }
             storage.remove(STORAGE_KEYS.INVITE_REFERRER);
           } catch (err) {

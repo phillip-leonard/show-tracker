@@ -4,6 +4,80 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.44.0] — 2026-10-16
+
+Admin panel only, plus two signup-time fixes. Nothing user-facing, so no
+in-app release note.
+
+### Admin → Users, rebuilt
+
+- **Signup date range** with native date pickers and 7 / 30 / 90 day and
+  All-time presets (default: last 30 days), a match count, and filters for
+  account type (All / Full / Trial) and test users (Real, the default /
+  Test / All). Search by name or email is kept.
+- **Columns:** name/email, signup date, account type, shows, invites
+  sent, invited by, converted (with date), test-user flag. Sortable
+  either way by signup date, shows, invites sent, invited by and
+  converted; every filter and sort combines. The table scrolls sideways
+  on a phone, with a sort picker in place of the column headers.
+- **Trials** are guest sessions that never converted. A guest is not a
+  Firebase account, so a trial row has no name, email or invites. A guest
+  who signed up appears once, as their account, marked converted.
+- **Signup dates come from Firebase Auth**, through the new admin-only,
+  read-only `netlify/functions/admin-list-auth-users.js`.
+  `userProfiles.createdAt` turned out to be missing on nearly every
+  account made since 5.36.2 (see below), and the panel used to show a
+  missing date as *today*, which put those accounts in every range. A
+  date that is still unknown now shows as Unknown and is left out of
+  date ranges.
+- Rows, filters, sorts and totals live in `lib/adminUsers.js`, with unit
+  tests in `lib/__tests__/adminUsers.test.js`.
+- The "Converted only" / "Invited only" toggles are gone: sorting by
+  either column does the same job, and the Conversions and Referrals tabs
+  are unchanged.
+
+### Test users
+
+- New `userProfiles.isTestUser`. The admin marks or unmarks it per row.
+- `firestore.rules`: an owner can't create a profile carrying it or
+  change it; the admin may update it on any profile, as the only field in
+  the write, and only to a boolean. Emulator tests added to
+  `tests/rules/moderation.rules.test.js`.
+- Guest trials can't be flagged: anyone can write a `guestSessions` doc,
+  so no rule could protect the flag there.
+
+### Admin → Stats
+
+- New tab. Total Users, Total Shows, Total Songs and Songs Rated moved
+  here from the top of Users. Same sums of the per-profile counters as
+  before; test users are excluded unless "Include test users" is ticked.
+
+### Admin → Roadmap removed
+
+- The tab, its state and handlers, and `components/AdminRoadmapCard.jsx`
+  are gone. The public `/roadmap` page, its data and the
+  `notify-roadmap-completion` function are untouched. Feature requests
+  from Feedback still create draft roadmap items; there is now no UI to
+  publish them.
+
+### Fixed: new accounts never got a createdAt
+
+- Since 5.36.2, sign-in writes to the profile (terms acceptance, the
+  server-side name sync) before `updateUserProfile()` runs, and that only
+  wrote `createdAt` for a profile that didn't exist yet. The new
+  `ensureProfileCreatedAt()` runs first in the auth listener and creates
+  a new account's profile with Auth's creation time. Forward-only:
+  existing profiles are not backfilled.
+
+### Fixed: invites by shared link weren't recorded
+
+- Joining from a `?ref=<uid>` link auto-friended the referrer but wrote
+  no `invitedBy*` fields, so those users showed as not invited. It now
+  records them, for accounts created in the last day and only when no
+  inviter is already set. Forward-only.
+
+---
+
 ## [5.43.0] — 2026-10-11
 
 Ships in iOS 3.6 (`MARKETING_VERSION` 3.5 → 3.6; the build number is left
