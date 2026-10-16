@@ -18,3 +18,13 @@ This app is a Next.js static export (`output: 'export'`, `trailingSlash: true` i
 In-app navigation goes through `showHref(id)` helper in `lib/showRouting.js` — use it everywhere so there is one place this can ever be wrong again.
 
 This pattern has now cost three attempts to get right. The next session should not have to rediscover it.
+
+## Versioning: every PR bumps the App Store version
+
+**Every PR opened for MySetlists bumps the App Store version**, in addition to the web version in `package.json` (and its `CHANGELOG.md` entry).
+
+- Change `MARKETING_VERSION` in `ios/App/App.xcodeproj/project.pbxproj`. It appears twice (Debug and Release); change both. `Info.plist` reads `CFBundleShortVersionString` from it, so nothing else needs editing.
+- Default to a patch bump (3.6 → 3.6.1 → 3.6.2). Use a minor bump (3.6.x → 3.7) only when the user asks for one.
+- Bump from the value on the latest `main`, not from your branch's starting point. If another open PR already took the next number, take the one after it and say so in the PR description.
+- Leave `CURRENT_PROJECT_VERSION` (the build number) alone. Xcode Cloud sets it.
+- Name the new version in the PR description, and in the `CHANGELOG.md` entry ("Ships in iOS 3.6.1").
