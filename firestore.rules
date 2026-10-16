@@ -124,16 +124,29 @@ service cloud.firestore {
       // the published text on it — the server establishes the name a
       // moment later. Creating with a name is how an unfiltered one would
       // otherwise get in on a brand new account.
+      // `isTestUser` (v5.44.0) marks an account the admin Users and Stats
+      // tabs leave out by default. Admin-set only: an owner can neither
+      // create a profile carrying it nor change it, or anyone could take
+      // themselves out of (or put themselves into) the numbers.
       allow create: if request.auth != null
                     && request.auth.uid == userId
                     && request.resource.data.get('banned', false) == false
                     && !request.resource.data.keys().hasAny(
-                         ['displayName', 'firstName', 'handle', 'handleLower']);
+                         ['displayName', 'firstName', 'handle', 'handleLower', 'isTestUser']);
       allow update: if request.auth != null
                     && request.auth.uid == userId
                     && request.resource.data.get('banned', false)
                        == resource.data.get('banned', false)
+                    && request.resource.data.get('isTestUser', false)
+                       == resource.data.get('isTestUser', false)
                     && textFieldsUnchanged();
+      // The admin may flip isTestUser on anyone's profile, and nothing
+      // else: the admin's client is no more trusted with the rest of a
+      // profile than the owner's is.
+      allow update: if isAdmin()
+                    && request.resource.data.diff(resource.data).affectedKeys()
+                         .hasOnly(['isTestUser'])
+                    && request.resource.data.isTestUser is bool;
       allow delete: if false;
     }
 

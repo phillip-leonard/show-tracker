@@ -356,6 +356,57 @@ async function main() {
     await assertFails(alice().doc('moderationCounters/c9').get());
   });
 
+  console.log('\ntest-user flag is admin-only (v5.44.0)');
+
+  // isTestUser takes an account out of the admin Users and Stats numbers.
+  // If an owner could write it, anyone could hide from (or pad) them.
+
+  await test('a user cannot mark or unmark themselves as a test user', async () => {
+    await assertFails(alice().doc(`userProfiles/${ALICE}`).update({ isTestUser: true }));
+    await assertFails(alice().doc(`userProfiles/${ALICE}`).set({ isTestUser: true }, { merge: true }));
+    // Nor smuggled in beside a field that IS allowed.
+    await assertFails(alice().doc(`userProfiles/${ALICE}`).update({
+      photoURL: 'https://example.test/c.jpg', isTestUser: true,
+    }));
+  });
+
+  await test('a new profile cannot be created already flagged', async () => {
+    const dave = () => testEnv.authenticatedContext('uid_dave').firestore();
+    await assertFails(dave().doc('userProfiles/uid_dave').set({ email: 'd@example.test', isTestUser: true }));
+    await assertFails(dave().doc('userProfiles/uid_dave').set({ email: 'd@example.test', isTestUser: false }));
+  });
+
+  await test('another user cannot flag someone else', async () => {
+    await assertFails(banned().doc(`userProfiles/${ALICE}`).update({ isTestUser: true }));
+  });
+
+  await test('the admin can mark and unmark a test user', async () => {
+    await assertSucceeds(admin().doc(`userProfiles/${ALICE}`).update({ isTestUser: true }));
+    await assertSucceeds(admin().doc(`userProfiles/${ALICE}`).update({ isTestUser: false }));
+  });
+
+  await test('the admin flag write cannot carry other fields or a non-boolean', async () => {
+    await assertFails(admin().doc(`userProfiles/${ALICE}`).update({ isTestUser: true, displayName: 'Hacked' }));
+    await assertFails(admin().doc(`userProfiles/${ALICE}`).update({ isTestUser: true, showCount: 0 }));
+    await assertFails(admin().doc(`userProfiles/${ALICE}`).update({ isTestUser: 'yes' }));
+  });
+
+  await test('a flagged user can still edit the rest of their profile', async () => {
+    // merge-set resends the flag unchanged, which must not be refused.
+    await assertSucceeds(admin().doc(`userProfiles/${ALICE}`).update({ isTestUser: true }));
+    await assertSucceeds(alice().doc(`userProfiles/${ALICE}`).update({ publicProfile: false }));
+    await assertSucceeds(alice().doc(`userProfiles/${ALICE}`).set(
+      { showCount: 3, isTestUser: true }, { merge: true },
+    ));
+    await assertFails(alice().doc(`userProfiles/${ALICE}`).update({ isTestUser: false }));
+  });
+
+  await test('a brand-new profile can be created with just createdAt', async () => {
+    // ensureProfileCreatedAt() in AppContext writes this first on sign-in.
+    const erin = () => testEnv.authenticatedContext('uid_erin').firestore();
+    await assertSucceeds(erin().doc('userProfiles/uid_erin').set({ createdAt: new Date() }, { merge: true }));
+  });
+
   console.log('\nblock lists stay private');
 
   await test('nobody can read another user’s block list', async () => {

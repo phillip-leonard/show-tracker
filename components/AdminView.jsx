@@ -2,19 +2,21 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import Link from 'next/link';
-import { collection, doc, getDocs, query, where, addDoc, updateDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, getDocs, query, where, updateDoc } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
-import { ChevronLeft, ChevronRight, User, Users, Search, Mail, Sparkles, Send, Eye, TrendingUp, Plus, Upload, Download, Check, RefreshCw, AlertTriangle, Trash2, Calendar, MapPin, Music, MessageSquare, X, Trophy, Database, Wrench, ShieldCheck, Flag, MailX } from 'lucide-react';
+import { ChevronLeft, ChevronRight, User, Users, Search, Mail, Sparkles, Send, Eye, Plus, Upload, Download, Check, RefreshCw, AlertTriangle, Trash2, Calendar, MapPin, Music, MessageSquare, X, Trophy, Database, Wrench, ShieldCheck, Flag, MailX, BarChart3 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import SetlistEditor from '@/components/SetlistEditor';
 import Tip from '@/components/ui/Tip';
-import AdminRoadmapCard from '@/components/AdminRoadmapCard';
 import { formatDate, parseDate, artistColor, avgSongRating, parseCSV, parseImportDate, autoDetectMapping } from '@/lib/utils';
-import { ROADMAP_CATEGORIES, IMPORT_FIELDS } from '@/lib/constants';
+import { IMPORT_FIELDS } from '@/lib/constants';
 import { apiUrl } from '@/lib/api';
 import ModerationQueue from '@/components/admin/ModerationQueue';
 import AnnouncementsTab from '@/components/admin/AnnouncementsTab';
 import UnsubscribesTab from '@/components/admin/UnsubscribesTab';
+import UsersTab from '@/components/admin/UsersTab';
+import StatsTab from '@/components/admin/StatsTab';
+import { buildUserRows } from '@/lib/adminUsers';
 import { sendEmailIfAllowed } from '@/lib/email';
 import { PageHeader, Button } from '@/components/ui';
 import { useDismissable } from '@/context/DismissStackContext';
@@ -22,7 +24,7 @@ import { useDismissable } from '@/context/DismissStackContext';
 export default
 function AdminView() {
   const { shows, scanForMissingSetlists, setlistScanning, setlistScanProgress } = useApp();
-  const [adminTab, setAdminTab] = useState('users'); // 'users' | 'guestTrials' | 'conversions' | 'referrals' | 'roadmap' | 'bulkImport' | 'tools' | 'moderation' | 'announcements' | 'unsubscribes'
+  const [adminTab, setAdminTab] = useState('users'); // 'users' | 'stats' | 'guestTrials' | 'conversions' | 'referrals' | 'bulkImport' | 'tools' | 'moderation' | 'announcements' | 'unsubscribes'
   // Set when an announcement's unsubscribe count is clicked, so the
   // Unsubscribes tab opens filtered to that announcement.
   const [unsubscribeSourceFilter, setUnsubscribeSourceFilter] = useState('');
@@ -80,9 +82,13 @@ function AdminView() {
   const [bulkResetting, setBulkResetting] = useState(false);
   const [bulkResetStatus, setBulkResetStatus] = useState('');
 
-  // User filter state
-  const [showOnlyConverted, setShowOnlyConverted] = useState(false);
-  const [showOnlyInvited, setShowOnlyInvited] = useState(false);
+  // Signup dates from Firebase Auth (uid -> ISO string), via
+  // admin-list-auth-users. userProfiles.createdAt is missing on most
+  // accounts made since 5.36.2, so Auth is the date the Users tab trusts.
+  const [authDates, setAuthDates] = useState({});
+  const [authDatesStatus, setAuthDatesStatus] = useState('loading'); // 'loading' | 'ok' | 'error'
+  // Profiles whose isTestUser write is in flight.
+  const [togglingTestIds, setTogglingTestIds] = useState(new Set());
 
   // Conversions tab state
   const [conversionSortBy, setConversionSortBy] = useState('conversionDate'); // 'conversionDate' | 'name' | 'email'
@@ -110,20 +116,6 @@ function AdminView() {
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteError, setDeleteError] = useState(null);
 
-  // Roadmap admin state
-  // roadmapItems — Collection: roadmapItems/{itemId} — { title, description, status, category, voteCount, sourceFeedbackId, submitterUid, createdAt, updatedAt, publishedAt }
-  // feedbackItems — Collection: feedback/{docId} — { type, category, message, submitterUid, submitterEmail, submitterName, status, roadmapItemId, createdAt }
-  const [roadmapItems, setRoadmapItems] = useState([]);
-  const [feedbackItems, setFeedbackItems] = useState([]);
-  const [roadmapLoading, setRoadmapLoading] = useState(false);
-  const [creatingItem, setCreatingItem] = useState(false);
-  const [newItemTitle, setNewItemTitle] = useState('');
-  const [newItemDesc, setNewItemDesc] = useState('');
-  const [newItemCategory, setNewItemCategory] = useState('other');
-  const [savingItem, setSavingItem] = useState(false);
-  const [roadmapSortBy, setRoadmapSortBy] = useState('date'); // 'date' | 'votes'
-  const [notifyingItem, setNotifyingItem] = useState(null); // itemId being notified
-
   // Bulk import state
   const [bulkImportStep, setBulkImportStep] = useState('select-user'); // 'select-user' | 'upload' | 'mapping' | 'preview' | 'importing' | 'complete'
   const [bulkImportTargetUser, setBulkImportTargetUser] = useState(null);
@@ -144,7 +136,9 @@ function AdminView() {
       const loadedUsers = profilesSnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
-        createdAt: doc.data().createdAt?.toDate?.() || new Date(),
+        // null, not today: an undated account must not land in every
+        // date range. The Users tab prefers Auth's date anyway.
+        createdAt: doc.data().createdAt?.toDate?.() || null,
         lastLogin: doc.data().lastLogin?.toDate?.() || new Date(),
         guestConvertedAt: doc.data().guestConvertedAt?.toDate?.() || null,
       }));
@@ -155,6 +149,40 @@ function AdminView() {
       setLoading(false);
     }
   }, []);
+
+  const loadAuthDates = useCallback(async () => {
+    setAuthDatesStatus('loading');
+    try {
+      const token = await auth.currentUser.getIdToken();
+      const res = await fetch(apiUrl('/.netlify/functions/admin-list-auth-users'), {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Failed to load signup dates');
+      setAuthDates(Object.fromEntries((json.users || []).map(u => [u.uid, u.createdAt])));
+      setAuthDatesStatus('ok');
+    } catch (error) {
+      console.error('Failed to load Auth signup dates:', error);
+      setAuthDatesStatus('error');
+    }
+  }, []);
+
+  // Admin-only by firestore.rules: the admin may change isTestUser on any
+  // profile and nothing else; an owner can never change it.
+  const handleToggleTestUser = async (row) => {
+    const next = !row.isTestUser;
+    setTogglingTestIds(prev => new Set(prev).add(row.id));
+    try {
+      await updateDoc(doc(db, 'userProfiles', row.id), { isTestUser: next });
+      setUsers(prev => prev.map(u => u.id === row.id ? { ...u, isTestUser: next } : u));
+    } catch (error) {
+      console.error('Failed to update test-user flag:', error);
+      alert('Could not update the test-user flag: ' + error.message);
+    } finally {
+      setTogglingTestIds(prev => { const s = new Set(prev); s.delete(row.id); return s; });
+    }
+  };
 
   const handleDeleteUser = async () => {
     if (!deleteConfirmUser) return;
@@ -314,166 +342,6 @@ function AdminView() {
       setEmailStatus('error');
     } finally {
       setEmailSending(false);
-    }
-  };
-
-  // === ROADMAP ADMIN FUNCTIONS ===
-
-  const loadRoadmapData = useCallback(async () => {
-    setRoadmapLoading(true);
-    try {
-      const [itemsSnap, feedSnap] = await Promise.all([
-        getDocs(collection(db, 'roadmapItems')),
-        getDocs(collection(db, 'feedback')),
-      ]);
-      setRoadmapItems(
-        itemsSnap.docs.map(d => ({ id: d.id, ...d.data() }))
-          .sort((a, b) => (b.createdAt?.toMillis?.() ?? 0) - (a.createdAt?.toMillis?.() ?? 0))
-      );
-      setFeedbackItems(feedSnap.docs.map(d => ({ id: d.id, ...d.data() })));
-    } catch (err) {
-      console.error('Failed to load roadmap data:', err);
-    } finally {
-      setRoadmapLoading(false);
-    }
-  }, []);
-
-  const publishRoadmapItem = async (item, targetStatus) => {
-    setSavingItem(true);
-    try {
-      await updateDoc(doc(db, 'roadmapItems', item.id), {
-        status: targetStatus,
-        publishedAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
-      // Notify the original submitter
-      if (item.submitterUid) {
-        await addDoc(collection(db, 'notifications'), {
-          uid: item.submitterUid,
-          type: 'roadmap_published',
-          message: 'Your feature idea was published to the roadmap!',
-          itemId: item.id,
-          itemTitle: item.title || '',
-          read: false,
-          createdAt: serverTimestamp(),
-        });
-        // Optional email notification (fire and forget)
-        const linkedFeedback = feedbackItems.find(f => f.id === item.sourceFeedbackId);
-        if (linkedFeedback?.submitterEmail) {
-          sendEmailIfAllowed({
-            to: linkedFeedback.submitterEmail,
-            subject: 'Your feature idea is on the MySetlists roadmap!',
-            html: `<p>Hey ${linkedFeedback.submitterName || 'there'}!</p><p>Great news — your feature idea <strong>"${item.title}"</strong> has been added to the <a href="https://mysetlists.net/roadmap">public roadmap</a>!</p><p>Head over and see how the community votes on it. Thanks for helping make MySetlists better!</p>`,
-          }, { type: 'roadmap_published' }).catch(() => {});
-        }
-      }
-      setRoadmapItems(prev => prev.map(i =>
-        i.id === item.id ? { ...i, status: targetStatus, publishedAt: new Date() } : i
-      ));
-    } catch (err) {
-      console.error('Failed to publish roadmap item:', err);
-    } finally {
-      setSavingItem(false);
-    }
-  };
-
-  const changeItemStatus = async (item, newStatus) => {
-    try {
-      const updates = {
-        status: newStatus,
-        updatedAt: serverTimestamp(),
-        ...(newStatus !== 'draft' && !item.publishedAt ? { publishedAt: serverTimestamp() } : {}),
-        ...(newStatus === 'shipped' ? { completedAt: serverTimestamp() } : {}),
-      };
-      await updateDoc(doc(db, 'roadmapItems', item.id), updates);
-      setRoadmapItems(prev => prev.map(i => i.id === item.id ? { ...i, status: newStatus, ...(newStatus === 'shipped' ? { completedAt: new Date() } : {}) } : i));
-    } catch (err) {
-      console.error('Failed to change item status:', err);
-    }
-  };
-
-  const sendCompletionNotifications = async (item) => {
-    setNotifyingItem(item.id);
-    try {
-      const idToken = await auth.currentUser.getIdToken();
-      const res = await fetch(apiUrl('/.netlify/functions/notify-roadmap-completion'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
-        body: JSON.stringify({
-          roadmapItemId: item.id,
-          featureTitle: item.title,
-          featureDescription: item.description || '',
-        }),
-      });
-      const result = await res.json();
-      if (!res.ok) throw new Error(result.error || 'Notification send failed');
-      await updateDoc(doc(db, 'roadmapItems', item.id), {
-        notificationsSent: true,
-        notificationsSentAt: serverTimestamp(),
-      });
-      setRoadmapItems(prev => prev.map(i =>
-        i.id === item.id ? { ...i, notificationsSent: true, notificationsSentAt: new Date() } : i
-      ));
-      alert(`Sent ${result.emailsSent || 0} notification email(s)!`);
-    } catch (err) {
-      console.error('Failed to send completion notifications:', err);
-      alert('Failed to send notifications: ' + err.message);
-    } finally {
-      setNotifyingItem(null);
-    }
-  };
-
-  const dismissRoadmapItem = async (item) => {
-    if (!window.confirm(`Delete "${item.title}"? This cannot be undone.`)) return;
-    try {
-      await deleteDoc(doc(db, 'roadmapItems', item.id));
-      setRoadmapItems(prev => prev.filter(i => i.id !== item.id));
-    } catch (err) {
-      console.error('Failed to dismiss roadmap item:', err);
-    }
-  };
-
-  const createRoadmapItem = async () => {
-    if (!newItemTitle.trim()) return;
-    setSavingItem(true);
-    try {
-      const ref = await addDoc(collection(db, 'roadmapItems'), {
-        title: newItemTitle.trim(),
-        description: newItemDesc.trim(),
-        status: 'draft',
-        category: newItemCategory,
-        voteCount: 0,
-        sourceFeedbackId: null,
-        submitterUid: null,
-        submitterEmail: null,
-        contributors: [],
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-        publishedAt: null,
-        completedAt: null,
-        notificationsSent: false,
-        notificationsSentAt: null,
-      });
-      setRoadmapItems(prev => [{
-        id: ref.id,
-        title: newItemTitle.trim(),
-        description: newItemDesc.trim(),
-        status: 'draft',
-        category: newItemCategory,
-        voteCount: 0,
-        sourceFeedbackId: null,
-        submitterUid: null,
-        submitterEmail: null,
-        contributors: [],
-      }, ...prev]);
-      setCreatingItem(false);
-      setNewItemTitle('');
-      setNewItemDesc('');
-      setNewItemCategory('other');
-    } catch (err) {
-      console.error('Failed to create roadmap item:', err);
-    } finally {
-      setSavingItem(false);
     }
   };
 
@@ -640,8 +508,8 @@ function AdminView() {
     loadUsers();
     loadGuestSessions();
     loadAllInvites();
-    loadRoadmapData();
-  }, [loadUsers, loadGuestSessions, loadAllInvites, loadRoadmapData]);
+    loadAuthDates();
+  }, [loadUsers, loadGuestSessions, loadAllInvites, loadAuthDates]);
 
   // Build set of converted user IDs for badge display
   const convertedUserIds = useMemo(() => {
@@ -734,15 +602,6 @@ function AdminView() {
     return sorted;
   }, [inviteData.invitedUsers, referralSortBy]);
 
-  const filteredUsers = users.filter(user => {
-    const matchesSearch = user.firstName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email?.toLowerCase().includes(searchTerm.toLowerCase());
-    if (!matchesSearch) return false;
-    if (showOnlyConverted) return convertedUserIds.has(user.id);
-    if (showOnlyInvited) return inviteData.invitedUserIds.has(user.id);
-    return true;
-  });
-
   const loadCacheStats = async () => {
     if (!auth.currentUser) return;
     setCacheLoading(true);
@@ -786,12 +645,11 @@ function AdminView() {
     }
   };
 
-  const totalStats = useMemo(() => ({
-    totalUsers: users.length,
-    totalShows: users.reduce((acc, u) => acc + (u.showCount || 0), 0),
-    totalSongs: users.reduce((acc, u) => acc + (u.songCount || 0), 0),
-    totalRated: users.reduce((acc, u) => acc + (u.ratedSongCount || 0), 0)
-  }), [users]);
+  // One row per account and unconverted guest trial for the Users tab.
+  const userRows = useMemo(
+    () => buildUserRows({ profiles: users, guestSessions, invites: allInvites, authDates }),
+    [users, guestSessions, allInvites, authDates],
+  );
 
   const guestTrialStats = useMemo(() => {
     const total = guestSessions.length;
@@ -1136,7 +994,7 @@ function AdminView() {
               { label: 'Shows', value: selectedUser.showCount || 0 },
               { label: 'Songs', value: selectedUser.songCount || 0 },
               { label: 'Venues', value: selectedUser.venueCount || 0 },
-              { label: 'Joined', value: selectedUser.createdAt?.toLocaleDateString?.() || 'Unknown', isDate: true },
+              { label: 'Joined', value: (authDates[selectedUser.id] ? new Date(authDates[selectedUser.id]) : selectedUser.createdAt)?.toLocaleDateString?.() || 'Unknown', isDate: true },
             ].map(stat => (
               <div key={stat.label} className="bg-hover backdrop-blur-xl rounded-2xl p-4 border border-subtle">
                 <div className="text-2xl font-bold text-brand">
@@ -1640,7 +1498,7 @@ function AdminView() {
               <Button
                 variant="secondary"
                 size="sm"
-                onClick={() => { loadUsers(); loadGuestSessions(); loadAllInvites(); loadRoadmapData(); }}
+                onClick={() => { loadUsers(); loadGuestSessions(); loadAllInvites(); loadAuthDates(); }}
               >
                 Refresh
               </Button>
@@ -1659,6 +1517,17 @@ function AdminView() {
             >
               <Users className="w-4 h-4" />
               Users
+            </button>
+            <button
+              onClick={() => setAdminTab('stats')}
+              className={`shrink-0 whitespace-nowrap flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                adminTab === 'stats'
+                  ? 'bg-brand-subtle text-brand border border-brand/30'
+                  : 'bg-hover text-secondary hover:bg-hover border border-subtle'
+              }`}
+            >
+              <BarChart3 className="w-4 h-4" />
+              Stats
             </button>
             {/* Moderation sits directly after Users, ahead of everything
                 else, because it is the only tab with a deadline attached:
@@ -1736,17 +1605,6 @@ function AdminView() {
               )}
             </button>
             <button
-              onClick={() => setAdminTab('roadmap')}
-              className={`shrink-0 whitespace-nowrap flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                adminTab === 'roadmap'
-                  ? 'bg-brand-subtle text-brand border border-brand/30'
-                  : 'bg-hover text-secondary hover:bg-hover border border-subtle'
-              }`}
-            >
-              <TrendingUp className="w-4 h-4" />
-              Roadmap
-            </button>
-            <button
               onClick={() => setAdminTab('bulkImport')}
               className={`shrink-0 whitespace-nowrap flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
                 adminTab === 'bulkImport'
@@ -1790,157 +1648,19 @@ function AdminView() {
 
           {/* Users Tab */}
           {adminTab === 'users' && (
-            <>
-              {/* Stats Overview */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {[
-                  { label: 'Total Users', value: totalStats.totalUsers, color: 'from-amber to-amber' },
-                  { label: 'Total Shows', value: totalStats.totalShows, color: 'from-brand to-amber' },
-                  { label: 'Total Songs', value: totalStats.totalSongs, color: 'from-brand to-brand' },
-                  { label: 'Songs Rated', value: totalStats.totalRated, color: 'from-amber to-danger' },
-                ].map(stat => (
-                  <div key={stat.label} className="bg-hover backdrop-blur-xl rounded-2xl p-5 border border-subtle">
-                    <div className={`text-3xl font-bold bg-gradient-to-r ${stat.color} bg-clip-text text-transparent`}>
-                      {stat.value.toLocaleString()}
-                    </div>
-                    <div className="text-sm font-medium text-secondary mt-1">{stat.label}</div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Search + Filter */}
-              <div className="flex flex-col sm:flex-row gap-3">
-                <div className="relative flex-1">
-                  <Search className="w-5 h-5 text-muted absolute left-4 top-1/2 -translate-y-1/2" />
-                  <input
-                    type="text"
-                    placeholder="Search users by name or email..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-12 pr-4 py-3 bg-hover border border-subtle rounded-2xl focus:outline-none focus:ring-2 focus:ring-brand/50 text-primary placeholder-muted"
-                  />
-                </div>
-                <button
-                  onClick={() => { setShowOnlyConverted(!showOnlyConverted); setShowOnlyInvited(false); }}
-                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all flex-shrink-0 ${
-                    showOnlyConverted
-                      ? 'bg-brand-subtle text-brand border border-brand/30'
-                      : 'bg-hover text-secondary hover:bg-hover border border-subtle'
-                  }`}
-                >
-                  <Sparkles className="w-4 h-4" />
-                  Converted Only
-                  {showOnlyConverted && convertedUserIds.size > 0 && (
-                    <span className="text-[10px] font-bold bg-brand/30 px-1.5 py-0.5 rounded-full">{convertedUserIds.size}</span>
-                  )}
-                </button>
-                <button
-                  onClick={() => { setShowOnlyInvited(!showOnlyInvited); setShowOnlyConverted(false); }}
-                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all flex-shrink-0 ${
-                    showOnlyInvited
-                      ? 'bg-amber/20 text-amber border border-amber/30'
-                      : 'bg-hover text-secondary hover:bg-hover border border-subtle'
-                  }`}
-                >
-                  <Mail className="w-4 h-4" />
-                  Invited Only
-                  {showOnlyInvited && inviteData.invitedUserIds.size > 0 && (
-                    <span className="text-[10px] font-bold bg-amber/30 px-1.5 py-0.5 rounded-full">{inviteData.invitedUserIds.size}</span>
-                  )}
-                </button>
-              </div>
-
-              {/* Users Table */}
-              <div className="bg-hover backdrop-blur-xl border border-subtle rounded-2xl overflow-hidden">
-                <table className="w-full">
-                  <thead>
-                    <tr className="bg-hover border-b border-subtle">
-                      <th className="text-left px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wide">User</th>
-                      <th className="text-left px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wide hidden md:table-cell">Email</th>
-                      <th className="text-center px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wide">Shows</th>
-                      <th className="text-center px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wide">Songs</th>
-                      <th className="text-center px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wide hidden sm:table-cell">Venues</th>
-                      <th className="text-right px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wide hidden lg:table-cell">Joined</th>
-                      <th className="w-10"></th>
-                      <th className="w-10"></th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-white/5">
-                    {filteredUsers.map((user) => (
-                      <tr
-                        key={user.id}
-                        className="hover:bg-hover transition-colors cursor-pointer"
-                        onClick={() => handleSelectUser(user)}
-                      >
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-3">
-                            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                              convertedUserIds.has(user.id) ? 'bg-gradient-to-br from-brand to-brand' :
-                              inviteData.invitedUserIds.has(user.id) ? 'bg-gradient-to-br from-amber to-amber' :
-                              'bg-gradient-to-br from-brand to-amber'
-                            }`}>
-                              {convertedUserIds.has(user.id) ? <Sparkles className="w-5 h-5 text-primary" /> :
-                               inviteData.invitedUserIds.has(user.id) ? <Mail className="w-5 h-5 text-primary" /> :
-                               <User className="w-5 h-5 text-primary" />}
-                            </div>
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <span className="font-medium text-primary">{user.firstName || 'Anonymous'}</span>
-                                {convertedUserIds.has(user.id) && (
-                                  <span className="text-[10px] bg-brand-subtle text-brand px-1.5 py-0.5 rounded-full font-semibold">
-                                    Converted
-                                  </span>
-                                )}
-                                {inviteData.invitedUserIds.has(user.id) && (
-                                  <span className="text-[10px] bg-amber/20 text-amber px-1.5 py-0.5 rounded-full font-semibold">
-                                    Invited
-                                  </span>
-                                )}
-                              </div>
-                              <div className="text-sm text-muted md:hidden">{user.email}</div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-secondary hidden md:table-cell">{user.email}</td>
-                        <td className="px-6 py-4 text-center">
-                          <span className="bg-brand-subtle text-brand px-2.5 py-1 rounded-full text-sm font-semibold">
-                            {user.showCount || 0}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-center text-secondary">{user.songCount || 0}</td>
-                        <td className="px-6 py-4 text-center text-secondary hidden sm:table-cell">{user.venueCount || 0}</td>
-                        <td className="px-6 py-4 text-right text-muted text-sm hidden lg:table-cell">
-                          {user.createdAt?.toLocaleDateString?.() || 'Unknown'}
-                        </td>
-                        <td className="px-2 py-4">
-                          <ChevronRight className="w-4 h-4 text-muted" />
-                        </td>
-                        <td className="px-2 py-4">
-                          <Tip text="Delete user">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setDeleteConfirmUser({ id: user.id, firstName: user.firstName || 'this user', email: user.email });
-                              }}
-                              className="p-1.5 rounded-lg text-muted hover:text-danger hover:bg-danger/10 transition-colors"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </Tip>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-
-                {filteredUsers.length === 0 && (
-                  <div className="text-center py-12 text-muted">
-                    {searchTerm ? 'No users match your search' : 'No users yet'}
-                  </div>
-                )}
-              </div>
-            </>
+            <UsersTab
+              rows={userRows}
+              loading={loading || loadingGuests || loadingInvites}
+              authDatesStatus={authDatesStatus}
+              onSelectUser={handleSelectUser}
+              onDeleteUser={(user) => setDeleteConfirmUser({ id: user.id, firstName: user.firstName || 'this user', email: user.email })}
+              onToggleTestUser={handleToggleTestUser}
+              togglingIds={togglingTestIds}
+            />
           )}
+
+          {/* Stats Tab */}
+          {adminTab === 'stats' && <StatsTab profiles={users} loading={loading} />}
 
           {/* Guest Trials Tab */}
           {adminTab === 'guestTrials' && (
@@ -2435,161 +2155,6 @@ function AdminView() {
             <div className="flex items-center justify-center py-8">
               <div className="text-secondary font-medium">Loading invite data...</div>
             </div>
-          )}
-        </div>
-      )}
-
-      {/* Roadmap Tab */}
-      {adminTab === 'roadmap' && (
-        <div className="space-y-6">
-          {/* Header with New Item button + sort controls */}
-          <div className="flex items-center justify-between flex-wrap gap-3">
-            <h3 className="text-lg font-semibold text-primary">Roadmap Items</h3>
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-medium text-secondary">Sort:</span>
-                {[{ key: 'date', label: 'Newest' }, { key: 'votes', label: 'Most Votes' }].map(opt => (
-                  <button
-                    key={opt.key}
-                    onClick={() => setRoadmapSortBy(opt.key)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                      roadmapSortBy === opt.key
-                        ? 'bg-brand-subtle text-brand border border-brand/30'
-                        : 'bg-hover text-secondary border border-subtle hover:bg-hover'
-                    }`}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-              <button
-                onClick={() => setCreatingItem(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-brand-subtle hover:bg-brand/30 text-brand border border-brand/30 rounded-xl text-sm font-medium transition-all"
-              >
-                <Plus className="w-4 h-4" />
-                New Item
-              </button>
-            </div>
-          </div>
-
-          {/* Create Item Form */}
-          {creatingItem && (
-            <div className="bg-hover border border-subtle rounded-2xl p-5 space-y-3">
-              <h4 className="text-sm font-semibold text-primary">New Roadmap Item</h4>
-              <input
-                value={newItemTitle}
-                onChange={e => setNewItemTitle(e.target.value)}
-                placeholder="Title"
-                className="w-full px-4 py-2.5 bg-hover border border-subtle rounded-xl text-primary placeholder-muted focus:outline-none focus:ring-2 focus:ring-brand/50"
-              />
-              <textarea
-                value={newItemDesc}
-                onChange={e => setNewItemDesc(e.target.value)}
-                placeholder="Description (optional)"
-                rows={3}
-                className="w-full px-4 py-2.5 bg-hover border border-subtle rounded-xl text-primary placeholder-muted focus:outline-none focus:ring-2 focus:ring-brand/50 resize-none"
-              />
-              <select
-                value={newItemCategory}
-                onChange={e => setNewItemCategory(e.target.value)}
-                className="w-full px-4 py-2.5 bg-hover border border-subtle rounded-xl text-primary focus:outline-none focus:ring-2 focus:ring-brand/50"
-              >
-                {Object.entries(ROADMAP_CATEGORIES).map(([k, v]) => (
-                  <option key={k} value={k} className="bg-surface">{v}</option>
-                ))}
-              </select>
-              <div className="flex gap-2">
-                <button
-                  onClick={createRoadmapItem}
-                  disabled={!newItemTitle.trim() || savingItem}
-                  className="px-4 py-2 bg-brand hover:bg-brand text-[#2a2a4e] rounded-xl text-sm font-medium transition-all disabled:opacity-50"
-                >
-                  {savingItem ? 'Creating...' : 'Create Draft'}
-                </button>
-                <button
-                  onClick={() => { setCreatingItem(false); setNewItemTitle(''); setNewItemDesc(''); setNewItemCategory('other'); }}
-                  className="px-4 py-2 bg-hover hover:bg-hover text-secondary rounded-xl text-sm font-medium transition-colors"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          )}
-
-          {roadmapLoading ? (
-            <div className="text-center py-8 text-muted">Loading roadmap data...</div>
-          ) : (
-            <>
-              {/* Drafts section */}
-              {(() => {
-                const drafts = roadmapItems.filter(i => i.status === 'draft');
-                const sortedDrafts = roadmapSortBy === 'votes'
-                  ? [...drafts].sort((a, b) => (b.voteCount || 0) - (a.voteCount || 0))
-                  : drafts;
-                return (
-                  <div>
-                    <h4 className="text-xs font-semibold text-secondary uppercase tracking-widest mb-3">
-                      Drafts ({drafts.length})
-                    </h4>
-                    <div className="space-y-3">
-                      {sortedDrafts.map(item => (
-                        <AdminRoadmapCard
-                          key={item.id}
-                          item={item}
-                          onStatusChange={(status) => changeItemStatus(item, status)}
-                          onPublish={(status) => publishRoadmapItem(item, status)}
-                          onDismiss={() => dismissRoadmapItem(item)}
-                          onNotify={() => sendCompletionNotifications(item)}
-                          feedbackItems={feedbackItems}
-                          saving={savingItem}
-                          notifying={notifyingItem === item.id}
-                        />
-                      ))}
-                      {drafts.length === 0 && (
-                        <p className="text-muted text-sm py-2">No draft items</p>
-                      )}
-                    </div>
-                  </div>
-                );
-              })()}
-
-              {/* Published sections by status */}
-              {[
-                { key: 'upnext',     label: 'Up Next'     },
-                { key: 'inprogress', label: 'In Progress' },
-                { key: 'shipped',    label: 'Shipped'     },
-              ].map(({ key, label }) => {
-                const statusItems = roadmapItems.filter(i => i.status === key);
-                const sortedItems = roadmapSortBy === 'votes'
-                  ? [...statusItems].sort((a, b) => (b.voteCount || 0) - (a.voteCount || 0))
-                  : statusItems;
-                return (
-                  <div key={key}>
-                    <h4 className="text-xs font-semibold text-secondary uppercase tracking-widest mb-3">
-                      {label} ({statusItems.length})
-                    </h4>
-                    <div className="space-y-3">
-                      {sortedItems.map(item => (
-                        <AdminRoadmapCard
-                          key={item.id}
-                          item={item}
-                          onStatusChange={(status) => changeItemStatus(item, status)}
-                          onPublish={(status) => publishRoadmapItem(item, status)}
-                          onDismiss={() => dismissRoadmapItem(item)}
-                          onNotify={() => sendCompletionNotifications(item)}
-                          feedbackItems={feedbackItems}
-                          saving={savingItem}
-                          notifying={notifyingItem === item.id}
-                        />
-                      ))}
-                      {statusItems.length === 0 && (
-                        <p className="text-muted text-sm py-2">None</p>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </>
           )}
         </div>
       )}
