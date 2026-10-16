@@ -13,6 +13,16 @@ const STREAMING_MENTION = /spotify|apple\s*music/i;
 function ReleaseNotesView() {
   const releases = [
     {
+      version: '5.44.1',
+      date: 'October 16, 2026',
+      title: 'Swipe Your Way Around',
+      changes: [
+        'Swipe in from the left edge to go back',
+        'Swipe a sheet down to close it, and swipe the menu closed',
+        'Every tap control still works the way it did',
+      ]
+    },
+    {
       version: '5.43.0',
       date: 'October 11, 2026',
       title: 'Upcoming Shows, With Your Friends',

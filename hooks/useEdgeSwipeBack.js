@@ -4,10 +4,10 @@
 // trackpad, and pointer capture gives us the gesture even when the finger
 // leaves the element it started on.
 //
-// The gesture never calls preventDefault. Instead the content wrapper gets
-// `touch-action: pan-y`, which tells the browser up front that horizontal
-// panning is ours and vertical scrolling is still the page's — no fighting
-// the compositor for a scroll that was never in question.
+// Pointer events carry the gesture, but a non-passive touchmove listener
+// cancels the native pan once an edge drag is horizontal: without it iOS
+// WebKit fires pointercancel ~30px in and every swipe snaps back. The
+// content wrapper also gets `touch-action: pan-y` while claimed.
 //
 // Everything decidable lives in lib/swipeGesture.js; this hook reads
 // events and the DOM and asks that module.
@@ -159,6 +159,26 @@ export default function useEdgeSwipeBack({
       }));
     };
 
+    // iOS WebKit fires pointercancel a few frames into any horizontal drag
+    // it decides is a native pan, which ended every edge swipe as a cancel
+    // ~30px in (found on the simulator, 5.44.1). touch-action cannot stop
+    // it: WebKit reads it at touchstart, and the wrapper only gets pan-y
+    // once the gesture is claimed. Cancelling the touchmove does stop it.
+    // Before the direction lock this only cancels while the drag is at
+    // least as horizontal as it is vertical, so a scroll that starts at
+    // the edge still scrolls.
+    const onTouchMove = (e) => {
+      if (!gesture || !e.cancelable) return;
+      if (gesture.phase === 'claimed') {
+        e.preventDefault();
+        return;
+      }
+      const touch = e.touches[0];
+      const first = gesture.samples[0];
+      if (!touch || !first) return;
+      if (Math.abs(touch.clientX - first.x) >= Math.abs(touch.clientY - first.y)) e.preventDefault();
+    };
+
     const onPointerCancel = (e) => {
       if (!gesture || e.pointerId !== gesture.id) return;
       const claimed = gesture.phase === 'claimed';
@@ -173,12 +193,16 @@ export default function useEdgeSwipeBack({
     window.addEventListener('pointermove', onPointerMove, opts);
     window.addEventListener('pointerup', onPointerUp, opts);
     window.addEventListener('pointercancel', onPointerCancel, opts);
+    // Not passive: it has to be able to cancel. See onTouchMove.
+    const touchOpts = { passive: false, capture: true };
+    window.addEventListener('touchmove', onTouchMove, touchOpts);
 
     return () => {
       window.removeEventListener('pointerdown', onPointerDown, opts);
       window.removeEventListener('pointermove', onPointerMove, opts);
       window.removeEventListener('pointerup', onPointerUp, opts);
       window.removeEventListener('pointercancel', onPointerCancel, opts);
+      window.removeEventListener('touchmove', onTouchMove, touchOpts);
     };
   }, [enabled]);
 }
