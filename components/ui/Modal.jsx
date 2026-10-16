@@ -20,6 +20,7 @@ import { useDismissable } from '@/context/DismissStackContext';
 import useSheetDrag from '@/hooks/useSheetDrag';
 import useIsMobile from '@/hooks/useIsMobile';
 import useKeyboardInset from '@/hooks/useKeyboardInset';
+import { maxHeightAboveKeyboard } from '@/lib/keyboardInset';
 
 const SIZES = {
   sm:   'max-w-md',
@@ -102,12 +103,15 @@ export default function Modal({
           keyboardInset
             // dvh, not vh: vh is the largest-possible viewport, so with the
             // keyboard up this used to compute a sheet taller than the space
-            // actually left for it.
-            ? { maxHeight: `calc(100dvh - ${keyboardInset}px - 0.5rem)` }
+            // actually left for it. It also leaves out the status bar, or the
+            // header ends up under the Dynamic Island.
+            ? { maxHeight: maxHeightAboveKeyboard(keyboardInset) }
             : undefined
         }
         className={[
-          'relative bg-surface w-full shadow-theme-xl flex flex-col max-h-[92dvh] animate-slide-up',
+          // 92dvh, but never into the status bar: on a short viewport 8% is
+          // less than the top inset.
+          'relative bg-surface w-full shadow-theme-xl flex flex-col max-h-[min(92dvh,calc(100dvh_-_var(--safe-top)_-_0.5rem))] animate-slide-up',
           'rounded-t-2xl md:rounded-2xl',
           // The home indicator sits over the bottom of a full-width sheet.
           'pb-safe-bottom md:pb-0',

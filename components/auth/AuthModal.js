@@ -8,6 +8,7 @@ import TermsAgreement from './TermsAgreement';
 import { useDismissable } from '@/context/DismissStackContext';
 import { getPendingAcceptance, setPendingAcceptance, TERMS_VERSION } from '@/lib/terms';
 import useKeyboardInset from '@/hooks/useKeyboardInset';
+import { maxHeightAboveKeyboard } from '@/lib/keyboardInset';
 
 export default function AuthModal({ mode, onClose, onSwitchMode, onSuccess }) {
   useDismissable(true, onClose, { id: 'auth-modal' });
@@ -112,7 +113,7 @@ export default function AuthModal({ mode, onClose, onSwitchMode, onSuccess }) {
         className="relative bg-surface backdrop-blur-xl border border-subtle rounded-3xl w-full max-w-md mx-4 shadow-2xl flex flex-col"
         style={
           keyboardInset
-            ? { maxHeight: `calc(100dvh - ${keyboardInset}px - 0.5rem)` }
+            ? { maxHeight: maxHeightAboveKeyboard(keyboardInset) }
             : { maxHeight: '90vh' }
         }
       >
