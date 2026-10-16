@@ -4,6 +4,44 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.44.1] — 2026-10-16
+
+Ships in iOS 3.6.2 (`MARKETING_VERSION` 3.6 → 3.6.2; 3.6.1 is taken by
+the open iOS 3.6.1 PR; the build number is left to Xcode Cloud).
+
+### Swipe gestures are on
+
+- **Swipe from the left edge to go back**, **swipe a sheet down to close
+  it**, and **swipe the menu closed**, on phones in the app and the
+  installed web app. In an ordinary mobile browser tab, the edge swipe is
+  still left to the browser (`EDGE_SWIPE_BACK_IN_BROWSER_TAB`). The tap
+  controls are unchanged.
+- `TOUCH_GESTURES_ENABLED` in `lib/platform.js` was `false` from 5.36.1
+  because all three gestures called an `impact()` haptic that
+  `lib/capacitor.js` never exported. They threw a TypeError before
+  navigating, dismissing or closing. `impact()` is now exported (light /
+  medium / heavy). It does nothing off native, loads `@capacitor/haptics`
+  lazily, and never rejects. Tests are in `lib/__tests__/haptics.test.js`.
+- **Fixed on iOS: the edge swipe always snapped back.** Found on the
+  iPhone simulator. WebKit fires `pointercancel` about 30px into any
+  horizontal drag it takes as a native pan, and `useEdgeSwipeBack` treats
+  a cancel as "changed my mind". `touch-action` can't prevent it, because
+  WebKit reads it at touchstart and the wrapper only gets `pan-y` once the
+  gesture is claimed. A non-passive `touchmove` listener now cancels the
+  native pan once an edge drag is horizontal. Before the direction lock
+  it does this only while the drag is at least as horizontal as vertical,
+  so a scroll that starts at the edge still scrolls. `useDrawerSwipeClose`
+  gets the same listener: it judged the swipe at the cancel point, so a
+  slow menu swipe stopped following the finger. The sheet drag already
+  sets `touch-action: none` on its handle and needed nothing.
+- Tested in the iOS simulator (iPhone 18 Pro): edge swipe back (twice, on
+  two screens), a vertical scroll starting at the edge, menu swipe fast
+  and slow, a short menu swipe that snaps back, and sheet swipe-down.
+- The three "Attempted import error: 'impact'" build warnings are gone.
+- This replaces the unmerged #340, which deleted the gestures instead.
+
+---
+
 ## [5.44.0] — 2026-10-16
 
 Admin panel only, plus two signup-time fixes. Nothing user-facing, so no

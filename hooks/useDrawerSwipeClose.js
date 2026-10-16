@@ -114,15 +114,37 @@ export default function useDrawerSwipeClose({ isOpen, onClose, enabled: enabledB
       window.setTimeout(reset, SETTLE_MS);
     };
 
+    // iOS WebKit fires pointercancel a few frames into a horizontal drag it
+    // takes as a native pan, so the drawer stopped following the finger
+    // ~30px in and a slow swipe snapped back (5.44.1, simulator). Cancelling
+    // the touchmove keeps the pointer stream alive: always once claimed,
+    // and before that only for a leftward drag at least as horizontal as
+    // it is vertical, so the drawer's own list still scrolls.
+    const onTouchMove = (e) => {
+      const d = drag.current;
+      if (!d || !e.cancelable) return;
+      if (d.claimed) {
+        e.preventDefault();
+        return;
+      }
+      const touch = e.touches[0];
+      if (!touch) return;
+      const dx = touch.clientX - d.startX;
+      const dy = touch.clientY - d.startY;
+      if (dx < 0 && Math.abs(dx) >= Math.abs(dy)) e.preventDefault();
+    };
+
     el.addEventListener('pointerdown', onPointerDown, { passive: true });
     el.addEventListener('pointermove', onPointerMove, { passive: true });
     el.addEventListener('pointerup', finish, { passive: true });
     el.addEventListener('pointercancel', finish, { passive: true });
+    el.addEventListener('touchmove', onTouchMove, { passive: false });
     return () => {
       el.removeEventListener('pointerdown', onPointerDown);
       el.removeEventListener('pointermove', onPointerMove);
       el.removeEventListener('pointerup', finish);
       el.removeEventListener('pointercancel', finish);
+      el.removeEventListener('touchmove', onTouchMove);
       reset();
     };
   }, [enabled, isOpen, paint, reset]);
