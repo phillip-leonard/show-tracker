@@ -4,6 +4,30 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.44.2] — 2026-10-16
+
+Ships in iOS 3.6.3 (`MARKETING_VERSION` 3.6 → 3.6.3; 3.6.1 and 3.6.2 are
+taken by #342 and by #343, now merged; the build number is left to Xcode Cloud).
+
+### Sheets stay below the status bar while you type
+
+- **Fixed on iOS: a sheet with the keyboard up grew under the clock and
+  the Dynamic Island.** Seen on "Add shows from a tour", which opens on
+  its artist search with the field focused: the title and the close X sat
+  under the status bar, where the X could not be tapped. With the keyboard
+  up, `ui/Modal` capped the sheet at `100dvh − keyboard − 0.5rem`, which
+  left out the top safe area. The cap now subtracts `--safe-top` as well.
+  It lives in one place, `maxHeightAboveKeyboard()` in
+  `lib/keyboardInset.js`, and `AuthModal`, which had the same formula, uses it too.
+- The keyboard-down cap is now `min(92dvh, 100dvh − safe-top − 0.5rem)`.
+  It is unchanged on every current iPhone in portrait, and keeps the sheet
+  out of the status bar on a viewport short enough that 8% is less than
+  the top inset.
+- Tested in the iOS simulator (iPhone 18 Pro) on "Add more shows" from a
+  tour page, with the keyboard up and down.
+
+---
+
 ## [5.44.1] — 2026-10-16
 
 Ships in iOS 3.6.2 (`MARKETING_VERSION` 3.6 → 3.6.2; 3.6.1 is taken by
