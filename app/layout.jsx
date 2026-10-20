@@ -13,25 +13,43 @@ const plusJakartaSans = Plus_Jakarta_Sans({
   display: 'swap',
 });
 
+// The social preview image. A PNG because Facebook, LinkedIn, iMessage,
+// Slack and X ignore SVG for og:image. Source and render step:
+// scripts/og-image.svg and scripts/render-og-image.js.
+const OG_IMAGE = {
+  url: '/og-image.png',
+  width: 1200,
+  height: 630,
+  alt: 'MySetlists — track your concert journey and share the memories',
+};
+
+const SITE_TITLE = 'MySetlists – Concert Tracker & Setlist Log for Jam Band Fans';
+const SITE_DESCRIPTION = 'Track every show you\'ve seen, rate songs and jams, follow song gaps, and share shows with friends. Built for Phish, Goose, Dead & Co and Widespread Panic fans.';
+
 export const metadata = {
   title: {
-    default: 'MySetlists | Track All Your Shows',
+    default: SITE_TITLE,
     template: '%s — MySetlists',
   },
-  description: 'Track every show you\'ve attended, rate setlists, and share your concert history with friends.',
+  description: SITE_DESCRIPTION,
   metadataBase: new URL('https://mysetlists.net'),
+  // No `alternates.canonical` here: every route inherits the root layout's
+  // metadata, so a canonical set here would declare /terms, /privacy and
+  // the rest duplicates of the home page. The home page sets its own in
+  // app/page.jsx.
   openGraph: {
     type: 'website',
+    siteName: 'MySetlists',
     url: 'https://mysetlists.net/',
-    title: 'MySetlists | Track All Your Shows',
-    description: 'Track every show you\'ve attended, rate setlists, and share your concert history with friends.',
-    images: ['/og-image.svg'],
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
+    images: [OG_IMAGE],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'MySetlists | Track All Your Shows',
-    description: 'Track every show you\'ve attended, rate setlists, and share your concert history with friends.',
-    images: ['/og-image.svg'],
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
+    images: [OG_IMAGE],
   },
   icons: {
     icon: '/favicon.svg',
