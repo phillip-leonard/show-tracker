@@ -106,6 +106,17 @@ code {
   box-sizing: border-box;
 }
 
+/* ── Signed-out landing vs. returning user, before auth resolves ───────
+   `/` paints the landing page from its static HTML, before Firebase Auth
+   answers. When the inline <head> script finds the "was signed in" hint
+   (lib/signedInHint.js), it sets data-auth-hint on <html> and the app
+   skeleton shows instead, so a returning user never sees the landing
+   page flash. AppShell removes the attribute once auth has resolved.
+   No display utilities on either root element, or these lose. */
+.auth-skeleton { display: none; }
+html[data-auth-hint] .auth-landing { display: none; }
+html[data-auth-hint] .auth-skeleton { display: block; }
+
 /* Desktop: slide in from right */
 @keyframes tooltip-in {
   from { opacity: 0; transform: translateY(-50%) translateX(8px); }

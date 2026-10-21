@@ -64,6 +64,28 @@ test.describe('Restored Session Smoke Tests', () => {
     expect(order.some((t) => /^upcoming/i.test(t))).toBe(false);
   });
 
+  test('a returning user never sees the landing page while auth resolves', async ({ page }) => {
+    // `/` paints the landing page from its static HTML before Firebase Auth
+    // answers. The "was signed in" hint (lib/signedInHint.js), set when the
+    // setup project signed in, makes the inline <head> script hide it
+    // behind the app skeleton instead. Checked before every frame until
+    // the signed-in shell is up, so a one-frame flash still fails this.
+    await page.addInitScript(() => {
+      window.__landingSeen = false;
+      const check = () => {
+        const h1 = document.querySelector('.lp-root h1');
+        if (h1 && h1.getClientRects().length > 0) window.__landingSeen = true;
+        if (!document.querySelector('aside nav')) requestAnimationFrame(check);
+      };
+      requestAnimationFrame(check);
+    });
+    await page.goto('/', { waitUntil: 'commit' });
+    await expect(page.locator('aside nav').first()).toBeVisible({ timeout: 15000 });
+
+    expect(await page.evaluate(() => window.__landingSeen)).toBe(false);
+    expect(await page.evaluate(() => localStorage.getItem('mysetlists_signed_in'))).toBe('1');
+  });
+
   test('sign out returns to landing page', async ({ page }) => {
     await page.goto('/', { waitUntil: 'load' });
     await dismissOverlays(page);

@@ -1,6 +1,7 @@
 import { Plus_Jakarta_Sans } from 'next/font/google';
 import './globals.css';
 import AppProviderWrapper from './AppProviderWrapper';
+import { HINT_SCRIPT } from '@/lib/signedInHint';
 
 // Self-hosted via next/font: downloaded at build time and served from our
 // own origin, so there's no render-blocking request to fonts.googleapis.com
@@ -69,7 +70,14 @@ export const viewport = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
+    // suppressHydrationWarning: the script below may add data-auth-hint to
+    // <html> before React hydrates it, which is the point.
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        {/* Before first paint: hide the landing page for a returning
+            signed-in user. See lib/signedInHint.js. */}
+        <script dangerouslySetInnerHTML={{ __html: HINT_SCRIPT }} />
+      </head>
       <body className={plusJakartaSans.className}>
         {/* No <Suspense> around the providers, on purpose. One used to sit
             here with a "Loading..." fallback, and because AppProvider read

@@ -14,6 +14,7 @@ import { auth, db, googleProvider, browserPopupRedirectResolver } from '@/lib/fi
 import { formatDate, parseDate, normalizeSongTitle } from '@/lib/utils';
 import { ADMIN_EMAILS } from '@/lib/constants';
 import { storage, STORAGE_KEYS } from '@/lib/storage';
+import { setSignedInHint, clearSignedInHint } from '@/lib/signedInHint';
 import { apiUrl } from '@/lib/api';
 import { showHref, upcomingShowHref } from '@/lib/showRouting';
 import { setlistToShowData } from '@/lib/setlistSearch';
@@ -941,6 +942,11 @@ export function AppProvider({ children }) {
       clearTimeout(authTimeout);
       setUser(currentUser);
       setAuthLoading(false);
+      // Next launch, paint the app skeleton rather than the landing page
+      // while auth resolves (lib/signedInHint.js). Cleared on a null user
+      // too, which covers sign-out and an expired session alike.
+      if (currentUser) setSignedInHint();
+      else clearSignedInHint();
 
       if (currentUser) {
         // Close auth modal when user signs in (belt-and-suspenders)
@@ -1274,6 +1280,7 @@ export function AppProvider({ children }) {
   const handleLogout = async () => {
     try {
       await signOut(auth);
+      clearSignedInHint();
       setShows([]);
       setFestivals([]);
       setFestivalsLoading(false);

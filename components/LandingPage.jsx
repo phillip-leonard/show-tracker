@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Play } from 'lucide-react';
 import Pick from './brand/Pick';
@@ -19,6 +20,14 @@ function PickSimple({ size = 20 }) {
 }
 
 export default function LandingPage({ onSignUp, onSignIn, onGuest, communityStats }) {
+  // Known only after mount. This page is pre-rendered (it is the static
+  // HTML of `/`), where the platform is unknown, and on iOS reading it
+  // during render would make the first client render disagree with that
+  // HTML. False until then, so the website-only link never appears in the
+  // app, not even for a frame.
+  const [isWeb, setIsWeb] = useState(false);
+  useEffect(() => setIsWeb(!isNativePlatform()), []);
+
   return (
     <div className="lp-root">
 
@@ -424,7 +433,7 @@ export default function LandingPage({ onSignUp, onSignIn, onGuest, communityStat
             <h4>Resources</h4>
             <Link href="/how-to-use">How to use</Link>
             {/* Website-only — see the note in components/layout/Sidebar.jsx. */}
-            {!isNativePlatform() && (
+            {isWeb && (
               <a href="https://buymeacoffee.com/phillipd" target="_blank" rel="noopener noreferrer">Support this project</a>
             )}
             <Link href="/community">Community</Link>

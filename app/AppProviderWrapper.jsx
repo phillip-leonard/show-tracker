@@ -17,16 +17,17 @@ import { registerServiceWorker } from '@/lib/service-worker';
 import { DismissStackProvider, useDismissable } from '@/context/DismissStackContext';
 import SwipeBackLayer from '@/components/layout/SwipeBackLayer';
 import { Music, Check, Sparkles } from 'lucide-react';
+import { clearHintAttr } from '@/lib/signedInHint';
+// Statically imported, not code-split: the landing page is the static HTML
+// of `/` and has to be in out/index.html as real markup for crawlers and
+// first paint. It was `dynamic(..., { ssr: false })` while authLoading
+// blocked it anyway; that cost every page ~450 lines + 23KB of CSS less,
+// but a lazy chunk here means the first paint is empty again.
+import LandingPage from '@/components/LandingPage';
 
-// Code-split: each of these only renders behind a runtime condition (logged
-// out, a modal opened, a venue being rated) that's never known at build time
-// for a fully client-rendered static export — every signed-in page was
-// shipping LandingPage's ~450 lines + 23KB of CSS, AuthModal, and
-// VenueRatingModal whether or not it ever used them. `ssr: false` is safe
-// here specifically because authLoading starts `true`, so the statically
-// exported HTML never contained real LandingPage markup to begin with —
-// there's nothing pre-rendered to lose.
-const LandingPage = dynamic(() => import('@/components/LandingPage'), { ssr: false });
+// Code-split: each of these only renders behind a runtime condition (a
+// modal opened, a venue being rated, a gate after sign-in) that's never
+// known at build time, so there's nothing pre-rendered to lose.
 const AuthModal = dynamic(() => import('@/components/auth/AuthModal'), { ssr: false });
 const TermsGate = dynamic(() => import('@/components/auth/TermsGate'), { ssr: false });
 const SuspendedScreen = dynamic(() => import('@/components/auth/SuspendedScreen'), { ssr: false });
@@ -50,11 +51,45 @@ const VenueRatingModal = dynamic(() => import('@/components/VenueRatingModal'), 
 // data), and the landing page is the right answer for those.
 const PUBLIC_PATHS = ['/terms', '/privacy', '/cookies'];
 
+function normalizedPath(pathname) {
+  // The static export serves these with and without a trailing slash.
+  return (pathname || '').replace(/\/+$/, '') || '/';
+}
+
 function isPublicPath(pathname) {
   if (!pathname) return false;
-  // The static export serves these with and without a trailing slash.
-  const normalized = pathname.replace(/\/+$/, '') || '/';
-  return PUBLIC_PATHS.includes(normalized);
+  return PUBLIC_PATHS.includes(normalizedPath(pathname));
+}
+
+// `/` renders the landing page while auth is still resolving, so it is the
+// static HTML Google and first-time visitors get. Every other signed-in
+// route keeps waiting on auth, as it always has.
+function isHomePath(pathname) {
+  return !!pathname && normalizedPath(pathname) === '/';
+}
+
+// What a returning user sees on `/` while auth resolves, in place of the
+// landing page. Shown by CSS, not by React (see .auth-skeleton in
+// globals.css), so it is already right on first paint, before hydration.
+// Roughly the signed-in shell: sidebar on desktop, header bar on mobile,
+// a few cards where the show list goes.
+function AppSkeleton() {
+  return (
+    <div className="auth-skeleton" aria-busy="true" aria-label="Loading">
+      <div className="min-h-screen bg-base">
+        <div className="hidden md:block fixed inset-y-0 left-0 w-64 bg-sidebar border-r border-subtle" />
+        <div className="md:hidden fixed top-0 inset-x-0 h-header bg-sidebar" />
+        <div className="md:pl-64 pt-header md:pt-0">
+          <div className="w-full max-w-[1200px] mx-auto px-4 md:px-8 py-6 md:py-10 space-y-4 animate-pulse">
+            <div className="h-8 w-48 rounded-lg bg-elevated" />
+            <div className="h-24 rounded-2xl bg-elevated" />
+            <div className="h-24 rounded-2xl bg-elevated" />
+            <div className="h-24 rounded-2xl bg-elevated" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default function AppProviderWrapper({ children }) {
@@ -107,8 +142,15 @@ function AppShell({ children }) {
   // The first-show celebration is deliberately absent: it is
   // pointer-events-none and self-dismissing, so it is not a dismiss target.
 
-  // Show loading state while auth initializes
-  if (authLoading) {
+  // Once auth has an answer, React decides what renders: stop hiding the
+  // landing page behind the skeleton (lib/signedInHint.js).
+  useEffect(() => {
+    if (!authLoading) clearHintAttr();
+  }, [authLoading]);
+
+  // While auth initializes, only `/` and the legal pages render content
+  // (below); every other route waits, as before.
+  if (authLoading && !isHomePath(pathname) && !isPublicPath(pathname)) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-base via-surface to-base flex items-center justify-center">
         <div className="text-muted text-lg">Loading...</div>
@@ -118,8 +160,9 @@ function AppShell({ children }) {
 
   // The legal pages render themselves for a signed-out visitor. They carry
   // their own header and footer (see components/TermsOfService.jsx), so
-  // they need none of the shell below.
-  if (!user && !guestMode && isPublicPath(pathname)) {
+  // they need none of the shell below. Also while auth is still resolving,
+  // so they are real HTML in the static export rather than "Loading...".
+  if ((authLoading || (!user && !guestMode)) && isPublicPath(pathname)) {
     return <>{children}</>;
   }
 
@@ -166,16 +209,27 @@ function AppShell({ children }) {
     );
   }
 
-  // Show landing page with optional auth modal overlay when logged out
-  if (!user && !guestMode) {
+  // Show landing page with optional auth modal overlay when logged out.
+  //
+  // Also on `/` while auth is still resolving: the landing page is the
+  // static HTML of `/`, so crawlers and first-time visitors see it on first
+  // paint without waiting on Firebase. A returning user's browser hides it
+  // behind the skeleton until auth answers. The wrapper and the
+  // LandingPage element are the same in both states, so a signed-out
+  // visitor's landing page stays mounted when auth resolves rather than
+  // being torn down and rebuilt.
+  if (authLoading || (!user && !guestMode)) {
     return (
       <>
-        <LandingPage
-          onSignUp={() => setAuthModal('signup')}
-          onSignIn={() => setAuthModal('login')}
-          onGuest={enterGuestMode}
-          communityStats={communityStats}
-        />
+        <div className="auth-landing">
+          <LandingPage
+            onSignUp={() => setAuthModal('signup')}
+            onSignIn={() => setAuthModal('login')}
+            onGuest={enterGuestMode}
+            communityStats={communityStats}
+          />
+        </div>
+        {authLoading && <AppSkeleton />}
         {authModal && (
           <AuthModal
             mode={authModal}
