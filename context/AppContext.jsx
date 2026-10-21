@@ -32,6 +32,7 @@ import { removeSongFromSetlist, insertSongAt } from '@/lib/setlistGrouping';
 import { buildExistingShowIndex, existingShowStatus } from '@/lib/tourBrowse';
 import { normalizeFestivalName, findFestivalMatches as matchFestivals } from '@/lib/festivalMatch';
 import { logActivity } from '@/lib/activityFeed';
+import { rememberHeardShows } from '@/lib/heardLinks';
 import {
   subscribeBlocks, blockUser as blockUserDoc, unblockUser as unblockUserDoc,
   withoutBlocked,
@@ -403,6 +404,39 @@ export function AppProvider({ children }) {
       window.history.replaceState({}, '', cleanUrl.toString());
     }
   }, [searchParams]);
+
+  // "Save these shows to MySetlists (free)" on /heard/<slug>/ (the Songs
+  // I've heard tool) links to /shows/?signup=1&heard=<slug>.<code>. Kept
+  // in storage like ?follow= so it survives the sign-up, and in state too,
+  // because with site data blocked storage keeps nothing and the sign-up
+  // happens without a page load. components/heard/HeardSaveModal.jsx picks
+  // it up once someone is signed in.
+  const [pendingHeard, setPendingHeard] = useState(null);
+  useEffect(() => {
+    if (!searchParams) return;
+    const value = (searchParams.get('heard') || '').trim();
+    if (/^[a-z0-9-]+\.[ab][A-Za-z0-9_-]+$/.test(value) && value.length <= 2100) {
+      storage.set(STORAGE_KEYS.PENDING_HEARD, value);
+      setPendingHeard(value);
+      const cleanUrl = new URL(window.location.href);
+      cleanUrl.searchParams.delete('heard');
+      window.history.replaceState({}, '', cleanUrl.toString());
+    } else {
+      const saved = storage.get(STORAGE_KEYS.PENDING_HEARD);
+      if (saved) setPendingHeard(saved);
+    }
+  }, [searchParams]);
+  const clearPendingHeard = () => {
+    storage.remove(STORAGE_KEYS.PENDING_HEARD);
+    setPendingHeard(null);
+  };
+
+  // On the web the tool shares this origin, so it can pre-tick the shows
+  // the user already has (lib/heardLinks.js). Native has no use for it.
+  useEffect(() => {
+    if (isNativePlatform() || !user || guestMode) return;
+    rememberHeardShows(shows);
+  }, [shows, user, guestMode]);
 
   // "Start tracking your shows" on the comparison pages links to
   // /?signup=1: open the sign-up form once auth knows nobody is signed in.
@@ -1324,6 +1358,7 @@ export function AppProvider({ children }) {
     try {
       await signOut(auth);
       clearSignedInHint();
+      rememberHeardShows(null);
       setShows([]);
       setFestivals([]);
       setFestivalsLoading(false);
@@ -3771,6 +3806,8 @@ export function AppProvider({ children }) {
     authLoading,
     authModal,
     setAuthModal,
+    pendingHeard,
+    clearPendingHeard,
     guestMode,
     setGuestMode,
     showGuestPrompt,

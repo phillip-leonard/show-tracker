@@ -221,4 +221,85 @@ function buildArtistStats(shows) {
   return { band, songs };
 }
 
-module.exports = { buildArtistStats, slugify, isSong, GAP_LEADER_MIN_PLAYS };
+/**
+ * Every show with its setlist, for the "Songs I've heard" tool
+ * (heardRecord.js, /api/artist-shows): the per-show half of the snapshot,
+ * which the band pages only ever needed as aggregates.
+ *
+ * Compact on purpose (Umphrey's is ~3,000 shows and ~48,000 performances):
+ * each song, venue and tour is listed once and referred to by index, show
+ * URLs drop their common prefix, and a performance is [song index, gap].
+ *
+ *   songs:   [{ slug, name, isOriginal, originalArtist, timesPlayed }]
+ *   venues:  [[name, city]]
+ *   tours:   [name]
+ *   urlBase: 'https://elgoose.net/setlists/'
+ *   shows:   [{ id, date, venue, tour, url, sets }]   oldest first
+ *            venue and tour are indexes (tour -1 for none), url is
+ *            relative to urlBase, sets is [[label, [[song, gap], ...]], ...]
+ *
+ * `gap` uses the same timeline and the same convention as longestGap
+ * above: the shows since the song's previous performance, counting the
+ * show it came back at, so a performance with gap >= BUST_OUT_MIN_GAP is a
+ * bust-out by the band page's own rule. null is the first performance the
+ * archive knows of (a debut); 0 is the song again later in the same show
+ * (a reprise or a sandwich), which counts as one show played.
+ *
+ * Shows with no known setlist are listed too, with no sets: someone may
+ * have been there, and they count in every gap.
+ */
+function buildShowList(shows, songs) {
+  const timeline = chronological(shows.filter((s) => s && s.date));
+  const indexOf = new Map(songs.map((s, i) => [s.key, i]));
+  const lastSeen = new Map();
+  const venues = [];
+  const venueIndex = new Map();
+  const tours = [];
+  const tourIndex = new Map();
+  const intern = (list, index, key, value) => {
+    if (!index.has(key)) { index.set(key, list.length); list.push(value); }
+    return index.get(key);
+  };
+
+  const urls = timeline.map((s) => s.url || '');
+  const urlBase = commonPrefix(urls.filter(Boolean)).replace(/[^/]*$/, '');
+
+  const list = timeline.map((show, index) => {
+    const sets = [];
+    for (const song of show.songs || []) {
+      if (!song || !song.key || !indexOf.has(song.key)) continue;
+      const last = lastSeen.get(song.key);
+      const gap = last === undefined ? null : index - last;
+      lastSeen.set(song.key, index);
+      const label = song.set || 'Set I';
+      if (!sets.length || sets[sets.length - 1][0] !== label) sets.push([label, []]);
+      sets[sets.length - 1][1].push([indexOf.get(song.key), gap]);
+    }
+    const city = [show.city, show.state || show.country].filter(Boolean).join(', ');
+    const venue = intern(venues, venueIndex, `${show.venue}|${city}`, [show.venue || '', city]);
+    const tour = show.tour ? intern(tours, tourIndex, show.tour, show.tour) : -1;
+    const url = urls[index].startsWith(urlBase) ? urls[index].slice(urlBase.length) : urls[index];
+    return { id: String(show.id), date: show.date, venue, tour, url, sets };
+  });
+
+  return {
+    songs: songs.map((s) => ({ slug: s.slug, name: s.name, isOriginal: s.isOriginal, originalArtist: s.originalArtist, timesPlayed: s.timesPlayed })),
+    venues,
+    tours,
+    urlBase,
+    shows: list,
+  };
+}
+
+function commonPrefix(values) {
+  if (!values.length) return '';
+  let prefix = values[0];
+  for (const v of values) {
+    let i = 0;
+    while (i < prefix.length && prefix[i] === v[i]) i++;
+    prefix = prefix.slice(0, i);
+  }
+  return prefix;
+}
+
+module.exports = { buildArtistStats, buildShowList, slugify, isSong, GAP_LEADER_MIN_PLAYS, BUST_OUT_MIN_GAP };

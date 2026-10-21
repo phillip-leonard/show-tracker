@@ -4,8 +4,13 @@
 // (publicArtistSnapshot.js) and normalizes it to one shape, whatever the
 // source:
 //
-//   { id, date: 'YYYY-MM-DD', order, venue, city, state, country, url,
-//     songs: [{ key, slug, name, original, originalArtist, sourceUrl }] }
+//   { id, date: 'YYYY-MM-DD', order, venue, city, state, country, url, tour,
+//     songs: [{ key, slug, name, original, originalArtist, sourceUrl, set }] }
+//
+// `set` is the app's canonical label ('Set I', 'Encore', ...; see
+// bandSetlistShape.js's pickSetLabel), and a show's songs are in setlist
+// order: by set, then by the source's position within it. The "Songs I've
+// heard" tool (heardRecord.js) and its sign-up handoff read both.
 //
 // Three sources, each asked the cheapest way it allows:
 //
@@ -38,6 +43,7 @@ const { fetchPhishnetJson, readEnvelope: readPhishnetEnvelope, splitSetCode } = 
 const { normalizeSongTitle } = require('./bandSetlistMergeRule');
 const { isoDate } = require('./publicPageHtml');
 const { slugify } = require('./artistSnapshotStats');
+const { pickSetLabel, setSortKey } = require('./bandSetlistShape');
 
 const USER_AGENT = 'MySetlists/5.45 (+https://mysetlists.net)';
 const TIMEOUT_MS = 30000;
@@ -114,6 +120,9 @@ function decodeEntities(value) {
     .trim();
 }
 
+// toSong returns the song plus a `sortKey` ([set sort key, position]),
+// which puts the show's songs in setlist order and is then dropped: the
+// sources don't promise rows in that order.
 function groupShows(rows, toShow, toSong) {
   const shows = new Map();
   for (const row of rows) {
@@ -124,7 +133,16 @@ function groupShows(rows, toShow, toSong) {
     if (song) shows.get(show.id).songs.push(song);
   }
   // A show whose every row was a soundcheck has no setlist to count.
-  return [...shows.values()].filter((s) => s.songs.length > 0);
+  return [...shows.values()]
+    .filter((s) => s.songs.length > 0)
+    .map((s) => ({ ...s, songs: inSetlistOrder(s.songs) }));
+}
+
+function inSetlistOrder(songs) {
+  return songs
+    .map((song, i) => ({ song, i }))
+    .sort((a, b) => (a.song.sortKey[0] - b.song.sortKey[0]) || (a.song.sortKey[1] - b.song.sortKey[1]) || (a.i - b.i))
+    .map(({ song: { sortKey, ...song } }) => song);
 }
 
 // ── Songfish ──────────────────────────────────────────────────────────
@@ -143,6 +161,7 @@ function songfishShowsFromRows(rows, artist) {
       state: decodeEntities(r.state),
       country: decodeEntities(r.country),
       url: r.permalink ? `https://${host}/setlists/${String(r.permalink).replace(/^\/+/, '')}` : '',
+      tour: decodeEntities(r.tourname),
     }),
     (r) => {
       // `soundcheck` on a Songfish row is the show's soundcheck LIST,
@@ -160,6 +179,8 @@ function songfishShowsFromRows(rows, artist) {
         original,
         originalArtist: decodeEntities(r.original_artist),
         sourceUrl: slug ? `https://${host}/song/${slug}` : '',
+        set: pickSetLabel(r.settype, r.setnumber),
+        sortKey: [setSortKey(r.settype, r.setnumber), Number(r.position) || 0],
       };
     },
   );
@@ -176,6 +197,7 @@ function songfishListedShow(r, artist) {
     state: decodeEntities(r.state),
     country: decodeEntities(r.country),
     url: r.permalink ? `https://${artist.host}/setlists/${String(r.permalink).replace(/^\/+/, '')}` : '',
+    tour: decodeEntities(r.tourname),
     songs: [],
   };
 }
@@ -230,9 +252,11 @@ function phishnetShowsFromRows(rows, artist) {
       state: decodeEntities(r.state),
       country: decodeEntities(r.country),
       url: String(r.permalink || ''),
+      tour: decodeEntities(r.tourname),
     }),
     (r) => {
-      if (splitSetCode(r.set).setType === 'soundcheck') return null;
+      const { setType, setNumber } = splitSetCode(r.set);
+      if (setType === 'soundcheck') return null;
       const name = decodeEntities(r.song);
       if (!name || r.songid == null) return null;
       const slug = String(r.slug || '');
@@ -244,6 +268,8 @@ function phishnetShowsFromRows(rows, artist) {
         original,
         originalArtist: '',
         sourceUrl: slug ? `https://phish.net/song/${slug}` : '',
+        set: pickSetLabel(setType, setNumber),
+        sortKey: [setSortKey(setType, setNumber), Number(r.position) || 0],
       };
     },
   );
@@ -285,6 +311,7 @@ async function fetchPhishnetShowList(artist, ctx, apiKey) {
       state: decodeEntities(r.state),
       country: decodeEntities(r.country),
       url: String(r.permalink || ''),
+      tour: decodeEntities(r.tourname),
       songs: [],
     });
   }
@@ -336,7 +363,10 @@ function getSetlistfmJson(path, apiKey) {
 function setlistfmShow(sl) {
   const city = sl.venue?.city || {};
   const songs = [];
+  let sets = 0;
+  let encores = 0;
   for (const set of sl.sets?.set || []) {
+    const label = set.encore ? pickSetLabel('encore', ++encores) : pickSetLabel('set', ++sets);
     for (const song of set.song || []) {
       const name = decodeEntities(song.name);
       // `tape` is a recording played over the PA, not a performance.
@@ -352,6 +382,7 @@ function setlistfmShow(sl) {
         original: !song.cover,
         originalArtist: song.cover ? decodeEntities(song.cover.name) : '',
         sourceUrl: '',
+        set: label,
       });
     }
   }
@@ -364,6 +395,7 @@ function setlistfmShow(sl) {
     state: decodeEntities(city.stateCode),
     country: decodeEntities(city.country?.code),
     url: sl.url || '',
+    tour: decodeEntities(sl.tour?.name),
     lastUpdated: sl.lastUpdated || '',
     songs,
   };
@@ -395,6 +427,7 @@ module.exports = {
   fetchPhishnetShowList,
   fetchPhishnetSongArtists,
   fetchSetlistfmPage,
+  getSetlistfmJson,
   songfishShowsFromRows,
   phishnetShowsFromRows,
   setlistfmShow,

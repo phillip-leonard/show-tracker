@@ -39,6 +39,18 @@ const ROUTES = {
     /^\/artist\/([^/]+)\/song\/([^/]+)\/?$/,
     /^\/\.netlify\/functions\/public-artist-song\/([^/]+)\/([^/]+)\/?$/,
   ],
+  heard: [
+    /^\/heard\/([^/]+)\/?$/,
+    /^\/\.netlify\/functions\/public-heard\/([^/]+)\/?$/,
+  ],
+  heardShare: [
+    /^\/heard\/([^/]+)\/r\/([^/]+)\/?$/,
+    /^\/\.netlify\/functions\/public-heard\/([^/]+)\/r\/([^/]+)\/?$/,
+  ],
+  heardImage: [
+    /^\/heard\/([^/]+)\/r\/([^/]+)\/(og|poster-feed|poster-story)\.png$/,
+    /^\/\.netlify\/functions\/public-heard-image\/([^/]+)\/([^/]+)\/(og|poster-feed|poster-story)\/?$/,
+  ],
 };
 
 const NAMES = {
@@ -47,6 +59,9 @@ const NAMES = {
   shared: ['id'],
   artist: ['slug'],
   song: ['slug', 'song'],
+  heard: ['slug'],
+  heardShare: ['slug', 'code'],
+  heardImage: ['slug', 'code', 'image'],
 };
 
 function candidatePaths(event) {
@@ -72,7 +87,7 @@ function safeDecode(segment) {
 
 /**
  * @param {object} event  the Netlify function event
- * @param {'profile'|'show'|'shared'|'artist'|'song'} kind
+ * @param {'profile'|'show'|'shared'|'artist'|'song'|'heard'|'heardShare'|'heardImage'} kind
  * @returns {object} e.g. { handle: 'phillip' } — a missing value is ''
  */
 function routeParams(event, kind) {

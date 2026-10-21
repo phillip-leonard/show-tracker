@@ -3,6 +3,7 @@ Allow: /
 Allow: /roadmap
 Allow: /artist/
 Allow: /artists/
+Allow: /heard/
 Allow: /privacy
 Allow: /terms
 Allow: /cookies

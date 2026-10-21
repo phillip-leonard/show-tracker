@@ -44,6 +44,13 @@
 [functions."public-artist-snapshot"]
   schedule = "20 */6 * * *"
 
+# The "Songs I've heard" poster and preview images: resvg-js is a native
+# module, so it is installed as is rather than bundled, and the poster font
+# (Plus Jakarta Sans, SIL OFL) ships alongside. See public-heard-image.js.
+[functions."public-heard-image"]
+  external_node_modules = ["@resvg/resvg-js"]
+  included_files = ["netlify/functions/fonts/*.ttf"]
+
 # Firebase Auth handler, proxied onto our own domain.
 #
 # Google's sign-in screen shows the app name only for brand-verified OAuth
@@ -397,7 +404,9 @@
   force = true
 
 # The same snapshot as JSON, for the iOS app: /api/artist?slug=… and
-# /api/artist-song?slug=…&song=…. The visitor's query string passes through.
+# /api/artist-song?slug=…&song=…, and every show with its setlist for the
+# "Songs I've heard" tool: /api/artist-shows?slug=…. The visitor's query
+# string passes through.
 [[redirects]]
   from = "/api/artist"
   to = "/.netlify/functions/artist-api/band"
@@ -419,6 +428,106 @@
 [[redirects]]
   from = "/api/artist-song/"
   to = "/.netlify/functions/artist-api/song"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/artist-shows"
+  to = "/.netlify/functions/artist-api/shows"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/artist-shows/"
+  to = "/.netlify/functions/artist-api/shows"
+  status = 200
+  force = true
+
+# "Songs I've heard" (lib/heardPages.js): pick a band, tick your shows,
+# get every song you've heard live and a poster. Pages and images rendered
+# by functions from the band-page snapshot's show lists; nothing in out/ or
+# the iOS bundle. Codes and slugs travel in the function PATH
+# (publicRouteParams.js), force = true so nothing in out/ can shadow them,
+# and all of it stays above the catch-all.
+#
+#   /heard/                                pick a band (indexable)
+#   /heard/<slug>/                         the tool (indexable)
+#   /heard/<slug>/r/<code>/                a shared record (noindex)
+#   /heard/<slug>/r/<code>/og.png          its link preview, 1200x630
+#   /heard/<slug>/r/<code>/poster-feed.png and poster-story.png
+# Both spellings rewrite, as with /artists: Netlify matches a from of
+# "/heard" against "/heard/" too, so a 301 to the slash loops.
+[[redirects]]
+  from = "/heard"
+  to = "/.netlify/functions/public-heard"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/heard/"
+  to = "/.netlify/functions/public-heard"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/heard/:slug/r/:code/og.png"
+  to = "/.netlify/functions/public-heard-image/:slug/:code/og"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/heard/:slug/r/:code/poster-feed.png"
+  to = "/.netlify/functions/public-heard-image/:slug/:code/poster-feed"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/heard/:slug/r/:code/poster-story.png"
+  to = "/.netlify/functions/public-heard-image/:slug/:code/poster-story"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/heard/:slug/r/:code"
+  to = "/.netlify/functions/public-heard/:slug/r/:code"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/heard/:slug/r/:code/"
+  to = "/.netlify/functions/public-heard/:slug/r/:code"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/heard/:slug"
+  to = "/.netlify/functions/public-heard/:slug"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/heard/:slug/"
+  to = "/.netlify/functions/public-heard/:slug"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/heard/*"
+  to = "/404.html"
+  status = 404
+  force = true
+
+# The tool's two JSON helpers: the setlist.fm attendance import and the
+# store for selections too long for a link (lib/heardShares.js).
+[[redirects]]
+  from = "/api/heard-import"
+  to = "/.netlify/functions/heard-import"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/heard-share"
+  to = "/.netlify/functions/heard-share"
   status = 200
   force = true
 

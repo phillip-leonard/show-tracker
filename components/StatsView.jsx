@@ -11,6 +11,7 @@ import SongStatsRow from '@/components/SongStatsRow';
 import PlaylistCreatorModal from '@/components/PlaylistCreatorModal';
 import { PLAYLIST_CREATION_ENABLED } from '@/lib/constants';
 import FollowBandButton from '@/components/artists/FollowBandButton';
+import HeardToolCard from '@/components/heard/HeardToolCard';
 
 function StatsView({ shows, allShows = shows, songStats, artistStats, venueStats, topRatedShows, onRateSong, onRateShow, onCommentShow, onUpdateVenueRating, onDeleteShow, onAddSong, onReorderSetlist, onResyncSetlist, onDeleteSong, onRestoreSong, initialTab, onTagFriends, onRateVenue, onToggleFavoriteArtist, isArtistFavorite, fetchVenueRatings, normalizeVenueKey, computeVenueAggregate, friends, user }) {
   const [tab, setTab] = useState(initialTab || 'years');
@@ -168,6 +169,7 @@ function StatsView({ shows, allShows = shows, songStats, artistStats, venueStats
 
       {tab === 'songs' && (
         <div>
+          <HeardToolCard shows={allShows} />
           <SectionHeader title="Song Statistics" className="mb-4" />
 
 

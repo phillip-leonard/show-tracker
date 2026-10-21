@@ -4,6 +4,79 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.47.0] — 2026-10-21
+
+Ships in iOS 3.9 (`MARKETING_VERSION` 3.8.1 → 3.9; the build number is
+left to Xcode Cloud). A minor bump: a new feature, on the web only.
+
+**Songs I've heard** (`/heard/`): pick a band, tick the shows you were at,
+and see every song you've heard live, with a poster and a link to share.
+Free, no account. Goose, Phish, Umphrey's McGee and King Gizzard & the
+Lizard Wizard, the four bands whose fan archives have every setlist.
+
+### The data
+
+- **The snapshot job now writes every show with its setlist**,
+  `shows/<slug>.json` in the `public-artists` Blobs store, from the same
+  fetch and the same checks as the band pages, so a gap or a bust-out here
+  is the band page's number. Archive bands only: setlist.fm bands have
+  only their newest 300 setlists, and a record over part of a history
+  would undercount without saying so.
+- Compact (each song, venue and tour once; a performance is `[song, gap]`):
+  about 60 KB gzipped for Goose, 260 KB for Umphrey's. One file per band,
+  served at **`/api/artist-shows?slug=`** with the band pages' cache rule,
+  including Phish.net's 24 hours.
+- Each performance now carries its set (Set I, Encore…) and the show its
+  tour. The raw cache gets a format number; an old one is refetched in full
+  the next time its band is due.
+
+### The tool
+
+- **`/heard/` and `/heard/<slug>/`**: server-rendered and indexable (real
+  title, description, most played songs, FAQ); the picker and the record run
+  in the page, from `/api/artist-shows`. Shows newest first by year, search,
+  year and tour filters, "All 3 nights" for runs. Picks stay in
+  `localStorage` (and the page works without it).
+- **The record**, live: shows, years, venues, songs, performances; every
+  song with your count (sortable, originals and covers labeled, linked to
+  its song page); your top 10; rarest catches; bust-outs you witnessed
+  (50+ shows, the band page's rule); debuts; the 10 most played originals
+  you're still chasing.
+- **Import from setlist.fm**: a username ticks every show on its public "I
+  was there" list (`/api/heard-import`), matched by the band's MusicBrainz
+  id (setlist.fm has a Belgian GOOSE too), date and venue, with what didn't
+  match listed.
+- **Signed in**: your own shows are pre-ticked, from the Stats page link
+  (dates in the URL fragment) or, on the web, from `localStorage`.
+
+### Poster and share link
+
+- **Posters** at 1080×1350 and 1080×1920, concert-poster style in the brand
+  palette, type only, with the source credit and `mysetlists.net/heard`.
+  Download, or Share with the image where the browser can.
+- **Share links**, `/heard/<slug>/r/<code>/`: the code is the picked shows
+  by date, nothing personal, about 60 characters for 40 shows. Past ~900
+  shows it's stored in Blobs (`heard-shares`) under a short id. The page
+  renders the record server-side, says "Make your own", and is `noindex`.
+- **Preview image** for every link (1200×630). Posters and previews are one
+  renderer: the SVG in `heardRecord.js`, rasterized by resvg in
+  `public-heard-image.js` with the app's font (Plus Jakarta Sans, OFL).
+
+### Save to MySetlists
+
+- **"Save these shows to MySetlists (free)"** carries the picks through
+  sign-up like `?follow=` does (`?heard=`), then adds them through the
+  bulk tour-add path: progress, already-saved shows skipped, a retry for
+  failures, then an offer to follow the band.
+
+### Links
+
+- From each band page, each song page, the landing page footer, and the
+  Stats page (opens in the browser on iOS). `/heard/` and each band's tool
+  page are in `sitemap-pages.xml`.
+
+---
+
 ## [5.46.1] — 2026-10-21
 
 Ships in iOS 3.8.1 (`MARKETING_VERSION` 3.8 → 3.8.1; the build number is
