@@ -60,6 +60,15 @@ SEO week, day 2: make the pages render for Google.
   fallback. When the variable is unset they log an error and return a 500.
   The old key is still in git history and has to be rotated at setlist.fm.
 
+### Landing page copy
+
+- Removed the "Checked in · Billy Strings · Red Rocks" sample card from the
+  hero. It was made up, and it is now in the static HTML Google indexes.
+- "Setlist data from" names only the sources the app pulls setlists from
+  today: setlist.fm and elgoose.net. phish.net (wired up, but no
+  `PHISHNET_API_KEY` on Netlify, so not live), Bandsintown and relisten.net
+  (neither is a setlist source) are gone.
+
 ### Smaller app download
 
 - The 19 MB App Review screen recording moved from `public/review/` to
