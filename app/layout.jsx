@@ -1,4 +1,3 @@
-import { Suspense } from 'react';
 import { Plus_Jakarta_Sans } from 'next/font/google';
 import './globals.css';
 import AppProviderWrapper from './AppProviderWrapper';
@@ -72,15 +71,17 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body className={plusJakartaSans.className}>
-        <Suspense fallback={
-          <div className="min-h-screen flex items-center justify-center bg-base">
-            <div className="text-muted font-medium">Loading...</div>
-          </div>
-        }>
-          <AppProviderWrapper>
-            {children}
-          </AppProviderWrapper>
-        </Suspense>
+        {/* No <Suspense> around the providers, on purpose. One used to sit
+            here with a "Loading..." fallback, and because AppProvider read
+            useSearchParams(), that fallback was the whole of every exported
+            page — all Google ever saw. Search params are now read in
+            components/SearchParamsListener.jsx, inside a boundary of its
+            own. Without a boundary here, a new useSearchParams() call in the
+            providers fails `next build` instead of silently blanking every
+            page again. */}
+        <AppProviderWrapper>
+          {children}
+        </AppProviderWrapper>
       </body>
     </html>
   );

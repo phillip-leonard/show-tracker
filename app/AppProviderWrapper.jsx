@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { Suspense, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
@@ -278,8 +278,13 @@ function AppShell({ children }) {
         </div>
       )}
 
-      {/* Mobile Header */}
-      <MobileHeader onMenuClick={() => setSidebarOpen(true)} />
+      {/* Mobile Header. In its own boundary because it calls
+          useSearchParams(), which would otherwise opt everything up to the
+          nearest <Suspense> out of the static HTML. The signed-in shell is
+          never pre-rendered today, so this only matters if that changes. */}
+      <Suspense fallback={null}>
+        <MobileHeader onMenuClick={() => setSidebarOpen(true)} />
+      </Suspense>
 
       {/* Changelog popup — shown once per user after login, skipped while the invite welcome modal is up */}
       {user && !guestMode && !welcomeState && <ChangelogPopup user={user} />}

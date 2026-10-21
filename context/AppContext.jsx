@@ -1,7 +1,8 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
-import { useRouter, usePathname, useSearchParams } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
+import SearchParamsListener from '@/components/SearchParamsListener';
 import { signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
 import { nativeOAuthSignIn, isNativePlatform } from '@/lib/native-auth';
 import {
@@ -312,7 +313,12 @@ const AppContext = createContext(null);
 export function AppProvider({ children }) {
   const router = useRouter();
   const pathname = usePathname();
-  const searchParams = useSearchParams();
+  // Filled in by <SearchParamsListener> below rather than read with
+  // useSearchParams() here: this provider wraps every route, and reading
+  // them here kept every page out of the static HTML (see that file).
+  // Null until the first commit; both effects that read it already wait
+  // for it.
+  const [searchParams, setSearchParams] = useState(null);
 
   // ── Core state ──────────────────────────────────────────────────────
   const [shows, setShows] = useState([]);
@@ -3883,6 +3889,7 @@ export function AppProvider({ children }) {
 
   return (
     <AppContext.Provider value={value}>
+      <SearchParamsListener onChange={setSearchParams} />
       {children}
     </AppContext.Provider>
   );
