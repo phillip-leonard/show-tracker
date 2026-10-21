@@ -62,6 +62,10 @@ Two homepage claims made true, and every other feature claim checked.
   `/venue-dashboard/?venue=` (`yearInReviewHref`, `venueHref`,
   `venueDashboardHref` in `lib/showRouting.js`), with 301s from the old
   shapes in `netlify.toml`.
+- **Deep links survive for signed-in users.** The auth listener sent every
+  signed-in user to `/shows/` as soon as a saved session was restored, so
+  opening any page cold (an email link, `/how-to-use`) landed on My Shows.
+  It now does that only on an actual sign-in or account switch.
 
 ### Landing page
 
