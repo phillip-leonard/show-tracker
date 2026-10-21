@@ -103,18 +103,21 @@ const todayUtc = (now) => new Date(now).toISOString().slice(0, 10);
 // set(key, value), delete(key) }. In a function that is Netlify Blobs
 // (openBlobStore); in the tests and the local runner, a Map or a folder.
 
-function openBlobStore(event, { strong = false } = {}) {
-  const { connectLambda, getStore } = require('@netlify/blobs');
-  // Lambda-compatibility (exports.handler) functions must hand the event
-  // to Blobs first; that is where the store's credentials arrive. v2
-  // functions (the snapshot job) pass null: the runtime provides them.
-  if (event) connectLambda(event);
-  const store = getStore({ name: STORE_NAME, consistency: strong ? 'strong' : 'eventual' });
+function wrapBlobStore(store) {
   return {
     get: (key) => store.get(key, { type: 'json' }),
     set: (key, value) => store.setJSON(key, value),
     delete: (key) => store.delete(key),
   };
+}
+
+// For the Lambda-compatibility (exports.handler) page functions, which must
+// hand the event to Blobs first: that is where the store's credentials
+// arrive.
+function openBlobStore(event, { strong = false } = {}) {
+  const { connectLambda, getStore } = require('@netlify/blobs');
+  connectLambda(event);
+  return wrapBlobStore(getStore({ name: STORE_NAME, consistency: strong ? 'strong' : 'eventual' }));
 }
 
 // ── Raw cache (de)serialization ───────────────────────────────────────
@@ -483,6 +486,7 @@ module.exports = {
   publicArtists,
   findArtist,
   openBlobStore,
+  wrapBlobStore,
   runSnapshot,
   buildSnapshot,
   looksComplete,

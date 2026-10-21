@@ -7,11 +7,9 @@
 // seconds. Netlify answers the caller 202 at once and lets this run for up
 // to 15 minutes.
 //
-// A v2 function (export default), unlike the rest of netlify/functions:
-// as a Lambda-compatibility background function, Netlify Blobs never got
-// its credentials (connectLambda had nothing to connect), so the first run
-// on the deploy preview read no token and did nothing. v2 functions get the
-// Blobs context from the runtime.
+// A v2 function (export default), unlike the rest of netlify/functions,
+// so Blobs takes its context from the runtime rather than from a Lambda
+// event.
 //
 // ── Who may start it ──────────────────────────────────────────────────
 //
@@ -26,9 +24,10 @@
 //
 //   trigger/<nonce> = { createdAt, force: false | true | 'full', only: [slugs] | null, by }
 
+import { getStore } from '@netlify/blobs';
 import snapshot from './lib/publicArtistSnapshot.js';
 
-const { openBlobStore, runSnapshot } = snapshot;
+const { STORE_NAME, wrapBlobStore, runSnapshot } = snapshot;
 const TOKEN_TTL_MS = 10 * 60 * 1000;
 
 async function readNonce(req) {
@@ -47,7 +46,10 @@ export default async (req) => {
     return new Response('Unauthorized', { status: 401 });
   }
 
-  const store = openBlobStore(null, { strong: true });
+  // Imported here, not through the lib's require(): a v2 bundle leaves a
+  // require() inside a function unresolved ("Cannot find module
+  // '@netlify/blobs'" on the first preview run).
+  const store = wrapBlobStore(getStore({ name: STORE_NAME, consistency: 'strong' }));
   const token = await store.get(`trigger/${nonce}`);
   if (!token) {
     console.warn('[artist-snapshot] rejected: unknown nonce');

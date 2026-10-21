@@ -12,10 +12,11 @@
 // scripts/run-artist-snapshot.js.
 
 import crypto from 'node:crypto';
+import { getStore } from '@netlify/blobs';
 import snapshot from './lib/publicArtistSnapshot.js';
 
 export default async () => {
-  const store = snapshot.openBlobStore(null, { strong: true });
+  const store = snapshot.wrapBlobStore(getStore({ name: snapshot.STORE_NAME, consistency: 'strong' }));
   const nonce = crypto.randomBytes(24).toString('hex');
   await store.set(`trigger/${nonce}`, { createdAt: new Date().toISOString(), force: false, only: null, by: 'schedule' });
 
