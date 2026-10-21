@@ -4,6 +4,22 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.45.2] — 2026-10-21
+
+Ships in iOS 3.7.2 (`MARKETING_VERSION` 3.7.1 → 3.7.2; the build number is
+left to Xcode Cloud). No app changes.
+
+- **The snapshot job refuses a gap as large as the band's show count.**
+  Gaps and the "Shows" stat come from the same show list, so no current gap
+  or gap between two performances can reach the total. If one does, that
+  artist's snapshot fails and the last good one stays published. All 20
+  current snapshots pass.
+- Checked after a report of inflated Goose gaps: the 699-show gap for Up On
+  Cripple Creek and the 610 for Let's Dance match elgoose.net exactly, over
+  Goose's own 842 shows (the earlier 619 and 582 left out the 168 shows with
+  no known setlist; 674 is the count of shows with one). Nine gaps across
+  Goose, Phish and Umphrey's McGee match their source sites.
+
 ## [5.45.1] — 2026-10-21
 
 Ships in iOS 3.7.1 (`MARKETING_VERSION` 3.7 → 3.7.1; the build number is
