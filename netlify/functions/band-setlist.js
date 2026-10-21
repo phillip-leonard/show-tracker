@@ -54,7 +54,7 @@
  *
  * PHISHNET_API_KEY, read server-side only, with NO `||` literal fallback:
  * a missing key returns a 503 saying so. (The setlist.fm functions used to
- * fall back to a live key in the source; since 5.44.4 they read
+ * fall back to a live key in the source; since 5.44.5 they read
  * SETLISTFM_API_KEY through lib/setlistfmKey.js, with no fallback either.)
  * elgoose.net needs no key at all.
  */

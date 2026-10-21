@@ -4,10 +4,10 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
-## [5.44.4] — 2026-10-22
+## [5.44.5] — 2026-10-22
 
-Ships in iOS 3.6.4 (`MARKETING_VERSION` 3.6.3 → 3.6.4; the build number is
-left to Xcode Cloud). It changes how the app boots, so it needs a new iOS
+Ships in iOS 3.6.5 (`MARKETING_VERSION` 3.6.4 → 3.6.5; 3.6.4 is taken by
+#346, now merged; the build number is left to Xcode Cloud). It changes how the app boots, so it needs a new iOS
 build.
 
 SEO week, day 2: make the pages render for Google.
@@ -47,13 +47,6 @@ SEO week, day 2: make the pages render for Google.
   and a read during `AppProvider`'s first render took the app down to
   "Application error". `lib/storage.js` now catches it and acts like an
   empty browser.
-- **Public profile, show and shared pages load again.** `/u/<handle>`,
-  `/u/<handle>/shows/<id>` and `/shared/<id>` have 404'd since 5.6.0: the
-  rewrites passed the handle as a query placeholder, which Netlify does not
-  fill in for a function. The handle now goes in the function URL's path,
-  and `netlify/functions/lib/publicRouteParams.js` reads it (and still
-  accepts `?handle=` for direct calls). The sitemap no longer lists a
-  handle twice.
 - **`/artist/*` returns a real 404** instead of the app shell with a 200
   marked `index, follow`, which Google treats as a soft 404. The two
   `netlify.toml` rules are meant to be swapped out for the Day 3 band
@@ -72,6 +65,33 @@ SEO week, day 2: make the pages render for Google.
 - The 19 MB App Review screen recording moved from `public/review/` to
   `docs/review/`. It was copied into `out/`, and so into the iOS app, on
   every build. `out/` went from about 24.0 MB to about 5.0 MB.
+
+---
+
+## [5.44.4] — 2026-10-20
+
+Ships in iOS 3.6.4 (`MARKETING_VERSION` 3.6.3 → 3.6.4; the build number
+is left to Xcode Cloud). Nothing in this release changes the app itself:
+the bump follows the every-PR rule.
+
+### Public profiles, show pages and shared collections load again
+
+- **Fixed: every `/u/<handle>/`, `/u/<handle>/shows/<id>/` and
+  `/shared/<id>/` page returned 404 "No profile handle given."** — since
+  they shipped in v5.6.0. The `netlify.toml` rewrites passed the values as
+  query-string placeholders (`public-profile?handle=:handle`), which never
+  reached the function; called directly with `?handle=` the same function
+  worked. The rewrites now put the values in the function path
+  (`/.netlify/functions/public-profile/:handle`), and the three functions
+  read them through `netlify/functions/lib/publicRouteParams.js`, which
+  accepts the public URL or the function URL from `event.path` or
+  `event.rawUrl`. An explicit `?handle=` still works.
+- **Fixed: the sitemap listed `/u/alexreviewer/` twice.** More than one
+  `userProfiles` doc can carry the same `handleLower`; the sitemap now
+  lists each handle once. Google had been fed those 404s through the
+  sitemap.
+- New `tests/public-pages/routeParams.test.js` (13 cases), run by
+  `npm run test:unit`.
 
 ---
 

@@ -58,7 +58,7 @@ test.describe('Landing Page', () => {
 
 // ---------------------------------------------------------------------------
 // Static HTML — what a crawler gets before (or without) running any script.
-// Until 5.44.4 every exported page was the root layout's "Loading..."
+// Until 5.44.5 every exported page was the root layout's "Loading..."
 // fallback, because useSearchParams() in the providers bailed the whole tree
 // out of pre-rendering, and Google indexed nothing else.
 // ---------------------------------------------------------------------------
@@ -105,7 +105,7 @@ test.describe('Static HTML', () => {
     // What Chrome's "Block all site data" does: touching localStorage,
     // sessionStorage or indexedDB throws a SecurityError. A storage read
     // in AppProvider used to take the whole app down to "Application
-    // error" (fixed in 5.44.4, lib/storage.js).
+    // error" (fixed in 5.44.5, lib/storage.js).
     await page.addInitScript(() => {
       for (const name of ['localStorage', 'sessionStorage', 'indexedDB']) {
         Object.defineProperty(window, name, {

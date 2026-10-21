@@ -2,7 +2,7 @@
 //
 // The one place the setlist.fm API key is read.
 //
-// Until 5.44.4, eleven functions read it as
+// Until 5.44.5, eleven functions read it as
 // `process.env.SETLISTFM_API_KEY || '<a live key>'`, which put a working
 // key in a public repository and in every function bundle. There is no
 // fallback now: with SETLISTFM_API_KEY unset, every function that needs it

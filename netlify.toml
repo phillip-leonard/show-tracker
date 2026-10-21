@@ -167,18 +167,18 @@
 
 # Public, indexable pages — server-rendered HTML from Netlify Functions, not
 # the SPA shell, so crawlers see real content without executing JavaScript.
+# Order matters: the more specific /u/:handle/shows/:showId rules are listed
+# before the plain /u/:handle rules purely for readability — Netlify's
+# :param placeholders only match a single path segment, so a request with
+# an extra /shows/:showId segment could never match the shorter pattern
+# regardless of order. All of these must stay above the final catch-all.
 #
-# The handle / id goes in the PATH of the function URL, not its query
-# string. These used to be `?handle=:handle`, and Netlify does not fill
-# placeholders into a function rewrite's query string, so every /u/ and
-# /shared/ page reached its function with no handle and 404'd (5.6.0 to
-# 5.44.4). The functions parse the path (netlify/functions/lib/
-# publicRouteParams.js), and still accept ?handle= for direct calls.
-#
-# Netlify's :param placeholders only match a single path segment, so the
-# /u/:handle/shows/:showId rules can never be caught by the shorter
-# /u/:handle ones; they come first for readability. All of these must stay
-# above the final catch-all.
+# The values travel in the function PATH, not a query string. These rules
+# used to rewrite to ...public-profile?handle=:handle, and that placeholder
+# never reached the function, so every one of these pages returned 404
+# from v5.6.0 until 5.44.4. The functions read the path through
+# netlify/functions/lib/publicRouteParams.js, which accepts either the
+# public URL or the function URL, whichever Netlify passes as event.path.
 [[redirects]]
   from = "/u/:handle/shows/:showId"
   to = "/.netlify/functions/public-show/:handle/:showId"

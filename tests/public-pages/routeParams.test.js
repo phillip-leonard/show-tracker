@@ -1,67 +1,113 @@
+#!/usr/bin/env node
 /**
- * publicRouteParams: the handle / show id / collection id the public page
- * functions read from the request. Every shape Netlify may hand them — the
- * function sub-path the rewrites now use, the original /u/... path, rawUrl
- * only, and a direct call with query parameters.
+ * Public page routing — the /u/, /u/.../shows/... and /shared/ functions get
+ * their ids from the request path, and the sitemap lists each handle once.
  *
  *   node tests/public-pages/routeParams.test.js
+ *
+ * Why this test exists: from v5.6.0 to 5.44.3 every public profile, show and
+ * shared page returned 404 "No profile handle given." The netlify.toml
+ * rewrites passed the handle as a query-string placeholder
+ * (?handle=:handle), which never reached the function. The sitemap was
+ * listing those 404s to Google, one of them twice.
  */
 
-const { test, run } = require('../email/harness');
 const assert = require('node:assert');
-const { profileParams, showParams, sharedParams } = require('../../netlify/functions/lib/publicRouteParams');
+const { routeParams } = require('../../netlify/functions/lib/publicRouteParams');
+const { uniqueHandles } = require('../../netlify/functions/sitemap');
 
-test('profile: function sub-path from the rewrite', () => {
-  assert.deepStrictEqual(profileParams({ path: '/.netlify/functions/public-profile/Phillip' }), { handle: 'phillip' });
+const tests = [];
+function test(name, fn) { tests.push({ name, fn }); }
+
+// ── Profile ──────────────────────────────────────────────────────────────
+
+test('profile: public URL with and without trailing slash', () => {
+  assert.deepStrictEqual(routeParams({ path: '/u/phillip/' }, 'profile'), { handle: 'phillip' });
+  assert.deepStrictEqual(routeParams({ path: '/u/phillip' }, 'profile'), { handle: 'phillip' });
 });
 
-test('profile: original path, with and without trailing slash', () => {
-  assert.deepStrictEqual(profileParams({ path: '/u/phillip/' }), { handle: 'phillip' });
-  assert.deepStrictEqual(profileParams({ path: '/u/phillip' }), { handle: 'phillip' });
+test('profile: rewritten function URL', () => {
+  assert.deepStrictEqual(routeParams({ path: '/.netlify/functions/public-profile/phillip' }, 'profile'), { handle: 'phillip' });
 });
 
-test('profile: only rawUrl carries the path', () => {
-  const event = { path: '/.netlify/functions/public-profile', rawUrl: 'https://mysetlists.net/u/jordanmills/?page=2' };
-  assert.deepStrictEqual(profileParams(event), { handle: 'jordanmills' });
+test('profile: the visitor\'s own ?page= does not hide the path handle', () => {
+  // The exact shape that produced the bug: queryStringParameters present,
+  // but holding only the visitor's query, not the rewrite's.
+  const event = { path: '/u/phillip/', queryStringParameters: { page: '2' } };
+  assert.deepStrictEqual(routeParams(event, 'profile'), { handle: 'phillip' });
 });
 
-test('profile: direct call with ?handle= still works', () => {
-  const event = { path: '/.netlify/functions/public-profile', queryStringParameters: { handle: ' Phillip ' } };
-  assert.deepStrictEqual(profileParams(event), { handle: 'phillip' });
+test('profile: falls back to rawUrl when path is unhelpful', () => {
+  const event = { path: '/.netlify/functions/public-profile', rawUrl: 'https://mysetlists.net/u/phillip/?page=2' };
+  assert.deepStrictEqual(routeParams(event, 'profile'), { handle: 'phillip' });
 });
 
-test('profile: nothing given is an empty handle (the function 404s)', () => {
-  assert.deepStrictEqual(profileParams({ path: '/.netlify/functions/public-profile' }), { handle: '' });
+test('profile: an explicit ?handle= still works (direct function call)', () => {
+  const event = { path: '/.netlify/functions/public-profile', queryStringParameters: { handle: 'phillip' } };
+  assert.deepStrictEqual(routeParams(event, 'profile'), { handle: 'phillip' });
 });
 
-test('profile: percent-encoding is decoded, a malformed escape is kept', () => {
-  assert.deepStrictEqual(profileParams({ path: '/u/a%20b/' }), { handle: 'a b' });
-  assert.deepStrictEqual(profileParams({ path: '/u/a%E0/' }), { handle: 'a%e0' });
+test('profile: no handle anywhere gives an empty string', () => {
+  assert.deepStrictEqual(routeParams({ path: '/.netlify/functions/public-profile' }, 'profile'), { handle: '' });
+  assert.deepStrictEqual(routeParams({}, 'profile'), { handle: '' });
 });
 
-test('profile: a show path is not mistaken for a profile', () => {
-  assert.deepStrictEqual(profileParams({ path: '/u/phillip/shows/abc' }), { handle: '' });
+test('profile: a show URL is not mistaken for a profile', () => {
+  assert.deepStrictEqual(routeParams({ path: '/u/phillip/shows/abc123/' }, 'profile'), { handle: '' });
 });
 
-test('show: function sub-path and original path', () => {
-  assert.deepStrictEqual(showParams({ path: '/.netlify/functions/public-show/Phillip/abc123' }), { handle: 'phillip', showId: 'abc123' });
-  assert.deepStrictEqual(showParams({ path: '/u/phillip/shows/abc123/' }), { handle: 'phillip', showId: 'abc123' });
+// ── Show ─────────────────────────────────────────────────────────────────
+
+test('show: public URL', () => {
+  assert.deepStrictEqual(routeParams({ path: '/u/phillip/shows/abc123/' }, 'show'), { handle: 'phillip', showId: 'abc123' });
 });
 
-test('show: show id keeps its case', () => {
-  assert.deepStrictEqual(showParams({ path: '/u/phillip/shows/AbC/' }), { handle: 'phillip', showId: 'AbC' });
+test('show: rewritten function URL', () => {
+  assert.deepStrictEqual(
+    routeParams({ path: '/.netlify/functions/public-show/phillip/abc123' }, 'show'),
+    { handle: 'phillip', showId: 'abc123' },
+  );
 });
 
-test('show: direct call with query parameters', () => {
-  const event = { path: '/.netlify/functions/public-show', queryStringParameters: { handle: 'phillip', showId: 'x' } };
-  assert.deepStrictEqual(showParams(event), { handle: 'phillip', showId: 'x' });
+test('show: percent-encoded show id is decoded; a malformed one is dropped', () => {
+  assert.strictEqual(routeParams({ path: '/u/phillip/shows/a%20b/' }, 'show').showId, 'a b');
+  assert.strictEqual(routeParams({ path: '/u/phillip/shows/%E0%A4%A/' }, 'show').showId, '');
 });
 
-test('shared: function sub-path, original path, and query', () => {
-  assert.deepStrictEqual(sharedParams({ path: '/.netlify/functions/public-shared/k9X' }), { id: 'k9X' });
-  assert.deepStrictEqual(sharedParams({ path: '/shared/k9X/' }), { id: 'k9X' });
-  assert.deepStrictEqual(sharedParams({ path: '/.netlify/functions/public-shared', queryStringParameters: { id: 'k9X' } }), { id: 'k9X' });
-  assert.deepStrictEqual(sharedParams({ path: '/.netlify/functions/public-shared' }), { id: '' });
+// ── Shared ───────────────────────────────────────────────────────────────
+
+test('shared: public URL and function URL', () => {
+  assert.deepStrictEqual(routeParams({ path: '/shared/xyz789/' }, 'shared'), { id: 'xyz789' });
+  assert.deepStrictEqual(routeParams({ path: '/.netlify/functions/public-shared/xyz789' }, 'shared'), { id: 'xyz789' });
 });
 
-run('publicRouteParams');
+// ── Sitemap ──────────────────────────────────────────────────────────────
+
+test('sitemap: each handle listed once, blanks dropped', () => {
+  assert.deepStrictEqual(
+    uniqueHandles(['alexreviewer', 'phillip', 'alexreviewer', 'jordanmills', '', null, undefined]),
+    ['alexreviewer', 'phillip', 'jordanmills'],
+  );
+});
+
+test('sitemap: handles differing only in case or whitespace are the same handle', () => {
+  assert.deepStrictEqual(uniqueHandles(['Phillip', ' phillip ']), ['phillip']);
+});
+
+(async () => {
+  let passed = 0;
+  let failed = 0;
+  console.log('\npublic page routing');
+  for (const t of tests) {
+    try {
+      await t.fn();
+      passed++;
+      console.log(`  ✓ ${t.name}`);
+    } catch (e) {
+      failed++;
+      console.error(`  ✗ ${t.name}\n    ${e.stack || e.message}`);
+    }
+  }
+  console.log(`\n${passed} passed, ${failed} failed`);
+  if (failed) process.exit(1);
+})();
