@@ -702,7 +702,11 @@
   margin: 0 auto;
   padding: 0 32px calc(48px + env(safe-area-inset-bottom));
   display: grid;
-  grid-template-columns: 2fr 1fr 1fr;
+  /* Brand column, then one equal column per link group: three on the web
+     (Resources, Bands, Company), two in the app, which has no Bands. */
+  grid-template-columns: 2fr;
+  grid-auto-columns: 1fr;
+  grid-auto-flow: column;
   gap: 48px;
 }
 .lp-footer-brand p {
@@ -762,7 +766,7 @@
   .lp-stats-grid { grid-template-columns: repeat(2, 1fr); gap: 32px; }
   .lp-stat { border-right: none; }
   .lp-how-grid { grid-template-columns: 1fr; }
-  .lp-footer-inner { grid-template-columns: 1fr 1fr; }
+  .lp-footer-inner { grid-template-columns: 1fr 1fr; grid-auto-flow: row; }
 }
 @media (max-width: 640px) {
   .lp-nav-inner { padding: calc(12px + env(safe-area-inset-top)) 16px 12px; gap: 16px; }
@@ -779,6 +783,6 @@
   .lp-cta-section { padding: 64px 16px; }
   .lp-cta-card { padding: 40px 24px; }
   .lp-cta-card h2 { font-size: 28px; }
-  .lp-footer-inner { grid-template-columns: 1fr; gap: 32px; padding: 0 16px calc(40px + env(safe-area-inset-bottom)); }
+  .lp-footer-inner { grid-template-columns: 1fr; grid-auto-flow: row; gap: 32px; padding: 0 16px calc(40px + env(safe-area-inset-bottom)); }
   .lp-logos-inner { flex-direction: column; gap: 12px; padding: 0 16px; }
 }

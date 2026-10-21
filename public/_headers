@@ -18,3 +18,12 @@
 
 /shared/*
   X-Robots-Tag: index, follow
+
+/artists
+  X-Robots-Tag: index, follow
+
+/artists/
+  X-Robots-Tag: index, follow
+
+/artist/*
+  X-Robots-Tag: index, follow
