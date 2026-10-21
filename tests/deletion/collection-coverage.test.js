@@ -58,6 +58,8 @@ const NOT_USER_OWNED = {
   festivals: 'Shared canonical festival records; createdBy is tombstoned. firestore.rules forbids deleting them.',
   roadmapItems: 'Shared roadmap; submitterUid is tombstoned and votes are removed.',
   meetups: 'Shared per-show meetup; the user is removed from attendeeUids and createdBy is tombstoned.',
+  bandAnnouncementLedger: 'Per band, the Ticketmaster event ids already seen by the followed-band job (5.46.0). Keyed by a hash of the band name. No uid anywhere.',
+  jobTriggers: 'One-shot nonces that start a background job, deleted when used. No uid anywhere.',
   reports: 'Moderation records outlive the reporter and the reported. Tombstoned, not deleted.',
   emailSuppressions: 'Keyed by address, not account: a request not to be emailed. Deleting it on account deletion would start mailing that address again, so it must outlive the account (suppression lists are exactly what data-protection law lets you keep).',
   unsubscribeEvents: 'Append-only record of opt-out and opt-in requests — the evidence that an unsubscribe was honoured. Like adminAuditLog, it must outlive the user.',

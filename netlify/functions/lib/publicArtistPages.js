@@ -26,6 +26,7 @@ const EXTRA_STYLE = `
   .note { font-size: 13px; color: #b7b6c9; }
   .source { margin-top: 28px; font-size: 13px; color: #b7b6c9; }
   .cta a.btn { display: inline-block; margin-top: 6px; padding: 10px 18px; border-radius: 999px; background: #f5c451; color: #1f1f3a; font-weight: 700; }
+  .cta a.btn-secondary { margin-left: 8px; background: transparent; color: #f5f5f5; border: 1px solid rgba(255,255,255,0.35); }
   .artists { list-style: none; padding: 0; margin: 0; }
   .artists li { margin-bottom: 8px; }
   .tag { display: inline-block; margin-left: 6px; padding: 0 6px; border: 1px solid rgba(255,255,255,0.25); border-radius: 999px; font-size: 11px; line-height: 16px; color: #b7b6c9; white-space: nowrap; vertical-align: 1px; }
@@ -37,6 +38,12 @@ const longDate = (d) => (d ? formatShowDate(d, 'long') : '');
 
 const bandPath = (slug) => `/artist/${slug}/`;
 const songPath = (slug, songSlug) => `/artist/${slug}/song/${songSlug}/`;
+
+// Into the app, which keeps the band and follows it once the visitor is
+// signed in (context/AppContext.jsx, ?follow=).
+function followHref(name) {
+  return `${SITE_URL}/shows/?follow=${encodeURIComponent(name)}`;
+}
 
 function crumbs(items) {
   return `<nav class="crumbs" aria-label="Breadcrumb">${items
@@ -196,8 +203,9 @@ function renderBand({ entry, snapshot }, now = Date.now()) {
     ${showRows(band.recentShows)}
     <div class="cta">
       <p style="margin:0 0 4px;font-weight:700;">Track your ${escapeHtml(name)} shows</p>
-      <p class="note" style="margin:0 0 8px;">Log the shows you've been to and see every song you've heard live, your own gaps and your stats.</p>
+      <p class="note" style="margin:0 0 8px;">Log the shows you've been to and see every song you've heard live, your own gaps and your stats. Follow ${escapeHtml(name)} and we'll email you when they announce a tour.</p>
       <a class="btn" href="${SITE_URL}/">Start tracking free</a>
+      <a class="btn btn-secondary" href="${followHref(name)}" rel="nofollow">Follow ${escapeHtml(name)}</a>
     </div>
     ${sourceLine(snapshot, entry.fetchedAt)}
   `;

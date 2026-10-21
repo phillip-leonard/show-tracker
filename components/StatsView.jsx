@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Calendar, Music, Users, Building2, Star, ChevronDown, MapPin, Heart, Trash2 } from 'lucide-react';
+import { Calendar, Music, Users, Building2, Star, ChevronDown, MapPin, Trash2 } from 'lucide-react';
 import DeleteShowModal from '@/components/shows/DeleteShowModal';
 import ShowDetailView from '@/components/shows/ShowDetailView';
 import ShowCard from '@/components/shows/ShowCard';
@@ -10,6 +10,7 @@ import { Button, Card, Badge, Tabs, SectionHeader } from '@/components/ui';
 import SongStatsRow from '@/components/SongStatsRow';
 import PlaylistCreatorModal from '@/components/PlaylistCreatorModal';
 import { PLAYLIST_CREATION_ENABLED } from '@/lib/constants';
+import FollowBandButton from '@/components/artists/FollowBandButton';
 
 function StatsView({ shows, allShows = shows, songStats, artistStats, venueStats, topRatedShows, onRateSong, onRateShow, onCommentShow, onUpdateVenueRating, onDeleteShow, onAddSong, onReorderSetlist, onResyncSetlist, onDeleteSong, onRestoreSong, initialTab, onTagFriends, onRateVenue, onToggleFavoriteArtist, isArtistFavorite, fetchVenueRatings, normalizeVenueKey, computeVenueAggregate, friends, user }) {
   const [tab, setTab] = useState(initialTab || 'years');
@@ -225,16 +226,7 @@ function StatsView({ shows, allShows = shows, songStats, artistStats, venueStats
                         <span className="font-medium group-hover:text-brand transition-colors" style={{ color: artistColor(artist.name) }}>{artist.name}</span>
                       </div>
                       <div className="flex items-center gap-3">
-                        {onToggleFavoriteArtist && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            icon={Heart}
-                            onClick={(e) => { e.stopPropagation(); onToggleFavoriteArtist(artist.name); }}
-                            title={isArtistFavorite?.(artist.name) ? 'Remove from favorites' : 'Add to favorites'}
-                            className={isArtistFavorite?.(artist.name) ? 'text-red-500' : 'text-muted hover:text-red-400'}
-                          />
-                        )}
+                        {onToggleFavoriteArtist && <FollowBandButton artist={artist.name} compact />}
                         <Badge tone="neutral" size="sm">{artist.count} show{artist.count !== 1 ? 's' : ''}</Badge>
                         <span className="text-muted text-sm hidden sm:inline">{artist.totalSongs} songs</span>
                         {artist.avgRating ? (

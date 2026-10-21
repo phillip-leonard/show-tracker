@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect, useMemo } from 'react';
-import { User, Mail, Calendar, Music, MapPin, Star, Trophy, Edit2, Save, X, Camera, Trash2, MailX, LogOut, MessageSquare, Eye, Heart, Info, Sparkles, Globe, Lock, ExternalLink, Copy, Check } from 'lucide-react';
+import { User, Mail, Calendar, Music, MapPin, Star, Trophy, Edit2, Save, X, Camera, Trash2, MailX, LogOut, MessageSquare, Eye, Info, Bell, BellRing, Sparkles, Globe, Lock, ExternalLink, Copy, Check } from 'lucide-react';
 import { Button, Card, Badge, Input, Modal } from '@/components/ui';
 import { doc, updateDoc, getDoc } from 'firebase/firestore';
 import { updateProfile, signOut } from 'firebase/auth';
@@ -13,6 +13,7 @@ import { publicProfileUrl, openExternalUrl, externalLinkClick } from '@/lib/publ
 import BlockedAccountsSection from '@/components/moderation/BlockedAccountsSection';
 import NotificationSettings from '@/components/notifications/NotificationSettings';
 import TourInfoModal from '@/components/TourInfoModal';
+import FollowBandButton from '@/components/artists/FollowBandButton';
 
 export default function ProfileView({ user, shows, userRank, onProfileUpdate, onViewShow, friends = [], favoriteArtists = [], onToggleFavoriteArtist }) {
   const [isEditing, setIsEditing] = useState(false);
@@ -464,28 +465,25 @@ export default function ProfileView({ user, shows, userRank, onProfileUpdate, on
         </Card>
       )}
 
-      {/* Favorite Artists */}
+      {/* Bands you follow (userProfiles.favoriteArtists) */}
       <Card padding="none" className="overflow-hidden">
         <div className="px-6 pt-5 pb-3">
           <div className="flex items-center gap-3 mb-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-500/30 to-red-500/10 flex items-center justify-center">
-              <Heart className="w-5 h-5 text-red-500" />
+            <div className="w-10 h-10 rounded-xl bg-brand/10 flex items-center justify-center">
+              <BellRing className="w-5 h-5 text-brand" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <h3 className="text-lg font-semibold text-primary">Favorite Artists</h3>
-                <Badge tone="beta" size="sm" uppercase>Beta</Badge>
-              </div>
-              <p className="text-xs text-muted">Tap the heart on any artist to add them here</p>
+              <h3 className="text-lg font-semibold text-primary">Bands you follow</h3>
+              <p className="text-xs text-muted">We email you when they announce a tour, or a date at a venue on your bucket list</p>
             </div>
           </div>
         </div>
         <div className="px-6 pb-5">
           {favoriteArtistStats.length === 0 ? (
             <div className="text-center py-6">
-              <Heart className="w-10 h-10 text-muted mx-auto mb-3" />
-              <p className="text-muted text-sm">No favorite artists yet.</p>
-              <p className="text-muted text-xs mt-1">Heart an artist in Stats or any show modal to add them.</p>
+              <Bell className="w-10 h-10 text-muted mx-auto mb-3" />
+              <p className="text-muted text-sm">You don't follow any bands yet.</p>
+              <p className="text-muted text-xs mt-1">Tap the bell on any show, or next to a band in Stats, to follow them.</p>
             </div>
           ) : (
             <div className="space-y-2">
@@ -513,16 +511,7 @@ export default function ProfileView({ user, shows, userRank, onProfileUpdate, on
                         Tour Info
                       </Button>
                     )}
-                    {onToggleFavoriteArtist && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        icon={Heart}
-                        onClick={() => onToggleFavoriteArtist(artist.name)}
-                        className="text-red-500"
-                        title="Remove from favorites"
-                      />
-                    )}
+                    {onToggleFavoriteArtist && <FollowBandButton artist={artist.name} />}
                   </div>
                 </Card>
               ))}

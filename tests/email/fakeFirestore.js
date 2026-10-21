@@ -3,7 +3,7 @@
  * the email functions use — so their unit tests exercise the real
  * handlers with no credentials and no network.
  *
- * Supports: doc get/set(merge)/update/delete, collection add/doc/where
+ * Supports: doc get/set(merge)/create/update/delete, collection add/doc/where
  * ('==', 'in')/orderBy/limit/select/get, subcollections, batch(),
  * runTransaction(). Not a general Firestore emulator.
  */
@@ -44,6 +44,18 @@ function createFakeDb() {
         writes.push(['set', path]);
         const prev = store.get(path);
         store.set(path, opts.merge && prev ? { ...prev, ...clone(data) } : clone(data));
+      },
+      // Like the real create(): fails with code 6 (ALREADY_EXISTS) if the
+      // document is there, which is what the followed-band job's dedup
+      // relies on.
+      async create(data) {
+        if (store.has(path)) {
+          const err = new Error(`6 ALREADY_EXISTS: Document already exists: ${path}`);
+          err.code = 6;
+          throw err;
+        }
+        writes.push(['create', path]);
+        store.set(path, clone(data));
       },
       async update(data) {
         if (!store.has(path)) throw new Error(`No document to update: ${path}`);

@@ -5,6 +5,61 @@ import { doc, updateDoc, getDoc } from 'firebase/firestore';
 import { db, requestNotificationPermission } from '@/lib/firebase';
 import { isNativePlatform } from '@/lib/native-auth';
 
+// The followed-band job's two alerts (netlify/functions/lib/followedBandAlerts.js
+// reads these prefs). Every alert is also in Notifications in the app; these
+// choose whether it is emailed and pushed too. The iOS app has no push yet,
+// so there it is email or nothing.
+const ALERT_PREFS = [
+  {
+    key: 'followedBands',
+    title: 'Bands you follow',
+    description: 'Tell me when a band I follow announces a new tour (three or more new dates)',
+  },
+  {
+    key: 'venueBucketList',
+    title: 'Venue bucket list matches',
+    description: 'Tell me when a band I follow is playing at a venue on my bucket list',
+  },
+];
+
+function AlertPrefs({ preferences, onChange, pushAvailable }) {
+  return ALERT_PREFS.map(({ key, title, description }) => {
+    const pref = preferences[key] || {};
+    const enabled = pref.enabled !== false;
+    return (
+      <div key={key} className="mt-5 pt-5 border-t border-subtle">
+        <label className="flex items-start gap-3 cursor-pointer group">
+          <input
+            type="checkbox"
+            checked={enabled}
+            onChange={(e) => onChange(key, { ...pref, enabled: e.target.checked })}
+            className="mt-1 w-4 h-4 rounded border-active bg-hover text-brand focus:ring-brand/50 focus:ring-offset-0 cursor-pointer"
+          />
+          <div>
+            <span className="text-primary text-sm font-medium group-hover:text-brand transition-colors">{title}</span>
+            <p className="text-secondary text-xs">{description}</p>
+          </div>
+        </label>
+
+        {enabled && pushAvailable && (
+          <div className="mt-3 pl-7">
+            <label className="text-secondary text-xs font-medium block mb-1.5">Notify me via</label>
+            <select
+              value={pref.method || 'both'}
+              onChange={(e) => onChange(key, { ...pref, method: e.target.value })}
+              className="text-sm bg-hover border border-active rounded-lg px-2.5 py-1.5 text-primary focus:ring-2 focus:ring-brand/50 focus:outline-none"
+            >
+              <option value="both">Push and email</option>
+              <option value="push">Push only</option>
+              <option value="email">Email only</option>
+            </select>
+          </div>
+        )}
+      </div>
+    );
+  });
+}
+
 export default function NotificationSettings({ userId }) {
   const [permission, setPermission] = useState(
     typeof Notification !== 'undefined' ? Notification.permission : 'default'
@@ -19,6 +74,7 @@ export default function NotificationSettings({ userId }) {
     emailFrequency: 'off', // 'off' | 'immediate' — daily/weekly digest needs a scheduled job that doesn't exist yet
     anniversaries: { enabled: true, method: 'both' }, // method: 'push' | 'email' | 'both'
     venueBucketList: { enabled: true, method: 'both' }, // method: 'push' | 'email' | 'both'
+    followedBands: { enabled: true, method: 'both' }, // method: 'push' | 'email' | 'both'
   });
 
   useEffect(() => {
@@ -35,6 +91,7 @@ export default function NotificationSettings({ userId }) {
               ...profile.data().notificationPrefs,
               anniversaries: { ...prev.anniversaries, ...profile.data().notificationPrefs.anniversaries },
               venueBucketList: { ...prev.venueBucketList, ...profile.data().notificationPrefs.venueBucketList },
+              followedBands: { ...prev.followedBands, ...profile.data().notificationPrefs.followedBands },
             }));
           }
           if (profile.data().fcmToken) {
@@ -164,38 +221,7 @@ export default function NotificationSettings({ userId }) {
           )}
         </div>
 
-        {/* Venue bucket list matches */}
-        <div className="mt-5 pt-5 border-t border-subtle">
-          <label className="flex items-start gap-3 cursor-pointer group">
-            <input
-              type="checkbox"
-              checked={preferences.venueBucketList?.enabled !== false}
-              onChange={(e) => handlePreferenceChange('venueBucketList', { ...preferences.venueBucketList, enabled: e.target.checked })}
-              className="mt-1 w-4 h-4 rounded border-active bg-hover text-brand focus:ring-brand/50 focus:ring-offset-0 cursor-pointer"
-            />
-            <div>
-              <span className="text-primary text-sm font-medium group-hover:text-brand transition-colors">
-                Venue bucket list matches
-              </span>
-              <p className="text-secondary text-xs">Notify me when a favorite artist is playing at a venue on my bucket list</p>
-            </div>
-          </label>
-
-          {preferences.venueBucketList?.enabled !== false && (
-            <div className="mt-3 pl-7">
-              <label className="text-secondary text-xs font-medium block mb-1.5">Notify me via</label>
-              <select
-                value={preferences.venueBucketList?.method || 'both'}
-                onChange={(e) => handlePreferenceChange('venueBucketList', { ...preferences.venueBucketList, method: e.target.value })}
-                className="text-sm bg-hover border border-active rounded-lg px-2.5 py-1.5 text-primary focus:ring-2 focus:ring-brand/50 focus:outline-none"
-              >
-                <option value="both">Push and email</option>
-                <option value="push">Push only</option>
-                <option value="email">Email only</option>
-              </select>
-            </div>
-          )}
-        </div>
+        <AlertPrefs preferences={preferences} onChange={handlePreferenceChange} pushAvailable={false} />
       </div>
     );
   }
@@ -344,38 +370,7 @@ export default function NotificationSettings({ userId }) {
         )}
       </div>
 
-      {/* Venue bucket list matches */}
-      <div className="mt-5 pt-5 border-t border-subtle">
-        <label className="flex items-start gap-3 cursor-pointer group">
-          <input
-            type="checkbox"
-            checked={preferences.venueBucketList?.enabled !== false}
-            onChange={(e) => handlePreferenceChange('venueBucketList', { ...preferences.venueBucketList, enabled: e.target.checked })}
-            className="mt-1 w-4 h-4 rounded border-active bg-hover text-brand focus:ring-brand/50 focus:ring-offset-0 cursor-pointer"
-          />
-          <div>
-            <span className="text-primary text-sm font-medium group-hover:text-brand transition-colors">
-              Venue bucket list matches
-            </span>
-            <p className="text-secondary text-xs">Notify me when a favorite artist is playing at a venue on my bucket list</p>
-          </div>
-        </label>
-
-        {preferences.venueBucketList?.enabled !== false && (
-          <div className="mt-3 pl-7">
-            <label className="text-secondary text-xs font-medium block mb-1.5">Notify me via</label>
-            <select
-              value={preferences.venueBucketList?.method || 'both'}
-              onChange={(e) => handlePreferenceChange('venueBucketList', { ...preferences.venueBucketList, method: e.target.value })}
-              className="text-sm bg-hover border border-active rounded-lg px-2.5 py-1.5 text-primary focus:ring-2 focus:ring-brand/50 focus:outline-none"
-            >
-              <option value="both">Push and email</option>
-              <option value="push">Push only</option>
-              <option value="email">Email only</option>
-            </select>
-          </div>
-        )}
-      </div>
+      <AlertPrefs preferences={preferences} onChange={handlePreferenceChange} pushAvailable />
     </div>
   );
 }

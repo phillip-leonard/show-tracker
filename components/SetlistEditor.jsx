@@ -3,7 +3,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
-import { X, Star, Tag, Share2, Check, Plus, MessageSquare, User, ListMusic, Heart, Hash } from 'lucide-react';
+import { X, Star, Tag, Share2, Check, Plus, MessageSquare, User, ListMusic, Hash } from 'lucide-react';
 import { formatDate, artistColor } from '@/lib/utils';
 import { storage, STORAGE_KEYS } from '@/lib/storage';
 import { attachSetBoundaryLabels, getSetLabels, getSetOptions } from '@/lib/setlistGrouping';
@@ -18,6 +18,7 @@ import { useDismissable } from '@/context/DismissStackContext';
 import useSheetDrag from '@/hooks/useSheetDrag';
 import useIsMobile from '@/hooks/useIsMobile';
 import { showHref } from '@/lib/showRouting';
+import FollowBandButton from '@/components/artists/FollowBandButton';
 
 function SetlistEditor({ show, allShows, onAddSong, onRateSong, onCommentSong, onDeleteSong, onRateShow, onCommentShow, onBatchRate, onClose, onCreatePlaylist, onTagFriends, onRateVenue, onToggleFavoriteArtist, isArtistFavorite, friendAnnotations, isReturningUser }) {
   useDismissable(true, onClose, { id: 'setlist-editor' });
@@ -185,16 +186,7 @@ function SetlistEditor({ show, allShows, onAddSong, onRateSong, onCommentSong, o
             )}
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
-            {onToggleFavoriteArtist && (
-              <Tip text={isArtistFavorite?.(show.artist) ? 'Remove from favorites' : 'Favorite this artist'} position="bottom">
-                <button
-                  onClick={() => onToggleFavoriteArtist(show.artist)}
-                  className="p-3 rounded-xl text-secondary hover:text-red-400 hover:bg-hover active:bg-hover transition-colors"
-                >
-                  <Heart className={`w-6 h-6 ${isArtistFavorite?.(show.artist) ? 'text-red-500 fill-red-500' : ''}`} />
-                </button>
-              </Tip>
-            )}
+            {onToggleFavoriteArtist && <FollowBandButton artist={show.artist} compact />}
             {onRateVenue && show.venue && (
               <Tip text="Rate this venue" position="bottom">
                 <button
