@@ -5,22 +5,38 @@
 //
 //   GET /heard/                  pick a band
 //   GET /heard/{slug}/           the tool
+//   GET /heard/{slug}/r/{code}/  a shared record (noindex)
 //
-// An unknown band or a band without a show list is a real 404.
+// An unknown band, a band without a show list, or a code that names no
+// show is a real 404.
 
 const { routeParams } = require('./lib/publicRouteParams');
 const { openBlobStore, loadArtistShows, loadIndex, heardArtists } = require('./lib/publicArtistSnapshot');
 const { notFound } = require('./lib/publicArtistPages');
-const { renderHeardIndex, renderHeardBand } = require('./lib/heardPages');
+const { renderHeardIndex, renderHeardBand, renderHeardShare } = require('./lib/heardPages');
+const { openShareStore, resolveCode } = require('./lib/heardShares');
+const { decodeSelection } = require('./lib/heardRecord');
 const { notFoundPage } = require('./lib/publicPageHtml');
 
 const SLUG = /^[a-z0-9-]+$/;
 
 exports.handler = async function (event) {
+  const share = routeParams(event, 'heardShare');
   const band = routeParams(event, 'heard');
 
   try {
     const store = openBlobStore(event);
+
+    if (share.slug) {
+      const slug = share.slug.toLowerCase();
+      if (!SLUG.test(slug)) return notFound('No record at this address.');
+      const loaded = await loadArtistShows(store, slug);
+      if (!loaded) return notFound('No record at this address.');
+      const code = await resolveCode(() => openShareStore(event), slug, share.code);
+      const decoded = code && decodeSelection(loaded.shows, code);
+      if (!decoded || !decoded.ids.length) return notFound('No record at this address.');
+      return renderHeardShare(loaded, share.code, decoded.ids);
+    }
 
     if (band.slug) {
       const slug = band.slug.toLowerCase();

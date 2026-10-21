@@ -312,6 +312,76 @@ function renderHeardBand({ entry, shows }, now = Date.now()) {
   }), cacheHeaders(entry, now));
 }
 
+// ── /heard/<slug>/r/<code>/ ───────────────────────────────────────────
+
+function recordTables(slug, record) {
+  const songRows = (list, extra) => list.map((s) => `<tr><td>${songLink(slug, s)}${s.isOriginal === false ? '<span class="tag">Cover</span>' : ''}</td>${extra(s)}</tr>`).join('');
+  const parts = [];
+  if (record.top.length) {
+    parts.push(`<h2>Most heard</h2><table><thead><tr><th>Song</th><th class="num">Heard</th></tr></thead><tbody>${songRows(record.top, (s) => `<td class="num">${s.count}&times;</td>`)}</tbody></table>`);
+  }
+  if (record.rarest.length) {
+    parts.push(`<h2>Rarest catches</h2><p class="note">The songs heard here that the band has played the fewest times.</p><table><thead><tr><th>Song</th><th class="num">Played ever</th></tr></thead><tbody>${songRows(record.rarest, (s) => `<td class="num">${num(s.timesPlayed)}</td>`)}</tbody></table>`);
+  }
+  if (record.bustOuts.length) {
+    parts.push(`<h2>Bust-outs witnessed</h2><table><thead><tr><th>Song</th><th class="num">Gap</th><th class="num">Show</th></tr></thead><tbody>${songRows(record.bustOuts, (s) => `<td class="num">${num(s.gap)}</td><td class="num">${escapeHtml(date(s.show.date))}</td>`)}</tbody></table>`);
+  }
+  if (record.debuts.length) {
+    parts.push(`<h2>Debuts witnessed</h2><table><thead><tr><th>Song</th><th class="num">Show</th></tr></thead><tbody>${songRows(record.debuts.slice(0, 25), (s) => `<td class="num">${escapeHtml(date(s.show.date))}</td>`)}</tbody></table>`);
+  }
+  if (record.chasing.length) {
+    parts.push(`<h2>Still chasing</h2><p class="note">The band's most played originals not heard yet.</p><ol class="songs">${record.chasing.map((s) => `<li>${songLink(slug, s)} <span class="note">· played ${plural(s.timesPlayed, 'time')}</span></li>`).join('')}</ol>`);
+  }
+  if (record.songs.length) {
+    parts.push(`<details><summary>Every song heard (${num(record.songs.length)})</summary><table style="margin-top:10px"><tbody>${songRows(record.songs, (s) => `<td class="num">${s.count}&times;</td>`)}</tbody></table></details>`);
+  }
+  return parts.join('');
+}
+
+/**
+ * A shared record. `code` is the code in the URL (inline 'a…' or stored
+ * 'b…'); `ids` are the shows it names, already resolved by the function.
+ */
+function renderHeardShare({ entry, shows }, code, ids, now = Date.now()) {
+  if (!availability(entry, now).available) return unavailablePage(shows);
+  const { name, slug } = shows;
+  const record = heard.buildRecord(shows, ids);
+  const headline = heard.headline(name, record);
+  const span = heard.yearSpan(record);
+  const stats = [
+    [num(record.shows), record.shows === 1 ? 'Show' : 'Shows'],
+    [num(record.uniqueSongs), 'Songs'],
+    [num(record.totalSongs), 'Performances'],
+    [num(record.venues), record.venues === 1 ? 'Venue' : 'Venues'],
+    [span || '–', 'Years'],
+  ];
+
+  const bodyHtml = `
+    <h1>${escapeHtml(headline)}</h1>
+    <p class="sub">Every ${escapeHtml(name)} song heard live at ${plural(record.shows, 'show')}${span ? `, ${escapeHtml(span)}` : ''}${record.firstShow ? `: first ${escapeHtml(date(record.firstShow.date))} at ${escapeHtml(record.firstShow.venue)}, latest ${escapeHtml(date(record.lastShow.date))} at ${escapeHtml(record.lastShow.venue)}` : ''}.</p>
+    <div class="stats">${stats.map(([v, l]) => `<div class="stat"><div class="n${v.length > 6 ? ' sm' : ''}">${escapeHtml(v)}</div><div class="l">${l}</div></div>`).join('')}</div>
+    <p><img src="${SITE_URL}${imagePath(slug, code, 'feed')}" alt="${escapeHtml(headline)}" width="540" height="675" style="width:100%;max-width:540px;height:auto;border-radius:12px;display:block;" loading="lazy"></p>
+    <div class="cta">
+      <p style="margin:0 0 4px;font-weight:700;">How many ${escapeHtml(name)} songs have you heard?</p>
+      <p class="note" style="margin:0 0 10px;">Tick your shows and get your own record and poster. Free, no account needed.</p>
+      <a class="btn" href="${SITE_URL}${heardPath(slug)}">Make your own</a>
+    </div>
+    ${recordTables(slug, record)}
+    ${sourceLine(shows, entry)}
+  `;
+
+  const avail = cacheHeaders(entry, now)['Cache-Control'];
+  return htmlResponse(200, page({
+    title: `${headline} | MySetlists`,
+    description: `${headline}. Most heard: ${record.top.slice(0, 3).map((s) => s.name).join(', ') || 'nothing yet'}. Make your own ${name} record on MySetlists.`,
+    canonicalPath: sharePath(slug, code),
+    ogImage: `${SITE_URL}${imagePath(slug, code, 'card')}`,
+    bodyHtml,
+    extraStyle: STYLE,
+    robots: 'noindex, follow',
+  }), { 'Cache-Control': avail, 'X-Robots-Tag': 'noindex, follow' });
+}
+
 module.exports = {
   heardPath,
   sharePath,
@@ -319,5 +389,6 @@ module.exports = {
   heardCredit,
   renderHeardIndex,
   renderHeardBand,
+  renderHeardShare,
   STYLE,
 };

@@ -486,6 +486,18 @@
   force = true
 
 [[redirects]]
+  from = "/heard/:slug/r/:code"
+  to = "/.netlify/functions/public-heard/:slug/r/:code"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/heard/:slug/r/:code/"
+  to = "/.netlify/functions/public-heard/:slug/r/:code"
+  status = 200
+  force = true
+
+[[redirects]]
   from = "/heard/:slug"
   to = "/.netlify/functions/public-heard/:slug"
   status = 200
@@ -503,10 +515,17 @@
   status = 404
   force = true
 
-# The tool's setlist.fm attendance import.
+# The tool's two JSON helpers: the setlist.fm attendance import and the
+# store for selections too long for a link (lib/heardShares.js).
 [[redirects]]
   from = "/api/heard-import"
   to = "/.netlify/functions/heard-import"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/heard-share"
+  to = "/.netlify/functions/heard-share"
   status = 200
   force = true
 
