@@ -397,7 +397,9 @@
   force = true
 
 # The same snapshot as JSON, for the iOS app: /api/artist?slug=… and
-# /api/artist-song?slug=…&song=…. The visitor's query string passes through.
+# /api/artist-song?slug=…&song=…, and every show with its setlist for the
+# "Songs I've heard" tool: /api/artist-shows?slug=…. The visitor's query
+# string passes through.
 [[redirects]]
   from = "/api/artist"
   to = "/.netlify/functions/artist-api/band"
@@ -419,6 +421,18 @@
 [[redirects]]
   from = "/api/artist-song/"
   to = "/.netlify/functions/artist-api/song"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/artist-shows"
+  to = "/.netlify/functions/artist-api/shows"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/artist-shows/"
+  to = "/.netlify/functions/artist-api/shows"
   status = 200
   force = true
 

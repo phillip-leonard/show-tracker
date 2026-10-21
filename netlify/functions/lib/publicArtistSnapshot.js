@@ -12,6 +12,11 @@
 //                       page.
 //   artists/<slug>.json one artist's published snapshot: band stats and,
 //                       for song-page artists, every song.
+//   shows/<slug>.json   every show with its setlist, for the "Songs I've
+//                       heard" tool (/heard/, /api/artist-shows). Archive-
+//                       backed artists only (HEARD_SOURCES); written from
+//                       the same fetch, through the same checks, as the
+//                       artist's snapshot.
 //   raw/<slug>.json     what the source last returned, so a routine run only
 //                       asks for what can have changed (see below).
 //   runs/latest.json    the last run's report.
@@ -51,6 +56,11 @@
 // so the next run rebuilds everything from a full fetch. Version 2 added
 // the original/cover split and the all-time gaps, and setlist.fm's cached
 // songs needed refetching for it (they stored "no cover" as unknown).
+//
+// RAW_FORMAT is the same for the raw cache alone: a cache written in an
+// older format is refetched in full the next time its artist is due,
+// without touching the published schema. Format 2 added each
+// performance's set, which the tool's setlists need.
 
 const crypto = require('crypto');
 const config = require('../../../config/public-artists.json');
@@ -58,10 +68,17 @@ const stats = require('./artistSnapshotStats');
 const sources = require('./publicArtistSources');
 
 const SCHEMA_VERSION = 2;
+const RAW_FORMAT = 2;
 const STORE_NAME = 'public-artists';
 const INDEX_KEY = 'index.json';
 const artistKey = (slug) => `artists/${slug}.json`;
 const rawKey = (slug) => `raw/${slug}.json`;
+const showsKey = (slug) => `shows/${slug}.json`;
+// Who gets a shows/<slug>.json: the full-history archives. setlist.fm
+// artists have only their newest 300 setlists here, and "every song you've
+// heard" over part of a band's history would undercount without saying so.
+const HEARD_SOURCES = new Set(['songfish', 'phishnet']);
+const hasShowList = (artist) => HEARD_SOURCES.has(artist.source) && !!artist.songPages;
 
 const HOUR = 3600 * 1000;
 const REFRESH_HOURS = { phishnet: 6, songfish: 24, setlistfm: 24 };
@@ -131,19 +148,20 @@ function openBlobStore(event, { strong = false } = {}) {
 //
 // Song objects repeat on every show, so the cache stores each song once
 // and shows as lists of song keys: Umphrey's ~3,000 shows come to a couple
-// of MB instead of ten.
+// of MB instead of ten. A performance's set belongs to the show, not the
+// song, so it travels alongside as `sets`, one label per key.
 
 function packShows(shows, songs) {
   return shows.map(({ songs: list, ...show }) => {
-    for (const s of list) if (!songs[s.key]) { const { key, ...rest } = s; songs[s.key] = rest; }
-    return { ...show, songs: list.map((s) => s.key) };
+    for (const s of list) if (!songs[s.key]) { const { key, set, ...rest } = s; songs[s.key] = rest; }
+    return { ...show, songs: list.map((s) => s.key), sets: list.map((s) => s.set || '') };
   });
 }
 
 function unpackShows(shows, songs) {
-  return (shows || []).map((show) => ({
+  return (shows || []).map(({ sets, ...show }) => ({
     ...show,
-    songs: show.songs.map((key) => ({ key, ...(songs[key] || {}) })).filter((s) => s.name),
+    songs: show.songs.map((key, i) => ({ key, ...(songs[key] || {}), set: (sets && sets[i]) || '' })).filter((s) => s.name),
   }));
 }
 
@@ -191,7 +209,7 @@ async function fetchByYears(artist, raw, { ctx, now, full, apiKey }) {
   return {
     shows,
     unlistedShows: listed.shows.filter((s) => !withSetlists.has(s.id)),
-    raw: { kind: 'years', schemaVersion: SCHEMA_VERSION, songs, years: packedYears, fullFetchedAt: full ? new Date(now).toISOString() : raw.fullFetchedAt },
+    raw: { kind: 'years', schemaVersion: SCHEMA_VERSION, format: RAW_FORMAT, songs, years: packedYears, fullFetchedAt: full ? new Date(now).toISOString() : raw.fullFetchedAt },
     coverage: { kind: 'full' },
     artistUrl: '',
     yearsFetched: wanted.length,
@@ -247,6 +265,7 @@ async function fetchSetlistfmWindow(artist, raw, { ctx, now, full, apiKey }) {
     raw: {
       kind: 'window',
       schemaVersion: SCHEMA_VERSION,
+      format: RAW_FORMAT,
       songs,
       setlists: packShows(windowShows, songs),
       oldest: oldest ? { ...oldest, songs: [] } : null,
@@ -265,7 +284,8 @@ async function fetchSetlistfmWindow(artist, raw, { ctx, now, full, apiKey }) {
 
 // ── Build, check, publish one artist ──────────────────────────────────
 
-function buildSnapshot(artist, fetched, now) {
+// The shows every stat counts, for the snapshot and the show list alike.
+function countedShows(fetched, now) {
   const today = todayUtc(now);
   // Shows that have happened and have a setlist. setlist.fm lists upcoming
   // dates, and a show from last night whose setlist nobody has entered yet
@@ -278,7 +298,13 @@ function buildSnapshot(artist, fetched, now) {
   // until it has one, for the reason above.
   const lastWithSetlist = shows.reduce((m, s) => (s.date > m ? s.date : m), '');
   const unlisted = (fetched.unlistedShows || []).filter((s) => s.date <= lastWithSetlist);
-  const { band, songs } = stats.buildArtistStats(shows.concat(unlisted));
+  return { shows, all: shows.concat(unlisted) };
+}
+
+function buildSnapshot(artist, fetched, now) {
+  const today = todayUtc(now);
+  const { shows, all } = countedShows(fetched, now);
+  const { band, songs } = stats.buildArtistStats(all);
 
   let coverage = { kind: 'full', shows: shows.length, fullHistory: true };
   if (artist.source === 'setlistfm') {
@@ -326,6 +352,25 @@ function buildSnapshot(artist, fetched, now) {
       bustOuts: bustOuts && linked(bustOuts),
     },
     songs: artist.songPages ? songs : [],
+  };
+}
+
+/**
+ * shows/<slug>.json for an artist with a show list, from the same fetch as
+ * its snapshot (so the same shows, songs, slugs and gaps), else null.
+ */
+function buildShowsFile(artist, fetched, snapshot, now) {
+  if (!hasShowList(artist) || !snapshot.coverage.fullHistory) return null;
+  const list = stats.buildShowList(countedShows(fetched, now).all, snapshot.songs);
+  return {
+    schemaVersion: SCHEMA_VERSION,
+    slug: snapshot.slug,
+    name: snapshot.name,
+    source: snapshot.source,
+    sourceName: snapshot.sourceName,
+    attribution: snapshot.attribution,
+    totalShows: snapshot.band.totalShows,
+    ...list,
   };
 }
 
@@ -382,7 +427,7 @@ async function runArtist(artist, { store, ctx, env, now, force, entry }) {
 
   const raw = await store.get(rawKey(artist.slug));
   const fullAge = raw?.fullFetchedAt ? now - Date.parse(raw.fullFetchedAt) : Infinity;
-  const full = force === 'full' || !raw || raw.schemaVersion !== SCHEMA_VERSION || fullAge >= FULL_REFRESH_DAYS * 24 * HOUR;
+  const full = force === 'full' || !raw || raw.schemaVersion !== SCHEMA_VERSION || raw.format !== RAW_FORMAT || fullAge >= FULL_REFRESH_DAYS * 24 * HOUR;
 
   const fetch = artist.source === 'setlistfm' ? fetchSetlistfmWindow : fetchByYears;
   const fetched = await fetch(artist, raw, { ctx, now, full, apiKey });
@@ -405,6 +450,12 @@ async function runArtist(artist, { store, ctx, env, now, force, entry }) {
     await store.set(rawKey(artist.slug), fetched.raw);
     writes++;
   }
+  const showsFile = buildShowsFile(artist, fetched, snapshot, now);
+  const showsHash = showsFile ? hashOf(showsFile) : null;
+  if (showsFile && showsHash !== entry?.showsHash) {
+    await store.set(showsKey(artist.slug), { ...showsFile, dataUpdatedAt: nowIso });
+    writes++;
+  }
 
   return {
     status: changed ? 'updated' : 'unchanged',
@@ -421,6 +472,8 @@ async function runArtist(artist, { store, ctx, env, now, force, entry }) {
       dataUpdatedAt: changed ? nowIso : entry.dataUpdatedAt,
       hash,
       rawHash,
+      showsHash,
+      showsUpdatedAt: !showsFile ? null : showsHash !== entry?.showsHash ? nowIso : entry.showsUpdatedAt,
       totalShows: snapshot.band.totalShows,
       coverageShows: snapshot.coverage.shows,
       songCount: snapshot.songs.length,
@@ -521,6 +574,25 @@ async function loadArtist(store, slug) {
 }
 
 /**
+ * { entry, shows } for an artist with a published show list, else null.
+ * The index entry is what availability() and cacheHeaders() take, so the
+ * tool follows exactly the band pages' 24-hour rule for Phish.
+ */
+async function loadArtistShows(store, slug) {
+  const artist = findArtist(slug);
+  if (!artist || !hasShowList(artist)) return null;
+  const [index, shows] = await Promise.all([loadIndex(store), store.get(showsKey(slug))]);
+  const entry = index.artists.find((e) => e.slug === slug);
+  if (!entry || !shows || !entry.showsHash) return null;
+  return { entry, shows };
+}
+
+/** The configured artists with a show list, in config order. */
+function heardArtists() {
+  return config.artists.filter(hasShowList);
+}
+
+/**
  * Whether a snapshot may be shown right now. Only phish.net data expires:
  * past 24 hours since its fetch the pages show "temporarily unavailable"
  * instead. `maxAgeSeconds` is how long a response rendered now may still be
@@ -558,16 +630,22 @@ module.exports = {
   REFRESH_HOURS,
   artistKey,
   rawKey,
+  showsKey,
+  RAW_FORMAT,
   publicArtists,
+  heardArtists,
+  hasShowList,
   findArtist,
   openBlobStore,
   wrapBlobStore,
   runSnapshot,
   buildSnapshot,
+  buildShowsFile,
   looksComplete,
   isDue,
   loadIndex,
   loadArtist,
+  loadArtistShows,
   availability,
   cacheHeaders,
   UNAVAILABLE_CACHE_HEADERS,

@@ -407,6 +407,22 @@ function artistSongJson(loaded, songSlug, now = Date.now()) {
   }, cacheHeaders(entry, now));
 }
 
+// /api/artist-shows: every show with its setlist, for the "Songs I've
+// heard" tool. `loaded` is loadArtistShows()'s { entry, shows }. The
+// compact shape is artistSnapshotStats.js's buildShowList.
+function artistShowsJson(loaded, now = Date.now()) {
+  if (!loaded) return jsonResponse(404, { ok: false, error: 'not_found' }, { 'Cache-Control': 'public, s-maxage=300' });
+  const { entry, shows } = loaded;
+  if (!availability(entry, now).available) return jsonResponse(503, { ok: false, error: 'unavailable' }, UNAVAILABLE_CACHE_HEADERS);
+  const { schemaVersion, slug, name, source, sourceName, attribution, dataUpdatedAt, ...list } = shows;
+  return jsonResponse(200, {
+    ok: true,
+    schemaVersion,
+    artist: { slug, name, source, sourceName, attribution, url: `${SITE_URL}${bandPath(slug)}`, fetchedAt: entry.fetchedAt, dataUpdatedAt },
+    ...list,
+  }, cacheHeaders(entry, now));
+}
+
 module.exports = {
   bandPath,
   songPath,
@@ -416,5 +432,6 @@ module.exports = {
   notFound,
   artistJson,
   artistSongJson,
+  artistShowsJson,
   jsonResponse,
 };
