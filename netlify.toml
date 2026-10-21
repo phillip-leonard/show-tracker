@@ -37,7 +37,7 @@
 # Public band-page snapshot (Netlify Blobs, store "public-artists") — every
 # 6 hours. Phish data refreshes on every run, since phish.net allows showing
 # it for 24 hours at most; everyone else once a day. The scheduled function
-# only starts public-artist-snapshot-background.js, which does the fetching
+# only starts public-artist-snapshot-background.mjs, which does the fetching
 # (scheduled functions get 30 seconds). See netlify/functions/lib/publicArtistSnapshot.js.
 [functions."public-artist-snapshot"]
   schedule = "20 */6 * * *"

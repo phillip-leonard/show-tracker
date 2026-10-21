@@ -15,7 +15,7 @@
 //   raw/<slug>.json     what the source last returned, so a routine run only
 //                       asks for what can have changed (see below).
 //   runs/latest.json    the last run's report.
-//   trigger/<nonce>     one-shot run tokens (public-artist-snapshot-background.js).
+//   trigger/<nonce>     one-shot run tokens (public-artist-snapshot-background.mjs).
 //
 // A site-wide store, so a manual run on a deploy preview writes the same
 // data production reads. Every write goes through the same keep-last-good
@@ -106,7 +106,8 @@ const todayUtc = (now) => new Date(now).toISOString().slice(0, 10);
 function openBlobStore(event, { strong = false } = {}) {
   const { connectLambda, getStore } = require('@netlify/blobs');
   // Lambda-compatibility (exports.handler) functions must hand the event
-  // to Blobs first; that is where the store's credentials arrive.
+  // to Blobs first; that is where the store's credentials arrive. v2
+  // functions (the snapshot job) pass null: the runtime provides them.
   if (event) connectLambda(event);
   const store = getStore({ name: STORE_NAME, consistency: strong ? 'strong' : 'eventual' });
   return {

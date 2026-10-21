@@ -1,4 +1,4 @@
-// netlify/functions/public-artist-snapshot-background.js
+// netlify/functions/public-artist-snapshot-background.mjs
 //
 // Does the work of the public band-page snapshot (see
 // lib/publicArtistSnapshot.js). A background function because a full run
@@ -7,12 +7,18 @@
 // seconds. Netlify answers the caller 202 at once and lets this run for up
 // to 15 minutes.
 //
+// A v2 function (export default), unlike the rest of netlify/functions:
+// as a Lambda-compatibility background function, Netlify Blobs never got
+// its credentials (connectLambda had nothing to connect), so the first run
+// on the deploy preview read no token and did nothing. v2 functions get the
+// Blobs context from the runtime.
+//
 // ── Who may start it ──────────────────────────────────────────────────
 //
 // Anyone can POST to a function URL, and every run spends upstream API
 // quota, so a run needs a one-shot token: a random nonce whose blob,
 // trigger/<nonce>, exists in the site's own Blobs store. Only code running
-// on this site (the scheduler, public-artist-snapshot.js) or someone with
+// on this site (the scheduler, public-artist-snapshot.mjs) or someone with
 // Netlify access to it (scripts/run-artist-snapshot.js, via the Netlify
 // CLI) can write one. The blob also carries the run's options, so they
 // can't be supplied by the caller either. It is deleted before the run
@@ -20,41 +26,37 @@
 //
 //   trigger/<nonce> = { createdAt, force: false | true | 'full', only: [slugs] | null, by }
 
-const { openBlobStore, runSnapshot } = require('./lib/publicArtistSnapshot');
+import snapshot from './lib/publicArtistSnapshot.js';
 
+const { openBlobStore, runSnapshot } = snapshot;
 const TOKEN_TTL_MS = 10 * 60 * 1000;
 
-function readNonce(event) {
+async function readNonce(req) {
   let body = {};
-  try {
-    const raw = event.isBase64Encoded ? Buffer.from(event.body || '', 'base64').toString('utf8') : event.body;
-    body = JSON.parse(raw || '{}');
-  } catch { /* fall through to the query */ }
-  const nonce = String(body.nonce || event.queryStringParameters?.nonce || '');
+  try { body = JSON.parse((await req.text()) || '{}'); } catch { /* fall through to the query */ }
+  const nonce = String(body.nonce || new URL(req.url).searchParams.get('nonce') || '');
   return /^[a-f0-9]{32,64}$/.test(nonce) ? nonce : '';
 }
 
-exports.handler = async function (event) {
-  // No method check: the one-shot token is the gate, and a silent 405 here
-  // once left a run unexplained (a background function's 202 hides it).
-  console.log(`[artist-snapshot] invoked (${event.httpMethod || 'no method'})`);
+export default async (req) => {
+  console.log(`[artist-snapshot] invoked (${req.method})`);
 
-  const nonce = readNonce(event);
+  const nonce = await readNonce(req);
   if (!nonce) {
     console.warn('[artist-snapshot] rejected: no valid nonce');
-    return { statusCode: 401, body: 'Unauthorized' };
+    return new Response('Unauthorized', { status: 401 });
   }
 
-  const store = openBlobStore(event, { strong: true });
+  const store = openBlobStore(null, { strong: true });
   const token = await store.get(`trigger/${nonce}`);
   if (!token) {
     console.warn('[artist-snapshot] rejected: unknown nonce');
-    return { statusCode: 401, body: 'Unauthorized' };
+    return new Response('Unauthorized', { status: 401 });
   }
   await store.delete(`trigger/${nonce}`);
   if (!(Date.now() - Date.parse(token.createdAt) < TOKEN_TTL_MS)) {
     console.warn('[artist-snapshot] rejected: expired nonce');
-    return { statusCode: 401, body: 'Unauthorized' };
+    return new Response('Unauthorized', { status: 401 });
   }
 
   const force = token.force === 'full' ? 'full' : token.force === true;
@@ -72,5 +74,5 @@ exports.handler = async function (event) {
     // and the index is written last.
     console.error('[artist-snapshot] run failed:', err);
   }
-  return { statusCode: 202, body: '' };
+  return new Response(null, { status: 202 });
 };
