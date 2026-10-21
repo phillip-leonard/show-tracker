@@ -88,8 +88,8 @@ const sections = [
         body: 'Your Profile page has a shareable link. Friends and non-members can view your show history, stats, and setlists without needing an account.',
       },
       {
-        heading: 'Favorite Artists',
-        body: 'Star artists from within any show to mark them as favorites. Favorited artists are highlighted on your Shows page.',
+        heading: 'Follow a band',
+        body: 'Tap the bell on any show, or next to a band in Stats or My Shows, to follow them. We email you (and list it under Notifications → Band alerts) when they announce a tour of three or more new dates, or a date at a venue on your Bucket List. Every email has a link to unfollow that band.',
       },
     ],
   },
