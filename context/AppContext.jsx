@@ -32,6 +32,7 @@ import { removeSongFromSetlist, insertSongAt } from '@/lib/setlistGrouping';
 import { buildExistingShowIndex, existingShowStatus } from '@/lib/tourBrowse';
 import { normalizeFestivalName, findFestivalMatches as matchFestivals } from '@/lib/festivalMatch';
 import { logActivity } from '@/lib/activityFeed';
+import { rememberHeardShows } from '@/lib/heardLinks';
 import {
   subscribeBlocks, blockUser as blockUserDoc, unblockUser as unblockUserDoc,
   withoutBlocked,
@@ -429,6 +430,13 @@ export function AppProvider({ children }) {
     storage.remove(STORAGE_KEYS.PENDING_HEARD);
     setPendingHeard(null);
   };
+
+  // On the web the tool shares this origin, so it can pre-tick the shows
+  // the user already has (lib/heardLinks.js). Native has no use for it.
+  useEffect(() => {
+    if (isNativePlatform() || !user || guestMode) return;
+    rememberHeardShows(shows);
+  }, [shows, user, guestMode]);
 
   // "Start tracking your shows" on the comparison pages links to
   // /?signup=1: open the sign-up form once auth knows nobody is signed in.
@@ -1350,6 +1358,7 @@ export function AppProvider({ children }) {
     try {
       await signOut(auth);
       clearSignedInHint();
+      rememberHeardShows(null);
       setShows([]);
       setFestivals([]);
       setFestivalsLoading(false);

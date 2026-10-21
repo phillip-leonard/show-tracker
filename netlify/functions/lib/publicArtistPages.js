@@ -10,7 +10,7 @@
 // publicPageHtml.page(), same shell as the /u/ pages.
 
 const { escapeHtml, page, notFoundPage, formatShowDate, SITE_URL } = require('./publicPageHtml');
-const { availability, cacheHeaders, UNAVAILABLE_CACHE_HEADERS } = require('./publicArtistSnapshot');
+const { availability, cacheHeaders, UNAVAILABLE_CACHE_HEADERS, findArtist, hasShowList } = require('./publicArtistSnapshot');
 
 const HTML = { 'Content-Type': 'text/html; charset=utf-8' };
 
@@ -38,6 +38,11 @@ const longDate = (d) => (d ? formatShowDate(d, 'long') : '');
 
 const bandPath = (slug) => `/artist/${slug}/`;
 const songPath = (slug, songSlug) => `/artist/${slug}/song/${songSlug}/`;
+// The Songs I've heard tool (heardPages.js), for bands that have it.
+const heardHref = (slug) => {
+  const artist = findArtist(slug);
+  return artist && hasShowList(artist) ? `${SITE_URL}/heard/${slug}/` : '';
+};
 
 // Into the app, which keeps the band and follows it once the visitor is
 // signed in (context/AppContext.jsx, ?follow=).
@@ -199,6 +204,12 @@ function renderBand({ entry, snapshot }, now = Date.now()) {
     ${originalGapLeaders}
     ${coverGapLeaders}
     ${bustOutTable}
+    ${heardHref(slug) ? `
+    <div class="cta">
+      <p style="margin:0 0 4px;font-weight:700;">How many ${escapeHtml(name)} songs have you heard?</p>
+      <p class="note" style="margin:0 0 8px;">Tick the shows you were at and see every song you've heard live, your rarest catches and the bust-outs you were there for. Free, with a poster to share.</p>
+      <a class="btn" href="${heardHref(slug)}">Count your songs</a>
+    </div>` : ''}
     <h2>Recent ${escapeHtml(name)} shows</h2>
     ${showRows(band.recentShows)}
     <div class="cta">
@@ -281,8 +292,9 @@ function renderSong({ entry, snapshot }, songSlug, now = Date.now()) {
     ${showRows(song.recentPerformances)}
     <div class="cta">
       <p style="margin:0 0 4px;font-weight:700;">How many times have you heard ${escapeHtml(song.name)}?</p>
-      <p class="note" style="margin:0 0 8px;">Track your shows on MySetlists and see every song you've caught live.</p>
-      <a class="btn" href="${SITE_URL}/">Track your shows</a>
+      ${heardHref(slug) ? `<p class="note" style="margin:0 0 8px;">Tick the ${escapeHtml(band)} shows you were at and count every song you've heard live, ${escapeHtml(song.name)} included. Free, no account needed.</p>
+      <a class="btn" href="${heardHref(slug)}">Count your ${escapeHtml(band)} songs</a>` : `<p class="note" style="margin:0 0 8px;">Track your shows on MySetlists and see every song you've caught live.</p>
+      <a class="btn" href="${SITE_URL}/">Track your shows</a>`}
     </div>
     <p style="margin-top:24px;"><a href="${SITE_URL}${bandPath(slug)}">&larr; All ${escapeHtml(band)} song stats</a></p>
     ${sourceLink}

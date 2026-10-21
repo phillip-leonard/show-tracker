@@ -3,8 +3,9 @@
 // Three documents, one function:
 //
 //   /sitemap.xml          a sitemap index pointing at the two below
-//   /sitemap-pages.xml    home, the legal and comparison pages, and every
-//                         opted-in public profile (/u/<handle>/)
+//   /sitemap-pages.xml    home, the legal and comparison pages, the Songs
+//                         I've heard tool (/heard/ and each band's page),
+//                         and every opted-in public profile (/u/<handle>/)
 //   /sitemap-artists.xml  /artists/, every public band page and every song
 //                         page, from the band-page snapshot index
 //                         (lib/publicArtistSnapshot.js)
@@ -15,7 +16,7 @@
 // over the profile page itself. The artist sitemap is well inside the
 // limit: about 2,000 URLs with every configured artist.
 
-const { openBlobStore, loadIndex } = require('./lib/publicArtistSnapshot');
+const { openBlobStore, loadIndex, heardArtists } = require('./lib/publicArtistSnapshot');
 
 const SITE_URL = 'https://mysetlists.net';
 
@@ -75,6 +76,23 @@ const urlset = (urls) => `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns=
 // the page, and Google discounts a lastmod that moves on every crawl.
 const day = (iso) => (iso ? String(iso).slice(0, 10) : '');
 
+/**
+ * The Songs I've heard pages: /heard/ and each band whose show list is
+ * published (its index entry has a showsHash), lastmod when that list last
+ * changed. Share links (/heard/<slug>/r/…) are personal and noindex.
+ */
+function heardUrls(index) {
+  const published = heardArtists()
+    .map((a) => index.artists.find((e) => e.slug === a.slug && e.showsHash))
+    .filter(Boolean);
+  if (!published.length) return [];
+  const newest = published.map((e) => day(e.showsUpdatedAt || e.fetchedAt)).sort().pop();
+  return [
+    { loc: '/heard/', lastmod: newest, changefreq: 'weekly', priority: '0.7' },
+    ...published.map((e) => ({ loc: `/heard/${e.slug}/`, lastmod: day(e.showsUpdatedAt || e.fetchedAt), changefreq: 'weekly', priority: '0.7' })),
+  ];
+}
+
 /** The artist sitemap's <url> entries, from the snapshot index. */
 function artistUrls(index) {
   const urls = [{ loc: '/artists/', lastmod: day(index.updatedAt), changefreq: 'daily', priority: '0.7' }];
@@ -96,7 +114,7 @@ function whichDocument(event) {
   return 'index';
 }
 
-async function pagesSitemap() {
+async function pagesSitemap(index) {
   const db = getDb();
   let publicHandles = [];
   if (db) {
@@ -110,26 +128,28 @@ async function pagesSitemap() {
   }
   return urlset([
     ...STATIC_URLS.map(url),
+    ...heardUrls(index).map(url),
     ...publicHandles.map(h => url({ loc: `/u/${h}/`, changefreq: 'weekly', priority: '0.5' })),
   ]);
 }
 
 exports.uniqueHandles = uniqueHandles;
 exports.artistUrls = artistUrls;
+exports.heardUrls = heardUrls;
 exports.whichDocument = whichDocument;
 
 exports.handler = async function (event) {
   const doc = whichDocument(event);
-
-  if (doc === 'pages') {
-    return { statusCode: 200, headers: XML_HEADERS, body: await pagesSitemap() };
-  }
 
   let index = { artists: [] };
   try {
     index = await loadIndex(openBlobStore(event));
   } catch (err) {
     console.error('sitemap: failed to read the artist snapshot index:', err);
+  }
+
+  if (doc === 'pages') {
+    return { statusCode: 200, headers: XML_HEADERS, body: await pagesSitemap(index) };
   }
 
   if (doc === 'artists') {

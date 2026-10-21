@@ -453,6 +453,7 @@ export default function LandingPage({ onSignUp, onSignIn, onGuest, communityStat
                 <a key={band.slug} href={`/artist/${band.slug}/`}>{band.name}</a>
               ))}
               <a href="/artists/">All bands</a>
+              <a href="/heard/">Songs I&apos;ve heard</a>
             </div>
           )}
           {/* Web pages, not app screens: in the iOS app these open
