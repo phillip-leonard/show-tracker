@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import SearchParamsListener from '@/components/SearchParamsListener';
 import { signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
@@ -949,6 +949,10 @@ export function AppProvider({ children }) {
   }, []);
 
   // ── Auth state listener ─────────────────────────────────────────────
+  // The uid from the previous auth callback: undefined until the first one,
+  // which is a saved session being restored (or nobody), not a sign-in.
+  const lastAuthUidRef = useRef(undefined);
+
   useEffect(() => {
     // Safety timeout: if onAuthStateChanged never fires (e.g. IndexedDB hang
     // in WKWebView), stop showing the loading screen after 5 seconds
@@ -961,6 +965,9 @@ export function AppProvider({ children }) {
 
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       clearTimeout(authTimeout);
+      const restoringSession = lastAuthUidRef.current === undefined;
+      const accountChanged = lastAuthUidRef.current !== (currentUser?.uid || null);
+      lastAuthUidRef.current = currentUser?.uid || null;
       setUser(currentUser);
       setAuthLoading(false);
       // Next launch, paint the app skeleton rather than the landing page
@@ -976,7 +983,11 @@ export function AppProvider({ children }) {
         // Navigate to shows list to clear any lingering detail view query
         // params from a previous user. This prevents signing in as a
         // different account from landing on the previous user's show.
-        router.push('/shows/');
+        // Only on an actual sign-in or account switch: restoring a saved
+        // session on page load used to do this too, which threw away every
+        // deep link a signed-in user opened (an email's /venues/?venue=…,
+        // /year-in-review/?…, /how-to-use) in favor of My Shows.
+        if (!restoringSession && accountChanged) router.push('/shows/');
 
         // Before anything else writes to the profile — see
         // ensureProfileCreatedAt above.
