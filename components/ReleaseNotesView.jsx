@@ -13,6 +13,19 @@ const STREAMING_MENTION = /spotify|apple\s*music/i;
 function ReleaseNotesView() {
   const releases = [
     {
+      version: '5.46.0',
+      date: 'October 21, 2026',
+      title: 'Follow Your Bands',
+      changes: [
+        'Follow a band with the bell on any show, in Stats or in My Shows',
+        'Get an email when a band you follow announces a tour, or a date at a venue on your bucket list',
+        'Every alert email has a link to unfollow that band, and Notifications has a Band alerts tab',
+        'Year in Review shows your shows, bands and venues, each in its own color',
+        'Shows on New Year’s Day now count in the right year',
+        'Year in Review and venue links work when you reload or open them from an email',
+      ]
+    },
+    {
       version: '5.44.1',
       date: 'October 16, 2026',
       title: 'Swipe Your Way Around',

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import SearchParamsListener from '@/components/SearchParamsListener';
 import { signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
@@ -389,6 +389,21 @@ export function AppProvider({ children }) {
     }
   }, [searchParams]);
 
+  // "Follow on MySetlists" from a public band page (/artist/<slug>/) links
+  // to /shows/?follow=<band name>. Kept in storage rather than acted on
+  // here, so it survives the sign-up a signed-out visitor goes through
+  // first; applied by the effect next to followBand below.
+  useEffect(() => {
+    if (!searchParams) return;
+    const band = (searchParams.get('follow') || '').trim();
+    if (band) {
+      storage.set(STORAGE_KEYS.PENDING_FOLLOW, band.slice(0, 200));
+      const cleanUrl = new URL(window.location.href);
+      cleanUrl.searchParams.delete('follow');
+      window.history.replaceState({}, '', cleanUrl.toString());
+    }
+  }, [searchParams]);
+
   // Deep link: handle ?tab= parameter for navigating to specific tab after login
   // e.g. /friends?tab=requests from email notification links
   const [pendingDeepLink, setPendingDeepLink] = useState(null);
@@ -477,8 +492,10 @@ export function AppProvider({ children }) {
   // still in flight.
   const [isSuspended, setIsSuspended] = useState(null);
 
-  // Favorite artists
+  // Followed bands. Stored as userProfiles.favoriteArtists, the field's name
+  // from before 5.46.0, when following was "favoriting" and did nothing.
   const [favoriteArtists, setFavoriteArtists] = useState([]);
+  const [favoritesLoaded, setFavoritesLoaded] = useState(false);
 
   // In-app notifications
   const [unreadNotifications, setUnreadNotifications] = useState([]);
@@ -737,9 +754,13 @@ export function AppProvider({ children }) {
       console.log('Notifications listener error:', error.message);
     });
 
-    // Favorite artists + account createdAt
+    // Followed bands + account createdAt. Not "loaded" until this user's
+    // own snapshot arrives, so a pending ?follow= is never checked against
+    // the previous account's list.
+    setFavoritesLoaded(false);
     const favRef = doc(db, 'userProfiles', user.uid);
     const unsubFavorites = onSnapshot(favRef, (docSnap) => {
+      setFavoritesLoaded(true);
       if (docSnap.exists()) {
         const data = docSnap.data();
         setFavoriteArtists(data.favoriteArtists || []);
@@ -928,6 +949,10 @@ export function AppProvider({ children }) {
   }, []);
 
   // ── Auth state listener ─────────────────────────────────────────────
+  // The uid from the previous auth callback: undefined until the first one,
+  // which is a saved session being restored (or nobody), not a sign-in.
+  const lastAuthUidRef = useRef(undefined);
+
   useEffect(() => {
     // Safety timeout: if onAuthStateChanged never fires (e.g. IndexedDB hang
     // in WKWebView), stop showing the loading screen after 5 seconds
@@ -940,6 +965,9 @@ export function AppProvider({ children }) {
 
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       clearTimeout(authTimeout);
+      const restoringSession = lastAuthUidRef.current === undefined;
+      const accountChanged = lastAuthUidRef.current !== (currentUser?.uid || null);
+      lastAuthUidRef.current = currentUser?.uid || null;
       setUser(currentUser);
       setAuthLoading(false);
       // Next launch, paint the app skeleton rather than the landing page
@@ -955,7 +983,11 @@ export function AppProvider({ children }) {
         // Navigate to shows list to clear any lingering detail view query
         // params from a previous user. This prevents signing in as a
         // different account from landing on the previous user's show.
-        router.push('/shows/');
+        // Only on an actual sign-in or account switch: restoring a saved
+        // session on page load used to do this too, which threw away every
+        // deep link a signed-in user opened (an email's /venues/?venue=…,
+        // /year-in-review/?…, /how-to-use) in favor of My Shows.
+        if (!restoringSession && accountChanged) router.push('/shows/');
 
         // Before anything else writes to the profile — see
         // ensureProfileCreatedAt above.
@@ -3451,17 +3483,22 @@ export function AppProvider({ children }) {
       .sort((a, b) => b.count - a.count);
   };
 
-  // ── Favorite Artists ──────────────────────────────────────────────
+  // ── Followed bands ────────────────────────────────────────────────
+  // One band is one band however it is typed: "Goose" and "goose " are
+  // the same follow, as they are to the daily alert job
+  // (netlify/functions/lib/followedBandAlerts.js's artistKey).
+  const bandKey = (name) => (name || '').trim().toLowerCase();
+
   const toggleFavoriteArtist = async (artistName) => {
     if (!user?.uid || !artistName) return;
     const profileRef = doc(db, 'userProfiles', user.uid);
-    const isFav = favoriteArtists.some(a => a.name === artistName);
+    const isFav = favoriteArtists.some(a => bandKey(a.name) === bandKey(artistName));
     try {
       if (isFav) {
-        // Remove
-        const updated = favoriteArtists.filter(a => a.name !== artistName);
+        const updated = favoriteArtists.filter(a => bandKey(a.name) !== bandKey(artistName));
         setFavoriteArtists(updated);
         await updateDoc(profileRef, { favoriteArtists: updated });
+        setToast(`Unfollowed ${artistName.trim()}`);
       } else {
         // Add — fetch mbid from setlist.fm
         let mbid = null;
@@ -3474,19 +3511,35 @@ export function AppProvider({ children }) {
         } catch (e) {
           console.log('Could not fetch mbid for', artistName, e);
         }
-        const newFav = { name: artistName, mbid, addedAt: new Date().toISOString() };
+        const newFav = { name: artistName.trim(), mbid, addedAt: new Date().toISOString() };
         const updated = [...favoriteArtists, newFav];
         setFavoriteArtists(updated);
         await updateDoc(profileRef, { favoriteArtists: updated });
+        setToast(`Following ${artistName.trim()}. We'll email you when they announce a tour.`);
       }
     } catch (err) {
-      console.error('Failed to toggle favorite artist:', err);
+      console.error('Failed to toggle followed band:', err);
+      setToast({ message: "Couldn't update the bands you follow. Please try again.", type: 'error' });
     }
   };
 
   const isArtistFavorite = (artistName) => {
-    return favoriteArtists.some(a => a.name === artistName);
+    return favoriteArtists.some(a => bandKey(a.name) === bandKey(artistName));
   };
+
+  // Apply a ?follow= link once signed in and the current follows are known
+  // (following twice would toggle the band back off).
+  useEffect(() => {
+    if (!user?.uid || guestMode || !favoritesLoaded) return;
+    const band = storage.get(STORAGE_KEYS.PENDING_FOLLOW);
+    if (!band) return;
+    storage.remove(STORAGE_KEYS.PENDING_FOLLOW);
+    if (isArtistFavorite(band)) {
+      setToast(`You already follow ${band}`);
+    } else {
+      toggleFavoriteArtist(band);
+    }
+  }, [user?.uid, guestMode, favoritesLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const getVenueStats = (showList = shows) => {
     const venueMap = {};

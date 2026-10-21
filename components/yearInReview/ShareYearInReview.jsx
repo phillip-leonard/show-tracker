@@ -14,11 +14,16 @@ function renderShareImage(stats, userName) {
   canvas.height = 1080;
   const ctx = canvas.getContext('2d');
 
+  // The app's own palette (app/globals.css): navy ground, and the three
+  // counts in the colors they have on the Year in Review page — Shows
+  // green, Bands amber, Venues white.
   const gradient = ctx.createLinearGradient(0, 0, 1080, 1080);
-  gradient.addColorStop(0, '#34D399');
-  gradient.addColorStop(1, '#059669');
+  gradient.addColorStop(0, '#2a2a4e');
+  gradient.addColorStop(1, '#1f1f3a');
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, 1080, 1080);
+  ctx.fillStyle = '#10b981';
+  ctx.fillRect(0, 0, 1080, 14);
 
   ctx.textAlign = 'center';
   ctx.fillStyle = '#ffffff';
@@ -33,16 +38,18 @@ function renderShareImage(stats, userName) {
   ctx.fillText('in Concerts', 540, 355);
 
   const bigStats = [
-    { value: stats.totalShows, label: 'Shows' },
-    { value: stats.totalArtists, label: 'Artists' },
-    { value: stats.countriesVisited.length || stats.totalVenues, label: stats.countriesVisited.length ? 'Countries' : 'Venues' },
+    { value: stats.totalShows, label: stats.totalShows === 1 ? 'Show' : 'Shows', color: '#10b981' },
+    { value: stats.totalArtists, label: stats.totalArtists === 1 ? 'Band' : 'Bands', color: '#ffb700' },
+    { value: stats.totalVenues, label: stats.totalVenues === 1 ? 'Venue' : 'Venues', color: '#f5f5f5' },
   ];
   const startX = 200;
   const gap = 340;
   bigStats.forEach((s, i) => {
     const x = startX + i * gap;
     ctx.font = '800 110px -apple-system, sans-serif';
+    ctx.fillStyle = s.color;
     ctx.fillText(String(s.value), x, 560);
+    ctx.fillStyle = '#ffffff';
     ctx.font = '600 30px -apple-system, sans-serif';
     ctx.globalAlpha = 0.85;
     ctx.fillText(s.label, x, 605);
@@ -52,7 +59,7 @@ function renderShareImage(stats, userName) {
   if (stats.topArtist) {
     ctx.font = '600 28px -apple-system, sans-serif';
     ctx.globalAlpha = 0.8;
-    ctx.fillText('TOP ARTIST', 540, 700);
+    ctx.fillText('TOP BAND', 540, 700);
     ctx.globalAlpha = 1;
     ctx.font = '800 56px -apple-system, sans-serif';
     ctx.fillText(stats.topArtist.name, 540, 760);

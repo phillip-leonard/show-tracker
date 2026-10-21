@@ -2,8 +2,8 @@
 //
 // "Venues" section of /bucket-list — venues (not specific shows) a user
 // wants to see a show at. See lib/bucketListVenues.js for the schema.
-// Matched against favorite artists' upcoming events by the daily
-// netlify/functions/venue-bucket-list-notifications.js scheduled job,
+// Matched against followed bands' upcoming events by the daily
+// netlify/functions/followed-band-notifications-background.js job,
 // which creates a 'venue_bucket_list_match' notification on a hit.
 
 'use client';
@@ -16,6 +16,7 @@ import { useApp } from '@/context/AppContext';
 import {
   subscribeBucketListVenues, addVenueToBucketList, removeVenueFromBucketList,
 } from '@/lib/bucketListVenues';
+import { venueHref } from '@/lib/showRouting';
 
 function AddVenueForm({ onAdd, adding }) {
   const [open, setOpen] = useState(false);
@@ -56,7 +57,7 @@ function AddVenueForm({ onAdd, adding }) {
 
 function VenueCard({ venue, onRemove, removing }) {
   const router = useRouter();
-  const goToVenue = () => router.push(`/venues/${encodeURIComponent(venue.venueKey)}/`);
+  const goToVenue = () => router.push(venueHref(venue.venueKey));
 
   return (
     <Card

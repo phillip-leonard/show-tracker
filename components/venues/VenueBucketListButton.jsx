@@ -9,7 +9,7 @@ import { subscribeBucketListVenues, addVenueToBucketList, removeVenueFromBucketL
 // venue to their venue bucket list (see lib/bucketListVenues.js). Distinct
 // from lib/bucketList.js's "add this specific show" flow: this just marks
 // interest in the venue itself, which the daily
-// venue-bucket-list-notifications job matches against favorite artists.
+// followed-band-notifications job matches against followed bands.
 export default function VenueBucketListButton({ venueKey, venueName, venueCity, venueState, currentUser }) {
   const [onList, setOnList] = useState(false);
   const [busy, setBusy] = useState(false);

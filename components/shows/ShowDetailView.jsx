@@ -1,5 +1,4 @@
 'use client';
-
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { parseDate } from '@/lib/utils';
@@ -16,13 +15,14 @@ import EntityInfoPanel from '@/components/EntityInfoPanel';
 import StreamingLinks from '@/components/StreamingLinks';
 import ArchivalAudioSection from './ArchivalAudioSection';
 import {
-  UserPlus, Heart, Share2, ListMusic, Hash,
+  UserPlus, Share2, ListMusic, Hash,
   Trash2, X, Tag, MessageSquare, ArrowLeft, Plus,
   Pencil, Check, ChevronUp, ChevronDown, Tent, RefreshCw,
 } from 'lucide-react';
 import DeleteShowModal from './DeleteShowModal';
 import CommentsSection from '@/components/comments/CommentsSection';
 import ShowMediaSection from '@/components/photos/ShowMediaSection';
+import FollowBandButton from '@/components/artists/FollowBandButton';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -382,7 +382,6 @@ export default function ShowDetailView({
   const artistSource      = resolveSource({ name: show.artist, mbid: show.artistMbid });
   const taggedFriendIds   = new Set(show.taggedFriendUids || []);
   const taggedFriends     = friends.filter(f => taggedFriendIds.has(f.friendUid));
-  const isFavorite        = isArtistFavorite?.(show.artist) || false;
 
   const handleShare = async () => {
     try { await navigator.clipboard.writeText(`https://mysetlists.net/shows/${show.id}`); } catch {}
@@ -480,15 +479,7 @@ export default function ShowDetailView({
           </div>
 
           <div className="flex items-center gap-0.5 shrink-0 -mr-1">
-            {toggleFavoriteArtist && (
-              <IconBtn
-                onClick={() => toggleFavoriteArtist(show.artist)}
-                active={isFavorite}
-                activeClass="text-red-500"
-              >
-                <Heart className={`w-5 h-5 ${isFavorite ? 'fill-red-500' : ''}`} />
-              </IconBtn>
-            )}
+            {toggleFavoriteArtist && <FollowBandButton artist={show.artist} compact />}
             {onTagFriends && user && (
               <IconBtn onClick={() => onTagFriends(show)}>
                 <Tag className="w-5 h-5" />

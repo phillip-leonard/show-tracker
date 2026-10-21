@@ -5,6 +5,7 @@ import { ChevronDown, Calendar, MapPin, Music, MessageSquare, X } from 'lucide-r
 import { formatDate, artistColor, avgSongRating } from '@/lib/utils';
 import RatingSelect from '@/components/ui/RatingSelect';
 import UpcomingShows from '@/components/UpcomingShows';
+import FollowBandButton from '@/components/artists/FollowBandButton';
 
 function ArtistShowsRow({ artist, shows, expanded, onToggle, onSelectShow, onDeleteShow, onRateShow }) {
   const avgRating = (() => {
@@ -95,6 +96,7 @@ function ArtistShowsRow({ artist, shows, expanded, onToggle, onSelectShow, onDel
                 })}
               </div>
               <div className="mt-2" onClick={(e) => e.stopPropagation()}>
+                <FollowBandButton artist={artist} className="mb-3" />
                 <UpcomingShows artistName={artist} />
               </div>
             </div>

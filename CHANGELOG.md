@@ -4,6 +4,80 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.46.0] — 2026-10-21
+
+Ships in iOS 3.8 (`MARKETING_VERSION` 3.7.2 → 3.8, a minor bump for a new
+feature; the build number is left to Xcode Cloud).
+
+Two homepage claims made true, and every other feature claim checked.
+
+### Follow a band
+
+- **Follow / Following** (a bell) replaces the favorite-artist heart on show
+  detail, the setlist editor, Stats and Profile ("Bands you follow"), and is
+  new in My Shows' by-band rows. Follows are still
+  `userProfiles.favoriteArtists`, now matched case-insensitively. Public
+  band pages link "Follow <band>" to `/shows/?follow=<band>`, which is kept
+  through sign-up and applied once signed in.
+- **Daily alerts** (`followed-band-notifications`, 13:30 UTC, which starts
+  `followed-band-notifications-background`): every followed band's
+  Ticketmaster dates, looked up by attraction id. A run that finds 3 or more
+  dates never seen before is a new tour; the first look at a band is a
+  silent baseline. Any date at a venue on a follower's bucket list is a
+  bucket-list match (in the tour email, not a second one, when it is part of
+  a new tour). Logic and its tests: `netlify/functions/lib/followedBandAlerts.js`,
+  `tests/notifications/followedBands.test.js`.
+- **Nobody is told twice.** Each alert has a fixed notification id and is
+  written with `create()`; email and push go out only when that succeeds.
+  The per-band ledger (`bandAnnouncementLedger`) is written after the
+  alerts, so a run that dies in between can't resend.
+- **Replaces `venue-bucket-list-notifications`**, which re-emailed the same
+  match every morning until the show and re-marked it unread. Its
+  notification ids are kept, so nothing it already sent is sent again.
+- **Emails** use the shared Resend layout, the signed unsubscribe footer and
+  List-Unsubscribe header, and a signed **Unfollow <band>** link
+  (`/api/unfollow`: a confirm page on GET, unfollow on POST).
+- **In the app:** Notifications has a Band alerts tab, and tour alerts list
+  their dates with ticket links. Notification settings has "Bands you
+  follow" next to "Venue bucket list matches" (email only on iOS, which has
+  no push yet). Concert notifications open with `showHref` instead of the
+  unservable `/shows/<id>`.
+
+### Year in Review
+
+- **Counts:** Shows, Bands, Venues. A show's year now comes from
+  `parseDate`: `new Date('2025-01-01')` is Dec 31 2024 west of Greenwich, so
+  New Year's Day shows were counted in the previous year, and DD-MM-YYYY
+  dates with a day above 12 were dropped. A band or venue typed two ways
+  counts once. Tested against a hand-counted account
+  (`lib/__tests__/yearInReview.test.js`).
+- **Colors:** one per count, everywhere a count appears (the page, the share
+  image, the My Shows banner, the landing page): Shows green, Bands amber,
+  Venues white, from the app's own tokens. The Stats month heatmap gets a
+  Fewer → More legend.
+- **Links that reload.** `/year-in-review/<uid>/<year>/`, `/venues/<key>/`
+  and `/venue-dashboard/<key>/` were dynamic routes with only a `_`
+  placeholder in `out/`, so a reload or an email link rendered the root
+  page. They are now `/year-in-review/?user=&year=`, `/venues/?venue=` and
+  `/venue-dashboard/?venue=` (`yearInReviewHref`, `venueHref`,
+  `venueDashboardHref` in `lib/showRouting.js`), with 301s from the old
+  shapes in `netlify.toml`.
+- **Deep links survive for signed-in users.** The auth listener sent every
+  signed-in user to `/shows/` as soon as a saved session was restored, so
+  opening any page cold (an email link, `/how-to-use`) landed on My Shows.
+  It now does that only on an actual sign-in or account switch.
+
+### Landing page
+
+- Reworded to what ships: following a band; ratings out of 10 (no
+  five-star or review-count claims); hours of live music; an advanced
+  search example that uses real filters; step 01 shows search, not pasting a
+  setlist.fm link; the Year in Review mock shows the real three counts.
+- Removed: offline PWA, iOS push for announcements, the "virtualized list",
+  archival-recording alerts on the wishlist.
+- Hero sub-headline names "concert tracker" and "jam band". "Free forever"
+  is now "Free".
+
 ## [5.45.2] — 2026-10-21
 
 Ships in iOS 3.7.2 (`MARKETING_VERSION` 3.7.1 → 3.7.2; the build number is

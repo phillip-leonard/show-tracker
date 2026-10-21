@@ -89,8 +89,8 @@ export default function LandingPage({ onSignUp, onSignIn, onGuest, communityStat
             in <span className="lp-accent">one place</span>.
           </h1>
           <p className="lp-hero-sub">
-            The setlist archive for live music lovers. Track the shows you&apos;ve been to, discover
-            the ones you missed, and keep a running log of the best nights of your life.
+            The concert tracker and setlist archive for live music and jam band fans. Track the shows
+            you&apos;ve been to, discover the ones you missed, and keep a running log of the best nights of your life.
           </p>
           <div className="lp-hero-cta">
             <Button variant="primary" size="lg" onClick={onSignUp}>
@@ -138,10 +138,12 @@ export default function LandingPage({ onSignUp, onSignIn, onGuest, communityStat
                 </svg>
                 Glens Falls Civic Center · Glens Falls, NY
               </div>
+              {/* A sample card. Ratings in the app are out of 10 and
+                  personal; there are no review counts, so none is shown. */}
               <div className="lp-card-rating">
-                <span className="lp-stars">★★★★★</span>
-                <span className="lp-score">4.8</span>
-                <span className="lp-score-sub">· 3,421 reviews</span>
+                <span className="lp-stars">★</span>
+                <span className="lp-score">9.6</span>
+                <span className="lp-score-sub">/10 · your rating</span>
               </div>
               <div className="lp-card-setlist-head">Set II — Sgt. Pepper&apos;s, front to back</div>
               <div className="lp-card-setlist">
@@ -208,7 +210,7 @@ export default function LandingPage({ onSignUp, onSignIn, onGuest, communityStat
               </svg>
             </div>
             <h3>Rate &amp; remember</h3>
-            <p>Five-star ratings, private notes, photos from your camera roll. Your show history reads like a music journal — because it is one.</p>
+            <p>Rate shows and songs out of 10, keep private notes, add photos from your camera roll. Your show history reads like a music journal — because it is one.</p>
           </Card>
           <Card padding="none" interactive className="lp-feature lp-navy">
             <div className="lp-feature-icon">
@@ -218,7 +220,7 @@ export default function LandingPage({ onSignUp, onSignIn, onGuest, communityStat
             </div>
             <h3>Stats that actually matter</h3>
             <p>
-              How many &quot;Tweezer&quot;s have you heard? Top venues, songs seen live, minutes on the lawn.
+              How many &quot;Tweezer&quot;s have you heard? Top venues, songs seen live, hours of live music.
               {PLAYLIST_CREATION_ENABLED
                 ? ' Year-end wraps that beat Spotify’s.'
                 : ' Year-end wraps worth sharing.'}
@@ -232,7 +234,7 @@ export default function LandingPage({ onSignUp, onSignIn, onGuest, communityStat
               </svg>
             </div>
             <h3>Follow friends &amp; bands</h3>
-            <p>See who else was at the 10/31 show. Compare tour runs. Get notified when your favorites announce new dates in your city.</p>
+            <p>See which friends were at the 10/31 show. Compare tour runs. Follow a band and we&apos;ll email you when they announce a tour, or a date at a venue on your bucket list.</p>
           </Card>
           {PLAYLIST_CREATION_ENABLED && (
             <Card padding="none" interactive className="lp-feature lp-amber">
@@ -255,7 +257,7 @@ export default function LandingPage({ onSignUp, onSignIn, onGuest, communityStat
               </svg>
             </div>
             <h3>Wishlist the ones you missed</h3>
-            <p>Build a &quot;should have been there&quot; list. When archival recordings surface, we let you know — so you can finally hear that legendary show.</p>
+            <p>Build a &quot;should have been there&quot; list of the legendary shows you missed. And if a show you saw is on Relisten, its page links straight to the recording.</p>
           </Card>
         </div>
       </section>
@@ -269,10 +271,9 @@ export default function LandingPage({ onSignUp, onSignIn, onGuest, communityStat
               <h2>Your library, sortable, searchable, alive.</h2>
               <p>Every show you&apos;ve logged, one keystroke away. Filter by artist, tour, year, venue. Jump to any setlist in two clicks.</p>
               <ul className="lp-showcase-list">
-                <li><span className="lp-check">✓</span><span>Smart filters — &quot;Phish shows in the Northeast before 2000&quot; just works</span></li>
-                <li><span className="lp-check">✓</span><span>Virtualized list handles 1,000+ shows without breaking a sweat</span></li>
-                <li><span className="lp-check">✓</span><span>Offline-ready PWA — your show diary works on a festival field</span></li>
-                <li><span className="lp-check">✓</span><span>Native iOS app with ticket scanning &amp; push for announces</span></li>
+                <li><span className="lp-check">✓</span><span>Advanced search — &quot;Phish at Madison Square Garden before 2000&quot; just works</span></li>
+                <li><span className="lp-check">✓</span><span>Tours, runs and festivals grouped for you automatically</span></li>
+                <li><span className="lp-check">✓</span><span>Native iOS app with ticket scanning</span></li>
               </ul>
             </div>
             <div className="lp-app-mock">
@@ -362,11 +363,11 @@ export default function LandingPage({ onSignUp, onSignIn, onGuest, communityStat
         <div className="lp-how-grid">
           <Card padding="none" className="lp-step">
             <div className="lp-step-visual">
-              <div style={{ fontFamily: 'source-code-pro, monospace', fontSize: 12, color: 'var(--lp-text-muted)', marginBottom: 10 }}>PASTE LINK</div>
+              <div style={{ fontFamily: 'source-code-pro, monospace', fontSize: 12, color: 'var(--lp-text-muted)', marginBottom: 10 }}>SEARCH</div>
               <div style={{ background: 'var(--lp-bg-surface)', borderRadius: 8, padding: '10px 14px', fontFamily: 'source-code-pro, monospace', fontSize: 11, color: 'var(--lp-text-secondary)', border: '1px solid var(--lp-border-subtle)', display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ color: 'var(--lp-green-primary)' }}>●</span>setlist.fm/setlist/phish/1994/…
+                <span style={{ color: 'var(--lp-green-primary)' }}>●</span>Phish · Glens Falls · 1994
               </div>
-              <div style={{ marginTop: 10, fontSize: 11, color: 'var(--lp-text-muted)' }}>→ auto-fills date, venue, 23 songs</div>
+              <div style={{ marginTop: 10, fontSize: 11, color: 'var(--lp-text-muted)' }}>→ adds date, venue and all 23 songs from setlist.fm</div>
             </div>
             <div className="lp-step-num">Step 01</div>
             <h3>Import anything</h3>
@@ -385,20 +386,25 @@ export default function LandingPage({ onSignUp, onSignIn, onGuest, communityStat
           <Card padding="none" className="lp-step">
             <div className="lp-step-visual">
               <div style={{ fontFamily: 'source-code-pro, monospace', fontSize: 12, color: 'var(--lp-text-muted)', marginBottom: 12 }}>YEAR IN REVIEW</div>
-              <div style={{ display: 'flex', gap: 10, alignItems: 'baseline' }}>
-                <div style={{ fontSize: 32, fontWeight: 800, color: 'var(--lp-green-primary)', letterSpacing: '-0.03em' }}>27</div>
-                <div style={{ fontSize: 12, color: 'var(--lp-text-secondary)' }}>shows · 12 artists · 9 venues</div>
-              </div>
-              <div style={{ display: 'flex', gap: 4, marginTop: 12 }}>
-                <div style={{ height: 20, background: 'var(--lp-green-primary)', flex: 3, borderRadius: 2 }} />
-                <div style={{ height: 20, background: 'var(--lp-green-light)', flex: 2, borderRadius: 2 }} />
-                <div style={{ height: 20, background: 'var(--lp-amber)', flex: 2, borderRadius: 2 }} />
-                <div style={{ height: 20, background: 'var(--lp-amber-light)', flex: 1, borderRadius: 2 }} />
+              {/* The same three counts, in the same colors, as the real
+                  Year in Review page (app/year-in-review/YearInReviewClient.jsx):
+                  Shows green, Bands amber, Venues white. */}
+              <div style={{ display: 'flex', gap: 18, alignItems: 'flex-end' }}>
+                {[
+                  ['27', 'shows', 'var(--lp-green-primary)'],
+                  ['12', 'bands', 'var(--lp-amber)'],
+                  ['9', 'venues', 'var(--lp-text-primary)'],
+                ].map(([n, label, color]) => (
+                  <div key={label}>
+                    <div style={{ fontSize: 32, fontWeight: 800, color, letterSpacing: '-0.03em', lineHeight: 1 }}>{n}</div>
+                    <div style={{ fontSize: 12, color: 'var(--lp-text-secondary)', marginTop: 4 }}>{label}</div>
+                  </div>
+                ))}
               </div>
             </div>
             <div className="lp-step-num">Step 03</div>
             <h3>See the patterns</h3>
-            <p>Stats, streaks, and year-end wraps that reveal what you actually love seeing live.</p>
+            <p>Stats, streaks, and a Year in Review — shows, bands, venues — that reveals what you actually love seeing live.</p>
           </Card>
         </div>
       </section>
@@ -407,7 +413,7 @@ export default function LandingPage({ onSignUp, onSignIn, onGuest, communityStat
       <section className="lp-cta-section">
         <div className="lp-cta-card">
           <h2>Your show log is one click away.</h2>
-          <p>Free forever. No ads. Built by fans who&apos;ve lost too many stub ticket memories already.</p>
+          <p>Free. No ads. Built by fans who&apos;ve lost too many stub ticket memories already.</p>
           <Button variant="secondary" size="lg" onClick={onSignUp}>Claim your profile →</Button>
           <p style={{ marginTop: 16, fontSize: 12, color: 'rgba(255,255,255,0.4)', marginBottom: 0 }}>
             By signing up you agree to our{' '}

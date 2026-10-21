@@ -17,11 +17,13 @@
 [functions."anniversary-notifications"]
   schedule = "0 13 * * *"
 
-# Daily venue-bucket-list match job ("your favorite artist is playing at a
-# venue on your bucket list") — runs once a day at 13:30 UTC, offset from
-# the anniversary job above. See
-# netlify/functions/venue-bucket-list-notifications.js.
-[functions."venue-bucket-list-notifications"]
+# Daily followed-band job (5.46.0): "a band you follow announced new
+# dates" and "a band you follow is playing a venue on your bucket list".
+# 13:30 UTC, offset from the anniversary job above. The scheduled function
+# only starts followed-band-notifications-background.js, which does the
+# work. Replaces venue-bucket-list-notifications. See
+# netlify/functions/lib/followedBandAlerts.js.
+[functions."followed-band-notifications"]
   schedule = "30 13 * * *"
 
 # Moderation SLA reminder (Guideline 1.2) — re-sends the admin email for
@@ -102,6 +104,17 @@
 [[redirects]]
   from = "/api/unsubscribe/"
   to = "/.netlify/functions/unsubscribe"
+  status = 200
+
+# The "Unfollow <band>" link in followed-band emails (5.46.0).
+[[redirects]]
+  from = "/api/unfollow"
+  to = "/.netlify/functions/unfollow-band"
+  status = 200
+
+[[redirects]]
+  from = "/api/unfollow/"
+  to = "/.netlify/functions/unfollow-band"
   status = 200
 
 # Moderation (Guideline 1.2). moderate-content is the write path for every
@@ -248,6 +261,43 @@
 [[redirects]]
   from = "/shows/:showId/"
   to = "/shows/?show=:showId"
+  status = 301
+
+# Venue pages, venue dashboards and Year in Review were dynamic routes
+# (/venues/<key>/, /venue-dashboard/<key>/, /year-in-review/<uid>/<year>/)
+# with only a `_` placeholder in out/, so a real link fell through to the
+# root page. Since 5.46.0 they are query-param routes (lib/showRouting.js);
+# old links, bookmarks and already-sent emails land here. Not forced, so the
+# real files under /venues/ etc. (index.html, the index.txt RSC payload)
+# are still served as they are.
+[[redirects]]
+  from = "/venues/:venueKey"
+  to = "/venues/?venue=:venueKey"
+  status = 301
+
+[[redirects]]
+  from = "/venues/:venueKey/"
+  to = "/venues/?venue=:venueKey"
+  status = 301
+
+[[redirects]]
+  from = "/venue-dashboard/:venueKey"
+  to = "/venue-dashboard/?venue=:venueKey"
+  status = 301
+
+[[redirects]]
+  from = "/venue-dashboard/:venueKey/"
+  to = "/venue-dashboard/?venue=:venueKey"
+  status = 301
+
+[[redirects]]
+  from = "/year-in-review/:userId/:year"
+  to = "/year-in-review/?user=:userId&year=:year"
+  status = 301
+
+[[redirects]]
+  from = "/year-in-review/:userId/:year/"
+  to = "/year-in-review/?user=:userId&year=:year"
   status = 301
 
 # Legacy festival detail URLs (the pre-5.29.0 /festivals/<id> dynamic route,

@@ -38,7 +38,7 @@ export default function ProfilePage() {
     stats.venues >= 10  && { icon: MapPin,    name: 'Venue hopper',   description: '10+ different venues',      tone: 'purple' },
     friends.length >= 1 && { icon: Users,     name: 'Connected',      description: 'Made a friend on the app',  tone: 'blue'   },
     friends.length >= 5 && { icon: Users,     name: 'Social butterfly', description: '5+ friends',             tone: 'blue'   },
-    favoriteArtists.length >= 1 && { icon: Star, name: 'Fan club',   description: 'Followed a favorite artist', tone: 'amber' },
+    favoriteArtists.length >= 1 && { icon: Star, name: 'Fan club',   description: 'Followed a band', tone: 'amber' },
   ].filter(Boolean).slice(0, 4);
 
   const recentShows = useMemo(() =>

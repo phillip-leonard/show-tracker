@@ -4,6 +4,7 @@ import React, { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Sparkles, X } from 'lucide-react';
 import { computeYearInReview } from '@/lib/yearInReview';
+import { yearInReviewHref } from '@/lib/showRouting';
 
 // Determines which year's review is "ready" right now — available
 // mid-December through February per the spec. December shows the review
@@ -29,7 +30,7 @@ export default function YearInReviewCard({ shows, user }) {
   return (
     <button
       type="button"
-      onClick={() => router.push(`/year-in-review/${user.uid}/${year}/`)}
+      onClick={() => router.push(yearInReviewHref(user.uid, year))}
       className="w-full text-left mb-6 relative overflow-hidden rounded-2xl p-5 md:p-6 bg-gradient-to-br from-brand to-[#059669] text-white shadow-theme-lg hover:brightness-105 transition-all"
     >
       <span
@@ -46,7 +47,7 @@ export default function YearInReviewCard({ shows, user }) {
         <Sparkles size={15} /> Year in Review
       </div>
       <h3 className="text-xl md:text-2xl font-extrabold mb-1">Your {year} Year in Concerts is Ready!</h3>
-      <p className="text-sm opacity-90">{stats.totalShows} shows · {stats.totalArtists} artists — see your full recap &rarr;</p>
+      <p className="text-sm opacity-90">{stats.totalShows} shows · {stats.totalArtists} bands · {stats.totalVenues} venues — see your full recap &rarr;</p>
     </button>
   );
 }

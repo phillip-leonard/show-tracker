@@ -393,7 +393,7 @@ export default function LandingPage({ onSignUp, onLogin, onGuestMode, communityS
       <section className="lp-cta-section">
         <div className="lp-cta-card">
           <h2>Your show log is one click away.</h2>
-          <p>Free forever. No ads. Built by fans who've lost too many stub ticket memories already.</p>
+          <p>Free. No ads. Built by fans who've lost too many stub ticket memories already.</p>
           <button className="lp-btn-white" onClick={onSignUp}>Claim your profile →</button>
           <p style={{ marginTop: 16, fontSize: 12, color: 'rgba(255,255,255,0.4)', marginBottom: 0 }}>
             By signing up you agree to our{' '}

@@ -9,6 +9,7 @@ import VerificationBadge from '@/components/venues/VerificationBadge';
 import VenueAnnouncements from '@/components/venues/VenueAnnouncements';
 import VenuePhotoGallery from '@/components/venues/VenuePhotoGallery';
 import { subscribeVenue, updateVenueInfo, venueKeyFor } from '@/lib/venues';
+import { venueHref } from '@/lib/showRouting';
 
 const FIELDS = [
   { key: 'capacity', label: 'Capacity', type: 'number' },
@@ -73,7 +74,7 @@ export default function VenueDashboardClient({ venueKey }) {
     return (
       <div className="py-24 text-center">
         <p className="text-lg text-primary mb-4">You don't manage this venue.</p>
-        <Button variant="ghost" icon={ArrowLeft} className="hidden md:inline-flex" onClick={() => router.push(`/venues/${encodeURIComponent(venueKey)}/`)}>
+        <Button variant="ghost" icon={ArrowLeft} className="hidden md:inline-flex" onClick={() => router.push(venueHref(venueKey))}>
           Back to venue page
         </Button>
       </div>
@@ -82,7 +83,7 @@ export default function VenueDashboardClient({ venueKey }) {
 
   return (
     <div>
-      <Button variant="ghost" icon={ArrowLeft} className="hidden md:inline-flex mb-4" onClick={() => router.push(`/venues/${encodeURIComponent(venueKey)}/`)}>
+      <Button variant="ghost" icon={ArrowLeft} className="hidden md:inline-flex mb-4" onClick={() => router.push(venueHref(venueKey))}>
         Back to venue page
       </Button>
 
