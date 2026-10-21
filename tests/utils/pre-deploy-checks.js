@@ -173,7 +173,7 @@ async function checkExternalApis() {
   // setlist.fm
   try {
     const apiKey =
-      process.env.SETLISTFM_API_KEY || 'VmDr8STg4UbyNE7Jgiubx2D_ojbliDuoYMgQ';
+      process.env.SETLISTFM_API_KEY || '';
     const { statusCode } = await httpsGet(
       'https://api.setlist.fm/rest/1.0/artist/a74b1b7f-71a5-4011-9441-d0b5e4122711',
       { Accept: 'application/json', 'x-api-key': apiKey }

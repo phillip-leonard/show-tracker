@@ -37,8 +37,8 @@
 
 const https = require('https');
 const crypto = require('crypto');
+const { setlistfmKey, missingSetlistfmKey } = require('./lib/setlistfmKey');
 
-const SETLISTFM_API_KEY = process.env.SETLISTFM_API_KEY || 'VmDr8STg4UbyNE7Jgiubx2D_ojbliDuoYMgQ';
 const CORS_HEADERS = { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' };
 
 // Bounds on upstream work. A festival is a handful of days; anything
@@ -74,7 +74,7 @@ function fetchJSON(path) {
       path,
       method: 'GET',
       headers: {
-        'x-api-key': SETLISTFM_API_KEY,
+        'x-api-key': setlistfmKey(),
         Accept: 'application/json',
         'User-Agent': 'ShowTrackerApp/1.0',
       },
@@ -228,6 +228,9 @@ exports._daysInWindow = daysInWindow;
 exports._cityFromLocation = cityFromLocation;
 
 exports.handler = async function handler(event) {
+  const missingKey = missingSetlistfmKey();
+  if (missingKey) return missingKey;
+
   if (event.httpMethod !== 'GET') {
     return { statusCode: 405, headers: CORS_HEADERS, body: JSON.stringify({ error: 'Method not allowed' }) };
   }

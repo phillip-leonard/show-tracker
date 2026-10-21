@@ -1,6 +1,5 @@
 const https = require('https');
-
-const API_KEY = 'VmDr8STg4UbyNE7Jgiubx2D_ojbliDuoYMgQ';
+const { setlistfmKey, missingSetlistfmKey } = require('./lib/setlistfmKey');
 
 function fetchJSON(path) {
   return new Promise((resolve, reject) => {
@@ -9,7 +8,7 @@ function fetchJSON(path) {
       path,
       method: 'GET',
       headers: {
-        'x-api-key': API_KEY,
+        'x-api-key': setlistfmKey(),
         'Accept': 'application/json',
         'User-Agent': 'ShowTrackerApp/1.0'
       }
@@ -30,6 +29,9 @@ function fetchJSON(path) {
 }
 
 exports.handler = async function(event) {
+  const missingKey = missingSetlistfmKey();
+  if (missingKey) return missingKey;
+
   if (event.httpMethod !== 'GET') {
     return { statusCode: 405, body: JSON.stringify({ error: 'Method not allowed' }) };
   }

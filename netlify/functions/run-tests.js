@@ -22,6 +22,7 @@
  */
 
 const https = require('https');
+const { setlistfmKey } = require('./lib/setlistfmKey');
 
 const HEADERS = {
   'Content-Type': 'application/json',
@@ -62,8 +63,13 @@ function httpsGet(url, headers = {}) {
 // ── Individual checks ────────────────────────────────────────────────────────
 
 async function checkSetlistFmApi() {
-  const apiKey =
-    process.env.SETLISTFM_API_KEY || 'VmDr8STg4UbyNE7Jgiubx2D_ojbliDuoYMgQ';
+  // No fallback key (see lib/setlistfmKey.js). Reported as a failed check
+  // rather than a 500, so the rest of the run still reports.
+  if (!setlistfmKey()) {
+    console.error('SETLISTFM_API_KEY is not set');
+    return { name: 'setlist.fm API', passed: false, reason: 'SETLISTFM_API_KEY not configured' };
+  }
+  const apiKey = setlistfmKey();
   const { statusCode } = await httpsGet(
     'https://api.setlist.fm/rest/1.0/artist/a74b1b7f-71a5-4011-9441-d0b5e4122711',
     { Accept: 'application/json', 'x-api-key': apiKey }

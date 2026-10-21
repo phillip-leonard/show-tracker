@@ -24,8 +24,8 @@
 
 const https = require('https');
 const crypto = require('crypto');
+const { setlistfmKey, missingSetlistfmKey } = require('./lib/setlistfmKey');
 
-const SETLISTFM_API_KEY = process.env.SETLISTFM_API_KEY || 'VmDr8STg4UbyNE7Jgiubx2D_ojbliDuoYMgQ';
 const CORS_HEADERS = { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' };
 
 // 10 x 20 = 200 nights. Longer than any real tour; a tour that hits the
@@ -63,7 +63,7 @@ function fetchJSON(path) {
       path,
       method: 'GET',
       headers: {
-        'x-api-key': SETLISTFM_API_KEY,
+        'x-api-key': setlistfmKey(),
         Accept: 'application/json',
         'User-Agent': 'ShowTrackerApp/1.0',
       },
@@ -129,6 +129,9 @@ function toShow(sl) {
 }
 
 exports.handler = async function (event) {
+  const missingKey = missingSetlistfmKey();
+  if (missingKey) return missingKey;
+
   if (event.httpMethod === 'OPTIONS') {
     return {
       statusCode: 204,

@@ -1,6 +1,10 @@
 const https = require('https');
+const { setlistfmKey, missingSetlistfmKey } = require('./lib/setlistfmKey');
 
 exports.handler = async function(event, context) {
+  const missingKey = missingSetlistfmKey();
+  if (missingKey) return missingKey;
+
   // Only allow GET requests
   if (event.httpMethod !== 'GET') {
     return {
@@ -29,7 +33,7 @@ exports.handler = async function(event, context) {
       path: `/rest/1.0/search/artists?${params.toString()}`,
       method: 'GET',
       headers: {
-        'x-api-key': 'VmDr8STg4UbyNE7Jgiubx2D_ojbliDuoYMgQ',
+        'x-api-key': setlistfmKey(),
         'Accept': 'application/json',
         'User-Agent': 'ShowTrackerApp/1.0'
       }
