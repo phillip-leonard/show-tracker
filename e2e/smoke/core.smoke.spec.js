@@ -100,6 +100,30 @@ test.describe('Static HTML', () => {
     });
     expect(seen).toBe(false);
   });
+
+  test('loads with all site storage blocked', async ({ page }) => {
+    // What Chrome's "Block all site data" does: touching localStorage,
+    // sessionStorage or indexedDB throws a SecurityError. A storage read
+    // in AppProvider used to take the whole app down to "Application
+    // error" (fixed in 5.44.4, lib/storage.js).
+    await page.addInitScript(() => {
+      for (const name of ['localStorage', 'sessionStorage', 'indexedDB']) {
+        Object.defineProperty(window, name, {
+          configurable: true,
+          get() {
+            throw new DOMException('Access is denied for this document.', 'SecurityError');
+          },
+        });
+      }
+    });
+    const errors = [];
+    page.on('pageerror', (e) => errors.push(e.message));
+    await page.goto('/', { waitUntil: 'load' });
+    await expect(page.getByRole('button', { name: /log in/i })).toBeVisible();
+    await page.waitForTimeout(1500); // past the point where auth resolves
+    await expect(page.locator('body')).not.toContainText('Application error');
+    expect(errors).toEqual([]);
+  });
 });
 
 // ---------------------------------------------------------------------------
