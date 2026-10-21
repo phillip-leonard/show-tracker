@@ -1,9 +1,10 @@
 // netlify/functions/lib/artistSnapshotStats.js
 //
 // Band-wide song stats for the public band and song pages: times played,
-// first and last played, current gap, average gap, most played, gap
-// leaders. Computed once per snapshot run, from every show a source has
-// for one artist.
+// first and last played, current gap, average gap, longest gap ever (and
+// the two shows either side of it), most played, current gap leaders split
+// into originals and covers, and the biggest bust-outs. Computed once per
+// snapshot run, from every show a source has for one artist.
 //
 // ── The gap math is lib/songIndex.js's, ported ────────────────────────
 //
@@ -27,14 +28,43 @@
 // 1; the pages label the number "shows since last played" so the two
 // conventions can't be confused.
 //
+// ── One deliberate difference: gaps between two performances ──────────
+//
+// songIndex's longest gap is the shows strictly between two performances.
+// Here it counts the show the song came back at too, which is how
+// phish.net and the Songfish sites print a bust-out ("the first Fuck Your
+// Face since April 29, 1987 (1,426 shows)"), and those are the numbers a
+// fan checks a public page against. So longestGap and averageGap here are
+// songIndex's plus one, and the parity test pins exactly that. It is also
+// the current gap a song had going into its bust-out show, plus that show.
+//
 // Input shows, from publicArtistSources.js, already normalized:
 //   { id, date: 'YYYY-MM-DD', order, venue, city, state, country, url,
 //     songs: [{ key, slug, name, original, originalArtist }] }
+//
+// `original` is true, false or null (the source doesn't say). It comes out
+// as `isOriginal`, and a null song is left out of both gap lists and the
+// bust-outs rather than guessed into one.
 
 const RECENT_SHOWS = 10;
 const MOST_PLAYED = 25;
 const GAP_LEADERS = 10;
 const GAP_LEADER_MIN_PLAYS = 5;
+const BUST_OUTS = 10;
+// A song back after fewer shows than this is a rotation gap, not a
+// bust-out. Below every native-source band's top ten by far; it keeps a
+// band whose own songs barely exist on setlist.fm (Dead & Company: one
+// eight-show jam) from listing those.
+const BUST_OUT_MIN_GAP = 50;
+
+// Setlist entries the archives list as songs that aren't: an unnamed jam, a
+// solo, Drums and Space, a placeholder for a song nobody identified.
+// They keep their song pages and their place in "most played", but a gap
+// list led by "Jam" says nothing, so they're left out of the gap lists and
+// the bust-outs. Whole titles only: Big Ball Jam, Spanish Jam and
+// Interlude I are songs.
+const NON_SONG = /^(jam|drums|space|unknown|dueling drums|(bass|drum|drums|guitar|keys|keyboard|piano|organ|percussion) solo)$/i;
+const isSong = (s) => !NON_SONG.test(s.name.trim());
 const RECENT_PERFORMANCES = 10;
 
 function chronological(shows) {
@@ -119,12 +149,15 @@ function buildArtistStats(shows) {
     const first = indices[0];
     const last = indices[indices.length - 1];
 
+    // The first of equal longest gaps wins, as in songIndex. A gap counts
+    // the show the song came back at (see the header).
     let longestGap = null;
+    let longestAt = -1;
     let gapSum = 0;
     for (let i = 0; i < indices.length - 1; i++) {
-      const gap = indices[i + 1] - indices[i] - 1;
+      const gap = indices[i + 1] - indices[i];
       gapSum += gap;
-      if (longestGap === null || gap > longestGap) longestGap = gap;
+      if (longestGap === null || gap > longestGap) { longestGap = gap; longestAt = i; }
     }
 
     return {
@@ -139,8 +172,11 @@ function buildArtistStats(shows) {
       // Only defined between two performances, like longestGap in songIndex.
       averageGap: indices.length > 1 ? Math.round((gapSum / (indices.length - 1)) * 10) / 10 : null,
       longestGap,
+      // The last show before the longest gap, and the show it came back at.
+      gapStart: longestAt < 0 ? null : showRef(timeline[indices[longestAt]]),
+      gapEnd: longestAt < 0 ? null : showRef(timeline[indices[longestAt + 1]]),
       recentPerformances: indices.slice(-RECENT_PERFORMANCES).reverse().map((i) => showRef(timeline[i])),
-      original: agg.original,
+      isOriginal: agg.original,
       originalArtist: agg.original === false ? agg.originalArtist : '',
       sourceUrl: agg.sourceUrl,
     };
@@ -150,7 +186,12 @@ function buildArtistStats(shows) {
   songs.forEach((s) => { delete s.firstIndex; delete s.sourceSlug; });
 
   const byPlays = (a, b) => b.timesPlayed - a.timesPlayed || a.name.localeCompare(b.name);
-  const summary = (s) => ({ slug: s.slug, name: s.name, timesPlayed: s.timesPlayed, currentGap: s.currentGap, lastPlayed: s.lastPlayed.date });
+  const summary = (s) => ({ slug: s.slug, name: s.name, isOriginal: s.isOriginal, timesPlayed: s.timesPlayed, currentGap: s.currentGap, lastPlayed: s.lastPlayed.date });
+  const gapLeaders = (list) => list
+    .filter((s) => s.timesPlayed >= GAP_LEADER_MIN_PLAYS && isSong(s))
+    .sort((a, b) => b.currentGap - a.currentGap || byPlays(a, b))
+    .slice(0, GAP_LEADERS)
+    .map(summary);
 
   const band = {
     totalShows: total,
@@ -159,15 +200,25 @@ function buildArtistStats(shows) {
     recentShows: timeline.slice(-RECENT_SHOWS).reverse().map(showRef),
     songCount: songs.length,
     mostPlayed: songs.slice().sort(byPlays).slice(0, MOST_PLAYED).map(summary),
-    gapLeaders: songs
-      .filter((s) => s.timesPlayed >= GAP_LEADER_MIN_PLAYS)
-      .sort((a, b) => b.currentGap - a.currentGap || byPlays(a, b))
-      .slice(0, GAP_LEADERS)
-      .map(summary),
+    // Originals and covers together. The pages no longer show it; it stays
+    // for anything still reading the version 1 snapshot.
+    gapLeaders: gapLeaders(songs),
+    originalGapLeaders: gapLeaders(songs.filter((s) => s.isOriginal === true)),
+    coverGapLeaders: gapLeaders(songs.filter((s) => s.isOriginal === false)),
+    // The longest gaps ever between two performances of an original: the
+    // biggest bust-outs. Only meaningful over a band's whole history;
+    // publicArtistSnapshot.js drops it for a partial one.
+    bustOuts: songs
+      .filter((s) => s.isOriginal === true && s.longestGap >= BUST_OUT_MIN_GAP && isSong(s))
+      .sort((a, b) => b.longestGap - a.longestGap
+        || b.gapEnd.date.localeCompare(a.gapEnd.date)
+        || a.name.localeCompare(b.name))
+      .slice(0, BUST_OUTS)
+      .map((s) => ({ slug: s.slug, name: s.name, timesPlayed: s.timesPlayed, longestGap: s.longestGap, gapStart: s.gapStart, gapEnd: s.gapEnd })),
   };
 
   songs.sort((a, b) => a.slug.localeCompare(b.slug));
   return { band, songs };
 }
 
-module.exports = { buildArtistStats, slugify, GAP_LEADER_MIN_PLAYS };
+module.exports = { buildArtistStats, slugify, isSong, GAP_LEADER_MIN_PLAYS };

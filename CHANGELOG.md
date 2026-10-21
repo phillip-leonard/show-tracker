@@ -4,6 +4,47 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.45.1] — 2026-10-21
+
+Ships in iOS 3.7.1 (`MARKETING_VERSION` 3.7 → 3.7.1; the build number is
+left to Xcode Cloud). No app changes: everything here is the public band
+pages' snapshot job and Netlify functions, and `out/` is the same 194 files.
+
+Band pages: originals vs covers, and all-time gaps.
+
+- **Originals and covers, labeled.** Every song carries `isOriginal` (true,
+  false, or null when the source doesn't say) from the source's own flag:
+  `isoriginal`/`original_artist` on the Songfish sites, `is_original` on
+  phish.net (with the cover's artist from its songs list), and setlist.fm's
+  `cover` object, whose absence now counts as an original. Most played songs
+  show a "Cover" tag.
+- **Current gaps split in two:** "Goose songs with the longest gaps"
+  (originals) and "Goose covers with the longest gaps". Up On Cripple Creek,
+  Let's Dance and Peaches En Regalia now lead the covers list, not the page.
+  A song with no flag is in neither, and neither are the archives' non-songs
+  ("Jam", "Drums", "Space", "Unknown", "Bass solo", "Dueling Drums"), which
+  keep their song pages and their place in most played.
+- **Biggest bust-outs:** the ten longest gaps ever between two performances
+  of an original, with the last date before the gap and the bust-out date.
+  Only for bands whose whole history is in the snapshot: Goose, Phish,
+  Umphrey's McGee and King Gizzard. Skipped for the setlist.fm bands, whose
+  300-setlist window would give wrong numbers; Dead & Company's 289 do all
+  fit, but setlist.fm lists nearly every song of theirs as a Grateful Dead
+  cover, so it has no originals to show. A bust-out needs a gap of 50 shows.
+- **Gaps now count every show the archive lists**, including shows with no
+  known setlist, as phish.net and the Songfish sites do, and a gap between
+  two performances counts the bust-out show, as they print it. Goose's It
+  Burns Within: 416 shows (was 252), matching elgoose.net. Shows phish.net
+  excludes from its stats are left out here too.
+- **Song pages** say "Original" or "Cover (by The Band)", and "Longest gap
+  ever: N shows (date to date)".
+- **JSON:** `/api/artist` and `/api/artist-song` carry the same fields
+  (`isOriginal`, `originalArtist`, `longestGap`, `gapStart`, `gapEnd`, the
+  two gap lists and `bustOuts`).
+- Snapshot schema 2. The next run after deploy rebuilds every artist from a
+  full fetch (about the size of the weekly full refresh), plus one show-list
+  request per Songfish and phish.net artist per run from now on.
+
 ## [5.45.0] — 2026-10-22
 
 Ships in iOS 3.7 (`MARKETING_VERSION` 3.6.7 → 3.7, a minor bump for the new

@@ -22,12 +22,13 @@ const EXTRA_STYLE = `
   table { width: 100%; border-collapse: collapse; font-size: 14px; }
   th { text-align: left; font-size: 11px; color: #b7b6c9; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; padding: 0 8px 8px 0; }
   td { padding: 9px 8px 9px 0; border-top: 1px solid rgba(255,255,255,0.08); vertical-align: top; }
-  td.num, th.num { text-align: right; white-space: nowrap; padding-right: 0; }
+  td.num, th.num { text-align: right; white-space: nowrap; padding-right: 0; padding-left: 10px; }
   .note { font-size: 13px; color: #b7b6c9; }
   .source { margin-top: 28px; font-size: 13px; color: #b7b6c9; }
   .cta a.btn { display: inline-block; margin-top: 6px; padding: 10px 18px; border-radius: 999px; background: #f5c451; color: #1f1f3a; font-weight: 700; }
   .artists { list-style: none; padding: 0; margin: 0; }
   .artists li { margin-bottom: 8px; }
+  .tag { display: inline-block; margin-left: 6px; padding: 0 6px; border: 1px solid rgba(255,255,255,0.25); border-radius: 999px; font-size: 11px; line-height: 16px; color: #b7b6c9; white-space: nowrap; vertical-align: 1px; }
 `;
 
 const plural = (n, one, many = `${one}s`) => `${Number(n).toLocaleString('en-US')} ${n === 1 ? one : many}`;
@@ -70,6 +71,18 @@ function songName(artistSlug, s) {
   return s.hasPage ? `<a href="${SITE_URL}${songPath(artistSlug, s.slug)}">${escapeHtml(s.name)}</a>` : escapeHtml(s.name);
 }
 
+function datedLink(show) {
+  const text = escapeHtml(date(show.date));
+  return show.url ? `<a href="${escapeHtml(show.url)}">${text}</a>` : text;
+}
+
+// "Original", "Cover (by The Band)", "Cover", or '' when the source doesn't say.
+function songKind(song) {
+  if (song.isOriginal === true) return 'Original';
+  if (song.isOriginal !== false) return '';
+  return song.originalArtist ? `Cover (by ${escapeHtml(song.originalArtist)})` : 'Cover';
+}
+
 function gapText(n) {
   return n === 0 ? 'played at the most recent show' : `${plural(n, 'show')} since last played`;
 }
@@ -107,7 +120,10 @@ function bandIntro(snapshot) {
   if (coverage.kind === 'window') {
     return `Every ${escapeHtml(name)} setlist on setlist.fm${escapeHtml(span)}: ${plural(band.totalShows, 'show')} and ${plural(band.songCount, 'song')}, with how often each song is played and how long since it last was.`;
   }
-  return `Every ${escapeHtml(name)} show with a setlist on ${escapeHtml(sourceName)}${escapeHtml(span)}: ${plural(band.totalShows, 'show')} and ${plural(band.songCount, 'song')}, with how often each song is played and how long since it last was.`;
+  // Shows with no known setlist count too (the archive counts them in its
+  // gaps); say so when there are any.
+  const unknown = band.totalShows - coverage.shows;
+  return `Every ${escapeHtml(name)} show on ${escapeHtml(sourceName)}${escapeHtml(span)}: ${plural(band.totalShows, 'show')}${unknown > 0 ? ` (${plural(unknown, 'show')} with no known setlist)` : ''} and ${plural(band.songCount, 'song')}, with how often each song is played and how long since it last was.`;
 }
 
 function renderBand({ entry, snapshot }, now = Date.now()) {
@@ -117,9 +133,15 @@ function renderBand({ entry, snapshot }, now = Date.now()) {
 
   const top = band.mostPlayed[0];
   const title = `${name} Setlists, Song Stats & Gaps | MySetlists`;
+  // A version 1 snapshot (written before the original/cover split) has
+  // none of these; its page shows what it can until the next run.
+  const originalGaps = band.originalGapLeaders || [];
+  const coverGaps = band.coverGapLeaders || [];
+  const bustOuts = band.bustOuts || [];
+
   const description = coverage.kind === 'window'
     ? `${name} setlists and song stats: ${band.totalShows.toLocaleString('en-US')} shows on setlist.fm, the most played songs${top ? ` (${top.name}, ${top.timesPlayed} times in the last ${coverage.shows} setlists)` : ''} and the longest current gaps. Track your ${name} shows on MySetlists.`
-    : `${name} setlists and song stats: ${band.totalShows.toLocaleString('en-US')} shows since ${band.firstShow.date.slice(0, 4)}, the most played songs${top ? ` (${top.name}, ${top.timesPlayed} times)` : ''} and the longest current gaps. Track your ${name} shows on MySetlists.`;
+    : `${name} setlists and song stats: ${band.totalShows.toLocaleString('en-US')} shows since ${band.firstShow.date.slice(0, 4)}, the most played songs${top ? ` (${top.name}, ${top.timesPlayed} times)` : ''}, the longest current gaps and the biggest bust-outs. Track your ${name} shows on MySetlists.`;
 
   const stats = `
     <div class="stats">
@@ -132,14 +154,33 @@ function renderBand({ entry, snapshot }, now = Date.now()) {
   const mostPlayed = band.mostPlayed.length ? `
     <h2>Most played ${escapeHtml(name)} songs</h2>
     <table><thead><tr><th>#</th><th>Song</th><th class="num">Times played</th></tr></thead><tbody>${band.mostPlayed
-      .map((s, i) => `<tr><td>${i + 1}</td><td>${songName(slug, s)}</td><td class="num">${s.timesPlayed.toLocaleString('en-US')}</td></tr>`)
+      .map((s, i) => `<tr><td>${i + 1}</td><td>${songName(slug, s)}${s.isOriginal === false ? '<span class="tag">Cover</span>' : ''}</td><td class="num">${s.timesPlayed.toLocaleString('en-US')}</td></tr>`)
       .join('')}</tbody></table>` : '';
 
-  const gapLeaders = band.gapLeaders.length ? `
-    <h2>Longest current gaps</h2>
-    <p class="note">Songs played at least 5 times${coverage.kind === 'window' ? ' in these setlists' : ''}, by shows since they were last played.</p>
-    <table><thead><tr><th>Song</th><th class="num">Shows since</th><th class="num">Last played</th></tr></thead><tbody>${band.gapLeaders
+  const inWindow = coverage.kind === 'window' ? ' in these setlists' : '';
+  const gapTable = (heading, note, list) => (list.length ? `
+    <h2>${heading}</h2>
+    <p class="note">${note}</p>
+    <table><thead><tr><th>Song</th><th class="num">Shows since</th><th class="num">Last played</th></tr></thead><tbody>${list
       .map((s) => `<tr><td>${songName(slug, s)}</td><td class="num">${s.currentGap.toLocaleString('en-US')}</td><td class="num">${escapeHtml(date(s.lastPlayed))}</td></tr>`)
+      .join('')}</tbody></table>` : '');
+
+  const originalGapLeaders = gapTable(
+    `${escapeHtml(name)} songs with the longest gaps`,
+    `${escapeHtml(name)} originals played at least 5 times${inWindow}, by shows since they were last played.`,
+    originalGaps,
+  );
+  const coverGapLeaders = gapTable(
+    `${escapeHtml(name)} covers with the longest gaps`,
+    `Covers played at least 5 times${inWindow}, by shows since ${escapeHtml(name)} last played them.`,
+    coverGaps,
+  );
+
+  const bustOutTable = bustOuts.length ? `
+    <h2>Biggest ${escapeHtml(name)} bust-outs</h2>
+    <p class="note">${escapeHtml(name)} originals that went the most shows without being played. The gap counts every ${escapeHtml(name)} show from the one after it was last played through the bust-out, as ${escapeHtml(snapshot.sourceName)} does.</p>
+    <table><thead><tr><th>Song</th><th class="num">Gap</th><th class="num">Last played</th><th class="num">Bust-out</th></tr></thead><tbody>${bustOuts
+      .map((s) => `<tr><td>${songName(slug, s)}</td><td class="num">${s.longestGap.toLocaleString('en-US')}</td><td class="num">${datedLink(s.gapStart)}</td><td class="num">${datedLink(s.gapEnd)}</td></tr>`)
       .join('')}</tbody></table>` : '';
 
   const bodyHtml = `
@@ -147,10 +188,12 @@ function renderBand({ entry, snapshot }, now = Date.now()) {
     <h1>${escapeHtml(name)} setlists, song stats &amp; show tracker</h1>
     <p class="sub">${bandIntro(snapshot)}</p>
     ${stats}
+    ${mostPlayed}
+    ${originalGapLeaders}
+    ${coverGapLeaders}
+    ${bustOutTable}
     <h2>Recent ${escapeHtml(name)} shows</h2>
     ${showRows(band.recentShows)}
-    ${mostPlayed}
-    ${gapLeaders}
     <div class="cta">
       <p style="margin:0 0 4px;font-weight:700;">Track your ${escapeHtml(name)} shows</p>
       <p class="note" style="margin:0 0 8px;">Log the shows you've been to and see every song you've heard live, your own gaps and your stats.</p>
@@ -203,8 +246,7 @@ function renderSong({ entry, snapshot }, songSlug, now = Date.now()) {
   const title = `${song.name} – ${band} Song Stats, Gap & Last Played | MySetlists`;
   const description = `${band} has played ${song.name} ${plural(song.timesPlayed, 'time')}, last on ${longDate(song.lastPlayed.date)} at ${song.lastPlayed.venue}${song.currentGap ? `, ${plural(song.currentGap, 'show')} ago` : ''}. First played ${longDate(song.firstPlayed.date)}. Gaps, recent performances and more on MySetlists.`;
 
-  const kind = song.original === true ? 'Original'
-    : song.original === false ? `Cover${song.originalArtist ? ` (${escapeHtml(song.originalArtist)})` : ''}` : '';
+  const kind = songKind(song);
 
   const stats = `
     <div class="stats">
@@ -215,7 +257,8 @@ function renderSong({ entry, snapshot }, songSlug, now = Date.now()) {
       <div class="stat"><div class="n sm">${escapeHtml(date(song.firstPlayed.date))}</div><div class="l">First played</div></div>
       <div class="stat"><div class="n sm">${escapeHtml(date(song.lastPlayed.date))}</div><div class="l">Last played</div></div>
       ${kind ? `<div class="stat"><div class="n sm">${kind}</div><div class="l">Song</div></div>` : ''}
-    </div>`;
+    </div>
+    ${song.gapStart && song.gapEnd ? `<p class="note">Longest gap ever: ${plural(song.longestGap, 'show')} (${datedLink(song.gapStart)} to ${datedLink(song.gapEnd)}).</p>` : ''}`;
 
   const sourceLink = song.sourceUrl
     ? `<p class="source">${escapeHtml(song.name)} on ${isPhish ? 'Phish.net' : escapeHtml(snapshot.sourceName)}: <a href="${escapeHtml(song.sourceUrl)}">every performance, jam notes and more</a>.${isPhish ? ' Data courtesy of Phish.net.' : ''}</p>`
@@ -327,7 +370,18 @@ function artistJson(loaded, now = Date.now()) {
     artist: artistMeta(entry, snapshot),
     band: snapshot.band,
     // Every song, summarized; /api/artist-song has the detail.
-    songs: snapshot.songs.map((s) => ({ slug: s.slug, name: s.name, timesPlayed: s.timesPlayed, currentGap: s.currentGap, lastPlayed: s.lastPlayed.date })),
+    songs: snapshot.songs.map((s) => ({
+      slug: s.slug,
+      name: s.name,
+      isOriginal: s.isOriginal,
+      originalArtist: s.originalArtist,
+      timesPlayed: s.timesPlayed,
+      currentGap: s.currentGap,
+      lastPlayed: s.lastPlayed.date,
+      longestGap: s.longestGap,
+      gapStart: s.gapStart ? s.gapStart.date : null,
+      gapEnd: s.gapEnd ? s.gapEnd.date : null,
+    })),
   }, cacheHeaders(entry, now));
 }
 
