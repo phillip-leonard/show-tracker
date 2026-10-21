@@ -282,6 +282,36 @@ test('a fetch that comes back with far fewer shows is treated as partial', async
   assert.strictEqual(store.data.get('artists/goose.json'), before);
 });
 
+test('a gap of as many shows as the band has played is refused, and the last good snapshot kept', async () => {
+  const store = memoryStore();
+  await seededGoose(store);
+  const before = store.data.get('artists/goose.json');
+  const { snapshot } = await snap.loadArtist(store, 'goose');
+  assert.strictEqual(snap.looksComplete(snapshot, null), '');
+  const total = snapshot.band.totalShows;
+  const broken = (patch) => ({ ...snapshot, songs: snapshot.songs.map((s, i) => (i === 0 ? { ...s, ...patch } : s)) });
+  assert.match(snap.looksComplete(broken({ currentGap: total }), null), /current gap of \d+ shows, but the band has/);
+  assert.match(snap.looksComplete(broken({ longestGap: total + 5 }), null), /longest gap/);
+  assert.strictEqual(snap.looksComplete(broken({ currentGap: total - 1 }), null), '');
+
+  // Through the job: a stats bug that inflates gaps fails the artist.
+  const stats = require('../../netlify/functions/lib/artistSnapshotStats');
+  const real = stats.buildArtistStats;
+  stats.buildArtistStats = (shows) => {
+    const out = real(shows);
+    out.band.mostPlayed[0] = { ...out.band.mostPlayed[0], currentGap: out.band.totalShows + 10 };
+    return out;
+  };
+  const years = yearsFixture();
+  const restore = stubSources({ songfish: (_a, y) => years[y] || [] });
+  try {
+    const report = await snap.runSnapshot({ store, only: ['goose'], force: 'full', now: () => NOW + HOUR, log: quiet });
+    assert.strictEqual(report.artists[0].status, 'failed');
+    assert.match(report.artists[0].error, /but the band has/);
+  } finally { restore(); stats.buildArtistStats = real; }
+  assert.strictEqual(store.data.get('artists/goose.json'), before);
+});
+
 test('an empty first fetch publishes nothing', async () => {
   const store = memoryStore();
   const restore = stubSources({ songfish: () => [] });
