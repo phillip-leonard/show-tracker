@@ -143,11 +143,16 @@ function get(row, field) {
   return row ? row[FIELDS[field]] : undefined;
 }
 
-function fetchShowDate(date) {
+// Any Songfish archive answers the same /api/v2/ paths, so the host is a
+// parameter: elgoose.net by default, allthings.umphreys.com or kglw.net for
+// the public band-page snapshot (publicArtistSources.js). That is the whole
+// of the "other Songfish sites" support for now; the per-artist source
+// registry and adapter refactor are a separate piece of work.
+function fetchSongfishJson(path, { hostname = HOSTNAME, timeoutMs = REQUEST_TIMEOUT_MS } = {}) {
   return new Promise((resolve, reject) => {
     const options = {
-      hostname: HOSTNAME,
-      path: `${API_PATH}/${encodeURIComponent(date)}.json`,
+      hostname,
+      path,
       method: 'GET',
       headers: { Accept: 'application/json', 'User-Agent': USER_AGENT },
     };
@@ -158,17 +163,21 @@ function fetchShowDate(date) {
         try {
           resolve({ statusCode: res.statusCode, data: JSON.parse(data) });
         } catch (e) {
-          reject(new Error(`Failed to parse elgoose.net response: ${e.message}`));
+          reject(new Error(`Failed to parse ${hostname} response: ${e.message}`));
         }
       });
     });
     req.on('error', reject);
-    req.setTimeout(REQUEST_TIMEOUT_MS, () => {
+    req.setTimeout(timeoutMs, () => {
       req.destroy();
-      reject(new Error('elgoose.net request timed out'));
+      reject(new Error(`${hostname} request timed out`));
     });
     req.end();
   });
+}
+
+function fetchShowDate(date) {
+  return fetchSongfishJson(`${API_PATH}/${encodeURIComponent(date)}.json`);
 }
 
 // Describes what the upstream actually sent, for the case where we got a
@@ -215,7 +224,10 @@ function readEnvelope(payload) {
   if (!payload || typeof payload !== 'object') {
     return { ok: false, message: 'Empty response from elgoose.net', rows: [] };
   }
-  const failed = Number(payload.error) === 1;
+  // Non-zero, not just 1: phish.net, the same lineage, reports a bad key
+  // as error 2, and a test for 1 alone reads that as an empty success.
+  const code = Number(payload.error);
+  const failed = Number.isFinite(code) && code !== 0;
   if (failed) {
     return { ok: false, message: payload.error_message || 'elgoose.net reported an error', rows: [] };
   }
@@ -425,4 +437,4 @@ async function fetchSetlists(date, { artistFilter = '' } = {}) {
   };
 }
 
-module.exports = { FIELDS, describeUpstream, fetchSetlists, mapShow, readEnvelope, groupRowsByShow, rowsForArtist };
+module.exports = { FIELDS, describeUpstream, fetchSetlists, fetchSongfishJson, mapShow, readEnvelope, groupRowsByShow, rowsForArtist };
