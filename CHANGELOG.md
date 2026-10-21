@@ -4,6 +4,19 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.44.7] — 2026-10-22
+
+Ships in iOS 3.6.7 (`MARKETING_VERSION` 3.6.6 → 3.6.7; the build number is
+left to Xcode Cloud). No change to the app itself; the version moves because
+every PR bumps it.
+
+- **`scripts/seed-review-account.js` never prints a password.** Both the
+  dry run and the success message printed `<email> / <password>` for the
+  App Review accounts. They now print the email and the password's source
+  (`password: from REVIEW_PASSWORD`, or that the variable is unset).
+
+---
+
 ## [5.44.6] — 2026-10-22
 
 Ships in iOS 3.6.6 (`MARKETING_VERSION` 3.6.5 → 3.6.6; the build number is
