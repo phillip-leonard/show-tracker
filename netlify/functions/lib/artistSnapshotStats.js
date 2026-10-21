@@ -56,6 +56,15 @@ const BUST_OUTS = 10;
 // band whose own songs barely exist on setlist.fm (Dead & Company: one
 // eight-show jam) from listing those.
 const BUST_OUT_MIN_GAP = 50;
+
+// Setlist entries the archives list as songs that aren't: an unnamed jam, a
+// solo, Drums and Space, a placeholder for a song nobody identified.
+// They keep their song pages and their place in "most played", but a gap
+// list led by "Jam" says nothing, so they're left out of the gap lists and
+// the bust-outs. Whole titles only: Big Ball Jam, Spanish Jam and
+// Interlude I are songs.
+const NON_SONG = /^(jam|drums|space|unknown|dueling drums|(bass|drum|drums|guitar|keys|keyboard|piano|organ|percussion) solo)$/i;
+const isSong = (s) => !NON_SONG.test(s.name.trim());
 const RECENT_PERFORMANCES = 10;
 
 function chronological(shows) {
@@ -179,7 +188,7 @@ function buildArtistStats(shows) {
   const byPlays = (a, b) => b.timesPlayed - a.timesPlayed || a.name.localeCompare(b.name);
   const summary = (s) => ({ slug: s.slug, name: s.name, isOriginal: s.isOriginal, timesPlayed: s.timesPlayed, currentGap: s.currentGap, lastPlayed: s.lastPlayed.date });
   const gapLeaders = (list) => list
-    .filter((s) => s.timesPlayed >= GAP_LEADER_MIN_PLAYS)
+    .filter((s) => s.timesPlayed >= GAP_LEADER_MIN_PLAYS && isSong(s))
     .sort((a, b) => b.currentGap - a.currentGap || byPlays(a, b))
     .slice(0, GAP_LEADERS)
     .map(summary);
@@ -200,7 +209,7 @@ function buildArtistStats(shows) {
     // biggest bust-outs. Only meaningful over a band's whole history;
     // publicArtistSnapshot.js drops it for a partial one.
     bustOuts: songs
-      .filter((s) => s.isOriginal === true && s.longestGap >= BUST_OUT_MIN_GAP)
+      .filter((s) => s.isOriginal === true && s.longestGap >= BUST_OUT_MIN_GAP && isSong(s))
       .sort((a, b) => b.longestGap - a.longestGap
         || b.gapEnd.date.localeCompare(a.gapEnd.date)
         || a.name.localeCompare(b.name))
@@ -212,4 +221,4 @@ function buildArtistStats(shows) {
   return { band, songs };
 }
 
-module.exports = { buildArtistStats, slugify, GAP_LEADER_MIN_PLAYS };
+module.exports = { buildArtistStats, slugify, isSong, GAP_LEADER_MIN_PLAYS };

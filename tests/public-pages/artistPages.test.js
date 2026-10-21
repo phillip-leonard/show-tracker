@@ -385,6 +385,25 @@ test('bust-outs: originals only, longest gap ever with the shows either side, sh
   assert.strictEqual(rockdale.gapEnd.venue, 'Venue s100');
 });
 
+test('non-songs (Jam, solos, Drums, Unknown) stay out of the gap lists and bust-outs, not out of the snapshot', () => {
+  const { buildArtistStats, isSong } = require('../../netlify/functions/lib/artistSnapshotStats');
+  for (const name of ['Jam', 'jam ', 'Bass solo', 'Drum Solo', 'Dueling Drums', 'Drums', 'Space', 'Unknown']) assert.strictEqual(isSong({ name }), false, name);
+  for (const name of ['Big Ball Jam', 'Spanish Jam', 'Slow Jam 1', 'Interlude I', 'Space Oddity', 'Drums of War']) assert.strictEqual(isSong({ name }), true, name);
+
+  // Each played at the first 6 of 100 shows, then once more at show 100:
+  // every one leads its gap list and has a 94-show bust-out, songs or not.
+  const titles = [['Jam', true], ['Rockdale', true], ['Unknown', false], ['Up On Cripple Creek', false]];
+  const shows = Array.from({ length: 100 }, (_, i) => mixedShow(`s${i + 1}`, new Date(Date.UTC(2025, 0, 2) + i * 86400000).toISOString().slice(0, 10),
+    [['Arcadia', true], ...(i < 6 || i === 99 ? titles : [])]));
+  shows.push(mixedShow('s101', '2025-04-12', [['Arcadia', true]]));
+  const { band, songs } = buildArtistStats(shows);
+  assert.deepStrictEqual(band.originalGapLeaders.map((s) => s.name), ['Rockdale', 'Arcadia']);
+  assert.deepStrictEqual(band.coverGapLeaders.map((s) => s.name), ['Up On Cripple Creek']);
+  assert.deepStrictEqual(band.bustOuts.map((s) => s.name), ['Rockdale']);
+  assert.ok(songs.find((s) => s.name === 'Jam'), 'Jam keeps its song page');
+  assert.ok(band.mostPlayed.find((s) => s.name === 'Jam'), 'and its place in most played');
+});
+
 test('listed shows with no setlist count in every gap, except ones after the latest setlist', async () => {
   const store = memoryStore();
   // Ten shows with no known setlist between Rockdale's two runs, and one

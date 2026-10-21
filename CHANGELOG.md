@@ -21,7 +21,9 @@ Band pages: originals vs covers, and all-time gaps.
 - **Current gaps split in two:** "Goose songs with the longest gaps"
   (originals) and "Goose covers with the longest gaps". Up On Cripple Creek,
   Let's Dance and Peaches En Regalia now lead the covers list, not the page.
-  A song with no flag is in neither.
+  A song with no flag is in neither, and neither are the archives' non-songs
+  ("Jam", "Drums", "Space", "Unknown", "Bass solo", "Dueling Drums"), which
+  keep their song pages and their place in most played.
 - **Biggest bust-outs:** the ten longest gaps ever between two performances
   of an original, with the last date before the gap and the bust-out date.
   Only for bands whose whole history is in the snapshot: Goose, Phish,
