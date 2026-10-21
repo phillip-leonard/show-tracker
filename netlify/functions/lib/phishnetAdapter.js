@@ -105,12 +105,15 @@ function splitSetCode(raw) {
   return { setType: 'set', setNumber: Number.isFinite(n) && n > 0 ? n : 1 };
 }
 
-function fetchShowDate(date, apiKey) {
+// Any v5 path, key appended. The public band-page snapshot
+// (publicArtistSources.js) reads /v5/setlists/showyear/<year>.json through
+// this; the per-date lookup below is the same call with a different path.
+function fetchPhishnetJson(path, apiKey, { timeoutMs = REQUEST_TIMEOUT_MS } = {}) {
   return new Promise((resolve, reject) => {
     const params = new URLSearchParams({ apikey: apiKey });
     const options = {
       hostname: HOSTNAME,
-      path: `${API_PATH}/${encodeURIComponent(date)}.json?${params.toString()}`,
+      path: `${path}${path.includes('?') ? '&' : '?'}${params.toString()}`,
       method: 'GET',
       headers: { Accept: 'application/json', 'User-Agent': USER_AGENT },
     };
@@ -126,12 +129,16 @@ function fetchShowDate(date, apiKey) {
       });
     });
     req.on('error', reject);
-    req.setTimeout(REQUEST_TIMEOUT_MS, () => {
+    req.setTimeout(timeoutMs, () => {
       req.destroy();
       reject(new Error('phish.net request timed out'));
     });
     req.end();
   });
+}
+
+function fetchShowDate(date, apiKey) {
+  return fetchPhishnetJson(`${API_PATH}/${encodeURIComponent(date)}.json`, apiKey);
 }
 
 // Describes what the upstream actually sent, for the case where we got a
@@ -178,8 +185,13 @@ function readEnvelope(payload) {
     return { ok: false, message: 'Empty response from phish.net', rows: [] };
   }
 
+  // Any non-zero number is a failure, not only 1: a bad key comes back as
+  // `{"error":2,"error_message":"Invalid API Key","data":[]}`, which a
+  // test for 1 alone read as a successful empty result ("no show on that
+  // date").
   const raw = payload.error;
-  const failed = raw === true || raw === 'true' || Number(raw) === 1;
+  const code = Number(raw);
+  const failed = raw === true || raw === 'true' || (Number.isFinite(code) && code !== 0);
 
   if (failed) {
     return { ok: false, message: payload.error_message || 'phish.net reported an error', rows: [] };
@@ -317,4 +329,4 @@ async function fetchSetlists(date, { apiKey, artistId } = {}) {
   return { ok: true, message: '', shows, upstream: envelope.diagnostics };
 }
 
-module.exports = { FIELDS, describeUpstream, fetchSetlists, mapShow, readEnvelope, splitSetCode, groupRowsByShow };
+module.exports = { FIELDS, describeUpstream, fetchPhishnetJson, fetchSetlists, mapShow, readEnvelope, splitSetCode, groupRowsByShow };

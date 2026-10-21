@@ -55,7 +55,7 @@ const BASE_STYLE = `
   .footer a { color: #7d7c94; }
 `;
 
-function page({ title, description, canonicalPath, jsonLd, bodyHtml, ogImage }) {
+function page({ title, description, canonicalPath, jsonLd, bodyHtml, ogImage, extraStyle = '' }) {
   const canonical = `${SITE_URL}${canonicalPath}`;
   const desc = escapeHtml(description || '');
   const img = ogImage || `${SITE_URL}/og-image.png`;
@@ -77,7 +77,7 @@ function page({ title, description, canonicalPath, jsonLd, bodyHtml, ogImage }) 
 <meta name="twitter:description" content="${desc}">
 <meta name="twitter:image" content="${escapeHtml(img)}">
 ${jsonLd ? `<script type="application/ld+json">${escapeJsonForScript(jsonLd)}</script>` : ''}
-<style>${BASE_STYLE}</style>
+<style>${BASE_STYLE}${extraStyle}</style>
 </head>
 <body>
 <div class="wrap">

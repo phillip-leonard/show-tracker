@@ -34,6 +34,14 @@
 [functions."moderation-sla-reminder"]
   schedule = "15 */4 * * *"
 
+# Public band-page snapshot (Netlify Blobs, store "public-artists") — every
+# 6 hours. Phish data refreshes on every run, since phish.net allows showing
+# it for 24 hours at most; everyone else once a day. The scheduled function
+# only starts public-artist-snapshot-background.mjs, which does the fetching
+# (scheduled functions get 30 seconds). See netlify/functions/lib/publicArtistSnapshot.js.
+[functions."public-artist-snapshot"]
+  schedule = "20 */6 * * *"
+
 # Firebase Auth handler, proxied onto our own domain.
 #
 # Google's sign-in screen shows the app name only for brand-verified OAuth
@@ -209,11 +217,23 @@
   to = "/.netlify/functions/public-shared/:id"
   status = 200
 
-# Replaces the old static public/sitemap.xml (6 fixed URLs) with a
-# generated one that also lists every opted-in public profile.
+# Generated sitemaps (netlify/functions/sitemap.js): /sitemap.xml is an
+# index of the two below. robots.txt points at the index.
 [[redirects]]
   from = "/sitemap.xml"
   to = "/.netlify/functions/sitemap"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/sitemap-pages.xml"
+  to = "/.netlify/functions/sitemap/pages"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/sitemap-artists.xml"
+  to = "/.netlify/functions/sitemap/artists"
   status = 200
   force = true
 
@@ -260,26 +280,96 @@
   status = 301
   force = true
 
-# /artist/* — a real 404 until the Day 3 band pages exist.
+# Public band and song pages — HTML rendered by functions from the daily
+# snapshot (netlify/functions/lib/publicArtistSnapshot.js). Nothing for
+# them is in out/ or the iOS bundle. The slugs travel in the function PATH,
+# as with /u/ above (see publicRouteParams.js). force = true so nothing in
+# out/ can ever shadow them. All of these must stay above the catch-all.
 #
-# There is no /artist/ route, but the catch-all below served the app shell
-# for it with a 200, and public/_headers marked it `index, follow`, so
-# Google saw an indexable page with nothing on it: a soft 404. A 404 status
-# (with the static export's own 404 page as the body) tells it the truth.
-# Chosen over an X-Robots-Tag: noindex because noindex on a 200 still
-# reads as a page that exists. To ship band pages, replace these two rules
-# with the /artist/:slug function rewrite and put /artist/* back in
-# public/_headers. force = true so nothing in out/ can ever shadow it.
+#   /artists/                      every public band
+#   /artist/<slug>/                a band page (404 for an unknown slug)
+#   /artist/<slug>/song/<song>/    a song page (404 for an unknown song)
+#   /artist/<anything else>        a real 404, not the app shell
 [[redirects]]
-  from = "/artist"
-  to = "/404.html"
-  status = 404
+  from = "/artists"
+  to = "/.netlify/functions/public-artists-index"
+  status = 200
   force = true
 
+[[redirects]]
+  from = "/artists/"
+  to = "/.netlify/functions/public-artists-index"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/artist"
+  to = "/artists/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/artist/"
+  to = "/artists/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/artist/:slug/song/:song"
+  to = "/.netlify/functions/public-artist-song/:slug/:song"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/artist/:slug/song/:song/"
+  to = "/.netlify/functions/public-artist-song/:slug/:song"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/artist/:slug"
+  to = "/.netlify/functions/public-artist/:slug"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/artist/:slug/"
+  to = "/.netlify/functions/public-artist/:slug"
+  status = 200
+  force = true
+
+# Any other /artist/... path (/artist/goose/foo). Without this the
+# catch-all would serve the app shell with a 200: a soft 404.
 [[redirects]]
   from = "/artist/*"
   to = "/404.html"
   status = 404
+  force = true
+
+# The same snapshot as JSON, for the iOS app: /api/artist?slug=… and
+# /api/artist-song?slug=…&song=…. The visitor's query string passes through.
+[[redirects]]
+  from = "/api/artist"
+  to = "/.netlify/functions/artist-api/band"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/artist/"
+  to = "/.netlify/functions/artist-api/band"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/artist-song"
+  to = "/.netlify/functions/artist-api/song"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/artist-song/"
+  to = "/.netlify/functions/artist-api/song"
+  status = 200
   force = true
 
 # Catch-all SPA fallback — lets Next.js handle dynamic routes like /shows/[id]/

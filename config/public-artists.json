@@ -1,0 +1,25 @@
+{
+  "_comment": "Artists with public band pages at /artist/<slug>/. Read by netlify/functions/lib/publicArtistSnapshot.js (the snapshot job) and components/LandingPage.jsx (footer links, `featured` only). A slug is a public URL: never change one once it has shipped. songPages adds /artist/<slug>/song/<song>/ pages; setlist.fm-backed artists stay band-only until there is a rate-limit plan for full histories. source: songfish (host + artistId), phishnet (artistSlug, needs PHISHNET_API_KEY), or setlistfm (mbid, needs SETLISTFM_API_KEY). firstYear is the first year a Songfish or phish.net snapshot asks for.",
+  "artists": [
+    { "slug": "goose", "name": "Goose", "source": "songfish", "host": "elgoose.net", "sourceName": "elgoose.net", "artistId": 1, "firstYear": 2014, "songPages": true, "featured": true },
+    { "slug": "phish", "name": "Phish", "source": "phishnet", "sourceName": "Phish.net", "artistSlug": "phish", "firstYear": 1983, "songPages": true, "featured": true },
+    { "slug": "umphreys-mcgee", "name": "Umphrey's McGee", "source": "songfish", "host": "allthings.umphreys.com", "sourceName": "All Things Umphrey's", "artistId": 1, "firstYear": 1998, "songPages": true, "featured": true },
+    { "slug": "king-gizzard-and-the-lizard-wizard", "name": "King Gizzard & the Lizard Wizard", "source": "songfish", "host": "kglw.net", "sourceName": "kglw.net", "artistId": 1, "firstYear": 2010, "songPages": true, "featured": true },
+    { "slug": "widespread-panic", "name": "Widespread Panic", "source": "setlistfm", "mbid": "3797a6d0-7700-44bf-96fb-f44386bc9ab2", "songPages": false, "featured": true },
+    { "slug": "billy-strings", "name": "Billy Strings", "source": "setlistfm", "mbid": "640db492-34c4-47df-be14-96e2cd4b9fe4", "songPages": false, "featured": true },
+    { "slug": "dead-and-company", "name": "Dead & Company", "source": "setlistfm", "mbid": "94f8947c-2d9c-4519-bcf9-6d11a24ad006", "songPages": false, "featured": true },
+    { "slug": "grateful-dead", "name": "Grateful Dead", "source": "setlistfm", "mbid": "6faa7ca7-0d99-4a5e-bfa6-1fd5037520c6", "songPages": false, "featured": true },
+    { "slug": "string-cheese-incident", "name": "The String Cheese Incident", "source": "setlistfm", "mbid": "cff95140-6d57-498a-8834-10eb72865b29", "songPages": false },
+    { "slug": "moe", "name": "moe.", "source": "setlistfm", "mbid": "5fab339d-5dd4-42b0-8d70-496a4493ed59", "songPages": false },
+    { "slug": "trey-anastasio-band", "name": "Trey Anastasio Band", "source": "setlistfm", "mbid": "822b1e81-d1a0-47fb-b7f9-ef614b913603", "songPages": false },
+    { "slug": "tedeschi-trucks-band", "name": "Tedeschi Trucks Band", "source": "setlistfm", "mbid": "e33e1ccf-a3b9-4449-a66a-0091e8f55a60", "songPages": false },
+    { "slug": "spafford", "name": "Spafford", "source": "setlistfm", "mbid": "a4ad4581-721e-4123-aa3e-15b36490cf0f", "songPages": false },
+    { "slug": "eggy", "name": "Eggy", "source": "setlistfm", "mbid": "ba0b9dc6-bd61-42c7-a28f-5179b1c04391", "songPages": false },
+    { "slug": "dogs-in-a-pile", "name": "Dogs in a Pile", "source": "setlistfm", "mbid": "a05236ee-3fac-45d7-96f5-b2cd6d03fda9", "songPages": false },
+    { "slug": "pigeons-playing-ping-pong", "name": "Pigeons Playing Ping Pong", "source": "setlistfm", "mbid": "ec8e3cea-69f0-4ff3-b42c-74937d336334", "songPages": false },
+    { "slug": "twiddle", "name": "Twiddle", "source": "setlistfm", "mbid": "5cf454bc-3be0-47ba-9d0b-1e53da631a4e", "songPages": false },
+    { "slug": "lettuce", "name": "Lettuce", "source": "setlistfm", "mbid": "e88313e2-22f6-4f6d-9656-6d2ad20ea415", "songPages": false },
+    { "slug": "disco-biscuits", "name": "The Disco Biscuits", "source": "setlistfm", "mbid": "4e43632a-afef-4b54-a822-26311110d5c5", "songPages": false },
+    { "slug": "dopapod", "name": "Dopapod", "source": "setlistfm", "mbid": "1f8c1417-ddf7-41f0-9f54-2d5b847c6a80", "songPages": false }
+  ]
+}

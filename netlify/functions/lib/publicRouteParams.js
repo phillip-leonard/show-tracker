@@ -1,7 +1,7 @@
 // netlify/functions/lib/publicRouteParams.js
 //
-// Reads the handle / showId / shared-collection id for the public page
-// functions from the request PATH, not the query string.
+// Reads the handle / showId / shared-collection id / artist and song slug
+// for the public page functions from the request PATH, not the query string.
 //
 // Why: netlify.toml used to rewrite /u/:handle to
 // /.netlify/functions/public-profile?handle=:handle, and the placeholder in
@@ -31,12 +31,22 @@ const ROUTES = {
     /^\/shared\/([^/]+)\/?$/,
     /^\/\.netlify\/functions\/public-shared\/([^/]+)\/?$/,
   ],
+  artist: [
+    /^\/artist\/([^/]+)\/?$/,
+    /^\/\.netlify\/functions\/public-artist\/([^/]+)\/?$/,
+  ],
+  song: [
+    /^\/artist\/([^/]+)\/song\/([^/]+)\/?$/,
+    /^\/\.netlify\/functions\/public-artist-song\/([^/]+)\/([^/]+)\/?$/,
+  ],
 };
 
 const NAMES = {
   profile: ['handle'],
   show: ['handle', 'showId'],
   shared: ['id'],
+  artist: ['slug'],
+  song: ['slug', 'song'],
 };
 
 function candidatePaths(event) {
@@ -62,7 +72,7 @@ function safeDecode(segment) {
 
 /**
  * @param {object} event  the Netlify function event
- * @param {'profile'|'show'|'shared'} kind
+ * @param {'profile'|'show'|'shared'|'artist'|'song'} kind
  * @returns {object} e.g. { handle: 'phillip' } — a missing value is ''
  */
 function routeParams(event, kind) {

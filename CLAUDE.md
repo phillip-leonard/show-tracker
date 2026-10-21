@@ -19,6 +19,15 @@ In-app navigation goes through `showHref(id)` helper in `lib/showRouting.js` —
 
 This pattern has now cost three attempts to get right. The next session should not have to rediscover it.
 
+## Netlify Blobs and background functions
+
+The public band pages (`/artist/...`) read a snapshot from Netlify Blobs, written by `public-artist-snapshot-background.mjs`. Two things that cost three deploy-preview rounds to find:
+
+- **A function that uses Blobs from a background function must be a v2 function (`export default`) that imports `@netlify/blobs` at the top level.** A `require('@netlify/blobs')` inside a function body is left out of the v2 bundle ("Cannot find module '@netlify/blobs'"). The Lambda-style page functions use `openBlobStore(event)` in `lib/publicArtistSnapshot.js`, which calls `connectLambda(event)`.
+- **`netlify logs` without `--follow` shows only the first line of each invocation**, an empty `INFO`, so a failing background function looks like it ran and printed nothing. Stream with `netlify logs --deploy-id <id> --function <name> --follow` while you trigger it.
+
+Deploy previews always carry `X-Robots-Tag: noindex` (Netlify adds it). Lighthouse's `is-crawlable` and the Rich Results Test's "Indexing allowed?" fail there for that reason alone.
+
 ## Versioning: every PR bumps the App Store version
 
 **Every PR opened for MySetlists bumps the App Store version**, in addition to the web version in `package.json` (and its `CHANGELOG.md` entry).
