@@ -20,6 +20,13 @@ function PickSimple({ size = 20 }) {
 }
 
 export default function LandingPage({ onSignUp, onSignIn, onGuest, communityStats }) {
+  // Real counts only. These used to fall back to made-up figures (24,000+
+  // fans, 24K trackers, 3.2M shows) until communityStats loaded, and since
+  // this page is the static HTML of `/`, the made-up ones were what Google
+  // indexed. Until the real number arrives the space is kept but empty, so
+  // nothing shifts when it fills in.
+  const totalUsers = communityStats?.totalUsers || 0;
+  const totalShows = communityStats?.totalShows || 0;
   // Known only after mount. This page is pre-rendered (it is the static
   // HTML of `/`), where the platform is unknown, and on iOS reading it
   // during render would make the first client render disagree with that
@@ -77,7 +84,11 @@ export default function LandingPage({ onSignUp, onSignIn, onGuest, communityStat
               Try it first
             </Button>
           </div>
-          <div className="lp-hero-trust">
+          <div
+            className="lp-hero-trust"
+            style={totalUsers ? undefined : { visibility: 'hidden' }}
+            aria-hidden={totalUsers ? undefined : true}
+          >
             <div className="lp-avatar-stack">
               <div className="lp-a lp-a1" />
               <div className="lp-a lp-a2" />
@@ -85,12 +96,12 @@ export default function LandingPage({ onSignUp, onSignIn, onGuest, communityStat
               <div className="lp-a lp-a4" />
             </div>
             <div>
-              <b>
-                {communityStats
-                  ? `${(communityStats.totalUsers || 24000).toLocaleString()}+`
-                  : '24,000+'} fans
-              </b>{' '}
-              tracking their shows
+              {totalUsers > 0 && (
+                <>
+                  <b>{totalUsers.toLocaleString()}+ fans</b>{' '}
+                  tracking their shows
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -315,17 +326,13 @@ export default function LandingPage({ onSignUp, onSignIn, onGuest, communityStat
         <div className="lp-stats-grid">
           <div className="lp-stat">
             <div className="lp-n">
-              {communityStats
-                ? (communityStats.totalShows || 0).toLocaleString()
-                : <><span>3.2</span><span className="lp-u">M</span></>}
+              {totalShows ? totalShows.toLocaleString() : '\u00a0'}
             </div>
             <div className="lp-l">Shows indexed</div>
           </div>
           <div className="lp-stat">
             <div className="lp-n">
-              {communityStats
-                ? (communityStats.totalUsers || 0).toLocaleString()
-                : <><span>24</span><span className="lp-u">K</span></>}
+              {totalUsers ? totalUsers.toLocaleString() : '\u00a0'}
             </div>
             <div className="lp-l">Active trackers</div>
           </div>

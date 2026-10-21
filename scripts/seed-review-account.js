@@ -28,11 +28,16 @@
  *   node scripts/seed-review-account.js --yes           # write
  *   node scripts/seed-review-account.js --yes --reset   # delete seeded data first
  *
+ * Required to write (--yes):
+ *   REVIEW_PASSWORD, REVIEW_FRIEND_PASSWORD
  * Optional overrides:
- *   REVIEW_EMAIL, REVIEW_PASSWORD, REVIEW_FRIEND_EMAIL, REVIEW_FRIEND_PASSWORD
+ *   REVIEW_EMAIL, REVIEW_FRIEND_EMAIL
  *
- * The password you set here is what goes in App Store Connect → App Review
- * Information. Keep it simple to type on a phone; a reviewer typing a
+ * There is no default password. One used to live here, in a public
+ * repository, which made the review accounts anyone's. Re-running with
+ * --yes sets the accounts' passwords to these values, so this is also how
+ * to rotate them. The password you set here is what goes in App Store
+ * Connect → App Review Information. Keep it simple to type on a phone; a reviewer typing a
  * 24-character password on an iPhone keyboard is a rejection waiting to happen.
  *
  * Idempotent: every document id is deterministic, so re-running overwrites
@@ -73,13 +78,13 @@ const RESET = process.argv.includes('--reset');
 
 const REVIEW = {
   email: process.env.REVIEW_EMAIL || 'appreview@mysetlists.net',
-  password: process.env.REVIEW_PASSWORD || 'Setlist2026!',
+  password: process.env.REVIEW_PASSWORD || '',
   displayName: 'Alex Reviewer',
   handle: 'alexreviewer',
 };
 const FRIEND = {
   email: process.env.REVIEW_FRIEND_EMAIL || 'reviewfriend@mysetlists.net',
-  password: process.env.REVIEW_FRIEND_PASSWORD || 'Setlist2026!',
+  password: process.env.REVIEW_FRIEND_PASSWORD || '',
   displayName: 'Jordan Mills',
   handle: 'jordanmills',
 };
@@ -412,12 +417,22 @@ async function reset(db, auth, uids) {
 async function main() {
   if (!WRITE) {
     console.log('DRY RUN — nothing will be written. Re-run with --yes to apply.\n');
-    console.log(`  review account : ${REVIEW.email} / ${REVIEW.password}  (@${REVIEW.handle})`);
-    console.log(`  friend account : ${FRIEND.email} / ${FRIEND.password}  (@${FRIEND.handle})`);
+    console.log(`  review account : ${REVIEW.email} / ${REVIEW.password || '<REVIEW_PASSWORD not set; required for --yes>'}  (@${REVIEW.handle})`);
+    console.log(`  friend account : ${FRIEND.email} / ${FRIEND.password || '<REVIEW_FRIEND_PASSWORD not set; required for --yes>'}  (@${FRIEND.handle})`);
     console.log(`  shows          : ${SHOWS.length} for the reviewer, ${SHOWS.filter(s => s.shared).length} of them shared with the friend`);
     console.log('  plus           : comments, media, activity feed, one pending tag, wishlist, bucket list');
     console.log('\nPut the review credentials in App Store Connect → App Review Information.');
     return;
+  }
+
+  // No fallback, ever (see the header): stop before touching Auth.
+  const missing = [
+    !REVIEW.password && 'REVIEW_PASSWORD',
+    !FRIEND.password && 'REVIEW_FRIEND_PASSWORD',
+  ].filter(Boolean);
+  if (missing.length) {
+    console.error(`Missing ${missing.join(' and ')}. Set them (in .env or the shell) to the passwords these accounts should have; re-running sets them.`);
+    process.exit(1);
   }
 
   init();

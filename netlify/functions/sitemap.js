@@ -11,7 +11,9 @@ const SITE_URL = 'https://mysetlists.net';
 
 const STATIC_URLS = [
   { loc: '/', changefreq: 'weekly', priority: '1.0' },
-  { loc: '/roadmap', changefreq: 'weekly', priority: '0.7' },
+  // No /roadmap: its items come from Firestore and only render for a
+  // signed-in user, so a crawler gets "Loading..." there. Put it back (and
+  // its index rule in public/_headers) if the page ever renders signed out.
   { loc: '/privacy', changefreq: 'monthly', priority: '0.3' },
   { loc: '/terms', changefreq: 'monthly', priority: '0.3' },
   { loc: '/cookies', changefreq: 'monthly', priority: '0.2' },

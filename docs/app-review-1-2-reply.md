@@ -152,7 +152,7 @@ Paste this into the Notes field. Keep it short — it is instructions, not an
 argument.
 
 ```
-Demo account: appreview@mysetlists.net / Setlist2026!
+Demo account: appreview@mysetlists.net / <REVIEW_PASSWORD>
 
 To see the Guideline 1.2 features:
 
