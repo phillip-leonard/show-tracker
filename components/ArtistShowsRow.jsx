@@ -6,6 +6,7 @@ import { formatDate, artistColor, avgSongRating } from '@/lib/utils';
 import RatingSelect from '@/components/ui/RatingSelect';
 import UpcomingShows from '@/components/UpcomingShows';
 import FollowBandButton from '@/components/artists/FollowBandButton';
+import MakePosterButton from '@/components/heard/MakePosterButton';
 
 function ArtistShowsRow({ artist, shows, expanded, onToggle, onSelectShow, onDeleteShow, onRateShow }) {
   const avgRating = (() => {
@@ -96,7 +97,10 @@ function ArtistShowsRow({ artist, shows, expanded, onToggle, onSelectShow, onDel
                 })}
               </div>
               <div className="mt-2" onClick={(e) => e.stopPropagation()}>
-                <FollowBandButton artist={artist} className="mb-3" />
+                <div className="flex flex-wrap gap-2 mb-3">
+                  <FollowBandButton artist={artist} />
+                  <MakePosterButton artist={artist} />
+                </div>
                 <UpcomingShows artistName={artist} />
               </div>
             </div>

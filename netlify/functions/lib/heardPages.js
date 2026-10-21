@@ -129,6 +129,14 @@ const TOOL_STYLE = `
   @media (max-width: 959px) { .wrap { padding-bottom: 120px; } }
   @media (min-width: 960px) { .h-dock { display: none; } }
   .h-empty { color: var(--muted); font-size: 14px; }
+  .h-mine .h-results { max-width: 760px; position: static; max-height: none; overflow: visible; }
+  @media (min-width: 960px) { .h-mine { grid-template-columns: minmax(0, 1fr); } }
+  .h-mine-line { margin: 0 0 10px; }
+  .h-mine-line .h-link, .h-unmatched .h-link { padding: 0; text-decoration: underline; }
+  .h-unmatched { margin: 0 0 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; font-size: 13px; }
+  .h-unmatched summary { font-weight: 600; font-size: 13px; }
+  .h-unmatched ul { margin: 8px 0 0; padding-left: 18px; }
+  .h-unmatched li { margin: 4px 0; }
 `;
 
 function crumbs(items) {
@@ -239,7 +247,17 @@ function toolScript(shows) {
 </script>`;
 }
 
-function renderHeardBand({ entry, shows }, now = Date.now()) {
+// /heard/<slug>/?mine=1 is someone's own poster (heardClient.js "your
+// shows" mode), and the app's links also carry their shows in a #mine=
+// fragment. Neither is a page to index: ?mine=1 is noindex here, the
+// fragment (which never reaches the server) is noindexed by the page's own
+// script (NOINDEX_PERSONAL), and every variant's canonical is the plain
+// /heard/<slug>/, so nothing personal is indexed or splits its ranking.
+// Netlify-Vary keys the CDN cache on `mine` alone, so the noindexed variant
+// is cached apart from the indexable one (and utm_ tags don't fragment it).
+const NOINDEX_PERSONAL = `<script>if(/[#&](mine|have)=/.test(location.hash)){var m=document.createElement('meta');m.name='robots';m.content='noindex, follow';document.head.appendChild(m);}</script>`;
+
+function renderHeardBand({ entry, shows }, now = Date.now(), { mine = false } = {}) {
   if (!availability(entry, now).available) return unavailablePage(shows);
   const { name, slug } = shows;
   const trail = [{ name: 'Home', path: '/' }, { name: "Songs I've heard", path: heardPath() }, { name, path: heardPath(slug) }];
@@ -308,8 +326,13 @@ function renderHeardBand({ entry, shows }, now = Date.now()) {
     jsonLd,
     bodyHtml,
     extraStyle: STYLE + TOOL_STYLE,
-    scriptHtml: toolScript(shows),
-  }), cacheHeaders(entry, now));
+    robots: mine ? 'noindex, follow' : '',
+    scriptHtml: NOINDEX_PERSONAL + toolScript(shows),
+  }), {
+    ...cacheHeaders(entry, now),
+    'Netlify-Vary': 'query=mine',
+    ...(mine ? { 'X-Robots-Tag': 'noindex, follow' } : {}),
+  });
 }
 
 // ── /heard/<slug>/r/<code>/ ───────────────────────────────────────────

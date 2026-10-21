@@ -67,6 +67,10 @@ const BULK_ADD_DELAY_MS = 120;
 // which is exactly what a bulk add does. Monotonic, so ids still sort by
 // creation order.
 let lastMintedShowId = 0;
+
+// Where a sign-in from the Songs I've heard tool may return to: a band's
+// poster, nothing else (see pendingNext below).
+const HEARD_NEXT = /^\/heard\/[a-z0-9-]+\/\?mine=1$/;
 function mintShowId() {
   const now = Date.now();
   lastMintedShowId = now > lastMintedShowId ? now : lastMintedShowId + 1;
@@ -351,6 +355,9 @@ export function AppProvider({ children }) {
   const [filterDate, setFilterDate] = useState('');
   const [shareSuccess, setShareSuccess] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  // The uid whose shows are in `shows`. isLoading is already false while
+  // signed out, so it alone can't say a fresh sign-in's shows have arrived.
+  const [showsLoadedFor, setShowsLoadedFor] = useState(null);
   const [sortBy, setSortBy] = useState('date');
   const [selectedArtist, setSelectedArtist] = useState(null);
 
@@ -448,6 +455,44 @@ export function AppProvider({ children }) {
     cleanUrl.searchParams.delete('signup');
     window.history.replaceState({}, '', cleanUrl.toString());
   }, [searchParams, authLoading, user]);
+
+  // "Sign in" on the Songs I've heard tool (/heard/<slug>/?mine=1, signed
+  // out) links to /?login=1&next=/heard/<slug>/?mine=1. Open the sign-in
+  // form, and once the user's shows have loaded, write them where the tool
+  // reads them (lib/heardLinks.js) and go back to the poster. `next` is
+  // kept like ?follow= is, through the sign-in, for 30 minutes (so a
+  // sign-in abandoned today doesn't redirect next week's), and is only ever
+  // a /heard/ poster: never an open redirect. Web only; the tool isn't in
+  // the app.
+  const [pendingNext, setPendingNext] = useState(null);
+  useEffect(() => {
+    if (!searchParams || authLoading) return;
+    const login = searchParams.get('login') !== null;
+    const next = searchParams.get('next') || '';
+    if (!login && !next) {
+      const [at, saved] = (storage.get(STORAGE_KEYS.PENDING_NEXT) || '').split('|');
+      if (saved && HEARD_NEXT.test(saved) && Date.now() - Number(at) < 30 * 60 * 1000) setPendingNext(saved);
+      else storage.remove(STORAGE_KEYS.PENDING_NEXT);
+      return;
+    }
+    if (login && !user) setAuthModal('login');
+    if (HEARD_NEXT.test(next)) {
+      storage.set(STORAGE_KEYS.PENDING_NEXT, `${Date.now()}|${next}`);
+      setPendingNext(next);
+    }
+    const cleanUrl = new URL(window.location.href);
+    cleanUrl.searchParams.delete('login');
+    cleanUrl.searchParams.delete('next');
+    window.history.replaceState({}, '', cleanUrl.toString());
+  }, [searchParams, authLoading, user]);
+
+  useEffect(() => {
+    if (!pendingNext || !user || guestMode || isNativePlatform() || showsLoadedFor !== user.uid || isLoading) return;
+    storage.remove(STORAGE_KEYS.PENDING_NEXT);
+    setPendingNext(null);
+    rememberHeardShows(shows);
+    window.location.assign(pendingNext);
+  }, [pendingNext, user, guestMode, showsLoadedFor, isLoading, shows]);
 
   // Deep link: handle ?tab= parameter for navigating to specific tab after login
   // e.g. /friends?tab=requests from email notification links
@@ -904,6 +949,7 @@ export function AppProvider({ children }) {
       console.error('Failed to load shows:', error);
     } finally {
       setIsLoading(false);
+      setShowsLoadedFor(userId);
     }
   }, [calculateUserRank]);
 
