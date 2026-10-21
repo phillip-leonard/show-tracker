@@ -55,7 +55,7 @@ const BASE_STYLE = `
   .footer a { color: #7d7c94; }
 `;
 
-function page({ title, description, canonicalPath, jsonLd, bodyHtml, ogImage, extraStyle = '' }) {
+function page({ title, description, canonicalPath, jsonLd, bodyHtml, ogImage, extraStyle = '', robots = '', scriptHtml = '' }) {
   const canonical = `${SITE_URL}${canonicalPath}`;
   const desc = escapeHtml(description || '');
   const img = ogImage || `${SITE_URL}/og-image.png`;
@@ -66,7 +66,7 @@ function page({ title, description, canonicalPath, jsonLd, bodyHtml, ogImage, ex
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${escapeHtml(title)}</title>
 <meta name="description" content="${desc}">
-<link rel="canonical" href="${canonical}">
+${robots ? `<meta name="robots" content="${escapeHtml(robots)}">\n` : ''}<link rel="canonical" href="${canonical}">
 <meta property="og:type" content="website">
 <meta property="og:title" content="${escapeHtml(title)}">
 <meta property="og:description" content="${desc}">
@@ -87,6 +87,7 @@ ${bodyHtml}
   <a href="${SITE_URL}/privacy/">Privacy</a> · <a href="${SITE_URL}/terms/">Terms</a> · <a href="mailto:contact@mysetlists.net?subject=Report a page">Report this page</a>
 </div>
 </div>
+${scriptHtml}
 </body>
 </html>`;
 }

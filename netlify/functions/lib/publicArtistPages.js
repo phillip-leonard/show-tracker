@@ -430,6 +430,7 @@ module.exports = {
   renderSong,
   renderIndex,
   notFound,
+  unavailablePage,
   artistJson,
   artistSongJson,
   artistShowsJson,

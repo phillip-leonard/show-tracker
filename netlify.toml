@@ -436,6 +436,55 @@
   status = 200
   force = true
 
+# "Songs I've heard" (lib/heardPages.js): pick a band, tick your shows,
+# get every song you've heard live and a poster. Pages and images rendered
+# by functions from the band-page snapshot's show lists; nothing in out/ or
+# the iOS bundle. Codes and slugs travel in the function PATH
+# (publicRouteParams.js), force = true so nothing in out/ can shadow them,
+# and all of it stays above the catch-all.
+#
+#   /heard/                                pick a band (indexable)
+#   /heard/<slug>/                         the tool (indexable)
+#   /heard/<slug>/r/<code>/                a shared record (noindex)
+#   /heard/<slug>/r/<code>/og.png          its link preview, 1200x630
+#   /heard/<slug>/r/<code>/poster-feed.png and poster-story.png
+[[redirects]]
+  from = "/heard"
+  to = "/heard/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/heard/"
+  to = "/.netlify/functions/public-heard"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/heard/:slug"
+  to = "/.netlify/functions/public-heard/:slug"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/heard/:slug/"
+  to = "/.netlify/functions/public-heard/:slug"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/heard/*"
+  to = "/404.html"
+  status = 404
+  force = true
+
+# The tool's setlist.fm attendance import.
+[[redirects]]
+  from = "/api/heard-import"
+  to = "/.netlify/functions/heard-import"
+  status = 200
+  force = true
+
 # Catch-all SPA fallback — lets Next.js handle dynamic routes like /shows/[id]/
 # that are not pre-generated at build time (Firebase data is runtime-only).
 # Must be last so API rules above take priority.

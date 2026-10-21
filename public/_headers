@@ -28,6 +28,18 @@
 /artist/*
   X-Robots-Tag: index, follow
 
+# Songs I've heard (netlify/functions/lib/heardPages.js). Share links,
+# /heard/<slug>/r/<code>/, are personal: the function sends noindex for
+# them itself, and the rule below keeps them out whatever this one says.
+/heard
+  X-Robots-Tag: index, follow
+
+/heard/*
+  X-Robots-Tag: index, follow
+
+/heard/*/r/*
+  X-Robots-Tag: noindex, follow
+
 # Comparison pages (lib/comparePages.js)
 /compare/concert-archives
   X-Robots-Tag: index, follow
