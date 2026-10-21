@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Play } from 'lucide-react';
 import Pick from './brand/Pick';
@@ -19,6 +20,14 @@ function PickSimple({ size = 20 }) {
 }
 
 export default function LandingPage({ onSignUp, onSignIn, onGuest, communityStats }) {
+  // Known only after mount. This page is pre-rendered (it is the static
+  // HTML of `/`), where the platform is unknown, and on iOS reading it
+  // during render would make the first client render disagree with that
+  // HTML. False until then, so the website-only link never appears in the
+  // app, not even for a frame.
+  const [isWeb, setIsWeb] = useState(false);
+  useEffect(() => setIsWeb(!isNativePlatform()), []);
+
   return (
     <div className="lp-root">
 
@@ -122,21 +131,6 @@ export default function LandingPage({ onSignUp, onSignIn, onGuest, communityStat
             <div className="lp-n">87</div>
             <div className="lp-l">Shows this year</div>
           </div>
-          <div className="lp-ticket-float">
-            <div className="lp-ticket-icon">
-              <svg className="lp-ico" viewBox="0 0 24 24">
-                <path d="M3 7v4a2 2 0 0 1 0 4v4a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-4a2 2 0 0 1 0-4V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2z" />
-                <line x1="13" y1="5" x2="13" y2="7" />
-                <line x1="13" y1="11" x2="13" y2="13" />
-                <line x1="13" y1="17" x2="13" y2="19" />
-              </svg>
-            </div>
-            <div className="lp-ticket-info">
-              <Badge tone="green" size="sm" dot>Checked in</Badge>
-              <div className="lp-t1">Billy Strings · Red Rocks</div>
-              <div className="lp-t2">Sep 14, 2024</div>
-            </div>
-          </div>
         </div>
       </section>
 
@@ -152,9 +146,12 @@ export default function LandingPage({ onSignUp, onSignIn, onGuest, communityStat
                 <span>Apple Music</span>
               </>
             )}
-            <span>phish.net</span>
-            <span>Bandsintown</span>
-            <span>relisten.net</span>
+            {/* Only sources the app actually pulls setlists from today:
+                setlist.fm for everything, elgoose.net for Goose
+                (lib/setlistSources.js). phish.net is wired up but not
+                live (no PHISHNET_API_KEY on Netlify); add it here when it
+                is. Bandsintown and relisten.net are not setlist sources. */}
+            <span>elgoose.net</span>
           </div>
         </div>
       </div>
@@ -424,7 +421,7 @@ export default function LandingPage({ onSignUp, onSignIn, onGuest, communityStat
             <h4>Resources</h4>
             <Link href="/how-to-use">How to use</Link>
             {/* Website-only — see the note in components/layout/Sidebar.jsx. */}
-            {!isNativePlatform() && (
+            {isWeb && (
               <a href="https://buymeacoffee.com/phillipd" target="_blank" rel="noopener noreferrer">Support this project</a>
             )}
             <Link href="/community">Community</Link>

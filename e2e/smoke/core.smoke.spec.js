@@ -57,6 +57,76 @@ test.describe('Landing Page', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Static HTML — what a crawler gets before (or without) running any script.
+// Until 5.44.5 every exported page was the root layout's "Loading..."
+// fallback, because useSearchParams() in the providers bailed the whole tree
+// out of pre-rendering, and Google indexed nothing else.
+// ---------------------------------------------------------------------------
+test.describe('Static HTML', () => {
+  test('/ ships the landing page as real HTML', async ({ request }) => {
+    const html = await (await request.get('/')).text();
+    expect(html).toContain('class="lp-root"');
+    expect(html).toContain('Every show you');
+    expect(html).not.toContain('BAILOUT_TO_CLIENT_SIDE_RENDERING');
+    expect(html).not.toMatch(/>Loading\.\.\.</);
+  });
+
+  test('/terms ships its content as real HTML', async ({ request }) => {
+    const html = await (await request.get('/terms/')).text();
+    expect(html).toContain('Terms of Service');
+    expect(html).not.toContain('BAILOUT_TO_CLIENT_SIDE_RENDERING');
+  });
+
+  test('a first-time visitor never sees "Loading..." on /', async ({ page }) => {
+    // Checked before every frame until the test stops it, so a loading
+    // screen that paints for a single frame still fails this.
+    await page.addInitScript(() => {
+      window.__loadingSeen = false;
+      const check = () => {
+        const loading = [...document.querySelectorAll('div')].some(
+          (d) => d.textContent.trim() === 'Loading...' && d.getClientRects().length > 0
+        );
+        if (loading) window.__loadingSeen = true;
+        if (!window.__stopLoadingCheck) requestAnimationFrame(check);
+      };
+      requestAnimationFrame(check);
+    });
+    await page.goto('/', { waitUntil: 'load' });
+    await expect(page.getByRole('button', { name: /log in/i })).toBeVisible();
+    await page.waitForTimeout(1000); // past the point where auth resolves
+    const seen = await page.evaluate(() => {
+      window.__stopLoadingCheck = true;
+      return window.__loadingSeen;
+    });
+    expect(seen).toBe(false);
+  });
+
+  test('loads with all site storage blocked', async ({ page }) => {
+    // What Chrome's "Block all site data" does: touching localStorage,
+    // sessionStorage or indexedDB throws a SecurityError. A storage read
+    // in AppProvider used to take the whole app down to "Application
+    // error" (fixed in 5.44.5, lib/storage.js).
+    await page.addInitScript(() => {
+      for (const name of ['localStorage', 'sessionStorage', 'indexedDB']) {
+        Object.defineProperty(window, name, {
+          configurable: true,
+          get() {
+            throw new DOMException('Access is denied for this document.', 'SecurityError');
+          },
+        });
+      }
+    });
+    const errors = [];
+    page.on('pageerror', (e) => errors.push(e.message));
+    await page.goto('/', { waitUntil: 'load' });
+    await expect(page.getByRole('button', { name: /log in/i })).toBeVisible();
+    await page.waitForTimeout(1500); // past the point where auth resolves
+    await expect(page.locator('body')).not.toContainText('Application error');
+    expect(errors).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Legal & Public Pages
 // ---------------------------------------------------------------------------
 test.describe('Legal Pages', () => {

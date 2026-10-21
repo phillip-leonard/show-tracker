@@ -1,7 +1,7 @@
-import { Suspense } from 'react';
 import { Plus_Jakarta_Sans } from 'next/font/google';
 import './globals.css';
 import AppProviderWrapper from './AppProviderWrapper';
+import { HINT_SCRIPT } from '@/lib/signedInHint';
 
 // Self-hosted via next/font: downloaded at build time and served from our
 // own origin, so there's no render-blocking request to fonts.googleapis.com
@@ -70,17 +70,26 @@ export const viewport = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
+    // suppressHydrationWarning: the script below may add data-auth-hint to
+    // <html> before React hydrates it, which is the point.
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        {/* Before first paint: hide the landing page for a returning
+            signed-in user. See lib/signedInHint.js. */}
+        <script dangerouslySetInnerHTML={{ __html: HINT_SCRIPT }} />
+      </head>
       <body className={plusJakartaSans.className}>
-        <Suspense fallback={
-          <div className="min-h-screen flex items-center justify-center bg-base">
-            <div className="text-muted font-medium">Loading...</div>
-          </div>
-        }>
-          <AppProviderWrapper>
-            {children}
-          </AppProviderWrapper>
-        </Suspense>
+        {/* No <Suspense> around the providers, on purpose. One used to sit
+            here with a "Loading..." fallback, and because AppProvider read
+            useSearchParams(), that fallback was the whole of every exported
+            page — all Google ever saw. Search params are now read in
+            components/SearchParamsListener.jsx, inside a boundary of its
+            own. Without a boundary here, a new useSearchParams() call in the
+            providers fails `next build` instead of silently blanking every
+            page again. */}
+        <AppProviderWrapper>
+          {children}
+        </AppProviderWrapper>
       </body>
     </html>
   );

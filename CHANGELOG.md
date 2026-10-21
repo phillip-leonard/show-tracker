@@ -4,6 +4,79 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.44.5] — 2026-10-22
+
+Ships in iOS 3.6.5 (`MARKETING_VERSION` 3.6.4 → 3.6.5; 3.6.4 is taken by
+#346, now merged; the build number is left to Xcode Cloud). It changes how the app boots, so it needs a new iOS
+build.
+
+SEO week, day 2: make the pages render for Google.
+
+### Pages are real HTML now
+
+- **Every exported page used to be the same "Loading..." screen.**
+  `AppProvider` and `DismissStackProvider` called `useSearchParams()`
+  above every route, and in a static export that opts the whole tree out
+  of pre-rendering, up to the root `<Suspense>`. Its fallback was the only
+  thing in all 40 files in `out/`, including `/terms`, and all Google ever
+  indexed. Both now get the params from
+  `components/SearchParamsListener.jsx`, a leaf that mounts after
+  hydration. The root `<Suspense>` is gone, so a new `useSearchParams()` in
+  the providers fails `next build` instead of quietly blanking every page
+  again. `MobileHeader` has its own boundary.
+- **`/` paints the landing page without waiting for Firebase Auth.** It
+  used to show a second "Loading..." until `onAuthStateChanged` fired (up
+  to the 5-second fallback), then fetch the landing page as a separate
+  chunk. `LandingPage` is now statically imported and rendered while auth
+  resolves, so it is the static HTML of `out/index.html`. Its native-only
+  footer link is decided after mount, so the first render on iOS matches
+  that HTML.
+- **No landing-page flash for returning users.** Signing in sets a "was
+  signed in" hint in localStorage, and a null user or signing out clears
+  it (`lib/signedInHint.js`). An inline `<head>` script reads it before
+  first paint and sets `data-auth-hint` on `<html>`. CSS then shows an app
+  skeleton instead of the landing page until auth answers. A guest session
+  counts too. Crawlers and first-time visitors never have the hint.
+- `/terms`, `/privacy` and `/cookies` also render while auth resolves, so
+  they are real HTML too. Every other route waits on auth as before.
+
+### Fixes
+
+- **The app no longer crashes when site storage is blocked.** With Chrome's
+  "Block all site data" (and some webviews), reading `localStorage` throws,
+  and a read during `AppProvider`'s first render took the app down to
+  "Application error". `lib/storage.js` now catches it and acts like an
+  empty browser.
+- **`/artist/*` returns a real 404** instead of the app shell with a 200
+  marked `index, follow`, which Google treats as a soft 404. The two
+  `netlify.toml` rules are meant to be swapped out for the Day 3 band
+  pages.
+
+### Security
+
+- **The setlist.fm API key is read only from `SETLISTFM_API_KEY`.** Eleven
+  functions fell back to a live key hardcoded in this public repository.
+  They now read it through `netlify/functions/lib/setlistfmKey.js` with no
+  fallback. When the variable is unset they log an error and return a 500.
+  The old key is still in git history and has to be rotated at setlist.fm.
+
+### Landing page copy
+
+- Removed the "Checked in · Billy Strings · Red Rocks" sample card from the
+  hero. It was made up, and it is now in the static HTML Google indexes.
+- "Setlist data from" names only the sources the app pulls setlists from
+  today: setlist.fm and elgoose.net. phish.net (wired up, but no
+  `PHISHNET_API_KEY` on Netlify, so not live), Bandsintown and relisten.net
+  (neither is a setlist source) are gone.
+
+### Smaller app download
+
+- The 19 MB App Review screen recording moved from `public/review/` to
+  `docs/review/`. It was copied into `out/`, and so into the iOS app, on
+  every build. `out/` went from about 24.0 MB to about 5.0 MB.
+
+---
+
 ## [5.44.4] — 2026-10-20
 
 Ships in iOS 3.6.4 (`MARKETING_VERSION` 3.6.3 → 3.6.4; the build number

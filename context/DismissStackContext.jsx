@@ -24,8 +24,8 @@
 import React, {
   createContext, useCallback, useContext, useEffect, useMemo, useRef, useState,
 } from 'react';
-import { usePathname, useSearchParams } from 'next/navigation';
 import { isRootRoute, normalizePath } from '@/lib/navRoutes';
+import SearchParamsListener from '@/components/SearchParamsListener';
 
 const DismissStackContext = createContext(null);
 
@@ -38,8 +38,6 @@ export function DismissStackProvider({ children }) {
   const stackRef = useRef([]);
   const [depth, setDepth] = useState(0);
 
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
   const historyRef = useRef([]);
   const [navDepth, setNavDepth] = useState(0);
 
@@ -47,9 +45,14 @@ export function DismissStackProvider({ children }) {
   // path (/songs?song=x renders SongDetailView, /meetups?id=x a meetup).
   // usePathname alone cannot see those, so navigating into one would not
   // count as a step and back would skip the list it came from.
-  const search = searchParams?.toString() || '';
-
-  useEffect(() => {
+  //
+  // Both arrive from <SearchParamsListener> rather than from hooks here:
+  // this provider wraps every route, and useSearchParams() here kept every
+  // page out of the static HTML (see that file). The listener reports
+  // pathname and query together, so a navigation is never recorded as a
+  // new path with the old query.
+  const recordLocation = useCallback((searchParams, pathname) => {
+    const search = searchParams?.toString() || '';
     const path = search ? `${normalizePath(pathname)}?${search}` : normalizePath(pathname);
     const history = historyRef.current;
 
@@ -69,7 +72,7 @@ export function DismissStackProvider({ children }) {
     }
 
     setNavDepth(Math.max(0, historyRef.current.length - 1));
-  }, [pathname, search]);
+  }, []);
 
   const push = useCallback((entry) => {
     stackRef.current = [...stackRef.current, entry];
@@ -108,7 +111,10 @@ export function DismissStackProvider({ children }) {
   );
 
   return (
-    <DismissStackContext.Provider value={value}>{children}</DismissStackContext.Provider>
+    <DismissStackContext.Provider value={value}>
+      <SearchParamsListener onChange={recordLocation} />
+      {children}
+    </DismissStackContext.Provider>
   );
 }
 

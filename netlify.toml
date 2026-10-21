@@ -260,6 +260,28 @@
   status = 301
   force = true
 
+# /artist/* — a real 404 until the Day 3 band pages exist.
+#
+# There is no /artist/ route, but the catch-all below served the app shell
+# for it with a 200, and public/_headers marked it `index, follow`, so
+# Google saw an indexable page with nothing on it: a soft 404. A 404 status
+# (with the static export's own 404 page as the body) tells it the truth.
+# Chosen over an X-Robots-Tag: noindex because noindex on a 200 still
+# reads as a page that exists. To ship band pages, replace these two rules
+# with the /artist/:slug function rewrite and put /artist/* back in
+# public/_headers. force = true so nothing in out/ can ever shadow it.
+[[redirects]]
+  from = "/artist"
+  to = "/404.html"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/artist/*"
+  to = "/404.html"
+  status = 404
+  force = true
+
 # Catch-all SPA fallback — lets Next.js handle dynamic routes like /shows/[id]/
 # that are not pre-generated at build time (Firebase data is runtime-only).
 # Must be last so API rules above take priority.

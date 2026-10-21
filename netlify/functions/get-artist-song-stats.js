@@ -1,6 +1,6 @@
 const https = require('https');
+const { setlistfmKey, missingSetlistfmKey } = require('./lib/setlistfmKey');
 
-const SETLISTFM_API_KEY = process.env.SETLISTFM_API_KEY || 'VmDr8STg4UbyNE7Jgiubx2D_ojbliDuoYMgQ';
 const PAGES_TO_FETCH = 10; // up to 200 setlists
 
 function fetchSetlistsPage(mbid, page) {
@@ -10,7 +10,7 @@ function fetchSetlistsPage(mbid, page) {
       path: `/rest/1.0/artist/${mbid}/setlists?p=${page}`,
       method: 'GET',
       headers: {
-        'x-api-key': SETLISTFM_API_KEY,
+        'x-api-key': setlistfmKey(),
         'Accept': 'application/json',
         'User-Agent': 'ShowTrackerApp/1.0',
       },
@@ -69,6 +69,9 @@ const CORS_HEADERS = {
 };
 
 exports.handler = async function (event) {
+  const missingKey = missingSetlistfmKey();
+  if (missingKey) return missingKey;
+
   if (event.httpMethod === 'OPTIONS') {
     return { statusCode: 204, headers: CORS_HEADERS, body: '' };
   }

@@ -37,7 +37,7 @@ const testConfig = {
   notionTestDatabaseId: process.env.NOTION_TEST_DATABASE_ID || null,
 
   // External API keys (for connectivity pre-checks)
-  setlistFmApiKey: process.env.SETLISTFM_API_KEY || 'VmDr8STg4UbyNE7Jgiubx2D_ojbliDuoYMgQ',
+  setlistFmApiKey: process.env.SETLISTFM_API_KEY || null,
   spotifyClientId: process.env.SPOTIFY_CLIENT_ID || null,
   anthropicApiKey: process.env.ANTHROPIC_API_KEY || null,
   resendApiKey: process.env.RESEND_API_KEY || null,

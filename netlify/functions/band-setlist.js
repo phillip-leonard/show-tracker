@@ -52,12 +52,11 @@
  *
  * ── The API key ───────────────────────────────────────────────────────
  *
- * PHISHNET_API_KEY, read server-side only, with NO `||` literal fallback.
- * search-setlists.js and admin-populate-setlist.js both do
- * `process.env.SETLISTFM_API_KEY || '<a real key>'`, which puts a live key
- * in the repository and in the function bundle. That pattern is not
- * repeated here: a missing key returns a 503 saying so. elgoose.net needs
- * no key at all.
+ * PHISHNET_API_KEY, read server-side only, with NO `||` literal fallback:
+ * a missing key returns a 503 saying so. (The setlist.fm functions used to
+ * fall back to a live key in the source; since 5.44.5 they read
+ * SETLISTFM_API_KEY through lib/setlistfmKey.js, with no fallback either.)
+ * elgoose.net needs no key at all.
  */
 
 const crypto = require('crypto');

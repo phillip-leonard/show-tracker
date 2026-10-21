@@ -1,7 +1,8 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
-import { useRouter, usePathname, useSearchParams } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
+import SearchParamsListener from '@/components/SearchParamsListener';
 import { signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
 import { nativeOAuthSignIn, isNativePlatform } from '@/lib/native-auth';
 import {
@@ -13,6 +14,7 @@ import { auth, db, googleProvider, browserPopupRedirectResolver } from '@/lib/fi
 import { formatDate, parseDate, normalizeSongTitle } from '@/lib/utils';
 import { ADMIN_EMAILS } from '@/lib/constants';
 import { storage, STORAGE_KEYS } from '@/lib/storage';
+import { setSignedInHint, clearSignedInHint } from '@/lib/signedInHint';
 import { apiUrl } from '@/lib/api';
 import { showHref, upcomingShowHref } from '@/lib/showRouting';
 import { setlistToShowData } from '@/lib/setlistSearch';
@@ -312,7 +314,12 @@ const AppContext = createContext(null);
 export function AppProvider({ children }) {
   const router = useRouter();
   const pathname = usePathname();
-  const searchParams = useSearchParams();
+  // Filled in by <SearchParamsListener> below rather than read with
+  // useSearchParams() here: this provider wraps every route, and reading
+  // them here kept every page out of the static HTML (see that file).
+  // Null until the first commit; both effects that read it already wait
+  // for it.
+  const [searchParams, setSearchParams] = useState(null);
 
   // ── Core state ──────────────────────────────────────────────────────
   const [shows, setShows] = useState([]);
@@ -935,6 +942,11 @@ export function AppProvider({ children }) {
       clearTimeout(authTimeout);
       setUser(currentUser);
       setAuthLoading(false);
+      // Next launch, paint the app skeleton rather than the landing page
+      // while auth resolves (lib/signedInHint.js). Cleared on a null user
+      // too, which covers sign-out and an expired session alike.
+      if (currentUser) setSignedInHint();
+      else clearSignedInHint();
 
       if (currentUser) {
         // Close auth modal when user signs in (belt-and-suspenders)
@@ -1268,6 +1280,7 @@ export function AppProvider({ children }) {
   const handleLogout = async () => {
     try {
       await signOut(auth);
+      clearSignedInHint();
       setShows([]);
       setFestivals([]);
       setFestivalsLoading(false);
@@ -3883,6 +3896,7 @@ export function AppProvider({ children }) {
 
   return (
     <AppContext.Provider value={value}>
+      <SearchParamsListener onChange={setSearchParams} />
       {children}
     </AppContext.Provider>
   );
