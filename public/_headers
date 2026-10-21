@@ -7,9 +7,6 @@
 /
   X-Robots-Tag: index, follow
 
-/artist/*
-  X-Robots-Tag: index, follow
-
 /roadmap
   X-Robots-Tag: index, follow
 
