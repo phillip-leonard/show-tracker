@@ -37,7 +37,10 @@ exports.handler = async function () {
   if (db) {
     try {
       const snap = await db.collection('userProfiles').where('publicProfile', '==', true).get();
-      publicHandles = snap.docs.map(d => d.data().handleLower).filter(Boolean);
+      // De-duplicated: two profile documents can carry the same
+      // handleLower (seen in production with alexreviewer), and a sitemap
+      // listing one URL twice is noise to a crawler.
+      publicHandles = [...new Set(snap.docs.map(d => d.data().handleLower).filter(Boolean))];
     } catch (err) {
       console.error('sitemap: failed to list public profiles:', err);
       // Degrade to the static URL set rather than failing the whole sitemap.

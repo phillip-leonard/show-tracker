@@ -16,6 +16,7 @@
 // of which this function's Firestore reads even touch.
 
 const { escapeHtml, page, notFoundPage, CACHE_HEADERS, SITE_URL, isoDate, formatShowDate } = require('./lib/publicPageHtml');
+const { profileParams } = require('./lib/publicRouteParams');
 
 function getDb() {
   const privateKey = (process.env.FIREBASE_PRIVATE_KEY || '').replace(/\\n/g, '\n');
@@ -40,7 +41,7 @@ exports.handler = async function (event) {
     return { statusCode: 503, headers: { 'Content-Type': 'text/html' }, body: notFoundPage('This page is temporarily unavailable.') };
   }
 
-  const handleLower = (event.queryStringParameters?.handle || '').toLowerCase().trim();
+  const { handle: handleLower } = profileParams(event);
   const pageNum = Math.max(1, parseInt(event.queryStringParameters?.page, 10) || 1);
 
   if (!handleLower) {
