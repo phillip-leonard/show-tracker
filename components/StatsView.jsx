@@ -12,6 +12,7 @@ import PlaylistCreatorModal from '@/components/PlaylistCreatorModal';
 import { PLAYLIST_CREATION_ENABLED } from '@/lib/constants';
 import FollowBandButton from '@/components/artists/FollowBandButton';
 import HeardToolCard from '@/components/heard/HeardToolCard';
+import MakePosterButton from '@/components/heard/MakePosterButton';
 
 function StatsView({ shows, allShows = shows, songStats, artistStats, venueStats, topRatedShows, onRateSong, onRateShow, onCommentShow, onUpdateVenueRating, onDeleteShow, onAddSong, onReorderSetlist, onResyncSetlist, onDeleteSong, onRestoreSong, initialTab, onTagFriends, onRateVenue, onToggleFavoriteArtist, isArtistFavorite, fetchVenueRatings, normalizeVenueKey, computeVenueAggregate, friends, user }) {
   const [tab, setTab] = useState(initialTab || 'years');
@@ -241,6 +242,7 @@ function StatsView({ shows, allShows = shows, songStats, artistStats, venueStats
                     </button>
                     {isExpanded && (
                       <div className="space-y-2 pl-4 pr-2 pb-2 mt-1">
+                        <MakePosterButton artist={artist.name} />
                         {artistShows.map(show => (
                           <Card
                             key={show.id}

@@ -129,6 +129,14 @@ const TOOL_STYLE = `
   @media (max-width: 959px) { .wrap { padding-bottom: 120px; } }
   @media (min-width: 960px) { .h-dock { display: none; } }
   .h-empty { color: var(--muted); font-size: 14px; }
+  .h-mine .h-results { max-width: 760px; position: static; max-height: none; overflow: visible; }
+  @media (min-width: 960px) { .h-mine { grid-template-columns: minmax(0, 1fr); } }
+  .h-mine-line { margin: 0 0 10px; }
+  .h-mine-line .h-link, .h-unmatched .h-link { padding: 0; text-decoration: underline; }
+  .h-unmatched { margin: 0 0 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; font-size: 13px; }
+  .h-unmatched summary { font-weight: 600; font-size: 13px; }
+  .h-unmatched ul { margin: 8px 0 0; padding-left: 18px; }
+  .h-unmatched li { margin: 4px 0; }
 `;
 
 function crumbs(items) {

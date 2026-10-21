@@ -30,7 +30,7 @@ export default function HeardToolCard({ shows }) {
           </p>
           <div className="flex flex-wrap gap-2 mt-3">
             {bands.map((band) => {
-              const href = heardHref(band.slug, band.dates);
+              const href = heardHref(band.slug, band.shows);
               return (
                 <a
                   key={band.slug}
@@ -39,7 +39,7 @@ export default function HeardToolCard({ shows }) {
                   className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-hover text-primary text-sm font-semibold hover:bg-brand-subtle transition-colors"
                 >
                   {band.name}
-                  <span className="text-muted font-medium">· {band.dates.length}</span>
+                  <span className="text-muted font-medium">· {band.shows.length}</span>
                   <ExternalLink className="w-3.5 h-3.5 text-muted" />
                 </a>
               );

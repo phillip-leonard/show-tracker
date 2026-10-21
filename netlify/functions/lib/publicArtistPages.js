@@ -44,6 +44,11 @@ const heardHref = (slug) => {
   return artist && hasShowList(artist) ? `${SITE_URL}/heard/${slug}/` : '';
 };
 
+// The page is cached and the same for everyone, so a signed-in visitor's
+// "Make my poster" (the tool opened on their own shows, ?mine=1) is swapped
+// in here, from lib/signedInHint.js's localStorage key.
+const SIGNED_IN_CTA = `<script>try{if(localStorage.getItem('mysetlists_signed_in')){var a=document.getElementById('heard-cta');if(a){a.href+='?mine=1';a.textContent='Make my poster';}}}catch(e){}</script>`;
+
 // Into the app, which keeps the band and follows it once the visitor is
 // signed in (context/AppContext.jsx, ?follow=).
 function followHref(name) {
@@ -208,7 +213,7 @@ function renderBand({ entry, snapshot }, now = Date.now()) {
     <div class="cta">
       <p style="margin:0 0 4px;font-weight:700;">How many ${escapeHtml(name)} songs have you heard?</p>
       <p class="note" style="margin:0 0 8px;">Tick the shows you were at and see every song you've heard live, your rarest catches and the bust-outs you were there for. Free, with a poster to share.</p>
-      <a class="btn" href="${heardHref(slug)}">Count your songs</a>
+      <a class="btn" id="heard-cta" href="${heardHref(slug)}">Count your songs</a>
     </div>` : ''}
     <h2>Recent ${escapeHtml(name)} shows</h2>
     ${showRows(band.recentShows)}
@@ -237,7 +242,7 @@ function renderBand({ entry, snapshot }, now = Date.now()) {
   return {
     statusCode: 200,
     headers: { ...HTML, ...cacheHeaders(entry, now) },
-    body: page({ title, description, canonicalPath: bandPath(slug), jsonLd, bodyHtml, extraStyle: EXTRA_STYLE }),
+    body: page({ title, description, canonicalPath: bandPath(slug), jsonLd, bodyHtml, extraStyle: EXTRA_STYLE, scriptHtml: heardHref(slug) ? SIGNED_IN_CTA : '' }),
   };
 }
 

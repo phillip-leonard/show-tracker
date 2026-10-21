@@ -4,6 +4,40 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.47.1] — 2026-10-21
+
+Ships in iOS 3.9.1 (`MARKETING_VERSION` 3.9 → 3.9.1; the build number is
+left to Xcode Cloud).
+
+**Your poster from your shows.** Signed in, the Songs I've heard tool no
+longer asks you to tick anything: it uses every show you've logged for the
+band and opens on your record and poster.
+
+- **"Your shows" mode on `/heard/<slug>/`**: your logged shows are matched
+  to the archive's by date and venue, the picker is hidden behind "Edit
+  selection", and both posters are drawn straight away. "From your 23 Goose
+  shows in MySetlists · Edit selection".
+- **Unmatched shows are listed, never dropped**: "2 shows not found on
+  elgoose.net, so they aren't on this poster". When the archive has a
+  different show that day, it says so, with "Add that show".
+- **Venue matching**: the app's own rule first, then, for the same band on
+  the same date, accents and theatre/theater folded and one distinctive
+  word in common. On 59 recent Goose setlists from setlist.fm, matches go
+  from 43 to 52; every remaining miss is a different event (a TV taping, a
+  room inside another venue). Phish: 59 of 59.
+- **Edit selection changes the poster only.** Your logged shows aren't
+  touched, and edits aren't saved as the page's picks.
+- **"Make my poster"** on band rows in My Shows (By artist) and Stats →
+  Artists, for Goose, Phish, Umphrey's and King Gizzard; on iOS it opens the
+  tool in the browser with your shows in the link. The public band page
+  shows it too when you're signed in on the web.
+- **`/heard/<slug>/?mine=1`** opens straight on your poster. Signed out, it
+  offers sign-in (`/?login=1&next=…`) and comes back once your shows have
+  loaded. `next` is only ever a `/heard/` poster, and expires after 30
+  minutes.
+
+---
+
 ## [5.47.0] — 2026-10-21
 
 Ships in iOS 3.9 (`MARKETING_VERSION` 3.8.1 → 3.9; the build number is

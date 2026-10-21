@@ -7,6 +7,9 @@
 // shape built by artistSnapshotStats.js's buildShowList.
 //
 //   encodeSelection / decodeSelection   the share code for a set of shows
+//   matchLoggedShows                    a signed-in user's logged shows ->
+//                                       archive shows, and the ones that
+//                                       don't match
 //   buildRecord                         the record: counts, top songs,
 //                                       rarest catches, bust-outs, debuts,
 //                                       songs still to chase
@@ -161,6 +164,92 @@ function createHeard() {
     }
     if (v !== 0 || scale !== 1) return null;
     return { ids, missing };
+  }
+
+  // ── A user's logged shows ───────────────────────────────────────────
+  //
+  // First the app's own venue rule (lib/utils.js venuesFuzzyMatch, which
+  // lib/__tests__/heardMatchParity.test.js holds this to): lowercase, drop
+  // punctuation, and one name contains the other.
+  //
+  // That alone misses most of how setlist.fm and the archives spell the
+  // same room differently: 43 of 59 recent Goose setlists from setlist.fm
+  // matched elgoose.net ("Red Rocks Amphitheatre" / "Red Rocks Park and
+  // Amphitheater", "Élysée Montmartre" / "Elysée-Montmartre"). So, for the
+  // same band on the same date only, a second rule: fold accents and
+  // British spellings, then ask for one distinctive word in common (not
+  // "theater", "arena", "the"...). 52 of 59 then, and every miss is a real
+  // difference: a show the archive doesn't have, a TV taping, a room inside
+  // another venue (The Max in Melkweg), a festival site, a frat house.
+  // Those come back unmatched, never guessed.
+
+  function normalizeVenueName(name) {
+    if (!name) return '';
+    return String(name).toLowerCase().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ').trim();
+  }
+
+  function venuesFuzzyMatch(a, b) {
+    const na = normalizeVenueName(a);
+    const nb = normalizeVenueName(b);
+    if (!na || !nb) return false;
+    return na.includes(nb) || nb.includes(na);
+  }
+
+  const GENERIC = new Set(('the and of at in on de la le du theater amphitheater center arena hall park music live performing arts art house ' +
+    'club ballroom pavilion stadium festival fest grounds field fields garden gardens auditorium coliseum civic county fairgrounds fair ' +
+    'state city bowl room lounge bar venue events event square plaza hotel casino resort university college credit union bank ' +
+    'federal mortgage insurance amp opera ballpark music hall stage outdoor indoor main north south east west new').split(' '));
+
+  function foldVenue(name) {
+    return String(name || '').normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+      .replace(/&/g, ' and ')
+      .replace(/theatre/g, 'theater').replace(/centre/g, 'center')
+      .replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+  }
+
+  function venuesLikelySame(a, b) {
+    if (venuesFuzzyMatch(a, b)) return true;
+    const fa = foldVenue(a);
+    const fb = foldVenue(b);
+    if (!fa || !fb) return false;
+    if (fa.includes(fb) || fb.includes(fa)) return true;
+    const words = new Set(fa.split(' ').filter((w) => w.length >= 3 && !GENERIC.has(w)));
+    return fb.split(' ').some((w) => words.has(w));
+  }
+
+  /**
+   * Which archive shows a user's logged shows ([{ date, venue }]) are.
+   * A logged show matches the archive show on the same date whose venue
+   * is the same room (venuesLikelySame); with no venue logged, the only
+   * show that date. Nothing
+   * else is guessed: a show the archive has that day at a venue that doesn't
+   * match comes back unmatched with that show as `nearest`, for the person
+   * to add if it's theirs.
+   *
+   * @returns { ids, unmatched: [{ date, venue, nearest: { id, venue } | null }] }
+   */
+  function matchLoggedShows(data, logged) {
+    const { byDate } = indexOf(data);
+    const ids = [];
+    const unmatched = [];
+    const seen = new Set();
+    for (const entry of logged || []) {
+      const date = entry && String(entry.date || '');
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) continue;
+      const venue = String(entry.venue || '');
+      const sameDay = byDate.get(date) || [];
+      let match = sameDay.find((e) => venuesFuzzyMatch(venueOf(data, e.show).venue, venue))
+        || sameDay.find((e) => venuesLikelySame(venueOf(data, e.show).venue, venue));
+      if (!match && !normalizeVenueName(venue) && sameDay.length === 1) match = sameDay[0];
+      if (match) {
+        if (!seen.has(match.show.id)) { seen.add(match.show.id); ids.push(match.show.id); }
+        continue;
+      }
+      const near = sameDay.length === 1 ? sameDay[0].show : null;
+      unmatched.push({ date, venue, nearest: near ? { id: near.id, venue: venueOf(data, near).venue } : null });
+    }
+    unmatched.sort((a, b) => a.date.localeCompare(b.date));
+    return { ids, unmatched };
   }
 
   // ── The record ──────────────────────────────────────────────────────
@@ -501,6 +590,8 @@ function createHeard() {
     isSong,
     encodeSelection,
     decodeSelection,
+    venuesFuzzyMatch,
+    matchLoggedShows,
     buildRecord,
     headline,
     credit,

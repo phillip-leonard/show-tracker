@@ -443,6 +443,56 @@ test('setlist.fm attendance matches by mbid, date and venue, and reports what it
   assert.deepStrictEqual(out.unmatched, [{ date: '2025-09-05', venue: 'Nowhere', city: 'Somewhere' }]);
 });
 
+// ── A signed-in user's logged shows ──────────────────────────────────────
+
+test('logged shows match by date and venue, the way setlist.fm and the archives spell rooms', () => {
+  const data = { songs: [], urlBase: '', venues: [
+    ['Red Rocks Park and Amphitheater', 'Morrison, CO'], ['Elysée-Montmartre', 'Paris'], ['Dillon Amphitheatre', 'Dillon, CO'],
+    ['Melkweg', 'Amsterdam'], ['Brooklyn Academy of Music', 'Brooklyn, NY'], ['Early Room', ''], ['Late Room', ''], ['Saenger Theatre', 'New Orleans, LA'],
+  ], shows: [
+    { id: 'rr', date: '2026-08-27', venue: 0, sets: [] },
+    { id: 'paris', date: '2026-06-01', venue: 1, sets: [] },
+    { id: 'dillon', date: '2026-09-02', venue: 2, sets: [] },
+    { id: 'melkweg', date: '2026-05-27', venue: 3, sets: [] },
+    { id: 'bam', date: '2026-10-02', venue: 4, sets: [] },
+    { id: 'early', date: '2026-07-04', venue: 5, sets: [] },
+    { id: 'late', date: '2026-07-04', venue: 6, sets: [] },
+    { id: 'saenger', date: '2026-04-21', venue: 7, sets: [] },
+  ] };
+  const out = heard.matchLoggedShows(data, [
+    { date: '2026-08-27', venue: 'Red Rocks Amphitheatre' },
+    { date: '2026-08-27', venue: 'Red Rocks Amphitheatre' }, // logged twice
+    { date: '2026-06-01', venue: 'Élysée Montmartre' },
+    { date: '2026-09-02', venue: 'Dillon Amphitheater' },
+    { date: '2026-04-21', venue: 'Saenger Performing Arts Theater' },
+    { date: '2026-05-27', venue: 'The Max' }, // a room inside Melkweg: not guessed
+    { date: '2026-10-02', venue: 'Jimmy Kimmel Live' }, // a TV taping that day
+    { date: '2026-07-04', venue: '' }, // two shows that day, no venue to choose by
+    { date: '2026-03-01', venue: 'Nowhere' },
+    { date: 'not a date', venue: 'x' },
+  ]);
+  assert.deepStrictEqual(out.ids, ['rr', 'paris', 'dillon', 'saenger']);
+  assert.deepStrictEqual(out.unmatched.map((u) => [u.date, u.venue, u.nearest && u.nearest.id]), [
+    ['2026-03-01', 'Nowhere', null],
+    ['2026-05-27', 'The Max', 'melkweg'],
+    ['2026-07-04', '', null],
+    ['2026-10-02', 'Jimmy Kimmel Live', 'bam'],
+  ]);
+  // No venue and one show that day is that show.
+  assert.deepStrictEqual(heard.matchLoggedShows(data, [{ date: '2026-08-27', venue: '' }]).ids, ['rr']);
+});
+
+test('archive band pages swap in "Make my poster" for a signed-in visitor; others don\'t', async () => {
+  const store = memoryStore();
+  await seeded(store);
+  const loaded = await snap.loadArtist(store, 'goose');
+  const body = artistPages.renderBand(loaded, NOW).body;
+  assert.ok(body.includes('id="heard-cta"'));
+  assert.ok(body.includes("localStorage.getItem('mysetlists_signed_in')") && body.includes("a.href+='?mine=1'"));
+  const wsp = { ...loaded, snapshot: { ...loaded.snapshot, slug: 'widespread-panic', name: 'Widespread Panic' } };
+  assert.ok(!artistPages.renderBand(wsp, NOW).body.includes('mysetlists_signed_in'));
+});
+
 // ── Runner ───────────────────────────────────────────────────────────────
 
 (async () => {

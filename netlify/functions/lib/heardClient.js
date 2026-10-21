@@ -16,15 +16,24 @@
 // as a share code. Every read and write is wrapped: with site data blocked
 // the page still works, it just forgets on reload.
 //
-// Two keys are read, never written, here:
-//   mysetlists_heard_have   { <slug>: ['YYYY-MM-DD', ...] }, the dates of a
-//                           signed-in user's shows, written by the app
-//                           (lib/heardLinks.js) on the web, where it shares
-//                           this origin
-//   #have=YYYYMMDD.YYYYMMDD the same, in the fragment, from the app's Stats
-//                           page link (the iOS app doesn't share storage
-//                           with the browser it opens). A fragment never
-//                           reaches the server.
+// ── A signed-in user's own shows ──────────────────────────────────────
+//
+// Read, never written, here (lib/heardLinks.js writes them):
+//   #mine=<base64url JSON [[date, venue], ...]>
+//                           in every link from the app. A fragment never
+//                           reaches the server, and works in the iOS app's
+//                           system browser, which shares no storage with it.
+//   mysetlists_heard_have   { <slug>: [[date, venue], ...] }, kept by the
+//                           app on the web, where it shares this origin.
+//   #have=YYYYMMDD.…        dates only, from iOS 3.9's Stats link.
+//
+// With any of those for this band the page opens in "your shows" mode: the
+// matched shows selected (heardRecord.js matchLoggedShows), the picker
+// hidden behind "Edit selection", the record and poster first, and every
+// logged show that didn't match listed, never dropped. Edits change this
+// poster only: nothing here writes to the account, and they aren't kept as
+// the page's stored picks either. ?mine=1 with none of them asks the
+// visitor to sign in and comes back (AppContext's ?login=1&next=).
 
 function createHeardApp(Heard, boot) {
   'use strict';
@@ -35,6 +44,9 @@ function createHeardApp(Heard, boot) {
 
   const STORE_KEY = `mysetlists_heard_${boot.slug}`;
   const HAVE_KEY = 'mysetlists_heard_have';
+  // lib/signedInHint.js: this browser had a signed-in user last time.
+  const SIGNED_IN_KEY = 'mysetlists_signed_in';
+  const wantsMine = /[?&]mine=1(&|$)/.test(location.search);
   // A share code longer than this is stored (heard-share.js) and the link
   // carries a short id instead; about 900 shows.
   const MAX_INLINE_CODE = 1500;
@@ -64,6 +76,9 @@ function createHeardApp(Heard, boot) {
   let stored = { code: '', id: '' }; // the last code stored by heard-share.js
   let posterUrls = [];
   let notice = '';
+  // "Your shows" mode: { count, ids, unmatched, edited }, or null.
+  let mine = null;
+  let autoPoster = false;
 
   // ── Load ────────────────────────────────────────────────────────────
 
@@ -107,38 +122,72 @@ function createHeardApp(Heard, boot) {
     return Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 86400000);
   }
 
-  // Stored picks first, then a signed-in user's own shows (from the app),
-  // added to whatever was there.
+  // A signed-in user's own shows, if the app gave us any for this band;
+  // otherwise the picks stored in this browser.
   function restore() {
+    const logged = loggedShows();
+    if (/[#&](mine|have)=/.test(location.hash)) history.replaceState(null, '', location.pathname + location.search);
+    if (logged.length) {
+      const matched = Heard.matchLoggedShows(data, logged);
+      mine = { count: logged.length, ids: matched.ids, unmatched: matched.unmatched, edited: false };
+      matched.ids.forEach((id) => selected.add(id));
+      autoPoster = matched.ids.length > 0;
+      return;
+    }
     const code = store.get(STORE_KEY);
     if (code) {
       const decoded = Heard.decodeSelection(data, code);
       if (decoded) decoded.ids.forEach((id) => selected.add(id));
     }
-    const have = haveDates();
-    if (!have.length) return;
-    const byDate = new Map();
-    for (const show of data.shows) if (!byDate.has(show.date)) byDate.set(show.date, show.id);
-    let added = 0;
-    for (const d of have) {
-      const id = byDate.get(d);
-      if (id && !selected.has(id)) { selected.add(id); added++; }
-    }
-    if (added) notice = `We ticked ${plural(added, 'show')} from your MySetlists account.`;
-    if (location.hash.indexOf('have=') >= 0) history.replaceState(null, '', location.pathname + location.search);
   }
 
-  function haveDates() {
-    const dates = [];
-    const m = /[#&]have=([0-9.]+)/.exec(location.hash);
+  // [{ date, venue }], from the fragment if it has them, else storage.
+  function loggedShows() {
+    const out = [];
+    const seen = new Set();
+    const add = (date, venue) => {
+      const key = `${date}|${venue}`;
+      if (/^\d{4}-\d{2}-\d{2}$/.test(date) && !seen.has(key)) { seen.add(key); out.push({ date, venue: venue || '' }); }
+    };
+    const fromList = (list) => {
+      if (!Array.isArray(list)) return;
+      list.forEach((e) => (Array.isArray(e) ? add(String(e[0]), String(e[1] || '')) : add(String(e), '')));
+    };
+    const m = /[#&]mine=([A-Za-z0-9_-]+)/.exec(location.hash);
     if (m) {
-      m[1].split('.').forEach((d) => { if (/^\d{8}$/.test(d)) dates.push(`${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6)}`); });
+      try { fromList(JSON.parse(fromBase64Url(m[1]))); } catch (e) { /* a mangled link: fall back below */ }
     }
-    try {
-      const mine = JSON.parse(store.get(HAVE_KEY) || '{}');
-      if (Array.isArray(mine[boot.slug])) mine[boot.slug].forEach((d) => { if (/^\d{4}-\d{2}-\d{2}$/.test(d)) dates.push(d); });
-    } catch (e) { /* not ours to fix */ }
-    return dates;
+    const have = /[#&]have=([0-9.]+)/.exec(location.hash);
+    if (have) have[1].split('.').forEach((d) => { if (/^\d{8}$/.test(d)) add(`${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6)}`, ''); });
+    if (!out.length) {
+      try { fromList(JSON.parse(store.get(HAVE_KEY) || '{}')[boot.slug]); } catch (e) { /* not ours to fix */ }
+    }
+    return out;
+  }
+
+  function fromBase64Url(text) {
+    const bin = atob(text.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((text.length + 3) % 4));
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return new TextDecoder().decode(bytes);
+  }
+
+  // ?mine=1 and nothing from the app: sign in (or load the shows into this
+  // browser) and come back here.
+  function signInPanel() {
+    if (!wantsMine || mine) return '';
+    const back = `/?login=1&next=${encodeURIComponent(`${boot.toolPath}?mine=1`)}`;
+    let haveOtherBands = false;
+    try { haveOtherBands = Object.keys(JSON.parse(store.get(HAVE_KEY) || '{}')).length > 0; } catch (e) { /* no */ }
+    if (store.get(SIGNED_IN_KEY) && haveOtherBands) {
+      return `<div class="h-panel" style="margin-bottom:14px;"><strong>No ${esc(data.name)} shows in your MySetlists account yet</strong><p class="h-msg">Tick the shows you were at below to make your poster.</p></div>`;
+    }
+    const signedIn = !!store.get(SIGNED_IN_KEY);
+    return `<div class="h-panel" style="margin-bottom:14px;">
+      <strong>${signedIn ? `Make your poster from your ${esc(data.name)} shows` : `Sign in to make your poster from your ${esc(data.name)} shows`}</strong>
+      <p class="h-msg">${signedIn ? 'Open MySetlists once to bring your shows into this browser, and we\'ll come straight back.' : 'We\'ll use every show you\'ve logged in MySetlists and come straight back here.'} Or tick your shows below.</p>
+      <div class="h-actions"><a class="btn" href="${esc(back)}">${signedIn ? 'Load my shows' : 'Sign in'}</a></div>
+    </div>`;
   }
 
   // ── Layout ──────────────────────────────────────────────────────────
@@ -147,8 +196,9 @@ function createHeardApp(Heard, boot) {
     const years = [...new Set(data.shows.map((s) => s.date.slice(0, 4)))].reverse();
     const tours = data.tours.map((t, i) => [t, i]).filter(([t]) => t && !/^not part of a tour$/i.test(t));
     return `
-      <div class="h-layout">
-        <section aria-label="${esc(data.name)} shows">
+      ${signInPanel()}
+      <div class="h-layout${mine ? ' h-mine' : ''}">
+        <section aria-label="${esc(data.name)} shows" id="h-picker"${mine ? ' hidden' : ''}>
           <div class="h-panel" style="margin-bottom:14px;">
             <strong>Import from setlist.fm</strong>
             <p class="h-msg" style="margin-top:2px;">Tick every ${esc(data.name)} show you've marked "I was there" on setlist.fm.</p>
@@ -215,6 +265,7 @@ function createHeardApp(Heard, boot) {
       const box = e.target;
       if (!box || box.type !== 'checkbox') return;
       setTicked(box.value, box.checked);
+      edited();
       update();
     });
     list.addEventListener('click', (e) => {
@@ -223,6 +274,7 @@ function createHeardApp(Heard, boot) {
       const ids = runs.get(btn.getAttribute('data-run')) || [];
       const all = ids.every((id) => selected.has(id));
       ids.forEach((id) => setTicked(id, !all));
+      edited();
       update();
     });
     const q = document.getElementById('h-q');
@@ -236,10 +288,15 @@ function createHeardApp(Heard, boot) {
     document.getElementById('h-clear').addEventListener('click', () => {
       if (!selected.size || !window.confirm(`Untick all ${plural(selected.size, 'show')}?`)) return;
       [...selected].forEach((id) => setTicked(id, false));
+      edited();
       update();
     });
     document.getElementById('h-import').addEventListener('submit', (e) => { e.preventDefault(); importAttended(); });
     document.getElementById('h-results').addEventListener('click', onResultsClick);
+  }
+
+  function edited() {
+    if (mine) mine.edited = true;
   }
 
   function setTicked(id, on) {
@@ -272,7 +329,7 @@ function createHeardApp(Heard, boot) {
   // Not requestAnimationFrame: that never fires in a background tab.
   let pending = false;
   function update() {
-    store.set(STORE_KEY, Heard.encodeSelection(data, [...selected]));
+    if (!mine) store.set(STORE_KEY, Heard.encodeSelection(data, [...selected]));
     posterUrls.forEach((u) => URL.revokeObjectURL(u));
     posterUrls = [];
     if (pending) return;
@@ -302,12 +359,13 @@ function createHeardApp(Heard, boot) {
     yearCounts();
     const record = Heard.buildRecord(data, selected);
     const results = document.getElementById('h-results');
+    const pickerOpen = !document.getElementById('h-picker').hidden;
     if (dock) {
-      dock.hidden = !record.shows;
+      dock.hidden = !record.shows || !pickerOpen;
       dock.innerHTML = record.shows ? `<span><b>${plural(record.shows, 'show')}</b> · ${plural(record.totalSongs, 'song')} heard</span><a class="btn" href="#h-results">See your record</a>` : '';
     }
     if (!record.shows) {
-      results.innerHTML = `<div class="h-panel"><h2>Your ${esc(data.name)} record</h2><p class="h-empty">Tick the shows you were at and your record appears here: every song you've heard, your top songs, rarest catches and bust-outs.</p></div>`;
+      results.innerHTML = `<div class="h-panel"><h2>Your ${esc(data.name)} record</h2>${mineLine(record)}<p class="h-empty">Tick the shows you were at and your record appears here: every song you've heard, your top songs, rarest catches and bust-outs.</p></div>`;
       return;
     }
     const span = Heard.yearSpan(record);
@@ -325,6 +383,7 @@ function createHeardApp(Heard, boot) {
     results.innerHTML = `
       <div class="h-panel">
         <h2>Your ${esc(data.name)} record</h2>
+        ${mineLine(record)}
         <div class="h-stats">${stats.map(([v, l]) => `<div class="stat"><div class="n${String(v).length > 5 ? ' sm' : ''}">${esc(v)}</div><div class="l">${esc(l)}</div></div>`).join('')}</div>
         ${missingSetlists ? `<p class="h-msg">${plural(missingSetlists, 'show')} you ticked ${missingSetlists === 1 ? 'has' : 'have'} no known setlist, so ${missingSetlists === 1 ? 'it adds' : 'they add'} no songs.</p>` : ''}
         <div class="h-actions">
@@ -333,11 +392,11 @@ function createHeardApp(Heard, boot) {
         </div>
         <div id="h-poster"></div>
         <div id="h-share" class="h-share"></div>
-        <div class="cta" style="margin-top:16px;padding:14px;text-align:left;">
+        ${mine ? '' : `<div class="cta" style="margin-top:16px;padding:14px;text-align:left;">
           <strong>Keep these shows</strong>
           <p class="h-msg" style="margin:2px 0 10px;">Save all ${plural(record.shows, 'show')} with their setlists to a free MySetlists account, and track every other band you see.</p>
           <button type="button" class="btn" data-act="save">Save these shows to MySetlists (free)</button>
-        </div>
+        </div>`}
 
         <h2>Your top ${Math.min(10, record.top.length)}</h2>
         ${list(record.top, (s) => `${songCell(s)} <span class="note">· ${s.count}×</span>`)}
@@ -355,6 +414,26 @@ function createHeardApp(Heard, boot) {
         <table><tbody>${songs.map((s) => `<tr><td>${songCell(s)}</td><td class="num">${s.count}×</td></tr>`).join('')}</tbody></table>
         <p class="source">${esc(boot.credit)}.</p>
       </div>`;
+    if (autoPoster) {
+      autoPoster = false;
+      makePoster(results.querySelector('[data-act="poster"]'));
+    }
+  }
+
+  // "From your 23 Goose shows in MySetlists · Edit selection", and the
+  // logged shows the archive doesn't have.
+  function mineLine(record) {
+    if (!mine) return '';
+    const line = mine.edited
+      ? `Your ${esc(data.name)} shows, edited for this poster: ${plural(record.shows, 'show')}. Your shows in MySetlists haven't changed. <button type="button" class="h-link" data-act="reset">Use my shows again</button>`
+      : `From your ${plural(mine.count, `${esc(data.name)} show`)} in MySetlists · <button type="button" class="h-link" data-act="edit">Edit selection</button>`;
+    const open = mine.unmatched.filter((u) => !(u.nearest && selected.has(u.nearest.id)));
+    const missing = open.length ? `
+      <details class="h-unmatched"${open.length <= 5 ? ' open' : ''}>
+        <summary>${plural(open.length, 'show')} not found on ${esc(data.sourceName)}, so ${open.length === 1 ? 'it isn\'t' : 'they aren\'t'} on this poster</summary>
+        <ul>${open.map((u) => `<li>${esc(shortDate(u.date, true))}${u.venue ? `, ${esc(u.venue)}` : ''}${u.nearest ? `<br><span class="h-msg">${esc(data.sourceName)} has ${esc(data.name)} at ${esc(u.nearest.venue)} that day. <button type="button" class="h-link" data-act="add-nearest" data-id="${esc(u.nearest.id)}">Add that show</button></span>` : ''}</li>`).join('')}</ul>
+      </details>` : '';
+    return `<p class="h-msg h-mine-line">${line}</p>${missing}`;
   }
 
   function onResultsClick(e) {
@@ -363,11 +442,29 @@ function createHeardApp(Heard, boot) {
     const act = e.target.closest && e.target.closest('[data-act]');
     if (!act) return;
     const what = act.getAttribute('data-act');
-    if (what === 'poster') makePoster(act);
+    if (what === 'edit') openPicker();
+    else if (what === 'reset') resetToMine();
+    else if (what === 'add-nearest') { setTicked(act.getAttribute('data-id'), true); edited(); update(); }
+    else if (what === 'poster') makePoster(act);
     else if (what === 'share') shareLink(act);
     else if (what === 'save') saveToAccount(act);
     else if (what === 'download') download(act.getAttribute('data-kind'));
     else if (what === 'share-image') shareImage(act.getAttribute('data-kind'));
+  }
+
+  function openPicker() {
+    const picker = document.getElementById('h-picker');
+    picker.hidden = false;
+    document.querySelector('.h-layout').classList.remove('h-mine');
+    render();
+    picker.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function resetToMine() {
+    [...selected].forEach((id) => setTicked(id, false));
+    mine.ids.forEach((id) => setTicked(id, true));
+    mine.edited = false;
+    update();
   }
 
   // ── Share code, link and poster ─────────────────────────────────────
@@ -503,6 +600,7 @@ function createHeardApp(Heard, boot) {
       }
       let added = 0;
       json.ids.forEach((id) => { if (!selected.has(id)) added++; setTicked(id, true); });
+      if (added) edited();
       update();
       const parts = [`Found ${plural(json.attended, `${data.name} show`)} on setlist.fm and matched ${num(json.ids.length)}${added < json.ids.length ? ` (${num(json.ids.length - added)} already ticked)` : ''}.`];
       if (json.truncated) parts.push(`We read your ${num(json.scanned)} most recent attended shows.`);
