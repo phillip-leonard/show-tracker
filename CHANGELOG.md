@@ -4,6 +4,32 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.44.6] — 2026-10-22
+
+Ships in iOS 3.6.6 (`MARKETING_VERSION` 3.6.5 → 3.6.6; the build number is
+left to Xcode Cloud).
+
+Cleanup now that the landing page is what Google indexes.
+
+- **The landing page shows real community counts or none.** The hero's
+  "N fans tracking their shows" line and the Shows indexed / Active
+  trackers tiles fell back to made-up figures (24,000+, 24K, 3.2M) until
+  the real stats loaded, and the static HTML of `/` always has the
+  fallback. Now each one appears only once the real number is in. Its
+  space is kept empty until then, so nothing shifts. The "3.2M shows
+  indexed" badge above the headline and the Artists / Venues tiles are
+  unchanged.
+- **`/roadmap` is out of the sitemap and the indexable pages.** Its items
+  only render for a signed-in user, so Google got "Loading..." there. It
+  now falls under the default `noindex, nofollow` in `public/_headers`.
+- **`scripts/seed-review-account.js` has no default password.** Writing
+  (`--yes`) requires `REVIEW_PASSWORD` and `REVIEW_FRIEND_PASSWORD`, and
+  exits before touching Firebase without them. The password is also gone
+  from `docs/app-review-1-2-reply.md`. It remains in git history, so the
+  review accounts need new passwords.
+
+---
+
 ## [5.44.5] — 2026-10-22
 
 Ships in iOS 3.6.5 (`MARKETING_VERSION` 3.6.4 → 3.6.5; 3.6.4 is taken by
