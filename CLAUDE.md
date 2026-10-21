@@ -17,6 +17,8 @@ This app is a Next.js static export (`output: 'export'`, `trailingSlash: true` i
 
 In-app navigation goes through `showHref(id)` helper in `lib/showRouting.js` — use it everywhere so there is one place this can ever be wrong again.
 
+Venue pages, venue dashboards and Year in Review were the same bug until 5.46.0 and now follow the same pattern: `venueHref(key)` → `/venues/?venue=`, `venueDashboardHref(key)` → `/venue-dashboard/?venue=`, `yearInReviewHref(uid, year)` → `/year-in-review/?user=&year=`, all in `lib/showRouting.js`, with 301s from the old path shapes in `netlify.toml`. No `[param]` directory should exist under `app/`.
+
 This pattern has now cost three attempts to get right. The next session should not have to rediscover it.
 
 ## Netlify Blobs and background functions
