@@ -54,7 +54,7 @@
 
 const crypto = require('crypto');
 const config = require('../../../config/public-artists.json');
-const { buildArtistStats } = require('./artistSnapshotStats');
+const stats = require('./artistSnapshotStats');
 const sources = require('./publicArtistSources');
 
 const SCHEMA_VERSION = 2;
@@ -278,7 +278,7 @@ function buildSnapshot(artist, fetched, now) {
   // until it has one, for the reason above.
   const lastWithSetlist = shows.reduce((m, s) => (s.date > m ? s.date : m), '');
   const unlisted = (fetched.unlistedShows || []).filter((s) => s.date <= lastWithSetlist);
-  const { band, songs } = buildArtistStats(shows.concat(unlisted));
+  const { band, songs } = stats.buildArtistStats(shows.concat(unlisted));
 
   let coverage = { kind: 'full', shows: shows.length, fullHistory: true };
   if (artist.source === 'setlistfm') {
@@ -336,6 +336,32 @@ function looksComplete(next, previousEntry) {
   const before = previousEntry?.coverageShows || 0;
   if (before && next.coverage.shows < before * MIN_COMPLETE_RATIO) {
     return `${next.coverage.shows} shows with setlists, down from ${before}; treating as a partial fetch`;
+  }
+  const outOfRange = gapBeyondTotal(next);
+  if (outOfRange) return outOfRange;
+  return '';
+}
+
+// Every gap is counted over the band's own shows, the list "Shows" counts,
+// so none can reach the total: a current gap is at most total - 1 (played
+// only at the first show), and so is a gap between two performances (the
+// first show and the last). One that does means the gaps and the total came
+// from different show lists, and the snapshot is refused.
+function gapBeyondTotal(next) {
+  const total = next.band.totalShows;
+  const { band } = next;
+  const lists = [
+    ...next.songs,
+    ...band.mostPlayed,
+    ...(band.gapLeaders || []),
+    ...(band.originalGapLeaders || []),
+    ...(band.coverGapLeaders || []),
+    ...(band.bustOuts || []),
+  ];
+  for (const s of lists) {
+    for (const [what, gap] of [['current gap', s.currentGap], ['longest gap', s.longestGap]]) {
+      if (gap != null && gap >= total) return `${s.name}: ${what} of ${gap} shows, but the band has ${total}`;
+    }
   }
   return '';
 }
