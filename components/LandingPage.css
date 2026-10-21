@@ -589,7 +589,7 @@
   margin: 0 auto;
   padding: 64px 32px;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 0;
 }
 .lp-stat {

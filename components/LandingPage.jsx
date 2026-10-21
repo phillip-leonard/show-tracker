@@ -19,6 +19,8 @@ function PickSimple({ size = 20 }) {
   );
 }
 
+const COMMUNITY_COUNTS_MIN_USERS = 1000;
+
 export default function LandingPage({ onSignUp, onSignIn, onGuest, communityStats }) {
   // Real counts only. These used to fall back to made-up figures (24,000+
   // fans, 24K trackers, 3.2M shows) until communityStats loaded, and since
@@ -27,6 +29,11 @@ export default function LandingPage({ onSignUp, onSignIn, onGuest, communityStat
   // nothing shifts when it fills in.
   const totalUsers = communityStats?.totalUsers || 0;
   const totalShows = communityStats?.totalShows || 0;
+  // Below 1,000 users a count reads as small rather than as proof, so the
+  // stats strip and the "fans tracking" line stay hidden until then. No
+  // stand-in numbers in the meantime: the old "3.2M shows indexed" badge
+  // and the 180K artists / 42K venues tiles were never measured.
+  const showCommunityCounts = totalUsers >= COMMUNITY_COUNTS_MIN_USERS;
   // Known only after mount. This page is pre-rendered (it is the static
   // HTML of `/`), where the platform is unknown, and on iOS reading it
   // during render would make the first client render disagree with that
@@ -64,10 +71,6 @@ export default function LandingPage({ onSignUp, onSignIn, onGuest, communityStat
       {/* ── Hero ── */}
       <section className="lp-hero">
         <div>
-          <div className="lp-hero-eyebrow">
-            <span className="lp-dot" />
-            3.2M shows indexed · updated daily
-          </div>
           <h1>
             Every show you&apos;ve seen,<br />
             in <span className="lp-accent">one place</span>.
@@ -86,8 +89,8 @@ export default function LandingPage({ onSignUp, onSignIn, onGuest, communityStat
           </div>
           <div
             className="lp-hero-trust"
-            style={totalUsers ? undefined : { visibility: 'hidden' }}
-            aria-hidden={totalUsers ? undefined : true}
+            style={showCommunityCounts ? undefined : { visibility: 'hidden' }}
+            aria-hidden={showCommunityCounts ? undefined : true}
           >
             <div className="lp-avatar-stack">
               <div className="lp-a lp-a1" />
@@ -96,7 +99,7 @@ export default function LandingPage({ onSignUp, onSignIn, onGuest, communityStat
               <div className="lp-a lp-a4" />
             </div>
             <div>
-              {totalUsers > 0 && (
+              {showCommunityCounts && (
                 <>
                   <b>{totalUsers.toLocaleString()}+ fans</b>{' '}
                   tracking their shows
@@ -322,30 +325,20 @@ export default function LandingPage({ onSignUp, onSignIn, onGuest, communityStat
       </section>
 
       {/* ── Stats ── */}
-      <div className="lp-stats-section">
-        <div className="lp-stats-grid">
-          <div className="lp-stat">
-            <div className="lp-n">
-              {totalShows ? totalShows.toLocaleString() : '\u00a0'}
+      {showCommunityCounts && (
+        <div className="lp-stats-section">
+          <div className="lp-stats-grid">
+            <div className="lp-stat">
+              <div className="lp-n">{totalShows.toLocaleString()}</div>
+              <div className="lp-l">Shows logged</div>
             </div>
-            <div className="lp-l">Shows indexed</div>
-          </div>
-          <div className="lp-stat">
-            <div className="lp-n">
-              {totalUsers ? totalUsers.toLocaleString() : '\u00a0'}
+            <div className="lp-stat">
+              <div className="lp-n">{totalUsers.toLocaleString()}</div>
+              <div className="lp-l">Active trackers</div>
             </div>
-            <div className="lp-l">Active trackers</div>
-          </div>
-          <div className="lp-stat">
-            <div className="lp-n">180<span className="lp-u">K</span></div>
-            <div className="lp-l">Artists covered</div>
-          </div>
-          <div className="lp-stat">
-            <div className="lp-n">42<span className="lp-u">K</span></div>
-            <div className="lp-l">Venues worldwide</div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* ── How it works ── */}
       <section className="lp-how">
