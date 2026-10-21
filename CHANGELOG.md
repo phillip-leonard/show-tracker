@@ -4,6 +4,35 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.44.3] — 2026-10-20
+
+Web only. No iOS version bump: this release changes page metadata and a
+social preview image, nothing the native app shows, so `MARKETING_VERSION`
+stays at 3.6.3 (as asked for this release).
+
+### Search and link previews
+
+- **New site title and description** for search results and shared links:
+  "MySetlists – Concert Tracker & Setlist Log for Jam Band Fans", with a
+  159-character description naming Phish, Goose, Dead & Co and Widespread
+  Panic.
+- **Link previews now have a picture.** The preview image was an SVG,
+  which Facebook, LinkedIn, iMessage, Slack and X do not display. It is now
+  a 1200×630 PNG (`public/og-image.png`) in the current navy and mint
+  palette, with `og:image:width`, `og:image:height` and `og:image:alt`.
+  The SVG moved to `scripts/og-image.svg` as the editable source;
+  `node scripts/render-og-image.js` re-renders the PNG with Playwright's
+  Chromium, so there is no new dependency. The public profile, show and
+  shared pages (`netlify/functions/lib/publicPageHtml.js`) fall back to the
+  PNG too.
+- **Canonical URL on the home page** (`<link rel="canonical"
+  href="https://mysetlists.net/">`), set in `app/page.jsx` rather than the
+  root layout, because every route inherits the layout's metadata and a
+  canonical there would mark `/terms`, `/privacy` and the rest as
+  duplicates of the home page. `metadataBase` was already set.
+
+---
+
 ## [5.44.2] — 2026-10-16
 
 Ships in iOS 3.6.3 (`MARKETING_VERSION` 3.6 → 3.6.3; 3.6.1 and 3.6.2 are

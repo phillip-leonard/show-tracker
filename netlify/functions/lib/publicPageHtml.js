@@ -58,7 +58,7 @@ const BASE_STYLE = `
 function page({ title, description, canonicalPath, jsonLd, bodyHtml, ogImage }) {
   const canonical = `${SITE_URL}${canonicalPath}`;
   const desc = escapeHtml(description || '');
-  const img = ogImage || `${SITE_URL}/og-image.svg`;
+  const img = ogImage || `${SITE_URL}/og-image.png`;
   return `<!doctype html>
 <html lang="en">
 <head>
