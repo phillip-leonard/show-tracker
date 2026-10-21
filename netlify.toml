@@ -455,10 +455,12 @@
 #   /heard/<slug>/r/<code>/                a shared record (noindex)
 #   /heard/<slug>/r/<code>/og.png          its link preview, 1200x630
 #   /heard/<slug>/r/<code>/poster-feed.png and poster-story.png
+# Both spellings rewrite, as with /artists: Netlify matches a from of
+# "/heard" against "/heard/" too, so a 301 to the slash loops.
 [[redirects]]
   from = "/heard"
-  to = "/heard/"
-  status = 301
+  to = "/.netlify/functions/public-heard"
+  status = 200
   force = true
 
 [[redirects]]
