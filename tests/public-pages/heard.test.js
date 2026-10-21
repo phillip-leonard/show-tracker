@@ -403,13 +403,13 @@ test('the pages sitemap lists /heard/ and each published band, not share links',
 
 // ── Stored codes ─────────────────────────────────────────────────────────
 
-test('a long code is stored once under a hash id and resolves back; nothing else resolves', async () => {
+test('a long code is stored under its hash id, the same id every time, and resolves back; nothing else resolves', async () => {
   const store = memoryStore();
   const code = `a${'Q'.repeat(3000)}`;
   const id = await shares.storeCode(store, 'goose', code, NOW);
   assert.match(id, shares.STORED_ID);
   assert.strictEqual(await shares.storeCode(store, 'goose', code, NOW), id);
-  assert.strictEqual(store.writes.length, 1);
+  assert.deepStrictEqual([...new Set(store.writes)], [`goose/${id}`]);
   const open = () => store;
   assert.strictEqual(await shares.resolveCode(open, 'goose', id), code);
   assert.strictEqual(await shares.resolveCode(open, 'phish', id), '', 'ids are per band');

@@ -420,7 +420,7 @@ function createHeardApp(Heard, boot) {
       const kinds = [['feed', 'Feed, 1080×1350'], ['story', 'Story, 1080×1920']];
       // Fetched ahead, so Share can hand the file over inside the tap:
       // Safari refuses navigator.share() once an await has gone by.
-      const fetched = await Promise.all(kinds.map(([kind]) => fetch(imageUrl(code, kind)).then((r) => (r.ok ? r.blob() : Promise.reject(new Error(`HTTP ${r.status}`))))));
+      const fetched = await Promise.all(kinds.map(([kind]) => fetchImage(imageUrl(code, kind), code[0] === 'b' ? 6 : 1)));
       const canShareFiles = !!(navigator.canShare && window.File);
       box.innerHTML = `<div class="h-posters">${kinds.map(([kind, label], i) => {
         blobs[kind] = fetched[i];
@@ -434,6 +434,17 @@ function createHeardApp(Heard, boot) {
       box.innerHTML = '<p class="h-msg err">Couldn\'t draw the poster just now. Please try again.</p>';
     } finally {
       btn.disabled = false;
+    }
+  }
+
+  // A just-stored code ('b…') can take a few seconds to resolve on every
+  // server (heardShares.js), so its images are retried on a 404.
+  async function fetchImage(url, tries) {
+    for (let i = 1; ; i++) {
+      const res = await fetch(url);
+      if (res.ok) return res.blob();
+      if (res.status !== 404 || i >= tries) throw new Error(`HTTP ${res.status}`);
+      await new Promise((r) => setTimeout(r, 2500));
     }
   }
 
