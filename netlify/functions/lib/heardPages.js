@@ -247,7 +247,17 @@ function toolScript(shows) {
 </script>`;
 }
 
-function renderHeardBand({ entry, shows }, now = Date.now()) {
+// /heard/<slug>/?mine=1 is someone's own poster (heardClient.js "your
+// shows" mode), and the app's links also carry their shows in a #mine=
+// fragment. Neither is a page to index: ?mine=1 is noindex here, the
+// fragment (which never reaches the server) is noindexed by the page's own
+// script (NOINDEX_PERSONAL), and every variant's canonical is the plain
+// /heard/<slug>/, so nothing personal is indexed or splits its ranking.
+// Netlify-Vary keys the CDN cache on `mine` alone, so the noindexed variant
+// is cached apart from the indexable one (and utm_ tags don't fragment it).
+const NOINDEX_PERSONAL = `<script>if(/[#&](mine|have)=/.test(location.hash)){var m=document.createElement('meta');m.name='robots';m.content='noindex, follow';document.head.appendChild(m);}</script>`;
+
+function renderHeardBand({ entry, shows }, now = Date.now(), { mine = false } = {}) {
   if (!availability(entry, now).available) return unavailablePage(shows);
   const { name, slug } = shows;
   const trail = [{ name: 'Home', path: '/' }, { name: "Songs I've heard", path: heardPath() }, { name, path: heardPath(slug) }];
@@ -316,8 +326,13 @@ function renderHeardBand({ entry, shows }, now = Date.now()) {
     jsonLd,
     bodyHtml,
     extraStyle: STYLE + TOOL_STYLE,
-    scriptHtml: toolScript(shows),
-  }), cacheHeaders(entry, now));
+    robots: mine ? 'noindex, follow' : '',
+    scriptHtml: NOINDEX_PERSONAL + toolScript(shows),
+  }), {
+    ...cacheHeaders(entry, now),
+    'Netlify-Vary': 'query=mine',
+    ...(mine ? { 'X-Robots-Tag': 'noindex, follow' } : {}),
+  });
 }
 
 // ── /heard/<slug>/r/<code>/ ───────────────────────────────────────────

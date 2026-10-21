@@ -443,6 +443,22 @@ test('setlist.fm attendance matches by mbid, date and venue, and reports what it
   assert.deepStrictEqual(out.unmatched, [{ date: '2025-09-05', venue: 'Nowhere', city: 'Somewhere' }]);
 });
 
+test('personal variants of the tool page are noindex, all canonical to /heard/<slug>/', async () => {
+  const { loaded } = await goose();
+  const canonical = '<link rel="canonical" href="https://mysetlists.net/heard/goose/">';
+  const plain = pages.renderHeardBand(loaded, NOW + HOUR);
+  const mine = pages.renderHeardBand(loaded, NOW + HOUR, { mine: true });
+  assert.ok(plain.body.includes(canonical) && mine.body.includes(canonical));
+  assert.ok(!/name="robots"/.test(plain.body));
+  assert.strictEqual(plain.headers['X-Robots-Tag'], undefined);
+  assert.ok(mine.body.includes('<meta name="robots" content="noindex, follow">'));
+  assert.strictEqual(mine.headers['X-Robots-Tag'], 'noindex, follow');
+  // The CDN keeps the two apart.
+  assert.strictEqual(plain.headers['Netlify-Vary'], 'query=mine');
+  // The app's #mine= link never reaches the server; the page noindexes itself.
+  assert.ok(plain.body.includes("/[#&](mine|have)=/.test(location.hash)") && plain.body.includes("m.content='noindex, follow'"));
+});
+
 // ── A signed-in user's logged shows ──────────────────────────────────────
 
 test('logged shows match by date and venue, the way setlist.fm and the archives spell rooms', () => {

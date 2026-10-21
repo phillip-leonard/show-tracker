@@ -35,6 +35,10 @@ band and opens on your record and poster.
   offers sign-in (`/?login=1&next=…`) and comes back once your shows have
   loaded. `next` is only ever a `/heard/` poster, and expires after 30
   minutes.
+- **Personal posters are never indexed**: `?mine=1` is `noindex` (meta
+  and `X-Robots-Tag`), a `#mine=` link (which never reaches the server)
+  noindexes itself from the page, and every variant's canonical is the plain
+  `/heard/<slug>/`. `Netlify-Vary: query=mine` keeps the two cached apart.
 
 ---
 

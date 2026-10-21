@@ -43,7 +43,9 @@ exports.handler = async function (event) {
       if (!SLUG.test(slug)) return notFound('No band at this address.');
       const loaded = await loadArtistShows(store, slug);
       if (!loaded) return notFound('No band at this address.');
-      return renderHeardBand(loaded);
+      // ?mine=1 is someone's own poster: noindex, same canonical.
+      const mine = (event.queryStringParameters || {}).mine === '1';
+      return renderHeardBand(loaded, Date.now(), { mine });
     }
 
     const index = await loadIndex(store);
