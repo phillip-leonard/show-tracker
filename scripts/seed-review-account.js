@@ -414,11 +414,18 @@ async function reset(db, auth, uids) {
   console.log('  reset: cleared seeded content, blocks, reports and suspensions');
 }
 
+/** Where a password comes from, for log lines. Never the value itself. */
+function passwordSource(envVar) {
+  return process.env[envVar] ? `from ${envVar}` : `${envVar} not set (required for --yes)`;
+}
+
 async function main() {
   if (!WRITE) {
     console.log('DRY RUN — nothing will be written. Re-run with --yes to apply.\n');
-    console.log(`  review account : ${REVIEW.email} / ${REVIEW.password || '<REVIEW_PASSWORD not set; required for --yes>'}  (@${REVIEW.handle})`);
-    console.log(`  friend account : ${FRIEND.email} / ${FRIEND.password || '<REVIEW_FRIEND_PASSWORD not set; required for --yes>'}  (@${FRIEND.handle})`);
+    // Never print a password, set or not: terminal scrollback, CI logs and
+    // pasted output are all places one would leak from.
+    console.log(`  review account : ${REVIEW.email}  (@${REVIEW.handle})  password: ${passwordSource('REVIEW_PASSWORD')}`);
+    console.log(`  friend account : ${FRIEND.email}  (@${FRIEND.handle})  password: ${passwordSource('REVIEW_FRIEND_PASSWORD')}`);
     console.log(`  shows          : ${SHOWS.length} for the reviewer, ${SHOWS.filter(s => s.shared).length} of them shared with the friend`);
     console.log('  plus           : comments, media, activity feed, one pending tag, wishlist, bucket list');
     console.log('\nPut the review credentials in App Store Connect → App Review Information.');
@@ -468,7 +475,7 @@ async function main() {
   await writeLists(db, reviewUid);
 
   console.log('\nSeeded.');
-  console.log(`  App Review sign-in: ${REVIEW.email} / ${REVIEW.password}`);
+  console.log(`  App Review sign-in: ${REVIEW.email}  password: ${passwordSource('REVIEW_PASSWORD')}`);
   console.log('  Walk every tab once on a device before submitting — this script');
   console.log('  fills the data, it does not prove the screens render.');
 }
