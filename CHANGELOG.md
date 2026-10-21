@@ -29,9 +29,9 @@ checked against the code first.
   each other. In the iOS app the footer links open mysetlists.net in the
   system browser; the pages are web-only.
 - **"Start tracking your shows"** links to `/?signup=1`, which now opens
-  the sign-up form for a signed-out visitor once auth resolves. The "Get the
-  iPhone app" button is ready but hidden until `APP_STORE_URL` in
-  `lib/comparePages.js` is filled in.
+  the sign-up form for a signed-out visitor once auth resolves. "Get the
+  iPhone app" links to the App Store listing (`APP_STORE_URL` in
+  `lib/comparePages.js`).
 
 ### Claims corrected against the code
 
