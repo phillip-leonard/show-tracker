@@ -4,6 +4,55 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.45.0] — 2026-10-22
+
+Ships in iOS 3.7 (`MARKETING_VERSION` 3.6.7 → 3.7, a minor bump for the new
+public pages; the build number is left to Xcode Cloud). Nothing in this
+release is added to the app bundle: the new pages are Netlify functions, and
+`out/` has the same 194 files (+2 KB, the landing footer's Bands links).
+
+SEO Days 3–5: public band pages, song pages and a sitemap index.
+
+- **Public band pages at `/artist/<slug>/`** for 20 bands, with `/artists/`
+  listing them. Each has the band's show count, first and last show, the 10
+  most recent shows, the 25 most played songs, the longest current gaps,
+  a "Track your shows" call to action and a link to the data source. Fully
+  public, server-rendered HTML with a unique title and description,
+  canonical, OG tags, and `MusicGroup` + breadcrumb JSON-LD.
+- **Song pages at `/artist/<slug>/song/<song>/`** for Goose, Phish,
+  Umphrey's McGee and King Gizzard & the Lizard Wizard: times played, first
+  and last played, shows since last played, average and longest gap, recent
+  performances, and a link to the song on the band's archive. About 1,700
+  pages before Phish's.
+- **Band-native sources first.** elgoose.net, allthings.umphreys.com and
+  kglw.net (Songfish), phish.net ("courtesy of Phish.net", never more than
+  24 hours old), and setlist.fm for the other 16 bands. setlist.fm bands get
+  band pages only, with song stats over their 300 most recent setlists.
+- **A snapshot job behind all of it.** Every 6 hours a scheduled function
+  starts a background function that refreshes Phish, and everyone else once
+  a day, into Netlify Blobs. A failed or partial fetch never replaces the
+  last good snapshot, unchanged data is not rewritten, and routine runs ask
+  only for what can have changed (about 20 requests; a weekly full refresh
+  is about 360). Manual trigger: `node scripts/run-artist-snapshot.js`.
+- **The same snapshot as JSON** at `/api/artist?slug=…` and
+  `/api/artist-song?slug=…&song=…`, for the iOS app to render natively later.
+- **`/sitemap.xml` is a sitemap index** of `sitemap-pages.xml` (home, legal
+  pages, public profiles) and `sitemap-artists.xml` (every band and song
+  page, with `lastmod`).
+- **Real 404s** for an unknown band or song, and for any other `/artist/…`
+  path.
+- **The landing page loses its last fixed numbers:** the "3.2M shows indexed"
+  badge and the 180K artists / 42K venues tiles. The community counts and
+  the "fans tracking" line appear only at 1,000 users or more. The footer
+  gets a Bands column linking to `/artists/` and eight band pages (website
+  only).
+- **Fix: a phish.net error code other than 1 was read as success.** A bad
+  key comes back as `error: 2`, which the show lookup reported as "no show
+  on that date". Both archive adapters now treat any non-zero code as a
+  failure.
+
+---
+
 ## [5.44.7] — 2026-10-22
 
 Ships in iOS 3.6.7 (`MARKETING_VERSION` 3.6.6 → 3.6.7; the build number is
