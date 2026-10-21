@@ -10,6 +10,7 @@
 //   buildRecord                         the record: counts, top songs,
 //                                       rarest catches, bust-outs, debuts,
 //                                       songs still to chase
+//   posterSvg                           the poster and the preview card
 //
 // ── One source, two runtimes ──────────────────────────────────────────
 //
@@ -277,9 +278,226 @@ function createHeard() {
     return `A ${bandName} record: ${plural(record.shows, 'show')}, ${plural(record.totalSongs, 'song')} heard`;
   }
 
+  // ── The poster ──────────────────────────────────────────────────────
+  //
+  // Plain SVG: text, rects and lines only, so the same markup renders in
+  // resvg (heard-image.js, which has Plus Jakarta Sans and nothing else)
+  // and anywhere else. Type only, no band artwork. SVG doesn't wrap or
+  // measure text, so widths are estimated per weight and a line that would
+  // run over is shrunk or cut with an ellipsis.
+
+  const COLORS = { navy: '#1f1f3a', navyLight: '#2a2a4e', mint: '#10d98a', mintDeep: '#10b981', amber: '#ffb700', text: '#f5f5f5', muted: '#a9a8c2', line: 'rgba(255,255,255,0.14)' };
+  const FONT = "'Plus Jakarta Sans', sans-serif";
+  const WIDTH_FACTOR = { 400: 0.55, 700: 0.58, 800: 0.6 };
+
+  const SIZES = {
+    feed: { width: 1080, height: 1350 },
+    story: { width: 1080, height: 1920 },
+    card: { width: 1200, height: 630 },
+  };
+
+  function esc(value) {
+    return String(value == null ? '' : value)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function textWidth(text, size, weight, spacing = 0) {
+    let units = 0;
+    for (const ch of String(text)) {
+      if (/[A-Z0-9#&@%]/.test(ch)) units += 1.18;
+      else if (/[mwMW]/.test(ch)) units += 1.45;
+      else if (/[ilj.,:;'’!|\s]/.test(ch)) units += 0.5;
+      else units += 1;
+    }
+    return units * size * (WIDTH_FACTOR[weight] || 0.58) + spacing * String(text).length;
+  }
+
+  // Cut to fit maxWidth, with an ellipsis, at the given size.
+  function clip(text, size, weight, maxWidth, spacing = 0) {
+    let t = String(text);
+    if (textWidth(t, size, weight, spacing) <= maxWidth) return t;
+    while (t.length > 1 && textWidth(`${t}…`, size, weight, spacing) > maxWidth) t = t.slice(0, -1);
+    return `${t.trimEnd()}…`;
+  }
+
+  function text(x, y, content, { size, weight = 700, fill = COLORS.text, anchor = 'start', spacing = 0, opacity } = {}) {
+    return `<text x="${x}" y="${y}" font-family="${FONT}" font-size="${size}" font-weight="${weight}" fill="${fill}"${anchor !== 'start' ? ` text-anchor="${anchor}"` : ''}${spacing ? ` letter-spacing="${spacing}"` : ''}${opacity ? ` fill-opacity="${opacity}"` : ''}>${esc(content)}</text>`;
+  }
+
+  // The band name as big as it fits: one line if it can stay above
+  // minSize, else two lines split at the word nearest the middle.
+  function bandLines(name, maxWidth, maxSize, minSize) {
+    const upper = String(name).toUpperCase();
+    const fit = (t) => Math.min(maxSize, Math.floor(maxSize * maxWidth / textWidth(t, maxSize, 800, 0)));
+    const one = fit(upper);
+    if (one >= minSize || !upper.includes(' ')) return { lines: [upper], size: Math.max(one, Math.floor(minSize * 0.7)) };
+    const words = upper.split(' ');
+    let best = null;
+    for (let i = 1; i < words.length; i++) {
+      const a = words.slice(0, i).join(' ');
+      const b = words.slice(i).join(' ');
+      const size = Math.min(fit(a), fit(b));
+      if (!best || size > best.size) best = { lines: [a, b], size };
+    }
+    return best;
+  }
+
+  function statBlock(x, y, value, label, { size, labelSize }) {
+    return text(x, y, value, { size, weight: 800 })
+      + text(x, y + labelSize * 1.9, label.toUpperCase(), { size: labelSize, weight: 700, fill: COLORS.mint, spacing: labelSize * 0.12 });
+  }
+
+  function songList(x, y, items, { size, rowHeight, width, countWidth }) {
+    return items.map((s, i) => {
+      const yy = y + i * rowHeight;
+      return text(x, yy, `${s.count}×`, { size, weight: 800, fill: COLORS.amber })
+        + text(x + countWidth, yy, clip(s.name, size, 700, width - countWidth), { size, weight: 700 });
+    }).join('');
+  }
+
+  function sectionLabel(x, y, label, size) {
+    return text(x, y, label.toUpperCase(), { size, weight: 800, fill: COLORS.mint, spacing: size * 0.16 });
+  }
+
+  function frame(width, height, inset) {
+    return `<rect width="${width}" height="${height}" fill="${COLORS.navy}"/>`
+      + `<rect width="${width}" height="${height}" fill="url(#glow)"/>`
+      + `<rect x="${inset}" y="${inset}" width="${width - inset * 2}" height="${height - inset * 2}" fill="none" stroke="${COLORS.amber}" stroke-width="3"/>`
+      + `<rect x="${inset + 12}" y="${inset + 12}" width="${width - inset * 2 - 24}" height="${height - inset * 2 - 24}" fill="none" stroke="${COLORS.amber}" stroke-opacity="0.35" stroke-width="1.5"/>`;
+  }
+
+  function defs(width, height) {
+    return `<defs><radialGradient id="glow" cx="50%" cy="22%" r="75%"><stop offset="0%" stop-color="${COLORS.mintDeep}" stop-opacity="0.22"/><stop offset="55%" stop-color="${COLORS.navyLight}" stop-opacity="0.5"/><stop offset="100%" stop-color="${COLORS.navy}" stop-opacity="0"/></radialGradient></defs>`;
+  }
+
+  function rule(x1, x2, y) {
+    return `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${COLORS.line}" stroke-width="2"/>`;
+  }
+
+  // The tall posters: feed (1080x1350) and story (1080x1920). Laid out
+  // from both ends: the header and stats from the top, the footer and the
+  // rarest catch / bust-outs from the bottom, and "most heard" gets as many
+  // rows as fit between them.
+  function tallPoster(data, record, { width, height }, story) {
+    const pad = 96;
+    const inner = width - pad * 2;
+    const out = [];
+    let y = story ? 210 : 140;
+
+    out.push(text(width / 2, y, "SONGS I'VE HEARD LIVE", { size: story ? 30 : 26, weight: 800, fill: COLORS.mint, anchor: 'middle', spacing: 6 }));
+    y += story ? 56 : 34;
+
+    const band = bandLines(data.name, inner, story ? 170 : 124, story ? 92 : 80);
+    for (const line of band.lines) {
+      y += band.size * 0.96;
+      out.push(text(width / 2, y, line, { size: band.size, weight: 800, fill: COLORS.amber, anchor: 'middle' }));
+    }
+    y += story ? 78 : 54;
+    const span = yearSpan(record);
+    if (span) out.push(text(width / 2, y, span, { size: story ? 40 : 34, weight: 700, anchor: 'middle', fill: COLORS.text }));
+    y += story ? 66 : 40;
+    out.push(rule(pad, width - pad, y));
+    y += story ? 112 : 84;
+
+    const stats = [
+      [num(record.shows), record.shows === 1 ? 'Show' : 'Shows'],
+      [num(record.uniqueSongs), record.uniqueSongs === 1 ? 'Song' : 'Songs'],
+      [num(record.totalSongs), 'Performances'],
+      [num(record.venues), record.venues === 1 ? 'Venue' : 'Venues'],
+    ];
+    const widths = [0.21, 0.22, 0.33, 0.24];
+    let sx = pad;
+    stats.forEach(([v, l], i) => {
+      out.push(statBlock(sx, y, v, l, { size: v.length > 4 ? 52 : 64, labelSize: 20 }));
+      sx += inner * widths[i];
+    });
+    y += story ? 104 : 74;
+    out.push(rule(pad, width - pad, y));
+    const listTop = y + (story ? 90 : 66);
+
+    // Bottom up: footer, then the rarest catch and bust-outs.
+    const footY = height - (story ? 200 : 126);
+    out.push(text(width / 2, footY, 'mysetlists.net/heard', { size: story ? 40 : 36, weight: 800, fill: COLORS.amber, anchor: 'middle' }));
+    out.push(text(width / 2, footY + 44, clip(credit(data), 22, 400, inner), { size: 22, weight: 400, fill: COLORS.muted, anchor: 'middle' }));
+    let bottom = footY - (story ? 74 : 64);
+    out.push(rule(pad, width - pad, bottom));
+
+    const rare = record.rarest[0];
+    const busts = record.bustOuts.slice(0, story ? 2 : 1);
+    if (rare || busts.length) {
+      const rowsHeight = Math.max(rare ? 100 : 0, busts.length ? 56 + (busts.length - 1) * 92 + 40 : 0);
+      const top2 = bottom - 56 - rowsHeight;
+      const half = inner / 2 - 24;
+      if (rare) {
+        out.push(sectionLabel(pad, top2, 'Rarest catch', 26));
+        out.push(text(pad, top2 + 56, clip(rare.name, 38, 800, busts.length ? half : inner), { size: 38, weight: 800 }));
+        out.push(text(pad, top2 + 100, `played ${plural(rare.timesPlayed, 'time')} ever`, { size: 26, weight: 400, fill: COLORS.muted }));
+      }
+      if (busts.length) {
+        const bx = rare ? pad + inner / 2 + 24 : pad;
+        const bw = rare ? half : inner;
+        out.push(sectionLabel(bx, top2, busts.length === 1 ? 'Bust-out' : 'Bust-outs', 26));
+        busts.forEach((b, i) => {
+          const by = top2 + 56 + i * 92;
+          out.push(text(bx, by, clip(b.name, 34, 800, bw), { size: 34, weight: 800 }));
+          out.push(text(bx, by + 40, `after ${plural(b.gap, 'show')}`, { size: 26, weight: 400, fill: COLORS.muted }));
+        });
+      }
+      bottom = top2 - (story ? 64 : 56);
+      out.push(rule(pad, width - pad, bottom));
+    }
+
+    const rowHeight = story ? 62 : 54;
+    const room = Math.floor((bottom - 36 - (listTop + 58)) / rowHeight) + 1;
+    const top = record.top.slice(0, Math.max(0, Math.min(story ? 10 : 6, room)));
+    if (top.length) {
+      out.push(sectionLabel(pad, listTop, 'Most heard', 26));
+      out.push(songList(pad, listTop + 58, top, { size: story ? 40 : 36, rowHeight, width: inner, countWidth: 100 }));
+    }
+
+    return out.join('');
+  }
+
+  // The 1200x630 preview card for a share link.
+  function card(data, record, { width, height }) {
+    const pad = 72;
+    const out = [];
+    const leftW = 560;
+    out.push(text(pad, 118, "SONGS I'VE HEARD LIVE", { size: 22, weight: 800, fill: COLORS.mint, spacing: 4 }));
+    const band = bandLines(data.name, leftW, 92, 64);
+    let y = 130;
+    for (const line of band.lines) {
+      y += band.size;
+      out.push(text(pad, y, line, { size: band.size, weight: 800, fill: COLORS.amber }));
+    }
+    const span = yearSpan(record);
+    if (span) out.push(text(pad, y + 52, span, { size: 30, weight: 700 }));
+    const sy = 450;
+    const stats = [[num(record.shows), record.shows === 1 ? 'Show' : 'Shows'], [num(record.uniqueSongs), 'Songs'], [num(record.totalSongs), 'Performances']];
+    stats.forEach(([v, l], i) => out.push(statBlock(pad + i * 190, sy, v, l, { size: v.length > 4 ? 42 : 52, labelSize: 16 })));
+
+    const rx = 700;
+    out.push(`<line x1="${rx - 40}" y1="96" x2="${rx - 40}" y2="${height - 96}" stroke="${COLORS.line}" stroke-width="2"/>`);
+    const top = record.top.slice(0, 6);
+    if (top.length) {
+      out.push(sectionLabel(rx, 118, 'Most heard', 20));
+      out.push(songList(rx, 170, top, { size: 28, rowHeight: 50, width: width - rx - pad, countWidth: 74 }));
+    }
+    out.push(text(width - pad, height - 70, 'mysetlists.net/heard', { size: 26, weight: 800, fill: COLORS.amber, anchor: 'end' }));
+    return out.join('');
+  }
+
+  /** The poster as SVG. kind: 'feed' | 'story' | 'card'. */
+  function posterSvg(data, record, kind) {
+    const size = SIZES[kind] || SIZES.feed;
+    const body = kind === 'card' ? card(data, record, size) : tallPoster(data, record, size, kind === 'story');
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="${size.width}" height="${size.height}" viewBox="0 0 ${size.width} ${size.height}">${defs(size.width, size.height)}${frame(size.width, size.height, kind === 'card' ? 28 : 40)}${body}</svg>`;
+  }
+
   return {
     BUST_OUT_MIN_GAP,
     NON_SONG,
+    SIZES,
     isSong,
     encodeSelection,
     decodeSelection,
@@ -287,6 +505,7 @@ function createHeard() {
     headline,
     credit,
     yearSpan,
+    posterSvg,
   };
 }
 

@@ -44,6 +44,13 @@
 [functions."public-artist-snapshot"]
   schedule = "20 */6 * * *"
 
+# The "Songs I've heard" poster and preview images: resvg-js is a native
+# module, so it is installed as is rather than bundled, and the poster font
+# (Plus Jakarta Sans, SIL OFL) ships alongside. See public-heard-image.js.
+[functions."public-heard-image"]
+  external_node_modules = ["@resvg/resvg-js"]
+  included_files = ["netlify/functions/fonts/*.ttf"]
+
 # Firebase Auth handler, proxied onto our own domain.
 #
 # Google's sign-in screen shows the app name only for brand-verified OAuth
@@ -457,6 +464,24 @@
 [[redirects]]
   from = "/heard/"
   to = "/.netlify/functions/public-heard"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/heard/:slug/r/:code/og.png"
+  to = "/.netlify/functions/public-heard-image/:slug/:code/og"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/heard/:slug/r/:code/poster-feed.png"
+  to = "/.netlify/functions/public-heard-image/:slug/:code/poster-feed"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/heard/:slug/r/:code/poster-story.png"
+  to = "/.netlify/functions/public-heard-image/:slug/:code/poster-story"
   status = 200
   force = true
 
