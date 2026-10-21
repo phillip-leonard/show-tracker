@@ -27,3 +27,22 @@
 
 /artist/*
   X-Robots-Tag: index, follow
+
+# Comparison pages (lib/comparePages.js)
+/compare/concert-archives
+  X-Robots-Tag: index, follow
+
+/compare/concert-archives/
+  X-Robots-Tag: index, follow
+
+/compare/setlist-fm
+  X-Robots-Tag: index, follow
+
+/compare/setlist-fm/
+  X-Robots-Tag: index, follow
+
+/best-concert-tracker-apps-jam-bands
+  X-Robots-Tag: index, follow
+
+/best-concert-tracker-apps-jam-bands/
+  X-Robots-Tag: index, follow

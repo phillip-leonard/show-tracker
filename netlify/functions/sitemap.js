@@ -3,8 +3,8 @@
 // Three documents, one function:
 //
 //   /sitemap.xml          a sitemap index pointing at the two below
-//   /sitemap-pages.xml    home, the legal pages, and every opted-in public
-//                         profile (/u/<handle>/)
+//   /sitemap-pages.xml    home, the legal and comparison pages, and every
+//                         opted-in public profile (/u/<handle>/)
 //   /sitemap-artists.xml  /artists/, every public band page and every song
 //                         page, from the band-page snapshot index
 //                         (lib/publicArtistSnapshot.js)
@@ -27,6 +27,11 @@ const STATIC_URLS = [
   { loc: '/privacy', changefreq: 'monthly', priority: '0.3' },
   { loc: '/terms', changefreq: 'monthly', priority: '0.3' },
   { loc: '/cookies', changefreq: 'monthly', priority: '0.2' },
+  // The comparison pages (lib/comparePages.js), with the trailing slash the
+  // static export serves them at, matching each page's canonical.
+  { loc: '/compare/concert-archives/', lastmod: '2026-10-21', changefreq: 'monthly', priority: '0.6' },
+  { loc: '/compare/setlist-fm/', lastmod: '2026-10-21', changefreq: 'monthly', priority: '0.6' },
+  { loc: '/best-concert-tracker-apps-jam-bands/', lastmod: '2026-10-21', changefreq: 'monthly', priority: '0.6' },
 ];
 
 const XML_HEADERS = { 'Content-Type': 'application/xml; charset=utf-8', 'Cache-Control': 'public, max-age=3600' };

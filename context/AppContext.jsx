@@ -404,6 +404,17 @@ export function AppProvider({ children }) {
     }
   }, [searchParams]);
 
+  // "Start tracking your shows" on the comparison pages links to
+  // /?signup=1: open the sign-up form once auth knows nobody is signed in.
+  // A signed-in visitor just lands on their shows.
+  useEffect(() => {
+    if (!searchParams || authLoading || searchParams.get('signup') === null) return;
+    if (!user) setAuthModal('signup');
+    const cleanUrl = new URL(window.location.href);
+    cleanUrl.searchParams.delete('signup');
+    window.history.replaceState({}, '', cleanUrl.toString());
+  }, [searchParams, authLoading, user]);
+
   // Deep link: handle ?tab= parameter for navigating to specific tab after login
   // e.g. /friends?tab=requests from email notification links
   const [pendingDeepLink, setPendingDeepLink] = useState(null);

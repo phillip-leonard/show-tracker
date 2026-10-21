@@ -11,6 +11,7 @@ import { isNativePlatform } from '@/lib/native-auth';
 import './LandingPage.css';
 import packageJson from '../package.json';
 import publicArtists from '../config/public-artists.json';
+import { COMPARE_PAGES, comparePageClick } from '@/lib/comparePages';
 
 function PickSimple({ size = 20 }) {
   return (
@@ -454,6 +455,14 @@ export default function LandingPage({ onSignUp, onSignIn, onGuest, communityStat
               <a href="/artists/">All bands</a>
             </div>
           )}
+          {/* Web pages, not app screens: in the iOS app these open
+              mysetlists.net in the system browser (lib/comparePages.js). */}
+          <div className="lp-footer-col">
+            <h4>Compare</h4>
+            {COMPARE_PAGES.map(page => (
+              <a key={page.path} href={page.path} onClick={(e) => comparePageClick(e, page.path)}>{page.label}</a>
+            ))}
+          </div>
           <div className="lp-footer-col">
             <h4>Company</h4>
             <Link href="/privacy">Privacy</Link>
