@@ -250,6 +250,43 @@
   to = "/shows/?show=:showId"
   status = 301
 
+# Venue pages, venue dashboards and Year in Review were dynamic routes
+# (/venues/<key>/, /venue-dashboard/<key>/, /year-in-review/<uid>/<year>/)
+# with only a `_` placeholder in out/, so a real link fell through to the
+# root page. Since 5.46.0 they are query-param routes (lib/showRouting.js);
+# old links, bookmarks and already-sent emails land here. Not forced, so the
+# real files under /venues/ etc. (index.html, the index.txt RSC payload)
+# are still served as they are.
+[[redirects]]
+  from = "/venues/:venueKey"
+  to = "/venues/?venue=:venueKey"
+  status = 301
+
+[[redirects]]
+  from = "/venues/:venueKey/"
+  to = "/venues/?venue=:venueKey"
+  status = 301
+
+[[redirects]]
+  from = "/venue-dashboard/:venueKey"
+  to = "/venue-dashboard/?venue=:venueKey"
+  status = 301
+
+[[redirects]]
+  from = "/venue-dashboard/:venueKey/"
+  to = "/venue-dashboard/?venue=:venueKey"
+  status = 301
+
+[[redirects]]
+  from = "/year-in-review/:userId/:year"
+  to = "/year-in-review/?user=:userId&year=:year"
+  status = 301
+
+[[redirects]]
+  from = "/year-in-review/:userId/:year/"
+  to = "/year-in-review/?user=:userId&year=:year"
+  status = 301
+
 # Legacy festival detail URLs (the pre-5.29.0 /festivals/<id> dynamic route,
 # which static export could never actually serve — see app/festivals/page.jsx)
 # now point at the query-param form. `:festivalId` only matches a non-empty

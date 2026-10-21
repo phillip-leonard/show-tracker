@@ -16,6 +16,7 @@ import { useApp } from '@/context/AppContext';
 import {
   subscribeBucketListVenues, addVenueToBucketList, removeVenueFromBucketList,
 } from '@/lib/bucketListVenues';
+import { venueHref } from '@/lib/showRouting';
 
 function AddVenueForm({ onAdd, adding }) {
   const [open, setOpen] = useState(false);
@@ -56,7 +57,7 @@ function AddVenueForm({ onAdd, adding }) {
 
 function VenueCard({ venue, onRemove, removing }) {
   const router = useRouter();
-  const goToVenue = () => router.push(`/venues/${encodeURIComponent(venue.venueKey)}/`);
+  const goToVenue = () => router.push(venueHref(venue.venueKey));
 
   return (
     <Card

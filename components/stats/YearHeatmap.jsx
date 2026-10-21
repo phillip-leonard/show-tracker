@@ -43,11 +43,18 @@ export default function YearHeatmap({ counts = [], year, className = '' }) {
       <div className="grid grid-cols-12 text-[10px] font-bold text-muted tracking-[0.1em] uppercase text-center">
         {MONTHS.map((m) => <span key={m}>{m}</span>)}
       </div>
-      {year && (
-        <div className="mt-3 text-[11px] text-muted font-semibold">
-          {year} · {counts.reduce((a, b) => a + b, 0)} shows
-        </div>
-      )}
+      <div className="mt-3 flex items-center justify-between gap-3 text-[11px] text-muted font-semibold">
+        <span>{year ? `${year} · ${counts.reduce((a, b) => a + b, 0)} shows` : ''}</span>
+        {/* What the shades mean: a month's shows relative to the busiest
+            month shown, from none to the busiest (gold). */}
+        <span className="flex items-center gap-1" aria-label="Shade shows how busy a month was, from no shows to the busiest month">
+          Fewer
+          {[0, 1, 2, 3, 4].map((l) => (
+            <span key={l} className={`inline-block w-2.5 h-2.5 rounded-sm ${LEVEL_CLS[l]}`} />
+          ))}
+          More
+        </span>
+      </div>
     </div>
   );
 }

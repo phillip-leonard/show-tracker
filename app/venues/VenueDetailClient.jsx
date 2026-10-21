@@ -14,6 +14,7 @@ import ReportVenueModal from '@/components/venues/ReportVenueModal';
 import VenueAnnouncements from '@/components/venues/VenueAnnouncements';
 import VenuePhotoGallery from '@/components/venues/VenuePhotoGallery';
 import { subscribeVenue, venueKeyFor } from '@/lib/venues';
+import { venueDashboardHref } from '@/lib/showRouting';
 
 export default function VenueDetailClient({ venueKey }) {
   const router = useRouter();
@@ -63,7 +64,7 @@ export default function VenueDetailClient({ venueKey }) {
             <VerifyVenueButton venue={venue} venueKey={venueKey} venueName={venueName} venueCity={venueCity} currentUser={user} />
             <VenueBucketListButton venueKey={venueKey} venueName={venueName} venueCity={venueCity} venueState={venue?.state} currentUser={user} />
             {isOwner && (
-              <Button variant="secondary" onClick={() => router.push(`/venue-dashboard/${encodeURIComponent(venueKey)}/`)}>
+              <Button variant="secondary" onClick={() => router.push(venueDashboardHref(venueKey))}>
                 Manage Venue
               </Button>
             )}

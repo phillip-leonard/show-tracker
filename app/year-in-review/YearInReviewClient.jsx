@@ -9,6 +9,7 @@ import ShareYearInReview from '@/components/yearInReview/ShareYearInReview';
 import {
   computeYearInReview, saveYearInReview, getYearInReview, setYearInReviewPrivacy,
 } from '@/lib/yearInReview';
+import { yearInReviewHref } from '@/lib/showRouting';
 
 export default function YearInReviewClient({ userId, year }) {
   const router = useRouter();
@@ -59,7 +60,7 @@ export default function YearInReviewClient({ userId, year }) {
     );
   }
 
-  const shareUrl = typeof window !== 'undefined' ? window.location.href : `https://mysetlists.net/year-in-review/${userId}/${year}/`;
+  const shareUrl = typeof window !== 'undefined' ? window.location.href : `https://mysetlists.net${yearInReviewHref(userId, year)}`;
 
   return (
     <div className="max-w-3xl mx-auto">
@@ -72,16 +73,23 @@ export default function YearInReviewClient({ userId, year }) {
         <p className="text-lg opacity-95 max-w-xl mx-auto">{stats.shareableQuote}</p>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-        <StatTile value={stats.totalShows} label="Shows" tone="brand" />
-        <StatTile value={stats.totalArtists} label="Artists" />
-        <StatTile value={stats.totalVenues} label="Venues" />
-        <StatTile value={stats.countriesVisited.length} label="Countries" />
+      {/* The three headline counts. Each has one color, and the same one
+          everywhere a Year in Review count appears (the share image, the
+          My Shows banner, the landing page): Shows green, Bands amber,
+          Venues white. The label under each number is its legend. */}
+      <div className="grid grid-cols-3 gap-3 md:gap-4 mb-3">
+        <StatTile value={stats.totalShows} label={stats.totalShows === 1 ? 'Show' : 'Shows'} tone="brand" />
+        <StatTile value={stats.totalArtists} label={stats.totalArtists === 1 ? 'Band' : 'Bands'} tone="amber" />
+        <StatTile value={stats.totalVenues} label={stats.totalVenues === 1 ? 'Venue' : 'Venues'} />
       </div>
+      {stats.countriesVisited.length > 1 && (
+        <p className="text-sm text-secondary text-center mb-8">Across {stats.countriesVisited.length} countries</p>
+      )}
+      {stats.countriesVisited.length <= 1 && <div className="mb-8" />}
 
       {stats.topArtist && (
         <Card variant="elevated" padding="lg" className="mb-6">
-          <h3 className="text-lg font-semibold text-primary flex items-center gap-2 mb-3"><Trophy size={18} className="text-brand" /> Top Artist</h3>
+          <h3 className="text-lg font-semibold text-primary flex items-center gap-2 mb-3"><Trophy size={18} className="text-brand" /> Top Band</h3>
           <p className="text-2xl font-extrabold text-primary">{stats.topArtist.name}</p>
           <p className="text-secondary text-sm mt-1">
             {stats.topArtist.showCount} show{stats.topArtist.showCount !== 1 ? 's' : ''}

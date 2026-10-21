@@ -18,6 +18,7 @@ import { useApp } from '@/context/AppContext';
 import { subscribeAllNotifications } from '@/lib/notifications';
 import { meetupIdFor } from '@/lib/meetups';
 import { timeAgo } from '@/lib/utils';
+import { venueHref } from '@/lib/showRouting';
 
 const ICONS = {
   comment_reply: MessageSquare,
@@ -133,7 +134,7 @@ export default function NotificationCenter() {
           if (n.type === 'meetup_join' && n.concertKey) {
             href = `/meetups/?id=${meetupIdFor(n.concertKey)}`;
           } else if (n.type === 'venue_bucket_list_match' && n.venueKey) {
-            href = `/venues/${encodeURIComponent(n.venueKey)}/`;
+            href = venueHref(n.venueKey);
           } else if (n.concertKey) {
             const show = showByKey.get(n.concertKey);
             href = show ? `/shows/${show.id}` : null;
