@@ -4,6 +4,52 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.46.1] — 2026-10-21
+
+Ships in iOS 3.8.1 (`MARKETING_VERSION` 3.8 → 3.8.1; the build number is
+left to Xcode Cloud).
+
+Three comparison pages for search, with every MySetlists claim on them
+checked against the code first.
+
+### Comparison pages
+
+- **`/compare/concert-archives/`, `/compare/setlist-fm/` and
+  `/best-concert-tracker-apps-jam-bands/`**: real routes in the static
+  export, server components with their full article in `out/`. Each has
+  its own title, description, canonical, `FAQPage` JSON-LD from its FAQ, and
+  "Last updated: October 2026". Layout: `components/compare/ComparePage.jsx`;
+  the page list: `lib/comparePages.js`.
+- **They render without the app shell, signed in or not**
+  (`AppProviderWrapper` checks `isComparePath` before anything waits on
+  auth).
+- **Indexable and in the sitemap**: `index, follow` in `public/_headers`
+  (the default there is `noindex`), and listed in `/sitemap-pages.xml`.
+- **Linked from the landing page footer** (a new Compare column) and from
+  each other. In the iOS app the footer links open mysetlists.net in the
+  system browser; the pages are web-only.
+- **"Start tracking your shows"** links to `/?signup=1`, which now opens
+  the sign-up form for a signed-out visitor once auth resolves. "Get the
+  iPhone app" links to the App Store listing (`APP_STORE_URL` in
+  `lib/comparePages.js`).
+
+### Claims corrected against the code
+
+- MySetlists **has** photos and videos (shared with everyone who logged the
+  show); the draft said it didn't.
+- Band-native setlists come from **phish.net (Phish) and elgoose.net
+  (Goose)** only, not "band-native archives" generally; there is no tease
+  field, so "gaps, teases, segues" became "segues, gaps and jam charts".
+- There is **no setlist.fm attendance import**: that row and FAQ are gone.
+  The Concert Archives FAQ now points to CSV/Excel import and ticket scans.
+- Tagging a friend sends an email and lets them add the show in one tap;
+  there is no separate "shared show page".
+- Setlists can be edited on your own show, so "Edit setlists: No" became
+  "your own copy only".
+- setlist.fm's iPhone-app row is gone: no official app could be confirmed.
+
+---
+
 ## [5.46.0] — 2026-10-21
 
 Ships in iOS 3.8 (`MARKETING_VERSION` 3.7.2 → 3.8, a minor bump for a new

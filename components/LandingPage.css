@@ -702,8 +702,9 @@
   margin: 0 auto;
   padding: 0 32px calc(48px + env(safe-area-inset-bottom));
   display: grid;
-  /* Brand column, then one equal column per link group: three on the web
-     (Resources, Bands, Company), two in the app, which has no Bands. */
+  /* Brand column, then one equal column per link group: four on the web
+     (Resources, Bands, Compare, Company), three in the app, which has no
+     Bands. */
   grid-template-columns: 2fr;
   grid-auto-columns: 1fr;
   grid-auto-flow: column;

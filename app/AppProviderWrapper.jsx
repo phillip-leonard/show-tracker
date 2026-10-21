@@ -18,6 +18,7 @@ import { DismissStackProvider, useDismissable } from '@/context/DismissStackCont
 import SwipeBackLayer from '@/components/layout/SwipeBackLayer';
 import { Music, Check, Sparkles } from 'lucide-react';
 import { clearHintAttr } from '@/lib/signedInHint';
+import { isComparePath } from '@/lib/comparePages';
 // Statically imported, not code-split: the landing page is the static HTML
 // of `/` and has to be in out/index.html as real markup for crawlers and
 // first paint. It was `dynamic(..., { ssr: false })` while authLoading
@@ -147,6 +148,13 @@ function AppShell({ children }) {
   useEffect(() => {
     if (!authLoading) clearHintAttr();
   }, [authLoading]);
+
+  // The comparison pages (lib/comparePages.js) are web pages with their
+  // own header and footer, the same for everyone, signed in or not. They
+  // never wait on auth, so the static export has their full HTML.
+  if (isComparePath(pathname)) {
+    return <>{children}</>;
+  }
 
   // While auth initializes, only `/` and the legal pages render content
   // (below); every other route waits, as before.
