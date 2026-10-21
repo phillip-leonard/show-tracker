@@ -30,6 +30,21 @@ function getDb() {
   return getFirestore();
 }
 
+// One URL per handle. More than one userProfiles doc can carry the same
+// handleLower: the live sitemap listed /u/alexreviewer/ twice. Only
+// handles/{handleLower} decides which account a URL resolves to, so a
+// repeat adds nothing.
+function uniqueHandles(handles) {
+  const seen = new Set();
+  for (const h of handles) {
+    const handle = typeof h === 'string' ? h.trim().toLowerCase() : '';
+    if (handle) seen.add(handle);
+  }
+  return [...seen];
+}
+
+exports.uniqueHandles = uniqueHandles;
+
 exports.handler = async function () {
   const db = getDb();
   let publicHandles = [];
@@ -37,7 +52,7 @@ exports.handler = async function () {
   if (db) {
     try {
       const snap = await db.collection('userProfiles').where('publicProfile', '==', true).get();
-      publicHandles = snap.docs.map(d => d.data().handleLower).filter(Boolean);
+      publicHandles = uniqueHandles(snap.docs.map(d => d.data().handleLower));
     } catch (err) {
       console.error('sitemap: failed to list public profiles:', err);
       // Degrade to the static URL set rather than failing the whole sitemap.

@@ -14,6 +14,7 @@
 // stripped here.
 
 const { escapeHtml, page, notFoundPage, CACHE_HEADERS, SITE_URL } = require('./lib/publicPageHtml');
+const { routeParams } = require('./lib/publicRouteParams');
 
 function getDb() {
   const privateKey = (process.env.FIREBASE_PRIVATE_KEY || '').replace(/\\n/g, '\n');
@@ -41,7 +42,7 @@ exports.handler = async function (event) {
     return { statusCode: 503, headers: { 'Content-Type': 'text/html' }, body: notFoundPage('This page is temporarily unavailable.') };
   }
 
-  const id = event.queryStringParameters?.id || '';
+  const { id } = routeParams(event, 'shared');
   if (!id) {
     return { statusCode: 404, headers: { 'Content-Type': 'text/html' }, body: notFoundPage('Collection not found.') };
   }
