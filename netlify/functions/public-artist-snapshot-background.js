@@ -26,13 +26,18 @@ const TOKEN_TTL_MS = 10 * 60 * 1000;
 
 function readNonce(event) {
   let body = {};
-  try { body = JSON.parse(event.body || '{}'); } catch { /* fall through to the query */ }
+  try {
+    const raw = event.isBase64Encoded ? Buffer.from(event.body || '', 'base64').toString('utf8') : event.body;
+    body = JSON.parse(raw || '{}');
+  } catch { /* fall through to the query */ }
   const nonce = String(body.nonce || event.queryStringParameters?.nonce || '');
   return /^[a-f0-9]{32,64}$/.test(nonce) ? nonce : '';
 }
 
 exports.handler = async function (event) {
-  if (event.httpMethod !== 'POST') return { statusCode: 405, body: 'POST only' };
+  // No method check: the one-shot token is the gate, and a silent 405 here
+  // once left a run unexplained (a background function's 202 hides it).
+  console.log(`[artist-snapshot] invoked (${event.httpMethod || 'no method'})`);
 
   const nonce = readNonce(event);
   if (!nonce) {
