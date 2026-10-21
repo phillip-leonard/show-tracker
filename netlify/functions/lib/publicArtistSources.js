@@ -16,7 +16,14 @@
 //              at 4,000 rows with no working offset, which is a fraction of
 //              Umphrey's history, so it can't be used. No year comes close
 //              to 4,000 rows today; one that does is refused, not truncated.
-//   phishnet   the same per-year call on api.phish.net/v5, keyed.
+//   phishnet   the same per-year call on api.phish.net/v5, keyed, plus
+//              /v5/songs.json once per run: setlist rows say whether a
+//              song is an original (is_original) but not whose it is, and
+//              the songs list has the original artist.
+//
+// Both also list every show once per run (fetchSongfishShowList,
+// fetchPhishnetShowList). A show whose setlist nobody knows has no setlist
+// rows, but the archive still counts it in every gap, and so do we.
 //   setlistfm  /artist/<mbid>/setlists?p=<n>, 20 per page, newest first.
 //              Only a window of recent setlists is fetched (see
 //              publicArtistSnapshot.js), because full histories run to 150+
@@ -158,6 +165,40 @@ function songfishShowsFromRows(rows, artist) {
   );
 }
 
+// One show from a show list row: the same fields as a setlist show, no songs.
+function songfishListedShow(r, artist) {
+  return {
+    id: String(r.show_id || ''),
+    date: isoDate(r.showdate),
+    order: Number(r.showorder) || 0,
+    venue: decodeEntities(r.venuename),
+    city: decodeEntities(r.city),
+    state: decodeEntities(r.state),
+    country: decodeEntities(r.country),
+    url: r.permalink ? `https://${artist.host}/setlists/${String(r.permalink).replace(/^\/+/, '')}` : '',
+    songs: [],
+  };
+}
+
+/** Every show the archive lists for the artist, with or without a setlist. */
+async function fetchSongfishShowList(artist, ctx) {
+  const res = await ctx.request('songfish', () =>
+    fetchSongfishJson(`/api/v2/shows/artist_id/${artist.artistId}.json`, { hostname: artist.host, timeoutMs: TIMEOUT_MS }));
+  if (res.statusCode !== 200) throw new SourceError(`${artist.host} returned HTTP ${res.statusCode} for the show list`);
+  const env = readSongfishEnvelope(res.data);
+  if (!env.ok) throw new SourceError(`${artist.host} show list: ${env.message}`);
+  if (env.rows.length >= SONGFISH_ROW_CAP) {
+    throw new SourceError(`${artist.host} show list: ${env.rows.length} rows, at the archive's row cap; refusing a possibly truncated list`);
+  }
+  return {
+    shows: env.rows
+      .filter((r) => Number(r.artist_id) === Number(artist.artistId))
+      .map((r) => songfishListedShow(r, artist))
+      .filter((s) => s.id && s.date),
+    excluded: new Set(),
+  };
+}
+
 async function fetchSongfishYear(artist, year, ctx) {
   const res = await ctx.request('songfish', () =>
     fetchSongfishJson(`/api/v2/setlists/showyear/${year}.json`, { hostname: artist.host, timeoutMs: TIMEOUT_MS }));
@@ -217,6 +258,57 @@ async function fetchPhishnetYear(artist, year, ctx, apiKey) {
   return phishnetShowsFromRows(env.rows, artist);
 }
 
+/**
+ * Every Phish show phish.net lists, with or without a setlist, and the ids
+ * of the ones it leaves out of its stats (exclude_from_stats), which it
+ * doesn't count in gaps either.
+ */
+async function fetchPhishnetShowList(artist, ctx, apiKey) {
+  const res = await ctx.request('phishnet', () =>
+    fetchPhishnetJson(`/v5/shows/artist/${encodeURIComponent(artist.artistSlug)}.json`, apiKey, { timeoutMs: TIMEOUT_MS }));
+  if (res.statusCode !== 200) throw new SourceError(`phish.net returned HTTP ${res.statusCode} for the show list`);
+  const env = readPhishnetEnvelope(res.data);
+  if (!env.ok) throw new SourceError(`phish.net show list: ${env.message}`);
+  const shows = [];
+  const excluded = new Set();
+  for (const r of env.rows) {
+    const id = String(r.showid || '');
+    const showDate = isoDate(r.showdate);
+    if (!id || !showDate) continue;
+    if (Number(r.exclude_from_stats) === 1) { excluded.add(id); continue; }
+    shows.push({
+      id,
+      date: showDate,
+      order: 0,
+      venue: decodeEntities(r.venue),
+      city: decodeEntities(r.city),
+      state: decodeEntities(r.state),
+      country: decodeEntities(r.country),
+      url: String(r.permalink || ''),
+      songs: [],
+    });
+  }
+  return { shows, excluded };
+}
+
+/**
+ * songid -> original artist, for every song phish.net lists. Phish's own
+ * songs list "Phish" (or a member); only covers' artists are used.
+ */
+async function fetchPhishnetSongArtists(ctx, apiKey) {
+  const res = await ctx.request('phishnet', () =>
+    fetchPhishnetJson('/v5/songs.json', apiKey, { timeoutMs: TIMEOUT_MS }));
+  if (res.statusCode !== 200) throw new SourceError(`phish.net returned HTTP ${res.statusCode} for songs`);
+  const env = readPhishnetEnvelope(res.data);
+  if (!env.ok) throw new SourceError(`phish.net songs: ${env.message}`);
+  const artists = new Map();
+  for (const r of env.rows) {
+    const artist = decodeEntities(r.artist);
+    if (r.songid != null && artist) artists.set(`pn:${r.songid}`, artist);
+  }
+  return artists;
+}
+
 // ── setlist.fm ────────────────────────────────────────────────────────
 
 function getSetlistfmJson(path, apiKey) {
@@ -255,7 +347,9 @@ function setlistfmShow(sl) {
         key: `fm:${normalized}`,
         slug: slugify(normalized),
         name,
-        original: song.cover ? false : null,
+        // setlist.fm attaches a `cover` artist to every song that isn't the
+        // performing artist's own, so no cover means an original.
+        original: !song.cover,
         originalArtist: song.cover ? decodeEntities(song.cover.name) : '',
         sourceUrl: '',
       });
@@ -296,7 +390,10 @@ module.exports = {
   createRequester,
   decodeEntities,
   fetchSongfishYear,
+  fetchSongfishShowList,
   fetchPhishnetYear,
+  fetchPhishnetShowList,
+  fetchPhishnetSongArtists,
   fetchSetlistfmPage,
   songfishShowsFromRows,
   phishnetShowsFromRows,
