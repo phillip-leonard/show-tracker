@@ -5,6 +5,9 @@
 //   GET /api/artist-shows?slug=<slug>           every show with its setlist,
 //                                               for the "Songs I've heard"
 //                                               tool (archive bands only)
+//   GET /api/artist-shows?slug=<slug>&code=<c>  just the shows a share code
+//                                               names, setlists expanded,
+//                                               for the app's sign-up handoff
 //
 // The public band and song pages as JSON, for the iOS app to render
 // natively. Read from the same snapshot, through the same loadArtist and
@@ -18,6 +21,8 @@
 
 const { openBlobStore, loadArtist, loadArtistShows } = require('./lib/publicArtistSnapshot');
 const { artistJson, artistSongJson, artistShowsJson, jsonResponse } = require('./lib/publicArtistPages');
+const { selectedShowsJson } = require('./lib/heardPages');
+const { openShareStore, resolveCode } = require('./lib/heardShares');
 
 function whichKind(event) {
   const paths = [event.path || ''];
@@ -40,6 +45,12 @@ exports.handler = async function (event) {
 
   try {
     const store = openBlobStore(event);
+    if (kind === 'shows' && query.code) {
+      const loaded = await loadArtistShows(store, slug);
+      const code = loaded && await resolveCode(() => openShareStore(event), slug, query.code);
+      if (!code) return notFound();
+      return selectedShowsJson(loaded, code);
+    }
     if (kind === 'shows') return artistShowsJson(await loadArtistShows(store, slug));
     const loaded = await loadArtist(store, slug);
     return isSong ? artistSongJson(loaded, song) : artistJson(loaded);

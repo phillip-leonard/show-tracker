@@ -404,6 +404,32 @@ export function AppProvider({ children }) {
     }
   }, [searchParams]);
 
+  // "Save these shows to MySetlists (free)" on /heard/<slug>/ (the Songs
+  // I've heard tool) links to /shows/?signup=1&heard=<slug>.<code>. Kept
+  // in storage like ?follow= so it survives the sign-up, and in state too,
+  // because with site data blocked storage keeps nothing and the sign-up
+  // happens without a page load. components/heard/HeardSaveModal.jsx picks
+  // it up once someone is signed in.
+  const [pendingHeard, setPendingHeard] = useState(null);
+  useEffect(() => {
+    if (!searchParams) return;
+    const value = (searchParams.get('heard') || '').trim();
+    if (/^[a-z0-9-]+\.[ab][A-Za-z0-9_-]+$/.test(value) && value.length <= 2100) {
+      storage.set(STORAGE_KEYS.PENDING_HEARD, value);
+      setPendingHeard(value);
+      const cleanUrl = new URL(window.location.href);
+      cleanUrl.searchParams.delete('heard');
+      window.history.replaceState({}, '', cleanUrl.toString());
+    } else {
+      const saved = storage.get(STORAGE_KEYS.PENDING_HEARD);
+      if (saved) setPendingHeard(saved);
+    }
+  }, [searchParams]);
+  const clearPendingHeard = () => {
+    storage.remove(STORAGE_KEYS.PENDING_HEARD);
+    setPendingHeard(null);
+  };
+
   // "Start tracking your shows" on the comparison pages links to
   // /?signup=1: open the sign-up form once auth knows nobody is signed in.
   // A signed-in visitor just lands on their shows.
@@ -3771,6 +3797,8 @@ export function AppProvider({ children }) {
     authLoading,
     authModal,
     setAuthModal,
+    pendingHeard,
+    clearPendingHeard,
     guestMode,
     setGuestMode,
     showGuestPrompt,

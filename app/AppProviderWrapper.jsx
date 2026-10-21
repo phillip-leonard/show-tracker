@@ -30,6 +30,9 @@ import LandingPage from '@/components/LandingPage';
 // modal opened, a venue being rated, a gate after sign-in) that's never
 // known at build time, so there's nothing pre-rendered to lose.
 const AuthModal = dynamic(() => import('@/components/auth/AuthModal'), { ssr: false });
+// "Save these shows" from the Songs I've heard tool; renders nothing unless
+// a ?heard= link is pending, so it loads only when it's needed.
+const HeardSaveModal = dynamic(() => import('@/components/heard/HeardSaveModal'), { ssr: false });
 const TermsGate = dynamic(() => import('@/components/auth/TermsGate'), { ssr: false });
 const SuspendedScreen = dynamic(() => import('@/components/auth/SuspendedScreen'), { ssr: false });
 const VenueRatingModal = dynamic(() => import('@/components/VenueRatingModal'), { ssr: false });
@@ -121,6 +124,7 @@ function AppShell({ children }) {
     enterGuestMode, exitGuestMode, communityStats,
     handleAuthSuccess,
     termsAccepted, acceptTerms, isSuspended,
+    pendingHeard,
   } = useApp();
 
   const pathname = usePathname();
@@ -381,6 +385,8 @@ function AppShell({ children }) {
           onSwitchMode={setAuthModal}
         />
       )}
+
+      {pendingHeard && <HeardSaveModal />}
 
       {/* Sidebar */}
       <Sidebar

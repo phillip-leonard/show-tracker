@@ -382,7 +382,42 @@ function renderHeardShare({ entry, shows }, code, ids, now = Date.now()) {
   }), { 'Cache-Control': avail, 'X-Robots-Tag': 'noindex, follow' });
 }
 
+// ── /api/artist-shows?slug=&code= ─────────────────────────────────────
+
+/**
+ * The shows a share code names, each with its setlist in the app's shape
+ * ({ name, set, cover }), for the app's "Save these shows" handoff
+ * (components/heard/HeardSaveModal.jsx). `code` is already resolved (an
+ * inline code, never a stored id).
+ */
+function selectedShowsJson({ entry, shows }, code, now = Date.now()) {
+  const headers = { 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*' };
+  if (!availability(entry, now).available) {
+    return { statusCode: 503, headers: { ...headers, 'Cache-Control': 'public, s-maxage=60' }, body: JSON.stringify({ ok: false, error: 'unavailable' }) };
+  }
+  const decoded = heard.decodeSelection(shows, code);
+  if (!decoded) return { statusCode: 404, headers: { ...headers, 'Cache-Control': 'public, s-maxage=300' }, body: JSON.stringify({ ok: false, error: 'not_found' }) };
+  const wanted = new Set(decoded.ids);
+  const selected = shows.shows.filter((s) => wanted.has(s.id)).map((show) => {
+    const [venue, city] = shows.venues[show.venue] || ['', ''];
+    const setlist = [];
+    for (const [set, songs] of show.sets) {
+      for (const [index] of songs) {
+        const song = shows.songs[index];
+        if (song) setlist.push({ name: song.name, set, cover: song.isOriginal === false ? (song.originalArtist || null) : null });
+      }
+    }
+    return { id: show.id, date: show.date, venue, city, tour: show.tour >= 0 ? shows.tours[show.tour] : '', url: show.url ? shows.urlBase + show.url : '', setlist };
+  });
+  return {
+    statusCode: 200,
+    headers: { ...headers, ...cacheHeaders(entry, now) },
+    body: JSON.stringify({ ok: true, artist: { slug: shows.slug, name: shows.name, sourceName: shows.sourceName }, shows: selected, missing: decoded.missing }),
+  };
+}
+
 module.exports = {
+  selectedShowsJson,
   heardPath,
   sharePath,
   imagePath,
