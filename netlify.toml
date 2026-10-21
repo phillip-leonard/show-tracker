@@ -172,34 +172,41 @@
 # :param placeholders only match a single path segment, so a request with
 # an extra /shows/:showId segment could never match the shorter pattern
 # regardless of order. All of these must stay above the final catch-all.
+#
+# The values travel in the function PATH, not a query string. These rules
+# used to rewrite to ...public-profile?handle=:handle, and that placeholder
+# never reached the function, so every one of these pages returned 404
+# from v5.6.0 until 5.44.4. The functions read the path through
+# netlify/functions/lib/publicRouteParams.js, which accepts either the
+# public URL or the function URL, whichever Netlify passes as event.path.
 [[redirects]]
   from = "/u/:handle/shows/:showId"
-  to = "/.netlify/functions/public-show?handle=:handle&showId=:showId"
+  to = "/.netlify/functions/public-show/:handle/:showId"
   status = 200
 
 [[redirects]]
   from = "/u/:handle/shows/:showId/"
-  to = "/.netlify/functions/public-show?handle=:handle&showId=:showId"
+  to = "/.netlify/functions/public-show/:handle/:showId"
   status = 200
 
 [[redirects]]
   from = "/u/:handle"
-  to = "/.netlify/functions/public-profile?handle=:handle"
+  to = "/.netlify/functions/public-profile/:handle"
   status = 200
 
 [[redirects]]
   from = "/u/:handle/"
-  to = "/.netlify/functions/public-profile?handle=:handle"
+  to = "/.netlify/functions/public-profile/:handle"
   status = 200
 
 [[redirects]]
   from = "/shared/:id"
-  to = "/.netlify/functions/public-shared?id=:id"
+  to = "/.netlify/functions/public-shared/:id"
   status = 200
 
 [[redirects]]
   from = "/shared/:id/"
-  to = "/.netlify/functions/public-shared?id=:id"
+  to = "/.netlify/functions/public-shared/:id"
   status = 200
 
 # Replaces the old static public/sitemap.xml (6 fixed URLs) with a

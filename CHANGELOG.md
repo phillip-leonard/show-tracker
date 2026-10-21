@@ -4,6 +4,33 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.44.4] — 2026-10-20
+
+Ships in iOS 3.6.4 (`MARKETING_VERSION` 3.6.3 → 3.6.4; the build number
+is left to Xcode Cloud). Nothing in this release changes the app itself:
+the bump follows the every-PR rule.
+
+### Public profiles, show pages and shared collections load again
+
+- **Fixed: every `/u/<handle>/`, `/u/<handle>/shows/<id>/` and
+  `/shared/<id>/` page returned 404 "No profile handle given."** — since
+  they shipped in v5.6.0. The `netlify.toml` rewrites passed the values as
+  query-string placeholders (`public-profile?handle=:handle`), which never
+  reached the function; called directly with `?handle=` the same function
+  worked. The rewrites now put the values in the function path
+  (`/.netlify/functions/public-profile/:handle`), and the three functions
+  read them through `netlify/functions/lib/publicRouteParams.js`, which
+  accepts the public URL or the function URL from `event.path` or
+  `event.rawUrl`. An explicit `?handle=` still works.
+- **Fixed: the sitemap listed `/u/alexreviewer/` twice.** More than one
+  `userProfiles` doc can carry the same `handleLower`; the sitemap now
+  lists each handle once. Google had been fed those 404s through the
+  sitemap.
+- New `tests/public-pages/routeParams.test.js` (13 cases), run by
+  `npm run test:unit`.
+
+---
+
 ## [5.44.3] — 2026-10-20
 
 Web only. No iOS version bump: this release changes page metadata and a

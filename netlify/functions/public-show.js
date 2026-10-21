@@ -19,6 +19,7 @@
 // of importing its ES module target directly).
 
 const { escapeHtml, page, notFoundPage, CACHE_HEADERS, SITE_URL, isoDate, formatShowDate } = require('./lib/publicPageHtml');
+const { routeParams } = require('./lib/publicRouteParams');
 
 function getDb() {
   const privateKey = (process.env.FIREBASE_PRIVATE_KEY || '').replace(/\\n/g, '\n');
@@ -95,8 +96,9 @@ exports.handler = async function (event) {
     return { statusCode: 503, headers: { 'Content-Type': 'text/html' }, body: notFoundPage('This page is temporarily unavailable.') };
   }
 
-  const handleLower = (event.queryStringParameters?.handle || '').toLowerCase().trim();
-  const showId = event.queryStringParameters?.showId || '';
+  const params = routeParams(event, 'show');
+  const handleLower = params.handle.toLowerCase().trim();
+  const showId = params.showId;
 
   if (!handleLower || !showId) {
     return { statusCode: 404, headers: { 'Content-Type': 'text/html' }, body: notFoundPage('Show not found.') };
