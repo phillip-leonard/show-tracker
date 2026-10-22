@@ -3,7 +3,7 @@
  *
  * The normalized song shape every band-source adapter produces, and the
  * canonical-label / transition logic they all share. The adapters
- * (elgooseAdapter.js, phishnetAdapter.js) are then nothing but "fetch this
+ * (songfishAdapter.js, phishnetAdapter.js) are then nothing but "fetch this
  * URL and tell me which upstream key means what" — which is the only part
  * that differs between sources, and the only part that needs re-checking
  * against a live response.

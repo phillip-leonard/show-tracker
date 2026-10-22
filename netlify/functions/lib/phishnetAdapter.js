@@ -246,10 +246,10 @@ function mapShow(rows) {
       gap,
       // phish.net's setlist row names no covered artist either — cover
       // attribution lives on its song pages, not the setlist. Left null
-      // rather than guessed; see the same note in elgooseAdapter.js.
+      // rather than guessed; see the same note in songfishAdapter.js.
       cover: null,
       // No `debut` from this source, for the reason spelled out in
-      // elgooseAdapter.js: gap 0 means "played at the previous show", not
+      // songfishAdapter.js: gap 0 means "played at the previous show", not
       // "never played before", and inferring a debut from it would be
       // guessing. `sourceGap` carries the real number instead.
       debut: false,

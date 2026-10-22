@@ -778,7 +778,7 @@ export default function ShowDetailView({
               setlistSource at all. */}
           {!editMode && sets.length > 0 && isBandSourced && (
             <p className="mt-3 text-[11px] text-muted">
-              Setlist from{' '}
+              Setlist via{' '}
               <a
                 href={show.sourcePermalink || sourceHomeUrl(show.setlistSource)}
                 target="_blank"
