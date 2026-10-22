@@ -773,7 +773,7 @@ export default function ShowDetailView({
               source — setlist.fm's credit is the line above. */}
           {!editMode && sets.length > 0 && isBandSourced && (
             <p className="mt-3 text-[11px] text-muted">
-              Setlist from{' '}
+              Setlist via{' '}
               <a
                 href={show.sourcePermalink || sourceHomeUrl(show.setlistSource)}
                 target="_blank"

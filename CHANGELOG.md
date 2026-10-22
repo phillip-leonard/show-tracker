@@ -4,6 +4,43 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.47.6] — 2026-10-23
+
+Ships in iOS 3.9.6 (`MARKETING_VERSION` 3.9.5 → 3.9.6; the build number is
+left to Xcode Cloud). Built as 5.47.4 / 3.9.4 on 2026-10-21 and renumbered
+when it merged after 5.47.5.
+
+**One Songfish adapter for every Songfish archive, starting with Goose.**
+elgoose.net runs on Songfish, and so do ttbase.net (Tedeschi Trucks Band),
+kglw.net (King Gizzard), thecarton.net (Eggy), go-set.net (Dogs in a Pile)
+and others, all on the same keyless v2 API. The Goose-only adapter is now a
+generic one driven by a site registry.
+
+- **Registry**: `config/songfish-sites.json`, one entry per site with its
+  artists' names and numeric `artist_id`, `enabled`, attribution and
+  `permissionStatus`. Goose on El Goose is the only enabled site. TTBase,
+  KGLW.net, The Carton and Go-Set are listed **disabled**: their artists
+  stay on setlist.fm, and `/api/band-setlist` refuses them as an unknown
+  source, so their hosts are never contacted. Each gets turned on once its
+  owner says yes.
+- **Goose encores are labelled Encore again.** Songfish marks an encore
+  with set number `e`, which was read as Set I, so every Goose encore was
+  stored as the last song of the first set.
+- **A Goose lookup can't return another band's show.** elgoose.net also
+  carries Orebolo, Mt. Joy and guest sets. When no row matched Goose, the
+  old filter kept every row, so a date only Orebolo played came back as
+  Orebolo's setlist under Goose. Rows are now matched strictly on
+  `artist_id`; no Goose rows means no setlist, and the app keeps
+  setlist.fm's.
+- **Every footnote is kept**, not just the first, where a song has several.
+- **Attribution** reads "Setlist via El Goose", linked to the show's page
+  on the archive.
+- Cache version bumped to 3, so the fixes reach shows already cached.
+- Unchanged: how setlists are stored, the setlist.fm fallback, and the
+  public band pages (which read their own Songfish hosts from
+  `config/public-artists.json`).
+---
+
 ## [5.47.5] — 2026-10-23
 
 Ships in iOS 3.9.5 (`MARKETING_VERSION` 3.9.3 → 3.9.5; 5.47.4 / 3.9.4 is
