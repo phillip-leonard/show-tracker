@@ -18,7 +18,7 @@ const snap = require('../../netlify/functions/lib/publicArtistSnapshot');
 const pages = require('../../netlify/functions/lib/publicArtistPages');
 const { routeParams } = require('../../netlify/functions/lib/publicRouteParams');
 const { artistUrls, whichDocument } = require('../../netlify/functions/sitemap');
-const elgoose = require('../../netlify/functions/lib/elgooseAdapter');
+const elgoose = require('../../netlify/functions/lib/songfishAdapter');
 const phishnet = require('../../netlify/functions/lib/phishnetAdapter');
 
 const tests = [];

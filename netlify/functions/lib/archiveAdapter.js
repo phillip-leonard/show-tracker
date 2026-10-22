@@ -678,7 +678,7 @@ function permalinkFor(identifier) {
 
 /**
  * Turns a chosen parse into the show object band-setlist.js expects —
- * the same shape elgooseAdapter.mapShow returns, plus the three fields
+ * the same shape songfishAdapter.mapShow returns, plus the three fields
  * that only this source has.
  */
 function mapShow(doc, parsed, { confidence, parsedFrom, partial, itemCount }) {
