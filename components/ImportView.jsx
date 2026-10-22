@@ -7,7 +7,7 @@ import { IMPORT_FIELDS } from '@/lib/constants';
 import Tip from '@/components/ui/Tip';
 import { apiUrl } from '@/lib/api';
 import { extractSongsFromSetlist } from '@/lib/setlistParser';
-import { fetchBandSetlist } from '@/lib/bandSetlist';
+import { fetchBandSetlist, canAutoApply } from '@/lib/bandSetlist';
 
 function ImportView({ onImport, onUpdateShow, existingShows, onNavigate }) {
   const [step, setStep] = useState('upload');
@@ -263,7 +263,9 @@ function ImportView({ onImport, onUpdateShow, existingShows, onNavigate }) {
       // setlist.fm search below on any failure, silently, which is the
       // whole contract of lib/bandSetlist.js.
       const band = await fetchBandSetlist({ artist, date, venue });
-      if (band) {
+      // An import writes without asking, so an Internet Archive setlist is
+      // only taken when canAutoApply allows it; otherwise setlist.fm below.
+      if (band && canAutoApply(band)) {
         return {
           setlist: band.songs,
           setlistfmId: null,
