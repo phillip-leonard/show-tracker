@@ -4,6 +4,25 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.47.2] — 2026-10-21
+
+Ships in iOS 3.9.2 (`MARKETING_VERSION` 3.9.1 → 3.9.2; the build number is
+left to Xcode Cloud).
+
+**No more "What's New" popup after sign-in.** The "A lot shipped this week"
+announcement no longer opens when a signed-in user loads the app. Release
+notes are still on `/release-notes`.
+
+- **`ChangelogPopup` removed**: its render in `AppProviderWrapper` and the
+  component itself are gone. The popup ID `popup-changelog-2026-08-31` was
+  only ever read there, so a dismissal still sitting in a browser's
+  `mysetlists_popup_dismissals` can no longer bring it back; it's ignored.
+- **Every other prompt is unchanged**: the import-existing-shows prompt,
+  guest sign-up nudge, first-show celebration, invite welcome modal, PWA
+  install banner and playlist coach mark behave as before.
+
+---
+
 ## [5.47.1] — 2026-10-21
 
 Ships in iOS 3.9.1 (`MARKETING_VERSION` 3.9 → 3.9.1; the build number is
