@@ -4,6 +4,41 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.47.3] — 2026-10-21
+
+Ships in iOS 3.9.3 (`MARKETING_VERSION` 3.9.2 → 3.9.3; the build number is
+left to Xcode Cloud).
+
+**Grateful Dead setlists from the Internet Archive.** The Archive's
+GratefulDead collection is now the band source for the Grateful Dead, in
+front of setlist.fm, the way El Goose is for Goose and Phish.net for Phish.
+Nothing else changes source.
+
+- **The Archive holds tapes, not setlists**, so the setlist is read from the
+  uploaders' descriptions (or the info file, or the track titles) of every
+  recording of the night. Only text with explicit set headers is trusted;
+  the version most tapes agree on wins, complete tapes beat partial ones,
+  and the header-less comma lists on the oldest uploads are never parsed.
+  `netlify/functions/lib/archiveAdapter.js` has the rules.
+- **New adds** take the Archive setlist only when it has explicit set
+  breaks, comes from a complete tape, and the date has no early/late-show
+  doubt. Otherwise the add keeps setlist.fm's setlist, as before.
+- **Backfill with review**: My Shows offers "N Grateful Dead shows with no
+  setlist", looks each up and shows the proposed setlist with a link to the
+  recording. Nothing is saved until you press Save on that show; Skip and
+  closing change nothing, and a show that has gained a setlist meanwhile is
+  left alone. The show page's "Get setlist from Internet Archive" goes
+  through the same review.
+- **Source on the show**: "Setlist from Internet Archive, recording
+  gd77-05-08…", linked to the item.
+- **Caching**: a found setlist is cached for 30 days and a "not found" for
+  7, so a repeat lookup doesn't hit the Archive. A timeout or rate limit is
+  never cached.
+- **Unchanged for Grateful Dead**: the admin "Scan My Shows" keeps using
+  setlist.fm for these shows, because it writes without asking.
+
+---
+
 ## [5.47.2] — 2026-10-21
 
 Ships in iOS 3.9.2 (`MARKETING_VERSION` 3.9.1 → 3.9.2; the build number is

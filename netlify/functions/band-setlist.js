@@ -5,6 +5,7 @@
  *   GET /api/band-setlist?source=elgoose&artist=Goose&date=2025-07-18
  *   GET /api/band-setlist?source=phishnet&artist=Phish&date=1997-11-22&venue=Hampton%20Coliseum
  *   GET /api/band-setlist?source=elgoose&artist=Goose&date=2026-08-15&debug=1
+ *   GET /api/band-setlist?source=archive&artist=Grateful%20Dead&date=1977-05-08&artistId=GratefulDead
  *
  * `debug=1` adds an `upstream` object reporting the envelope's top-level
  * keys, the type of `data`, the row count and the first row's key names.
@@ -16,11 +17,12 @@
  * the archive is sending right now and never leaves a debug-shaped
  * response in the cache for other callers.
  *
- * `source` is a band-source id from lib/setlistSources.js ('elgoose' or
- * 'phishnet'). The per-source fetch and field mapping live in
- * netlify/functions/lib/{elgoose,phishnet}Adapter.js, one file per source,
- * so adding Grateful Dead later is a new adapter plus a new branch in
- * ADAPTERS below and nothing else.
+ * `source` is a band-source id from lib/setlistSources.js ('elgoose',
+ * 'phishnet' or 'archive'). The per-source fetch and field mapping live in
+ * netlify/functions/lib/{elgoose,phishnet,archive}Adapter.js, one file per
+ * source, and each is one branch in ADAPTERS below. Grateful Dead arrived
+ * that way in 5.47.3: the Internet Archive adapter, no other change here
+ * beyond its own cache rules.
  *
  * ── Why this is so much smaller than the setlist.fm path ─────────────
  *
@@ -63,6 +65,7 @@ const crypto = require('crypto');
 
 const elgooseAdapter = require('./lib/elgooseAdapter');
 const phishnetAdapter = require('./lib/phishnetAdapter');
+const archiveAdapter = require('./lib/archiveAdapter');
 
 const CORS_HEADERS = { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' };
 
@@ -85,6 +88,24 @@ const ADAPTERS = {
     requiresApiKey: true,
     apiKeyEnvVar: 'PHISHNET_API_KEY',
     fetch: (date, { apiKey, artistId }) => phishnetAdapter.fetchSetlists(date, { apiKey, artistId }),
+  },
+  // The Internet Archive, Grateful Dead only. artistId is the collection
+  // ('GratefulDead'). The venue goes to the adapter as well as to
+  // selectShow, because here it narrows which TAPES are read rather than
+  // which of several shows is returned.
+  //
+  // Its own cache rules, because nothing about it matches the other two:
+  // these are tapes of shows from 1965–1995, not a reviewed archive being
+  // corrected this week, so a found setlist is kept for 30 days rather
+  // than 24 hours. And a "not found" is cached too, for 7 days: finding
+  // one costs up to five requests to a service that asks to be used
+  // gently, and a repeat lookup of a date with no tapes should not repeat
+  // them.
+  archive: {
+    requiresApiKey: false,
+    maxTtlHours: 24 * 30,
+    emptyTtlHours: 24 * 7,
+    fetch: (date, { artistId, venue }) => archiveAdapter.fetchSetlists(date, { collection: artistId || archiveAdapter.COLLECTION, venue }),
   },
 };
 
@@ -178,7 +199,7 @@ function buildCacheKey(source, artist, date, venue, artistId) {
  * just did, longer for settled history — but capped at MAX_TTL_HOURS rather
  * than running out to the 7-day tier.
  */
-function determineTtlHours(showDate) {
+function determineTtlHours(showDate, maxTtlHours = MAX_TTL_HOURS) {
   const d = new Date(`${showDate}T00:00:00Z`);
   if (Number.isNaN(d.getTime())) return 1;
 
@@ -187,7 +208,7 @@ function determineTtlHours(showDate) {
 
   const monthsAgo = (now - d.getTime()) / (1000 * 60 * 60 * 24 * 30);
   if (monthsAgo < 1) return 6; // still being reviewed and corrected
-  return MAX_TTL_HOURS;
+  return maxTtlHours;
 }
 
 // --- Handler ---
@@ -284,7 +305,7 @@ exports.handler = async function (event) {
 
   // 2. Fetch from the band source
   try {
-    const result = await adapter.fetch(date, { apiKey, artistId });
+    const result = await adapter.fetch(date, { apiKey, artistId, venue });
 
     if (!result.ok) {
       // An upstream that answered and said "no" is not an outage — it is an
@@ -357,8 +378,14 @@ exports.handler = async function (event) {
     // result for 24h would mean a show added to the archive tomorrow stays
     // invisible to the app for a day — and an empty result is cheap to
     // re-ask for, being one request rather than a nine-request search loop.
-    if (db && !bypassCache && payload.songs.length > 0) {
-      const ttlHours = determineTtlHours(date);
+    //
+    // The exception is a source that sets `emptyTtlHours` (the Archive),
+    // where an empty answer is neither cheap nor likely to change; see its
+    // ADAPTERS entry. Only an answer the source actually gave — a thrown
+    // error never reaches here, so an outage is never cached as "none".
+    const cacheEmpty = !!adapter.emptyTtlHours && payload.songs.length === 0;
+    if (db && !bypassCache && (payload.songs.length > 0 || cacheEmpty)) {
+      const ttlHours = cacheEmpty ? adapter.emptyTtlHours : determineTtlHours(date, adapter.maxTtlHours || MAX_TTL_HOURS);
       const { Timestamp } = require('firebase-admin/firestore');
       db.collection(CACHE_COLLECTION).doc(cacheKey).set({
         response: responseBody,
@@ -483,11 +510,25 @@ function selectShow(shows, { source, date, venue }) {
     }
   }
 
+  // The Archive returns one show per date but can still be unsure of it:
+  // early and late shows are separate tapes it cannot reliably tell apart.
+  if (chosen.ambiguousSlot) {
+    ambiguous = true;
+    message = message || `There were early and late shows on ${date}, and the Internet Archive's tapes don't say clearly which one this setlist is.`;
+  }
+
   return {
     ...base,
     ambiguous,
     candidates,
     message,
+    // Archive only (absent, and so dropped from the JSON, for the other
+    // sources): how the setlist was read, which decides whether the app
+    // may write it without asking. See archiveAdapter.js.
+    confidence: chosen.confidence,
+    parsedFrom: chosen.parsedFrom,
+    partial: chosen.partial,
+    itemCount: chosen.itemCount,
     // The normalized setlist, which is what callers actually want.
     songs: chosen.songs,
     droppedSoundcheckCount: chosen.droppedSoundcheckCount,

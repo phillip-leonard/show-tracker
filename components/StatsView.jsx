@@ -14,7 +14,7 @@ import FollowBandButton from '@/components/artists/FollowBandButton';
 import HeardToolCard from '@/components/heard/HeardToolCard';
 import MakePosterButton from '@/components/heard/MakePosterButton';
 
-function StatsView({ shows, allShows = shows, songStats, artistStats, venueStats, topRatedShows, onRateSong, onRateShow, onCommentShow, onUpdateVenueRating, onDeleteShow, onAddSong, onReorderSetlist, onResyncSetlist, onDeleteSong, onRestoreSong, initialTab, onTagFriends, onRateVenue, onToggleFavoriteArtist, isArtistFavorite, fetchVenueRatings, normalizeVenueKey, computeVenueAggregate, friends, user }) {
+function StatsView({ shows, allShows = shows, songStats, artistStats, venueStats, topRatedShows, onRateSong, onRateShow, onCommentShow, onUpdateVenueRating, onDeleteShow, onAddSong, onReorderSetlist, onResyncSetlist, onProposeSetlist, onApplySetlist, onDeleteSong, onRestoreSong, initialTab, onTagFriends, onRateVenue, onToggleFavoriteArtist, isArtistFavorite, fetchVenueRatings, normalizeVenueKey, computeVenueAggregate, friends, user }) {
   const [tab, setTab] = useState(initialTab || 'years');
   const [selectedYear, setSelectedYear] = useState(null);
   const [expandedVenue, setExpandedVenue] = useState(null);
@@ -136,6 +136,8 @@ function StatsView({ shows, allShows = shows, songStats, artistStats, venueStats
           onAddSong={onAddSong}
           onReorderSetlist={onReorderSetlist}
           onResyncSetlist={onResyncSetlist}
+          onProposeSetlist={onProposeSetlist}
+          onApplySetlist={onApplySetlist}
           onDeleteSong={onDeleteSong}
           onRestoreSong={onRestoreSong}
           toggleFavoriteArtist={onToggleFavoriteArtist}

@@ -14,6 +14,7 @@ import { Avatar, Button } from '@/components/ui';
 import EntityInfoPanel from '@/components/EntityInfoPanel';
 import StreamingLinks from '@/components/StreamingLinks';
 import ArchivalAudioSection from './ArchivalAudioSection';
+import ArchiveSetlistReview from './ArchiveSetlistReview';
 import {
   UserPlus, Share2, ListMusic, Hash,
   Trash2, X, Tag, MessageSquare, ArrowLeft, Plus,
@@ -270,6 +271,12 @@ export default function ShowDetailView({
   // phish.net) and returns a result object saying what happened. Undefined
   // for a guest session, and never rendered for an artist setlist.fm owns.
   onResyncSetlist,
+  // The two halves of the same thing, for a source whose setlists are shown
+  // to the user before they are written (the Internet Archive, Grateful
+  // Dead): AppContext's proposeSetlistFromSource and applySetlistProposal.
+  // Without them, such an artist gets no re-fetch button at all.
+  onProposeSetlist,
+  onApplySetlist,
   toggleFavoriteArtist,
   isArtistFavorite,
   allShows = [],
@@ -294,6 +301,7 @@ export default function ShowDetailView({
   // changed, and those deserve to stay on screen next to the setlist they
   // are about.
   const [resyncState, setResyncState] = useState(null);
+  const [archiveReviewOpen, setArchiveReviewOpen] = useState(false);
   // The song whose delete button has been tapped once. Cleared on a second
   // tap, on a tap elsewhere, or after a few seconds — an armed delete
   // button that stays armed is a trap.
@@ -426,6 +434,10 @@ export default function ShowDetailView({
   };
 
   const handleResync = async () => {
+    if (artistSource.requiresReview) {
+      setArchiveReviewOpen(true);
+      return;
+    }
     setResyncState({ loading: true });
     try {
       const result = await onResyncSetlist(show.id);
@@ -775,6 +787,9 @@ export default function ShowDetailView({
               >
                 {sourceLabel(show.setlistSource)}
               </a>
+              {/* The Archive holds many tapes of a night; name the one the
+                  setlist was read from, so it can be checked. */}
+              {show.setlistSource === 'archive' && show.sourceShowId ? `, recording ${show.sourceShowId}` : ''}
             </p>
           )}
 
@@ -792,7 +807,8 @@ export default function ShowDetailView({
               versus refreshing from the archive this setlist already came
               from (which is worth doing — these archives correct setlists
               after review, which is why the cache TTL is capped at 24h). */}
-          {!editMode && onResyncSetlist && artistSource.isBandSource && (
+          {!editMode && artistSource.isBandSource
+            && (artistSource.requiresReview ? (onProposeSetlist && onApplySetlist) : onResyncSetlist) && (
             <div className="mt-3">
               <button
                 onClick={handleResync}
@@ -807,7 +823,14 @@ export default function ShowDetailView({
                     : `Get setlist from ${artistSource.label}`}
               </button>
 
-              {!isBandSourced && !resyncState && (
+              {artistSource.requiresReview && !isBandSourced && (
+                <p className="mt-1.5 text-[11px] text-muted">
+                  Reads the setlist from fan recordings of this show on the Internet Archive. You&apos;ll see it
+                  before anything changes, and your ratings and any songs you added are kept.
+                </p>
+              )}
+
+              {!artistSource.requiresReview && !isBandSourced && !resyncState && (
                 <p className="mt-1.5 text-[11px] text-muted">
                   This setlist came from setlist.fm. {artistSource.label} is the band&apos;s own archive — it has
                   segues, footnotes and jam charts. Your ratings and any songs you added are kept.
@@ -821,6 +844,17 @@ export default function ShowDetailView({
                     ? ` ${resyncState.result.message}`
                     : ''}
                 </p>
+              )}
+
+              {artistSource.requiresReview && onProposeSetlist && onApplySetlist && (
+                <ArchiveSetlistReview
+                  open={archiveReviewOpen}
+                  onClose={() => setArchiveReviewOpen(false)}
+                  shows={[show]}
+                  onPropose={onProposeSetlist}
+                  onApply={onApplySetlist}
+                  title="Setlist from the Internet Archive"
+                />
               )}
             </div>
           )}

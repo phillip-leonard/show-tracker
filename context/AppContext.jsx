@@ -1873,7 +1873,14 @@ export function AppProvider({ children }) {
         // One request instead of up to nine, where the artist has a band
         // source. A failure here falls through to the setlist.fm path
         // below rather than giving up on the show.
-        if (resolveSource({ name: show.artist }).isBandSource) {
+        //
+        // Not for a source whose setlists must be reviewed before they are
+        // written (the Internet Archive, for Grateful Dead): this scan
+        // writes without asking, so those shows keep the setlist.fm path
+        // they have always had here, and the Archive's version is offered
+        // through the review screen instead (proposeSetlistFromSource).
+        const scanSource = resolveSource({ name: show.artist });
+        if (scanSource.isBandSource && !scanSource.requiresReview) {
           if (await scanViaBandSource(show)) {
             found++;
             setSetlistScanProgress({ current: i + 1, total: showsWithoutSetlists.length, found });
@@ -1952,7 +1959,12 @@ export function AppProvider({ children }) {
   // happened when nothing did. Never throws and never leaves the show
   // worse: every failure path returns `{ ok: false, reason }` with the
   // stored setlist untouched.
-  const resyncSetlistFromSource = async (showId) => {
+  // Split in two since 5.47.3, so a source whose setlists must be reviewed
+  // (the Internet Archive) can show the user what it found before anything
+  // is written: proposeSetlistFromSource fetches and merges in memory only,
+  // applySetlistProposal writes. resyncSetlistFromSource is the two back to
+  // back, for the sources that need no review.
+  const proposeSetlistFromSource = async (showId) => {
     const show = shows.find(s => s.id === showId);
     if (!show) return { ok: false, reason: 'show-not-found' };
 
@@ -1976,6 +1988,26 @@ export function AppProvider({ children }) {
     const { setlist, changed, summary } = mergeBandSetlist(show.setlist || [], result.songs);
     if (!changed) return { ok: false, reason: 'nothing-to-change', summary, source };
 
+    return { ok: true, source, result, setlist, summary };
+  };
+
+  // Writes a proposal the user accepted. The merge is re-run against the
+  // show as it is NOW rather than as it was when the proposal was made, so
+  // an edit made while the review screen was open is not lost.
+  //
+  // `onlyIfEmpty` is the backfill's guarantee: it offers setlists for shows
+  // that have none, and if one has gained a setlist since (another device,
+  // the setlist.fm scan), saving refuses rather than replacing it.
+  const applySetlistProposal = async (showId, result, { onlyIfEmpty = false } = {}) => {
+    const show = shows.find(s => s.id === showId);
+    if (!show) return { ok: false, reason: 'show-not-found' };
+    if (!result || !Array.isArray(result.songs)) return { ok: false, reason: 'no-songs' };
+    if (onlyIfEmpty && (show.setlist || []).length > 0) return { ok: false, reason: 'has-setlist' };
+
+    const source = resolveSource({ name: show.artist, mbid: show.artistMbid });
+    const { setlist, changed, summary } = mergeBandSetlist(show.setlist || [], result.songs);
+    if (!changed) return { ok: false, reason: 'nothing-to-change', summary, source };
+
     console.log(`[RESYNC] ${show.artist} ${show.date} via ${result.source}: ${describeSummary(summary)}`);
 
     const fields = {
@@ -1995,6 +2027,16 @@ export function AppProvider({ children }) {
     }
 
     return { ok: true, summary, source, result, ambiguous: !!result.ambiguous, message: result.message };
+  };
+
+  const resyncSetlistFromSource = async (showId) => {
+    const proposal = await proposeSetlistFromSource(showId);
+    if (!proposal.ok) return proposal;
+    // A source that requires review never reaches a write from here; the
+    // show page sends it through the review screen instead. Guarded anyway,
+    // so a caller that forgets cannot write an unreviewed Archive setlist.
+    if (proposal.source.requiresReview) return { ok: false, reason: 'needs-review', proposal, source: proposal.source };
+    return applySetlistProposal(showId, proposal.result);
   };
 
   // ── Delete show ─────────────────────────────────────────────────────
@@ -4003,6 +4045,8 @@ export function AppProvider({ children }) {
     bulkAdd,
     updateShowData,
     resyncSetlistFromSource,
+    proposeSetlistFromSource,
+    applySetlistProposal,
     restoreSongToShow,
     deleteShow,
     backfillArtistImages,

@@ -21,6 +21,7 @@ import DeleteShowModal from '@/components/shows/DeleteShowModal';
 import { removeFromBucketList } from '@/lib/bucketList';
 import YearInReviewCard from '@/components/yearInReview/YearInReviewCard';
 import ShowDetailView from '@/components/shows/ShowDetailView';
+import ArchiveBackfillCard from '@/components/shows/ArchiveBackfillCard';
 import VenueShowsView from '@/components/shows/VenueShowsView';
 import UpcomingShowsSection from '@/components/upcoming/UpcomingShowsSection';
 import UpcomingShowForm from '@/components/upcoming/UpcomingShowForm';
@@ -52,6 +53,7 @@ export default function ShowsPage() {
     sortBy, setSortBy,
     addShow, updateShowRating, updateShowComment, deleteShow, updateShowData, backfillArtistImages,
     addSongToShow, updateSetlistOrder, resyncSetlistFromSource,
+    proposeSetlistFromSource, applySetlistProposal,
     deleteSong, restoreSongToShow,
     tagFriendsAtShow, tagFriendByEmail,
     tagFriendsShow, setTagFriendsShow,
@@ -310,6 +312,8 @@ export default function ShowsPage() {
           onAddSong={!guestMode ? addSongToShow : undefined}
           onReorderSetlist={!guestMode ? updateSetlistOrder : undefined}
           onResyncSetlist={!guestMode ? resyncSetlistFromSource : undefined}
+          onProposeSetlist={!guestMode ? proposeSetlistFromSource : undefined}
+          onApplySetlist={!guestMode ? applySetlistProposal : undefined}
           onDeleteSong={!guestMode ? deleteSong : undefined}
           onRestoreSong={restoreSongToShow}
           toggleFavoriteArtist={!guestMode ? toggleFavoriteArtist : undefined}
@@ -492,6 +496,16 @@ export default function ShowsPage() {
           />
 
           {!filterLabel && !activeSavedSearch && !guestMode && <YearInReviewCard shows={shows} user={user} />}
+
+          {/* Grateful Dead shows with no setlist, offered from the Internet
+              Archive for review — nothing is saved without a tap per show. */}
+          {!filterLabel && !activeSavedSearch && !guestMode && (
+            <ArchiveBackfillCard
+              shows={shows}
+              onPropose={proposeSetlistFromSource}
+              onApply={applySetlistProposal}
+            />
+          )}
 
           {/* Friend request / show tag notification banner */}
           {!guestMode && pendingNotificationCount > 0 && (
