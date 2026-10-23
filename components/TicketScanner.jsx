@@ -229,6 +229,7 @@ function TicketScanner({ onImport, importedIds, existingShows }) {
       date: toIsoDate(setlist.eventDate) || setlist.eventDate,
       setlist: songs,
       setlistfmId: setlist.id,
+      setlistfmUrl: setlist.url || null,
       tour: setlist.tour ? setlist.tour.name : null
     });
 

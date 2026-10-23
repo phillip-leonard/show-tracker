@@ -2,6 +2,7 @@
 
 import { Music, Calendar, MapPin, Star } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
+import { SetlistfmCredit } from '@/components/shows/SetlistfmAttribution';
 
 export default function SharedCollectionView({ data }) {
   if (!data) return null;
@@ -99,6 +100,13 @@ export default function SharedCollectionView({ data }) {
             </div>
           ))}
         </div>
+
+        {/* Song counts come from setlists, most of them setlist.fm's. A
+            snapshot keeps no setlist ids, so the credit is to setlist.fm
+            itself. */}
+        {shows.some(s => s.setlist?.length > 0) && (
+          <SetlistfmCredit className="-mt-4 mb-8 text-[11px] text-muted" />
+        )}
 
         {/* CTA */}
         <div className="text-center">

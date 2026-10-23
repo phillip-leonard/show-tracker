@@ -28,6 +28,14 @@
 /artist/*
   X-Robots-Tag: index, follow
 
+# A user's own pages: out of search results, links followed (setlist.fm's
+# API terms forbid discouraging search engines from following its
+# attribution links). These are function responses, which _headers rules
+# do not reach, so public-profile.js and public-show.js send the same value
+# themselves (USER_PAGE_ROBOTS); this entry documents it.
+/u/*
+  X-Robots-Tag: noindex, follow
+
 # Songs I've heard (netlify/functions/lib/heardPages.js). Share links,
 # /heard/<slug>/r/<code>/, are personal: the function sends noindex for
 # them itself, and the rule below keeps them out whatever this one says.

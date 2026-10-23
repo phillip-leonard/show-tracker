@@ -25,6 +25,7 @@
 const https = require('https');
 const crypto = require('crypto');
 const { setlistfmKey, missingSetlistfmKey } = require('./lib/setlistfmKey');
+const { readFresh, writeEntry } = require('./lib/setlistCache');
 
 const CORS_HEADERS = { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' };
 
@@ -111,6 +112,7 @@ function toShow(sl) {
   const songCount = sets.reduce((acc, s) => acc + (s.song?.length || 0), 0);
   return {
     setlistfmId: sl.id,
+    url: sl.url || '',
     date: toIsoDate(sl.eventDate),
     artist: sl.artist?.name || '',
     venue: sl.venue?.name || '',
@@ -160,23 +162,12 @@ exports.handler = async function (event) {
   const wantedTour = normalizeTourName(tourName);
   const cacheKey = `tourshows_${crypto.createHash('md5').update(`${mbid}|${wantedTour}`).digest('hex')}`;
   const db = getDb();
-  let staleDoc = null;
 
-  if (db) {
-    try {
-      const snap = await db.collection('setlistCache').doc(cacheKey).get();
-      if (snap.exists) {
-        const cached = snap.data();
-        if ((cached.expiresAt?.toMillis?.() || 0) > Date.now()) {
-          snap.ref.update({ hitCount: (cached.hitCount || 0) + 1 }).catch(() => {});
-          console.log(`[CACHE HIT] tour shows mbid:${mbid} "${tourName}"`);
-          return { statusCode: 200, headers: { ...CORS_HEADERS, 'X-Cache': 'HIT' }, body: cached.response };
-        }
-        staleDoc = cached;
-      }
-    } catch (e) {
-      console.warn('[CACHE] Read error:', e.message);
-    }
+  // An expired entry is a miss, never a fallback (lib/setlistCache.js).
+  const cached = await readFresh(db, cacheKey);
+  if (cached) {
+    console.log(`[CACHE HIT] tour shows mbid:${mbid} "${tourName}"`);
+    return { statusCode: 200, headers: { ...CORS_HEADERS, 'X-Cache': 'HIT' }, body: cached.response };
   }
 
   const startedAt = Date.now();
@@ -196,9 +187,6 @@ exports.handler = async function (event) {
       }
 
       if (status === 429) {
-        if (staleDoc) {
-          return { statusCode: 200, headers: { ...CORS_HEADERS, 'X-Cache': 'STALE' }, body: staleDoc.response };
-        }
         if (collected.length === 0) {
           return {
             statusCode: 429,
@@ -231,9 +219,6 @@ exports.handler = async function (event) {
     }
   } catch (err) {
     console.error('get-tour-shows error:', err.message);
-    if (staleDoc) {
-      return { statusCode: 200, headers: { ...CORS_HEADERS, 'X-Cache': 'STALE' }, body: staleDoc.response };
-    }
     const timedOut = err.code === 'TIMEOUT';
     return {
       statusCode: timedOut ? 504 : 502,
@@ -271,17 +256,7 @@ exports.handler = async function (event) {
     fetchedAt: new Date().toISOString(),
   });
 
-  if (db) {
-    const { Timestamp } = require('firebase-admin/firestore');
-    db.collection('setlistCache').doc(cacheKey).set({
-      response: responseBody,
-      fetchedAt: Timestamp.now(),
-      expiresAt: Timestamp.fromDate(new Date(Date.now() + CACHE_TTL_HOURS * 3600 * 1000)),
-      ttlHours: CACHE_TTL_HOURS,
-      queryParams: { artistMbid: mbid, tourName, kind: 'tourShows' },
-      hitCount: 0,
-    }).catch(e => console.warn('[CACHE] Write error:', e.message));
-  }
+  writeEntry(db, cacheKey, { response: responseBody, ttlHours: CACHE_TTL_HOURS, queryParams: { artistMbid: mbid, tourName, kind: 'tourShows' } });
 
   return { statusCode: 200, headers: { ...CORS_HEADERS, 'X-Cache': 'MISS' }, body: responseBody };
 };

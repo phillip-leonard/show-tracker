@@ -15,8 +15,9 @@
 // resolvePublicTaggedFriends), wishlists, venueRatings, or friends — none
 // of which this function's Firestore reads even touch.
 
-const { escapeHtml, page, notFoundPage, CACHE_HEADERS, SITE_URL, isoDate, formatShowDate } = require('./lib/publicPageHtml');
+const { escapeHtml, page, notFoundPage, CACHE_HEADERS, USER_PAGE_ROBOTS, SITE_URL, isoDate, formatShowDate } = require('./lib/publicPageHtml');
 const { routeParams } = require('./lib/publicRouteParams');
+const { isSetlistfmShow, creditHtml } = require('./lib/setlistfmSetlist');
 
 function getDb() {
   const privateKey = (process.env.FIREBASE_PRIVATE_KEY || '').replace(/\\n/g, '\n');
@@ -116,6 +117,7 @@ exports.handler = async function (event) {
       </div>
       ${showRows || '<p class="sub">No shows logged yet.</p>'}
       ${pagination}
+      ${pageShows.some(isSetlistfmShow) ? creditHtml() : ''}
       <div class="cta">
         <p style="margin:0 0 10px;">Track your own concert history on MySetlists.</p>
         <a href="${SITE_URL}/">Get started free</a>
@@ -124,8 +126,8 @@ exports.handler = async function (event) {
 
     return {
       statusCode: 200,
-      headers: { 'Content-Type': 'text/html; charset=utf-8', ...CACHE_HEADERS },
-      body: page({ title, description, canonicalPath: `/u/${handleLower}/${pageNum > 1 ? `?page=${pageNum}` : ''}`, jsonLd, bodyHtml }),
+      headers: { 'Content-Type': 'text/html; charset=utf-8', ...CACHE_HEADERS, 'X-Robots-Tag': USER_PAGE_ROBOTS },
+      body: page({ title, description, canonicalPath: `/u/${handleLower}/${pageNum > 1 ? `?page=${pageNum}` : ''}`, jsonLd, bodyHtml, robots: USER_PAGE_ROBOTS }),
     };
   } catch (err) {
     console.error('public-profile error:', err);

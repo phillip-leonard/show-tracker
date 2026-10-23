@@ -10,6 +10,7 @@ import { festivalHref } from '@/lib/festivalGrouping';
 import { venueKeyFor } from '@/lib/venues';
 import { sourceLabel, sourceHomeUrl, resolveSource } from '@/lib/setlistSources';
 import SetlistView from './SetlistView';
+import SetlistfmAttribution from './SetlistfmAttribution';
 import { Avatar, Button } from '@/components/ui';
 import EntityInfoPanel from '@/components/EntityInfoPanel';
 import StreamingLinks from '@/components/StreamingLinks';
@@ -478,16 +479,6 @@ export default function ShowDetailView({
         <div className="flex items-start justify-between gap-4 pb-4 mb-4 border-b border-subtle">
           <div className="flex items-center gap-3 flex-wrap min-w-0">
             <h1 className="text-2xl font-bold text-amber">{show.artist}</h1>
-            {show.url && (
-              <a
-                href={show.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="shrink-0 text-[11px] px-2.5 py-1 rounded-full border border-subtle text-muted hover:bg-hover transition-colors"
-              >
-                setlist.fm
-              </a>
-            )}
           </div>
 
           <div className="flex items-center gap-0.5 shrink-0 -mr-1">
@@ -769,13 +760,17 @@ export default function ShowDetailView({
             </p>
           )}
 
+          {/* setlist.fm's credit, which its API terms require wherever its
+              data is shown: the setlist's own page on setlist.fm, followable.
+              Shown for any setlist.fm show, with or without songs, since the
+              venue and tour came from the same setlist. */}
+          {!editMode && <SetlistfmAttribution show={show} />}
+
           {/* Credit where it is due. These are volunteer-run archives and
               the link back to the show's own page on them is the least this
               app owes them. Rendered off the stored `setlistSource` rather
               than by sniffing for band-source fields, and only for a band
-              source — setlist.fm attribution already lives elsewhere on
-              this page, and a show predating this release has no
-              setlistSource at all. */}
+              source — setlist.fm's credit is the line above. */}
           {!editMode && sets.length > 0 && isBandSourced && (
             <p className="mt-3 text-[11px] text-muted">
               Setlist from{' '}

@@ -19,12 +19,13 @@ import { useApp } from '@/context/AppContext';
 import useSongIndex from '@/hooks/useSongIndex';
 import { songKeyFromParams } from '@/lib/songIndex';
 import SongDetailView from '@/components/songs/SongDetailView';
+import { SetlistfmCreditFor } from '@/components/shows/SetlistfmAttribution';
 import { Button, PageHeader, EmptyState } from '@/components/ui';
 
 export default function SongPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user, guestMode, openAuthModal } = useApp();
+  const { user, guestMode, openAuthModal, shows } = useApp();
   const songIndex = useSongIndex();
 
   const artistSlug = searchParams.get('artist') || '';
@@ -62,5 +63,11 @@ export default function SongPage() {
     );
   }
 
-  return <SongDetailView song={song} />;
+  const songShowIds = new Set(song.performances.map((p) => p.showId));
+  return (
+    <>
+      <SongDetailView song={song} />
+      <SetlistfmCreditFor shows={shows.filter((s) => songShowIds.has(s.id))} className="mt-6 text-[11px] text-muted" />
+    </>
+  );
 }

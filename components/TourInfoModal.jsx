@@ -183,7 +183,10 @@ export default function TourInfoModal({ artistName, mbid, onClose }) {
         <div className="flex items-center justify-between px-6 py-4 border-b border-subtle">
           <div>
             <h3 className="text-lg font-bold" style={{ color: artistColor(artistName) }}>{artistName}</h3>
-            <p className="text-xs text-muted">Tour Information from setlist.fm</p>
+            <p className="text-xs text-muted">
+              Tour information from{' '}
+              <a href="https://www.setlist.fm/" target="_blank" rel="noopener" className="underline decoration-dotted hover:text-brand">setlist.fm</a>
+            </p>
           </div>
           <div className="flex items-center gap-2">
             <Button

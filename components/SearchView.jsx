@@ -12,6 +12,7 @@ import {
 } from '@/lib/setlistSearch';
 import { buildExistingShowIndex, existingShowStatus } from '@/lib/tourBrowse';
 import { showHref } from '@/lib/showRouting';
+import { SetlistfmCredit } from '@/components/shows/SetlistfmAttribution';
 
 // The artist is optional: a venue or a city, with or without a year, is a
 // search of its own. That's what makes "every show at Red Rocks in 2024"
@@ -603,6 +604,7 @@ function SearchView({ onImport, onImportMany, bulkAddProgress, existingShows = [
                                       ))}
                                     </div>
                                   ))}
+                                  <SetlistfmCredit url={setlist.url} band={setlist.artist?.name} className="mt-2 text-[11px] text-muted" />
                                 </div>
                               )}
                             </div>
@@ -725,6 +727,7 @@ function SearchView({ onImport, onImportMany, bulkAddProgress, existingShows = [
                         </div>
                       ))}
                     </div>
+                    <SetlistfmCredit url={setlist.url} band={setlist.artist?.name} />
                   </div>
                 )}
               </Card>

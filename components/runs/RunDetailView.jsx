@@ -19,6 +19,7 @@ import { formatDate } from '@/lib/utils';
 import { groupSongsBySet } from '@/lib/setlistGrouping';
 import { artistSlugFromName, songSlugFromTitle } from '@/lib/songIndex';
 import SetlistView from '@/components/shows/SetlistView';
+import SetlistfmAttribution from '@/components/shows/SetlistfmAttribution';
 import { showHref } from '@/lib/showRouting';
 
 function buildSets(setlist = []) {
@@ -153,7 +154,10 @@ export default function RunDetailView({ run }) {
                 )}
               </div>
               {night.hasSetlist ? (
-                <SetlistView sets={buildSets(night.setlist)} getSongHref={getSongHref} />
+                <>
+                  <SetlistView sets={buildSets(night.setlist)} getSongHref={getSongHref} />
+                  <SetlistfmAttribution show={night} />
+                </>
               ) : (
                 <p className="text-sm text-muted">Setlist not logged for this night.</p>
               )}

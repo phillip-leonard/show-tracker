@@ -7,6 +7,7 @@ import { formatDate, normalizeSongTitle } from '@/lib/utils';
 import { useDismissable } from '@/context/DismissStackContext';
 import useSheetDrag from '@/hooks/useSheetDrag';
 import useIsMobile from '@/hooks/useIsMobile';
+import { SetlistfmCreditFor } from '@/components/shows/SetlistfmAttribution';
 
 function SongHistoryModal({ songName, artistName, allShows, onClose, onViewShow }) {
   useDismissable(true, onClose, { id: 'song-history' });
@@ -139,6 +140,8 @@ function SongHistoryModal({ songName, artistName, allShows, onClose, onViewShow 
               </Card>
             ))}
           </div>
+
+          <SetlistfmCreditFor shows={performances.map(p => p.show)} className="mb-4 text-[11px] text-muted" />
 
           {/* Stats section */}
           {stats && (

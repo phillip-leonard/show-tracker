@@ -4,6 +4,45 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.47.5] — 2026-10-23
+
+Ships in iOS 3.9.5 (`MARKETING_VERSION` 3.9.3 → 3.9.5; 5.47.4 / 3.9.4 is
+taken by the unmerged `songfish-adapter` branch; the build number is left to
+Xcode Cloud).
+
+**setlist.fm compliance, phase 1.** setlist.fm's API terms allow caching its
+data only "for short periods" and require a followable link back wherever
+it's shown. Neither was true. This release fixes the cache and the links.
+Setlists stored on show documents are phase 2; the plan, with the
+safeguards for migrating existing shows, is in `docs/setlistfm-compliance.md`.
+
+- **24-hour cache, enforced by Firestore.** Every setlist.fm response cached
+  in `setlistCache` lives 24 hours at most
+  (`netlify/functions/lib/setlistCache.js`), down from up to 7 days, and an
+  expired entry is never served, even when setlist.fm is down (it used to
+  be, as "STALE"). A Firestore TTL policy on `expiresAt` deletes entries on
+  its own; `scripts/setlist-cache-ttl.js` applies it and purged the 944
+  entries that had built up since March.
+- **Device caches swept.** The tour info, song stats and wishlist catalog
+  caches in localStorage are cleared of expired entries on every load, not
+  only when that screen is reopened.
+- **"Source: {Band} setlist on setlist.fm"** under every setlist.fm setlist:
+  the show page, setlist editor, run nights, Shows Together, search results,
+  and the public show page, linked to the setlist's own page on setlist.fm.
+  Stats, song pages, song history, Year in Review, tours, festival lineups,
+  the wishlist catalog, and shared and profile pages credit setlist.fm too.
+  Links are followable. New imports store `setlistfmUrl`; older shows look
+  it up by `setlistfmId` through the cache (`/.netlify/functions/setlistfm-links`).
+  The old setlist.fm chip on the show page never appeared: it read a `url`
+  field no show had.
+- **Public profiles** (`/u/…`) send `noindex, follow`, as a header and a
+  meta tag. `public/_headers` doesn't reach function responses, so they had
+  sent nothing.
+- **Privacy policy** draft covering every data source and public setlist
+  display is in `docs/privacy-policy-sources-draft.md`. Not published.
+
+---
+
 ## [5.47.3] — 2026-10-21
 
 Ships in iOS 3.9.3 (`MARKETING_VERSION` 3.9.2 → 3.9.3; the build number is
