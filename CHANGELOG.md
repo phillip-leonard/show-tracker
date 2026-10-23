@@ -53,6 +53,14 @@ logged, with the user's say-so.** Builds on 5.47.3's Archive adapter and
 - **No backfill proposal from a weak tape**: partial, tracks-only, inferred
   set breaks, or fewer than 80% of the songs the show has now. Reported
   instead.
+- **Drums, Space and Jam are protected** in Archive merges: an existing one
+  the tape doesn't list is kept, and a Jam where setlist.fm has Space becomes
+  Space. (Most tape descriptions write "Drums > Jam" or leave Space out.)
+- **Dylan & the Dead** (1987-07-04, -10, -12) stay on setlist.fm: the
+  Archive's tapes include Dylan's set. `excludedDates` in the config.
+- **`applySourceOnly`** (admin re-sync, off by default): a live run writes
+  an Archive setlist directly when no song changes and the tapes agree,
+  with a "Now sourced from the Internet Archive" note on the show.
 - Interactive lookups stop optional reads at 6.5 s so they answer inside a
   function's window; a cut-short answer isn't cached.
 
