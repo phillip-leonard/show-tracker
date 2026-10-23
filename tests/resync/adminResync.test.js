@@ -26,7 +26,7 @@ function test(name, fn) { tests.push({ name, fn }); }
 
 // ── A Firestore with production's shape ────────────────────────────────
 
-function fakeFirestore({ shows, profiles }) {
+function fakeFirestore({ shows, profiles, runs = {} }) {
   const writes = [];
   const showDocs = (uid) => Object.entries(shows[uid] || {})
     .sort(([a], [b]) => (a < b ? -1 : 1))
@@ -53,6 +53,9 @@ function fakeFirestore({ shows, profiles }) {
       }
       if (name === 'userProfiles') {
         return { doc: (uid) => ({ get: async () => ({ exists: !!profiles[uid], data: () => profiles[uid] }) }) };
+      }
+      if (name === 'adminResyncRuns') {
+        return { doc: (id) => ({ get: async () => ({ exists: !!runs[id], data: () => runs[id] }) }) };
       }
       throw new Error(`unexpected collection ${name}`);
     },
@@ -354,6 +357,19 @@ test('archive: applySourceOnly writes an unchanged setlist directly, and only th
     assert.strictEqual(u.setlist[0].rating, 9);
     assert.ok(!('setlistProposal' in u));
   } finally { bandSetlistModule.handler = prev; }
+});
+
+test('readRun returns a saved background report, and walks nothing', async () => {
+  setUp();
+  db = fakeFirestore({ shows: { fan1: { '1': { artist: 'Goose', date: '2026-08-15', setlist: [] } } }, profiles: {}, runs: { 'gd-dry-1': { finishedAt: '2026-10-23T22:00:00Z', error: null, report: { considered: 372 } } } });
+  const found = await run({ readRun: 'gd-dry-1' });
+  assert.strictEqual(found.found, true);
+  assert.strictEqual(found.report.considered, 372);
+  assert.deepStrictEqual(asked, [], 'no show was looked up');
+  const missing = await run({ readRun: 'gd-dry-2' });
+  assert.strictEqual(missing.found, false);
+  const res = await handler({ httpMethod: 'POST', headers: { authorization: 'Bearer t' }, body: JSON.stringify({ readRun: '../users' }) });
+  assert.strictEqual(res.statusCode, 400);
 });
 
 (async () => {
