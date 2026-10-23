@@ -8,7 +8,7 @@ import { countSongsByShow } from '@/lib/songCounts';
 import { buildRunIndex, buildTourIndex, tourKeyFor, tourHref } from '@/lib/runIndex';
 import { festivalHref } from '@/lib/festivalGrouping';
 import { venueKeyFor } from '@/lib/venues';
-import { sourceLabel, sourceHomeUrl, resolveSource } from '@/lib/setlistSources';
+import { sourceLabel, sourceHomeUrl, resolveSource, SETLIST_SOURCES } from '@/lib/setlistSources';
 import SetlistView from './SetlistView';
 import SetlistfmAttribution from './SetlistfmAttribution';
 import { Avatar, Button } from '@/components/ui';
@@ -16,6 +16,7 @@ import EntityInfoPanel from '@/components/EntityInfoPanel';
 import StreamingLinks from '@/components/StreamingLinks';
 import ArchivalAudioSection from './ArchivalAudioSection';
 import ArchiveSetlistReview from './ArchiveSetlistReview';
+import SetlistProposalDiff from './SetlistProposalDiff';
 import {
   UserPlus, Share2, ListMusic, Hash,
   Trash2, X, Tag, MessageSquare, ArrowLeft, Plus,
@@ -284,6 +285,12 @@ export default function ShowDetailView({
   // Without them, such an artist gets no re-fetch button at all.
   onProposeSetlist,
   onApplySetlist,
+  // A stored Internet Archive proposal (`setlistProposal`, from the admin
+  // backfill): AppContext's acceptStoredProposal / declineStoredProposal,
+  // and clearSetlistReview for a `needsReview` setlist the user checked.
+  onAcceptProposal,
+  onDeclineProposal,
+  onClearReview,
   toggleFavoriteArtist,
   isArtistFavorite,
   allShows = [],
@@ -309,6 +316,7 @@ export default function ShowDetailView({
   // are about.
   const [resyncState, setResyncState] = useState(null);
   const [archiveReviewOpen, setArchiveReviewOpen] = useState(false);
+  const [proposalBusy, setProposalBusy] = useState(false);
   // The song whose delete button has been tapped once. Cleared on a second
   // tap, on a tap elsewhere, or after a few seconds — an armed delete
   // button that stays armed is a trap.
@@ -786,12 +794,50 @@ export default function ShowDetailView({
                 rel="noopener noreferrer"
                 className="text-muted underline decoration-dotted hover:text-brand transition-colors"
               >
-                {sourceLabel(show.setlistSource)}
+                {show.setlistSource === 'archive' ? 'the ' : ''}{sourceLabel(show.setlistSource)}
               </a>
               {/* The Archive holds many tapes of a night; name the one the
                   setlist was read from, so it can be checked. */}
               {show.setlistSource === 'archive' && show.sourceShowId ? `, recording ${show.sourceShowId}` : ''}
             </p>
+          )}
+
+          {/* The tapes of this night disagreed and the recording rules
+              picked one; the user is asked to check it once. */}
+          {!editMode && show.setlistSource === 'archive' && show.needsReview && (
+            <div className="mt-3 px-3.5 py-3 rounded-xl border border-subtle bg-hover text-[12px] text-secondary leading-relaxed">
+              <p className="text-primary font-semibold">Check this setlist</p>
+              <p className="mt-1">
+                The Internet Archive&apos;s recordings of this show don&apos;t agree on the setlist, so one was picked.
+                {show.needsReviewReason?.with ? (
+                  <> Compare it with <a href={`https://archive.org/details/${encodeURIComponent(show.needsReviewReason.with)}`} target="_blank" rel="noopener" className="underline decoration-dotted">{show.needsReviewReason.with}</a>.</>
+                ) : null}
+                {' '}You can edit any song.
+              </p>
+              {onClearReview && (
+                <Button size="sm" variant="secondary" className="mt-2" onClick={() => onClearReview(show.id)}>
+                  It looks right
+                </Button>
+              )}
+            </div>
+          )}
+
+          {/* A proposal from the Internet Archive backfill. Nothing changes
+              until Accept; Keep current is remembered. Hidden while the
+              Archive source is switched off. */}
+          {!editMode && show.setlistProposal?.status === 'pending' && SETLIST_SOURCES.archive && onAcceptProposal && onDeclineProposal && (
+            <div className="mt-3 px-3.5 py-3 rounded-xl border border-subtle">
+              <p className="text-sm font-semibold text-primary">Update setlist from the Internet Archive?</p>
+              <div className="mt-1.5"><SetlistProposalDiff proposal={show.setlistProposal} /></div>
+              <div className="mt-3 flex gap-2">
+                <Button size="sm" loading={proposalBusy} onClick={async () => { setProposalBusy(true); try { await onAcceptProposal(show.id); } finally { setProposalBusy(false); } }}>
+                  Accept
+                </Button>
+                <Button size="sm" variant="secondary" disabled={proposalBusy} onClick={() => onDeclineProposal(show.id)}>
+                  Keep current
+                </Button>
+              </div>
+            </div>
           )}
 
           {/* ── Re-fetch from the band source ──────────────────────────

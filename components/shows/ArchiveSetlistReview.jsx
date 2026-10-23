@@ -73,6 +73,12 @@ function warningsFor(result) {
   if (result.confidence === 'tracks-only') {
     warnings.push('This recording doesn’t mark set breaks, so every song is listed in one set. You can move songs between sets after saving.');
   }
+  if (result.confidence === 'inferred-sets') {
+    warnings.push('This recording\u2019s description has no set headers, so the set breaks were worked out from its track list. Check where each set starts.');
+  }
+  if (result.needsReview) {
+    warnings.push('The recordings of this show don\u2019t agree on the setlist. This one was picked by the recording rules, so check it.');
+  }
   if (result.partial) {
     warnings.push('This recording covers only part of the show, so songs may be missing.');
   }
