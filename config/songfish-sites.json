@@ -1,0 +1,65 @@
+{
+  "_comment": "Songfish-powered setlist archives. One entry per site; read by lib/setlistSources.js (which artist goes where) and netlify/functions/lib/songfishSites.js (which sites /api/band-setlist may call). A site with enabled: false is never resolved and never called. Turn one on only once permissionStatus is 'granted'. artistId is the site's numeric artist_id, checked against a live /api/v2/setlists/showyear/<y>.json response.",
+  "sites": [
+    {
+      "id": "elgoose",
+      "displayName": "El Goose",
+      "baseUrl": "https://elgoose.net",
+      "enabled": true,
+      "attribution": { "label": "El Goose", "url": "https://elgoose.net" },
+      "permissionStatus": "not_requested",
+      "permissionNote": "In use since 5.33.0 on the public, keyless v2 API. No written permission on file yet.",
+      "artists": [
+        { "name": "Goose", "aliases": [], "artistId": 1, "mbids": [], "deniedMbids": [] }
+      ]
+    },
+    {
+      "id": "ttbase",
+      "displayName": "TTBase",
+      "baseUrl": "https://ttbase.net",
+      "enabled": false,
+      "attribution": { "label": "TTBase", "url": "https://ttbase.net" },
+      "permissionStatus": "not_requested",
+      "permissionNote": "Archive starts in 2010: Tedeschi Trucks Band only. Derek Trucks Band and Susan Tedeschi are not separate artists here.",
+      "artists": [
+        { "name": "Tedeschi Trucks Band", "aliases": [], "artistId": 1, "mbids": [], "deniedMbids": [] }
+      ]
+    },
+    {
+      "id": "kglw",
+      "displayName": "KGLW.net",
+      "baseUrl": "https://kglw.net",
+      "enabled": false,
+      "attribution": { "label": "KGLW.net", "url": "https://kglw.net" },
+      "permissionStatus": "not_requested",
+      "permissionNote": "The public band page already reads this site through config/public-artists.json; that pipeline does not use this entry.",
+      "artists": [
+        { "name": "King Gizzard & the Lizard Wizard", "aliases": ["King Gizzard and the Lizard Wizard", "King Gizzard"], "artistId": 1, "mbids": [], "deniedMbids": [] }
+      ]
+    },
+    {
+      "id": "thecarton",
+      "displayName": "The Carton",
+      "baseUrl": "https://thecarton.net",
+      "enabled": false,
+      "attribution": { "label": "The Carton", "url": "https://thecarton.net" },
+      "permissionStatus": "not_requested",
+      "permissionNote": "",
+      "artists": [
+        { "name": "Eggy", "aliases": [], "artistId": 1, "mbids": [], "deniedMbids": [] }
+      ]
+    },
+    {
+      "id": "goset",
+      "displayName": "Go-Set",
+      "baseUrl": "https://go-set.net",
+      "enabled": false,
+      "attribution": { "label": "Go-Set", "url": "https://go-set.net" },
+      "permissionStatus": "not_requested",
+      "permissionNote": "",
+      "artists": [
+        { "name": "Dogs in a Pile", "aliases": [], "artistId": 1, "mbids": [], "deniedMbids": [] }
+      ]
+    }
+  ]
+}

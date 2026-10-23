@@ -17,12 +17,19 @@
  * the archive is sending right now and never leaves a debug-shaped
  * response in the cache for other callers.
  *
- * `source` is a band-source id from lib/setlistSources.js ('elgoose',
- * 'phishnet' or 'archive'). The per-source fetch and field mapping live in
- * netlify/functions/lib/{elgoose,phishnet,archive}Adapter.js, one file per
- * source, and each is one branch in ADAPTERS below. Grateful Dead arrived
- * that way in 5.47.3: the Internet Archive adapter, no other change here
- * beyond its own cache rules.
+ * `source` is a band-source id from lib/setlistSources.js: 'phishnet',
+ * 'archive', or the id of an ENABLED Songfish site in
+ * config/songfish-sites.json ('elgoose'). The per-source fetch and field
+ * mapping live in netlify/functions/lib/{songfish,phishnet,archive}Adapter.js
+ * and each source is one branch in ADAPTERS below. Every Songfish site
+ * shares one adapter and gets its branch from the config; a disabled site
+ * gets none, so a request for it is an unknown source and nothing is sent
+ * to its host.
+ *
+ * For a Songfish site, `artistId` is the site's numeric artist_id. Older
+ * app versions send 'goose' there; the function then matches `artist`
+ * against the site's mapped names instead (songfishSites.artistIdFor). An
+ * artist the site doesn't map gets `ok: false` without a request.
  *
  * ── Why this is so much smaller than the setlist.fm path ─────────────
  *
@@ -63,7 +70,8 @@
 
 const crypto = require('crypto');
 
-const elgooseAdapter = require('./lib/elgooseAdapter');
+const songfishAdapter = require('./lib/songfishAdapter');
+const songfishSites = require('./lib/songfishSites');
 const phishnetAdapter = require('./lib/phishnetAdapter');
 const archiveAdapter = require('./lib/archiveAdapter');
 
@@ -74,16 +82,24 @@ const CACHE_COLLECTION = 'bandSetlistCache';
 // phish.net's documented ceiling, applied to both sources. See the header.
 const MAX_TTL_HOURS = 24;
 
+// One branch per ENABLED Songfish site. `songfishSite` marks the branch so
+// the handler resolves the site's artist_id before fetching; the adapter
+// keeps only that artist's rows, because every Songfish site carries more
+// than one act on a date.
+function songfishAdapters() {
+  const out = {};
+  for (const site of songfishSites.enabledSites()) {
+    out[site.id] = {
+      requiresApiKey: false,
+      songfishSite: site,
+      fetch: (date, { artistId } = {}) => songfishAdapter.fetchSetlists(site, date, { artistId }),
+    };
+  }
+  return out;
+}
+
 const ADAPTERS = {
-  elgoose: {
-    requiresApiKey: false,
-    // artistId is the registry's sourceArtistFilter ('goose'). It matters
-    // because this archive is addressed by date and carries more than one
-    // act: without it, a date where Orebolo also played is a coin flip
-    // between two bands' setlists. The adapter fails open if it cannot
-    // recognize the value, so passing it can only help.
-    fetch: (date, { artistId } = {}) => elgooseAdapter.fetchSetlists(date, { artistFilter: artistId }),
-  },
+  ...songfishAdapters(),
   phishnet: {
     requiresApiKey: true,
     apiKeyEnvVar: 'PHISHNET_API_KEY',
@@ -176,7 +192,11 @@ function toIsoDate(value) {
 //   2 — 5.34.3: elgoose rows are filtered by artist, and everything the
 //       5.33.4/5.33.5 corrections changed (permalink, jamchart_notes,
 //       song_id, original_artist, shownotes)
-const CACHE_VERSION = 2;
+//   3 — 5.47.4: one Songfish adapter for every site. Encores (setnumber
+//       'e') are labelled Encore instead of Set I, rows are filtered
+//       strictly by numeric artist_id, every footnote is kept, and
+//       artistId in the key is the site's numeric id
+const CACHE_VERSION = 3;
 
 function buildCacheKey(source, artist, date, venue, artistId) {
   const normalized = JSON.stringify({
@@ -185,10 +205,10 @@ function buildCacheKey(source, artist, date, venue, artistId) {
     a: (artist || '').toLowerCase().trim(),
     d: (date || '').trim(),
     v: (venue || '').toLowerCase().trim(),
-    // Part of the key because it is now part of what the response contains:
-    // the elgoose adapter filters rows by it, so two artists on one date no
-    // longer share an answer.
-    i: (artistId || '').toLowerCase().trim(),
+    // Part of the key because it is part of what the response contains: the
+    // Songfish adapter filters rows by it, so two artists on one date don't
+    // share an answer.
+    i: String(artistId == null ? '' : artistId).toLowerCase().trim(),
   });
   return crypto.createHash('md5').update(normalized).digest('hex');
 }
@@ -218,10 +238,11 @@ exports.handler = async function (event) {
     return { statusCode: 405, headers: CORS_HEADERS, body: JSON.stringify({ error: 'Method not allowed' }) };
   }
 
-  const { source, artist, venue, artistId, debug } = event.queryStringParameters || {};
-  let { date } = event.queryStringParameters || {};
+  const { source, artist, venue, debug } = event.queryStringParameters || {};
+  let { date, artistId } = event.queryStringParameters || {};
 
-  if (!source || !ADAPTERS[source]) {
+  // Own properties only: `ADAPTERS['constructor']` is truthy otherwise.
+  if (!source || !Object.prototype.hasOwnProperty.call(ADAPTERS, source)) {
     return {
       statusCode: 400,
       headers: CORS_HEADERS,
@@ -247,6 +268,28 @@ exports.handler = async function (event) {
 
   const adapter = ADAPTERS[source];
 
+  // A Songfish site answers for every act it carries, so the artist has to
+  // be one this site is mapped for. If not, the archive is not asked: the
+  // answer is the same "no show" the app already falls back from.
+  if (adapter.songfishSite) {
+    const siteArtistId = songfishSites.artistIdFor(adapter.songfishSite, { artist, artistId });
+    if (siteArtistId == null) {
+      return {
+        statusCode: 200,
+        headers: { ...CORS_HEADERS, 'X-Cache': 'MISS' },
+        body: JSON.stringify({
+          ok: false,
+          source,
+          date,
+          message: `${artist || 'That artist'} is not mapped on ${adapter.songfishSite.displayName}`,
+          shows: [],
+          songs: [],
+        }),
+      };
+    }
+    artistId = String(siteArtistId);
+  }
+
   // The key, if this source needs one. No literal fallback — a missing key
   // is a configuration problem and says so, rather than silently working
   // off a credential committed to the repository.
@@ -267,6 +310,7 @@ exports.handler = async function (event) {
   }
 
   const label = `${source} ${artist || '?'} ${date}`;
+  const adapterFile = adapter.songfishSite ? 'songfishAdapter.js' : `${source}Adapter.js`;
   const cacheKey = buildCacheKey(source, artist, date, venue, artistId);
   const db = getDb();
   let staleDoc = null;
@@ -346,11 +390,13 @@ exports.handler = async function (event) {
 
     if (payload.songs.length === 0 && result.upstream) {
       payload.upstream = result.upstream;
-      if (result.upstream.rowCount > 0) {
+      // Rows dropped for belonging to another act on this site are not a
+      // mapping problem: that is a date this artist didn't play.
+      if (result.upstream.rowCount > (result.droppedOtherArtistCount || 0)) {
         console.warn(
           `[BAND-SETLIST] ${label} — upstream returned ${result.upstream.rowCount} row(s) ` +
           `but none produced a song. Row keys: ${result.upstream.firstRowKeys.join(', ')}. ` +
-          `Check the FIELDS map in ${source}Adapter.js.`
+          `Check the FIELDS map in ${adapterFile}.`
         );
       }
     }
@@ -366,7 +412,7 @@ exports.handler = async function (event) {
     if (payload.droppedUntitledCount > 0) {
       console.warn(
         `[BAND-SETLIST] ${label} — dropped ${payload.droppedUntitledCount} row(s) with no song title. ` +
-        `A FIELDS key in ${source}Adapter.js is probably wrong; nothing was written.`
+        `A FIELDS key in ${adapterFile} is probably wrong; nothing was written.`
       );
     }
 

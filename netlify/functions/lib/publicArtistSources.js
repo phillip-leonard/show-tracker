@@ -38,7 +38,7 @@
 // retries 429s, 5xxs and timeouts with backoff (createRequester below).
 
 const https = require('https');
-const { fetchSongfishJson, readEnvelope: readSongfishEnvelope } = require('./elgooseAdapter');
+const { fetchSongfishJson, readEnvelope: readSongfishEnvelope } = require('./songfishAdapter');
 const { fetchPhishnetJson, readEnvelope: readPhishnetEnvelope, splitSetCode } = require('./phishnetAdapter');
 const { normalizeSongTitle } = require('./bandSetlistMergeRule');
 const { isoDate } = require('./publicPageHtml');
