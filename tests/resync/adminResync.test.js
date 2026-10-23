@@ -210,6 +210,93 @@ test('two shows at one venue and no existing setlist: skipped, not guessed', asy
   assert.match(r.shows[0].note, /more than one show/);
 });
 
+// ── The Internet Archive: proposals only ───────────────────────────────
+
+const bandSetlistModule = require(path.join(__dirname, '../../netlify/functions/band-setlist.js'));
+const archiveAdapter = require(path.join(__dirname, '../../netlify/functions/lib/archiveAdapter.js'));
+
+function archiveSetUp({ declined = false } = {}) {
+  const archiveAsked = [];
+  bandSetlistModule.handler = async (event) => {
+    archiveAsked.push({ ...event.queryStringParameters, gap: archiveAdapter.getRequestGap() });
+    return {
+      statusCode: 200,
+      headers: { 'X-Cache': 'MISS' },
+      body: JSON.stringify({
+        ok: true, source: 'archive', selection: 'only', contested: [],
+        songs: [song('Minglewood Blues'), song('Loser'), song('Scarlet Begonias', 'Set II')],
+        sourceShowId: 'gd77-05-08.sbd.hicks.4982.sbeok.shnf',
+        sourcePermalink: 'https://archive.org/details/gd77-05-08.sbd.hicks.4982.sbeok.shnf',
+        confidence: 'explicit-sets', partial: false, needsReview: true,
+        disagreement: { with: 'gd77-05-08.aud.x', overlap: 0.7, songCounts: [3, 4] },
+        licenseUrl: null, sourceType: 'sbd',
+      }),
+    };
+  };
+  db = fakeFirestore({
+    shows: {
+      dead1: {
+        '700': {
+          artist: 'Grateful Dead', date: '08-05-1977', venue: 'Barton Hall',
+          setlist: [song('Minglewood Blues', 'Set I', { rating: 9 }), song('Jack Straw', 'Set I', { rating: 7 }), song('Loser')],
+          ...(declined ? { setlistProposal: { status: 'declined', sourceShowId: 'gd77-05-08.sbd.hicks.4982.sbeok.shnf' } } : {}),
+        },
+      },
+    },
+    profiles: { dead1: { handle: 'dead1' } },
+  });
+  return archiveAsked;
+}
+
+test('archive: a dry run reports the tape, review flag and unmatched ratings, and writes nothing', async () => {
+  const archiveAsked = archiveSetUp();
+  const r = await run({ source: 'archive' });
+  assert.deepStrictEqual(db.writes, []);
+  assert.strictEqual(r.wouldChange, 1);
+  assert.strictEqual(r.needsReview, 1);
+  const row = r.shows[0];
+  assert.strictEqual(row.archive.identifier, 'gd77-05-08.sbd.hicks.4982.sbeok.shnf');
+  assert.strictEqual(row.archive.licenseUrl, null);
+  assert.deepStrictEqual(row.archive.ratingsNotMatched, [{ title: 'Jack Straw', rating: 7 }]);
+  assert.strictEqual(row.userNotes.ratingsCarried, 1);
+  assert.strictEqual(archiveAsked[0].date, '1977-05-08', 'asked in-process with the ISO date');
+  assert.strictEqual(archiveAsked[0].gap, 1000, 'with the one-request-a-second gap on');
+  assert.strictEqual(archiveAdapter.getRequestGap(), 0, 'and the gap off again afterwards');
+});
+
+test('archive: a live run writes a proposal, never the setlist', async () => {
+  archiveSetUp();
+  const r = await run({ source: 'archive', dryRun: false });
+  assert.strictEqual(r.proposals, 1);
+  assert.strictEqual(db.writes.length, 1);
+  const written = db.writes[0].u;
+  assert.deepStrictEqual(Object.keys(written), ['setlistProposal']);
+  assert.strictEqual(written.setlistProposal.status, 'pending');
+  assert.strictEqual(written.setlistProposal.needsReview, true);
+  assert.strictEqual(written.setlistProposal.sourceShowId, 'gd77-05-08.sbd.hicks.4982.sbeok.shnf');
+  assert.strictEqual(written.setlistProposal.songs.length, 3);
+});
+
+test('archive: a recording the user already declined is not proposed again', async () => {
+  archiveSetUp({ declined: true });
+  const r = await run({ source: 'archive', dryRun: false });
+  assert.strictEqual(r.proposals, 0);
+  assert.strictEqual(r.declinedBefore, 1);
+  assert.deepStrictEqual(db.writes, []);
+});
+
+test('archive: switched off, Grateful Dead shows are not walked at all', async () => {
+  const archiveAsked = archiveSetUp();
+  const config = require(path.join(__dirname, '../../config/internet-archive.json'));
+  config.enabled = false;
+  try {
+    const r = await run({ dryRun: false });
+    assert.strictEqual(r.bandSourceShows, 0);
+    assert.strictEqual(archiveAsked.length, 0);
+    assert.deepStrictEqual(db.writes, []);
+  } finally { config.enabled = true; }
+});
+
 (async () => {
   let failed = 0;
   for (const { name, fn } of tests) {

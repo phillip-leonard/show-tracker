@@ -65,6 +65,12 @@
  *      constants below for why this is 300ms and not the 1200ms the first
  *      version used.
  *
+ * Internet Archive (Grateful Dead) shows are different in three ways: the
+ * lookup runs in-process with a 1-second gap between Archive requests (see
+ * fetchSetlistFor); a live run writes a `setlistProposal` for the user to
+ * accept, never the setlist itself (see buildProposal); and the whole
+ * source is skipped when config/internet-archive.json has it switched off.
+ *
  * A Netlify function is killed at 10 seconds, so a full backfill runs as
  * several invocations rather than one. Each returns `truncated: true` and a
  * `nextCursor`; pass that back as `cursor` to resume exactly where it
@@ -281,86 +287,85 @@ function fetchViaBandSetlistFunction({ baseUrl, source, artist, date, venue, art
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-exports.handler = async function (event) {
-  if (event.httpMethod === 'OPTIONS') {
-    return { statusCode: 204, headers: CORS_HEADERS, body: '' };
-  }
-  if (event.httpMethod !== 'POST') {
-    return { statusCode: 405, headers: CORS_HEADERS, body: JSON.stringify({ error: 'Method not allowed' }) };
-  }
+// ── The Internet Archive, in-process ──────────────────────────────────
+//
+// An Archive lookup is up to five requests to archive.org, and over HTTP
+// each one rode inside band-setlist.js's own 10-second window: one slow
+// date was a 502 and a lost row. So the walk calls band-setlist.js's
+// handler in-process instead — the same cache, the same show selection,
+// the same response — with the adapter's request gap set, so the Archive
+// never gets more than one request a second however many shows are
+// walked. The other sources keep the HTTP path above.
+const ARCHIVE_REQUEST_GAP_MS = 1000;
 
-  // ── Parsing the bearer token ──────────────────────────────────────
-  // A regex rather than .replace('Bearer ', ''), which only strips the
-  // prefix when exactly one space follows it. That cost real debugging
-  // time: a caller whose $ID_TOKEN was unset sent `Authorization: Bearer`
-  // with the trailing space trimmed, the prefix therefore did not match,
-  // and the literal string "Bearer" became the token — non-empty, so it
-  // passed the check below and failed verification instead, reporting
-  // "Forbidden" for what was really a missing token. Also accepts a
-  // lowercase scheme and extra whitespace, which are both legal.
-  const rawAuth = (event.headers.authorization || '').trim();
-  const token = /^Bearer\s+/i.test(rawAuth) ? rawAuth.replace(/^Bearer\s+/i, '').trim() : '';
+const bandSetlistFunction = require('./band-setlist');
 
-  if (!token) {
-    return {
-      statusCode: 401,
-      headers: CORS_HEADERS,
-      body: JSON.stringify({
-        error: 'Unauthorized',
-        // Named explicitly, because the two ways to get here look the same
-        // from a shell and one of them is a typo.
-        details: rawAuth
-          ? 'The Authorization header carried no token after the Bearer scheme. If you are using a shell variable, check it is actually set.'
-          : 'No Authorization header. Expected: Authorization: Bearer <firebase-id-token>',
-      }),
-    };
-  }
+async function fetchSetlistFor(args) {
+  if (args.source !== 'archive') return fetchViaBandSetlistFunction(args);
+  const params = { source: 'archive', artist: args.artist, date: args.date, artistId: args.artistId };
+  if (args.venue) params.venue = args.venue;
+  const res = await bandSetlistFunction.handler({ httpMethod: 'GET', headers: {}, queryStringParameters: params });
+  let data = null;
+  try { data = JSON.parse(res.body); } catch (e) { throw new Error(`Parse error: ${e.message}`); }
+  return { statusCode: res.statusCode, cache: (res.headers && res.headers['X-Cache']) || '', data };
+}
 
-  // ── Why this is not one bare catch ────────────────────────────────
-  // verifyAdmin can fail three genuinely different ways, and collapsing
-  // them into "Forbidden" sends you looking for a permissions problem when
-  // the real one is a missing env var or an expired token. Same conflation
-  // this file's readEnvelope sibling had, and just as misleading.
-  try {
-    await verifyAdmin(token);
-  } catch (err) {
-    const message = err?.message || '';
+// ── Proposals, not writes ─────────────────────────────────────────────
+//
+// An Archive setlist is reconstructed from tapes, so a live run never
+// writes one over a show's setlist. It writes `setlistProposal` on the
+// show instead — the incoming setlist, where it came from, and the diff —
+// and the app asks the user ("Update setlist from the Internet Archive?").
+// Accepting re-runs the merge against the setlist as it is then. A
+// proposal the user declined for this same recording is not offered again.
+function buildProposal(data, summary, picked, nowIso) {
+  return {
+    source: 'archive',
+    status: 'pending',
+    createdAt: nowIso,
+    songs: picked.songs || data.songs || [],
+    sourceShowId: picked.sourceShowId || '',
+    sourcePermalink: picked.sourcePermalink || '',
+    setlistNotes: picked.setlistNotes || '',
+    licenseUrl: picked.licenseUrl == null ? null : picked.licenseUrl,
+    needsReview: !!picked.needsReview,
+    disagreement: picked.disagreement || null,
+    confidence: picked.confidence || '',
+    parsedFrom: picked.parsedFrom || '',
+    partial: !!picked.partial,
+    sourceType: picked.sourceType || '',
+    showSlot: picked.showSlot || '',
+    summary: {
+      existingCount: summary.existingCount,
+      incomingCount: summary.incomingCount,
+      resultCount: summary.resultCount,
+      added: summary.added,
+      removed: summary.removed,
+      movedSet: summary.movedSet,
+      movedPosition: summary.movedPosition,
+      keptManual: summary.keptManual,
+      keptNotInSource: summary.keptNotInSource || [],
+      carriedOver: summary.carriedOver,
+    },
+  };
+}
 
-    if (message.includes('Firebase env vars not configured')) {
-      return {
-        statusCode: 500,
-        headers: CORS_HEADERS,
-        body: JSON.stringify({
-          error: 'Server misconfigured',
-          details: 'FIREBASE_PRIVATE_KEY, FIREBASE_CLIENT_EMAIL and FIREBASE_PROJECT_ID must be set on this deployment. This is not an authorization problem.',
-        }),
-      };
-    }
+function declinedSame(show, data) {
+  const p = show.setlistProposal;
+  return !!p && p.status === 'declined' && p.sourceShowId && p.sourceShowId === data.sourceShowId;
+}
 
-    if (message === 'Forbidden') {
-      // Verified successfully, but the email is not on ADMIN_EMAILS. The
-      // only case that genuinely deserves a 403.
-      return {
-        statusCode: 403,
-        headers: CORS_HEADERS,
-        body: JSON.stringify({ error: 'Forbidden', details: 'That account is signed in but is not an admin.' }),
-      };
-    }
-
-    // Anything else is the token itself: malformed, expired (Firebase ID
-    // tokens last an hour), or issued for a different project.
-    return {
-      statusCode: 401,
-      headers: CORS_HEADERS,
-      body: JSON.stringify({
-        error: 'Invalid or expired token',
-        details: 'Firebase ID tokens expire after an hour — fetch a fresh one and retry.',
-        firebaseError: message,
-      }),
-    };
-  }
-
-  const body = JSON.parse(event.body || '{}');
+/**
+ * runResync(body, { defaultBudgetMs }) -> { report } | { error, report }
+ *
+ * The walk itself, apart from the HTTP handler, so the same walk runs in
+ * three places: this function (10 seconds, resumable by cursor),
+ * admin-resync-setlists-background.js (15 minutes, report saved to
+ * Firestore), and scripts/archive-resync-dry-run.js (local, dry run only).
+ * `body` is the POST body described at the top of this file.
+ */
+async function runResync(body, { defaultBudgetMs = DEFAULT_BUDGET_MS } = {}) {
+  initFirebase();
 
   // `=== false` rather than a truthy read. `dryRun: false` is the ONLY
   // thing that turns writing on — a missing field, a null, an empty string
@@ -372,7 +377,7 @@ exports.handler = async function (event) {
   const onlyUserId = body.userId || null;
   const onlySource = body.source || null;
   const delayMs = Number.isFinite(Number(body.delayMs)) ? Math.max(0, Number(body.delayMs)) : DEFAULT_DELAY_MS;
-  const budgetMs = Number.isFinite(Number(body.budgetMs)) ? Math.max(1000, Number(body.budgetMs)) : DEFAULT_BUDGET_MS;
+  const budgetMs = Number.isFinite(Number(body.budgetMs)) ? Math.max(1000, Number(body.budgetMs)) : defaultBudgetMs;
 
   // Resume token from a previous run's `nextCursor`: "<userId>::<showId>",
   // meaning "start at this user, after this show". Show ids are millisecond
@@ -399,6 +404,10 @@ exports.handler = async function (event) {
   const { getFirestore } = require('firebase-admin/firestore');
   const db = getFirestore();
 
+  if ((!onlySource || onlySource === 'archive') && archiveAdapter.isEnabled()) {
+    archiveAdapter.setRequestGap(ARCHIVE_REQUEST_GAP_MS);
+  }
+
   const report = {
     dryRun,
     limit,
@@ -411,6 +420,11 @@ exports.handler = async function (event) {
     wouldChange: 0,
     changed: 0,
     unchanged: 0,
+    // Internet Archive shows: a live run writes a proposal for each, never
+    // the setlist itself.
+    proposals: 0,
+    needsReview: 0,
+    declinedBefore: 0,
     // The interesting ones: a bad date, a side project the registry sends
     // to the wrong place, or an artist-name false positive (the Dutch
     // Goose). Reported separately rather than lumped in with "unchanged"
@@ -596,7 +610,7 @@ exports.handler = async function (event) {
             continue;
           }
 
-          const { statusCode, cache, data } = await fetchViaBandSetlistFunction({
+          const { statusCode, cache, data } = await fetchSetlistFor({
             baseUrl,
             source: resolved.source,
             artist: show.artist,
@@ -642,6 +656,27 @@ exports.handler = async function (event) {
             // Show-level fields from the show the merge actually used.
             const picked = chosenCandidate ? { ...data, ...chosenCandidate } : data;
 
+            if (resolved.source === 'archive') {
+              const notInSource = new Set(summary.keptNotInSource || []);
+              row.archive = {
+                identifier: picked.sourceShowId || '',
+                confidence: picked.confidence || '',
+                parsedFrom: picked.parsedFrom || '',
+                partial: !!picked.partial,
+                needsReview: !!picked.needsReview,
+                disagreement: picked.disagreement || null,
+                sourceType: picked.sourceType || '',
+                showSlot: picked.showSlot || '',
+                licenseUrl: picked.licenseUrl == null ? null : picked.licenseUrl,
+                // A rating on a song the Archive's setlist doesn't list:
+                // kept, flagged not-in-source, and named here so someone
+                // can check whether it is a missing alias.
+                ratingsNotMatched: (show.setlist || [])
+                  .filter((x) => x.rating != null && notInSource.has(x.name))
+                  .map((x) => ({ title: x.name, rating: x.rating })),
+              };
+            }
+
             if (!changed) {
               // The write-nothing rule. An empty incoming setlist, or a
               // date the existing setlist couldn't choose a show for (it is
@@ -652,6 +687,21 @@ exports.handler = async function (event) {
                 report.sourceReturnedNothing.push({ ...row });
               }
               report.unchanged++;
+            } else if (resolved.source === 'archive') {
+              // Proposals only: see buildProposal. The show's setlist is
+              // not touched by this walk, dry run or not.
+              if (picked.needsReview) report.needsReview++;
+              if (declinedSame(show, picked)) {
+                report.declinedBefore++;
+                row.note = 'the user kept their own setlist over this recording before; not offered again';
+              } else if (dryRun) {
+                report.wouldChange++;
+                console.log(`[RESYNC dry] ${userId}/${showDoc.id} ${show.artist} ${show.date} — would propose ${picked.sourceShowId}: ${describeSummary(summary)}`);
+              } else {
+                await showDoc.ref.update({ setlistProposal: buildProposal(data, summary, picked, new Date().toISOString()) });
+                report.proposals++;
+                console.log(`[RESYNC proposal] ${userId}/${showDoc.id} ${show.artist} ${show.date} — ${picked.sourceShowId}: ${describeSummary(summary)}`);
+              }
             } else if (dryRun) {
               report.wouldChange++;
               console.log(`[RESYNC dry] ${userId}/${showDoc.id} ${show.artist} ${show.date} — ${describeSummary(summary)}`);
@@ -680,7 +730,8 @@ exports.handler = async function (event) {
         // Only pause when we actually went out to the upstream host. A
         // cache hit never touched elgoose.net or phish.net, so there is
         // nothing to be polite about.
-        if (row.cache !== 'HIT' && delayMs > 0) await sleep(delayMs);
+        // The Archive's requests are spaced by the adapter's own gap.
+        if (row.cache !== 'HIT' && delayMs > 0 && resolved.source !== 'archive') await sleep(delayMs);
       }
 
       if (report.truncated) break;
@@ -688,17 +739,114 @@ exports.handler = async function (event) {
 
     report.artistsSeen = [...artistsSeen.values()].sort((a, b) => b.shows - a.shows);
 
-    return { statusCode: 200, headers: CORS_HEADERS, body: JSON.stringify(report) };
+    return { report };
   } catch (err) {
     console.error('[RESYNC] Error:', err);
+    return { error: err.message, report };
+  } finally {
+    archiveAdapter.setRequestGap(0);
+  }
+}
+
+/**
+ * authorizeAdmin(event) -> null when the caller is an admin, otherwise the
+ * response to send. Shared with admin-resync-setlists-background.js.
+ */
+async function authorizeAdmin(event) {
+  // ── Parsing the bearer token ──────────────────────────────────────
+  // A regex rather than .replace('Bearer ', ''), which only strips the
+  // prefix when exactly one space follows it. That cost real debugging
+  // time: a caller whose $ID_TOKEN was unset sent `Authorization: Bearer`
+  // with the trailing space trimmed, the prefix therefore did not match,
+  // and the literal string "Bearer" became the token — non-empty, so it
+  // passed the check below and failed verification instead, reporting
+  // "Forbidden" for what was really a missing token. Also accepts a
+  // lowercase scheme and extra whitespace, which are both legal.
+  const rawAuth = (event.headers.authorization || '').trim();
+  const token = /^Bearer\s+/i.test(rawAuth) ? rawAuth.replace(/^Bearer\s+/i, '').trim() : '';
+
+  if (!token) {
     return {
-      statusCode: 500,
+      statusCode: 401,
       headers: CORS_HEADERS,
-      body: JSON.stringify({ error: err.message, partial: report }),
+      body: JSON.stringify({
+        error: 'Unauthorized',
+        // Named explicitly, because the two ways to get here look the same
+        // from a shell and one of them is a typo.
+        details: rawAuth
+          ? 'The Authorization header carried no token after the Bearer scheme. If you are using a shell variable, check it is actually set.'
+          : 'No Authorization header. Expected: Authorization: Bearer <firebase-id-token>',
+      }),
     };
   }
+
+  // ── Why this is not one bare catch ────────────────────────────────
+  // verifyAdmin can fail three genuinely different ways, and collapsing
+  // them into "Forbidden" sends you looking for a permissions problem when
+  // the real one is a missing env var or an expired token. Same conflation
+  // this file's readEnvelope sibling had, and just as misleading.
+  try {
+    await verifyAdmin(token);
+  } catch (err) {
+    const message = err?.message || '';
+
+    if (message.includes('Firebase env vars not configured')) {
+      return {
+        statusCode: 500,
+        headers: CORS_HEADERS,
+        body: JSON.stringify({
+          error: 'Server misconfigured',
+          details: 'FIREBASE_PRIVATE_KEY, FIREBASE_CLIENT_EMAIL and FIREBASE_PROJECT_ID must be set on this deployment. This is not an authorization problem.',
+        }),
+      };
+    }
+
+    if (message === 'Forbidden') {
+      // Verified successfully, but the email is not on ADMIN_EMAILS. The
+      // only case that genuinely deserves a 403.
+      return {
+        statusCode: 403,
+        headers: CORS_HEADERS,
+        body: JSON.stringify({ error: 'Forbidden', details: 'That account is signed in but is not an admin.' }),
+      };
+    }
+
+    // Anything else is the token itself: malformed, expired (Firebase ID
+    // tokens last an hour), or issued for a different project.
+    return {
+      statusCode: 401,
+      headers: CORS_HEADERS,
+      body: JSON.stringify({
+        error: 'Invalid or expired token',
+        details: 'Firebase ID tokens expire after an hour — fetch a fresh one and retry.',
+        firebaseError: message,
+      }),
+    };
+  }
+  return null;
+}
+
+exports.handler = async function (event) {
+  if (event.httpMethod === 'OPTIONS') {
+    return { statusCode: 204, headers: CORS_HEADERS, body: '' };
+  }
+  if (event.httpMethod !== 'POST') {
+    return { statusCode: 405, headers: CORS_HEADERS, body: JSON.stringify({ error: 'Method not allowed' }) };
+  }
+
+  const denied = await authorizeAdmin(event);
+  if (denied) return denied;
+
+  const { report, error } = await runResync(JSON.parse(event.body || '{}'));
+  if (error) {
+    return { statusCode: 500, headers: CORS_HEADERS, body: JSON.stringify({ error, partial: report }) };
+  }
+  return { statusCode: 200, headers: CORS_HEADERS, body: JSON.stringify(report) };
 };
 
 // For the tests: the registry mirror and the switch's effect on it.
 exports.bandSourceNameKeys = bandSourceNameKeys;
 exports.resolveBandSource = resolveBandSource;
+exports.runResync = runResync;
+exports.authorizeAdmin = authorizeAdmin;
+exports.CORS_HEADERS = CORS_HEADERS;
