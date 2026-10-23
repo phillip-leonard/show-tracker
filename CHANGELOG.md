@@ -4,6 +4,39 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.47.7] — 2026-10-23
+
+Ships in iOS 3.9.7 (`MARKETING_VERSION` 3.9.6 → 3.9.7; the build number is
+left to Xcode Cloud).
+
+**Band-source re-sync that can run, and can't lose a rating.** Found while
+dry-running a Goose re-sync from setlist.fm to El Goose.
+
+- **The admin re-sync scanned nobody.** `admin-resync-setlists` listed users
+  with `collection('users').get()`, but no `users/{uid}` document exists in
+  production (shows live in its subcollection), so every run, dry or live,
+  found zero users. It now lists them with `listDocuments()`.
+- **Test accounts left alone.** The App Review accounts (`@alexreviewer`,
+  `@jordanmills`), any profile marked `isTestUser`, and any `seed-` show are
+  excluded by default and listed in the report; `includeTestAccounts: true`
+  brings them back. New `skipShowIds` and `excludeUserIds` options.
+- **A rated or commented song is never dropped.** When the source doesn't
+  list it, the merge keeps it where it was, flagged `notInSource`, with a
+  "not in source" badge on the setlist. A later re-sync that finds it clears
+  the flag. Applies to every band-source write, in the app and the admin
+  re-sync.
+- **Title aliases per band** (`config/song-title-aliases.json`), so a rename
+  carries the rating across: for Goose, "SOS" is "Same Old Shenanigans" and
+  "Baby Don't You Do It" is "Don't Do It".
+- **Two shows on one date.** When the source has more than one show at the
+  matched venue (BottleRock 2025: two Goose sets, both "Napa Valley Expo"),
+  or none matches the venue, the show whose songs overlap the existing
+  setlist most is used. With no existing setlist, a tie, or under 50%
+  overlap, nothing is written and the show is reported. `band-setlist`
+  returns the contested shows with their songs (cache version 4).
+
+---
+
 ## [5.47.6] — 2026-10-23
 
 Ships in iOS 3.9.6 (`MARKETING_VERSION` 3.9.5 → 3.9.6; the build number is

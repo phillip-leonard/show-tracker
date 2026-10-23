@@ -30,6 +30,7 @@ function buildSets(setlist = []) {
       duration: song.duration || null,
       tape: song.tape || false,
       manual: !!song.manuallyAdded,
+      notInSource: !!song.notInSource,
       // Same band-source extras the show detail passes through, so a run
       // night renders identically to that night's own show page.
       transitionMark: song.transitionMark || null,
