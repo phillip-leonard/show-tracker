@@ -98,6 +98,25 @@ function songfishAdapters() {
   return out;
 }
 
+// The Internet Archive, Grateful Dead only. artistId is the collection
+// ('GratefulDead'). The venue goes to the adapter as well as to
+// selectShow, because here it narrows which TAPES are read rather than
+// which of several shows is returned.
+//
+// Its own cache rules, because nothing about it matches the other two:
+// these are tapes of shows from 1965–1995, not a reviewed archive being
+// corrected this week, so a found setlist is kept for 30 days rather
+// than 24 hours. And a "not found" is cached too, for 7 days: finding
+// one costs up to five requests to a service that asks to be used
+// gently, and a repeat lookup of a date with no tapes should not repeat
+// them.
+const ARCHIVE_ADAPTER = {
+  requiresApiKey: false,
+  maxTtlHours: 24 * 30,
+  emptyTtlHours: 24 * 7,
+  fetch: (date, { artistId, venue }) => archiveAdapter.fetchSetlists(date, { collection: artistId || archiveAdapter.COLLECTION, venue }),
+};
+
 const ADAPTERS = {
   ...songfishAdapters(),
   phishnet: {
@@ -105,24 +124,10 @@ const ADAPTERS = {
     apiKeyEnvVar: 'PHISHNET_API_KEY',
     fetch: (date, { apiKey, artistId }) => phishnetAdapter.fetchSetlists(date, { apiKey, artistId }),
   },
-  // The Internet Archive, Grateful Dead only. artistId is the collection
-  // ('GratefulDead'). The venue goes to the adapter as well as to
-  // selectShow, because here it narrows which TAPES are read rather than
-  // which of several shows is returned.
-  //
-  // Its own cache rules, because nothing about it matches the other two:
-  // these are tapes of shows from 1965–1995, not a reviewed archive being
-  // corrected this week, so a found setlist is kept for 30 days rather
-  // than 24 hours. And a "not found" is cached too, for 7 days: finding
-  // one costs up to five requests to a service that asks to be used
-  // gently, and a repeat lookup of a date with no tapes should not repeat
-  // them.
-  archive: {
-    requiresApiKey: false,
-    maxTtlHours: 24 * 30,
-    emptyTtlHours: 24 * 7,
-    fetch: (date, { artistId, venue }) => archiveAdapter.fetchSetlists(date, { collection: artistId || archiveAdapter.COLLECTION, venue }),
-  },
+  // The Internet Archive, Grateful Dead only. Present only while
+  // config/internet-archive.json has `enabled: true`; see the handler for
+  // what a request for it gets otherwise.
+  ...(archiveAdapter.isEnabled() ? { archive: ARCHIVE_ADAPTER } : {}),
 };
 
 // --- Firebase Admin (lazy init, graceful degradation if env vars missing) ---
@@ -242,6 +247,25 @@ exports.handler = async function (event) {
 
   const { source, artist, venue, debug } = event.queryStringParameters || {};
   let { date, artistId } = event.queryStringParameters || {};
+
+  // The Archive switched off (config/internet-archive.json). Answered
+  // before the cache, so no stored Archive setlist is served either, and
+  // as the same "no show" every app version already falls back to
+  // setlist.fm from, rather than as an error.
+  if (source === 'archive' && !archiveAdapter.isEnabled()) {
+    return {
+      statusCode: 200,
+      headers: { ...CORS_HEADERS, 'X-Cache': 'MISS' },
+      body: JSON.stringify({
+        ok: false,
+        disabled: true,
+        source,
+        message: 'The Internet Archive source is turned off',
+        shows: [],
+        songs: [],
+      }),
+    };
+  }
 
   // Own properties only: `ADAPTERS['constructor']` is truthy otherwise.
   if (!source || !Object.prototype.hasOwnProperty.call(ADAPTERS, source)) {

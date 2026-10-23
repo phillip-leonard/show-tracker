@@ -71,8 +71,10 @@
 const https = require('https');
 const { buildSetlist, cleanStr, pickSetLabel, setSortKey } = require('./bandSetlistShape');
 
+const CONFIG = require('../../../config/internet-archive.json');
+
 const HOSTNAME = 'archive.org';
-const COLLECTION = 'GratefulDead';
+const COLLECTION = CONFIG.collection;
 const USER_AGENT = 'MySetlistsApp/1.0 (https://mysetlists.net; contact@mysetlists.net)';
 const REQUEST_TIMEOUT_MS = 10000;
 const SEARCH_ROWS = 50;
@@ -84,6 +86,16 @@ const METADATA_DESCRIPTION_ITEMS = 3;
 // Fewer songs than this is a fragment of text, not a setlist. The shortest
 // real one in the sample is the three-song Human Be-In set, 1967-01-14.
 const MIN_SONGS = 3;
+
+// ── The switch ────────────────────────────────────────────────────────
+//
+// config/internet-archive.json's `enabled`. Checked here as well as in the
+// registry and in band-setlist.js, so nothing that reaches this adapter by
+// another route (the admin re-sync, a script) can send the Archive a
+// request while the source is off.
+function isEnabled(config = CONFIG) {
+  return !!config && config.enabled === true;
+}
 
 // ── HTTP ──────────────────────────────────────────────────────────────
 
@@ -783,7 +795,10 @@ function descriptionOf(doc) {
  * Throws on network failure or rate limiting, so the caller can serve
  * stale cache and never caches an outage as "not found".
  */
-async function fetchSetlists(date, { collection = COLLECTION, venue = '' } = {}) {
+async function fetchSetlists(date, { collection = COLLECTION, venue = '', config = CONFIG } = {}) {
+  if (!isEnabled(config)) {
+    return { ok: false, disabled: true, message: 'The Internet Archive source is turned off (config/internet-archive.json)', shows: [] };
+  }
   if (collection !== COLLECTION) {
     return { ok: false, message: `The Archive source only covers the ${COLLECTION} collection`, shows: [] };
   }
@@ -920,6 +935,7 @@ async function fetchSetlists(date, { collection = COLLECTION, venue = '' } = {})
 
 module.exports = {
   COLLECTION,
+  isEnabled,
   cleanTitle,
   fetchSetlists,
   filterByVenue,

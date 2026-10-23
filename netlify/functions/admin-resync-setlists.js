@@ -74,6 +74,7 @@
 
 const https = require('https');
 
+const archiveAdapter = require('./lib/archiveAdapter');
 const { mergeBandSetlist, describeSummary, titleAliasesFor } = require('./lib/bandSetlistMergeRule');
 
 const ADMIN_EMAILS = ['phillip.leonard@gmail.com'];
@@ -141,10 +142,18 @@ const MAX_ARTISTS_REPORTED = 40;
 //
 // KEEP IN STEP with SETLIST_SOURCES in lib/setlistSources.js. Adding a
 // source or an act there means adding it here too.
-const BAND_SOURCE_NAME_KEYS = {
-  goose: { source: 'elgoose', artistId: 'goose' },
-  phish: { source: 'phishnet', artistId: '1' },
-};
+//
+// Grateful Dead is here only while config/internet-archive.json has
+// `enabled: true`, read through the adapter so the switch has one meaning
+// everywhere. Off, the walk treats Grateful Dead shows as setlist.fm shows
+// and sends the Archive nothing.
+function bandSourceNameKeys(archiveEnabled = archiveAdapter.isEnabled()) {
+  return {
+    goose: { source: 'elgoose', artistId: 'goose' },
+    phish: { source: 'phishnet', artistId: '1' },
+    ...(archiveEnabled ? { 'grateful-dead': { source: 'archive', artistId: archiveAdapter.COLLECTION } } : {}),
+  };
+}
 
 // artistKeyFor's name branch, from lib/wishlist.js, with the same
 // leading trim artistNameKey in lib/setlistSources.js applies — and for the
@@ -197,7 +206,8 @@ function toIsoDate(value) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
-function resolveBandSource(artist) {
+function resolveBandSource(artist, nameKeys = bandSourceNameKeys()) {
+  const BAND_SOURCE_NAME_KEYS = nameKeys;
   const key = artistNameKey(artist);
   if (BAND_SOURCE_NAME_KEYS[key]) return { ...BAND_SOURCE_NAME_KEYS[key], matchedOn: 'name', nameKey: key };
 
@@ -688,3 +698,7 @@ exports.handler = async function (event) {
     };
   }
 };
+
+// For the tests: the registry mirror and the switch's effect on it.
+exports.bandSourceNameKeys = bandSourceNameKeys;
+exports.resolveBandSource = resolveBandSource;
