@@ -114,8 +114,18 @@ const ARCHIVE_ADAPTER = {
   requiresApiKey: false,
   maxTtlHours: 24 * 30,
   emptyTtlHours: 24 * 7,
-  fetch: (date, { artistId, venue }) => archiveAdapter.fetchSetlists(date, { collection: artistId || archiveAdapter.COLLECTION, venue }),
+  // A lookup someone is waiting on stops its optional reads at the
+  // deadline, leaving room inside the function's 10 seconds; the result is
+  // then not cached. A bulk walk (the admin re-sync, which spaces requests
+  // out with setRequestGap) has no deadline.
+  fetch: (date, { artistId, venue }) => archiveAdapter.fetchSetlists(date, {
+    collection: artistId || archiveAdapter.COLLECTION,
+    venue,
+    deadlineMs: archiveAdapter.getRequestGap() > 0 ? 0 : ARCHIVE_DEADLINE_MS,
+  }),
 };
+
+const ARCHIVE_DEADLINE_MS = 6500;
 
 const ADAPTERS = {
   ...songfishAdapters(),
@@ -203,7 +213,10 @@ function toIsoDate(value) {
 //       artistId in the key is the site's numeric id
 //   4 — ambiguous dates carry `selection` and `contested` (each candidate
 //       show with its songs), for the merge rule's overlap choice
-const CACHE_VERSION = 4;
+//   5 — 5.47.8: Archive results carry needsReview, disagreement,
+//       licenseUrl and sourceType, early and late shows come back as two
+//       shows, and the tape-selection rule changed
+const CACHE_VERSION = 5;
 
 function buildCacheKey(source, artist, date, venue, artistId) {
   const normalized = JSON.stringify({
@@ -456,7 +469,7 @@ exports.handler = async function (event) {
     // ADAPTERS entry. Only an answer the source actually gave — a thrown
     // error never reaches here, so an outage is never cached as "none".
     const cacheEmpty = !!adapter.emptyTtlHours && payload.songs.length === 0;
-    if (db && !bypassCache && (payload.songs.length > 0 || cacheEmpty)) {
+    if (db && !bypassCache && !payload.lookupCutShort && (payload.songs.length > 0 || cacheEmpty)) {
       const ttlHours = cacheEmpty ? adapter.emptyTtlHours : determineTtlHours(date, adapter.maxTtlHours || MAX_TTL_HOURS);
       const { Timestamp } = require('firebase-admin/firestore');
       db.collection(CACHE_COLLECTION).doc(cacheKey).set({
@@ -602,12 +615,21 @@ function selectShow(shows, { source, date, venue }) {
     }
   }
 
-  // The Archive returns one show per date but can still be unsure of it:
-  // early and late shows are separate tapes it cannot reliably tell apart.
-  if (chosen.ambiguousSlot) {
-    ambiguous = true;
-    message = message || `There were early and late shows on ${date}, and the Internet Archive's tapes don't say clearly which one this setlist is.`;
-  }
+  // Archive only: the fields that decide whether a setlist may be written
+  // without asking, per show, so a contested early/late pick carries its
+  // own. Absent (and dropped from the JSON) for the other sources.
+  const archiveFields = (s) => ({
+    confidence: s.confidence,
+    parsedFrom: s.parsedFrom,
+    partial: s.partial,
+    itemCount: s.itemCount,
+    candidateCount: s.candidateCount,
+    needsReview: s.needsReview,
+    disagreement: s.disagreement,
+    sourceType: s.sourceType,
+    licenseUrl: s.licenseUrl,
+    showSlot: s.showSlot,
+  });
 
   return {
     ...base,
@@ -624,15 +646,13 @@ function selectShow(shows, { source, date, venue }) {
       sourcePermalink: s.sourcePermalink,
       setlistNotes: s.setlistNotes,
       songs: s.songs,
+      ...archiveFields(s),
     })),
     message,
-    // Archive only (absent, and so dropped from the JSON, for the other
-    // sources): how the setlist was read, which decides whether the app
-    // may write it without asking. See archiveAdapter.js.
-    confidence: chosen.confidence,
-    parsedFrom: chosen.parsedFrom,
-    partial: chosen.partial,
-    itemCount: chosen.itemCount,
+    // How the setlist was read, which decides whether the app may write it
+    // without asking. See archiveAdapter.js.
+    ...archiveFields(chosen),
+    lookupCutShort: shows.some((s) => s.lookupCutShort) || undefined,
     // The normalized setlist, which is what callers actually want.
     songs: chosen.songs,
     droppedSoundcheckCount: chosen.droppedSoundcheckCount,

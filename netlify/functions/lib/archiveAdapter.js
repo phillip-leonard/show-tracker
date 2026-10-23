@@ -83,6 +83,9 @@ const TXT_FALLBACK_ITEMS = 2;
 // How many items to re-read from the metadata endpoint when the search API
 // flattened their description (see fetchSetlists, step 2).
 const METADATA_DESCRIPTION_ITEMS = 3;
+// How many header-less descriptions to split with their track titles, at
+// most, when fewer than two complete candidates have set headers.
+const HEADERLESS_ITEMS = 2;
 // Fewer songs than this is a fragment of text, not a setlist. The shortest
 // real one in the sample is the three-song Human Be-In set, 1967-01-14.
 const MIN_SONGS = 3;
@@ -99,7 +102,34 @@ function isEnabled(config = CONFIG) {
 
 // ── HTTP ──────────────────────────────────────────────────────────────
 
-function archiveGet(path, { json = true } = {}) {
+// The pause between two requests to archive.org. Zero for a single lookup,
+// which makes its 2–5 requests one after another and has a Netlify window
+// to answer in. A bulk walk (the admin re-sync) sets it with setRequestGap,
+// so a backfill of hundreds of dates never sends more than one request a
+// second, cache misses included.
+let requestGapMs = 0;
+let lastRequestAt = 0;
+
+function setRequestGap(ms) {
+  requestGapMs = Math.max(0, Number(ms) || 0);
+}
+
+function getRequestGap() {
+  return requestGapMs;
+}
+
+async function waitForGap() {
+  const wait = lastRequestAt + requestGapMs - Date.now();
+  if (requestGapMs > 0 && wait > 0) await new Promise((r) => setTimeout(r, wait));
+  lastRequestAt = Date.now();
+}
+
+async function archiveGet(path, opts) {
+  await waitForGap();
+  return archiveRequest(path, opts);
+}
+
+function archiveRequest(path, { json = true } = {}) {
   return new Promise((resolve, reject) => {
     const req = https.request(
       { hostname: HOSTNAME, path, method: 'GET', headers: { Accept: json ? 'application/json' : 'text/plain', 'User-Agent': USER_AGENT } },
@@ -168,7 +198,7 @@ function collect(res, json) {
 function searchPath(date) {
   const params = new URLSearchParams();
   params.set('q', `collection:${COLLECTION} AND date:${date}`);
-  ['identifier', 'title', 'venue', 'coverage', 'downloads', 'description'].forEach((f) => params.append('fl[]', f));
+  ['identifier', 'title', 'venue', 'coverage', 'downloads', 'description', 'source', 'licenseurl'].forEach((f) => params.append('fl[]', f));
   params.set('sort[]', 'downloads desc');
   params.set('rows', String(SEARCH_ROWS));
   params.set('output', 'json');
@@ -221,7 +251,7 @@ const PERSONNEL = /\s[-–:]\s*(?:lead\s+|rhythm\s+|acoustic\s+|pedal\s+steel\s+
 
 // Lines that end the setlist once songs have started (and are skipped
 // before). Taper notes follow the setlist in nearly every info file.
-const STOP_LINE = /^[\s\-*=]*(comments?|general\s+comments?|notes?|footnotes?|musicians|band\s+members|source|lineage|transfer(?:red)?|taper|recorded\s+by|recording|other\s+artist|flaws?|shntool|md5|ffp|seeded|band\s*line\s*-?up|personnel|thanks?|conversion|editing|equipment|location|mics?|uploaded|checksum|info)\b\s*[:(-]?/i;
+const STOP_LINE = /^[\s\-*=]*(w\/|other\s+artists?|comments?|general\s+comments?|notes?|footnotes?|musicians|band\s+members|source|lineage|transfer(?:red)?|taper|recorded\s+by|recording|other\s+artist|flaws?|shntool|md5|ffp|seeded|band\s*line\s*-?up|personnel|thanks?|conversion|editing|equipment|location|mics?|uploaded|checksum|info)\b\s*[:(-]?/i;
 
 // More than one set header on a single line means the line breaks were
 // lost ("Set I Morning Dew Good Morning Little Schoolgirl Dark Star > …
@@ -233,7 +263,7 @@ const IGNORE_LINE = /^[\s\-=_*~.]*$|^[\s\-*]*(dis[ck]|cd|side|tape|reel)\s*[#]?\
 
 // Not songs. Drums, Space and Jam ARE songs in every Grateful Dead archive
 // (and in the app's own song index), so they are deliberately absent.
-const NOISE = /\b(tuning|tune[\s-]?up|banter|stage\s+(?:chatter|announcements?|annoucements?|chaos|rap)|announcements?|crowd|dead\s+air|applause|intro(?:duction)?s?|band\s+intros?|set\s*break|encore\s*break|closing\s+remarks|final\s+remarks|rap|silence|break|filler|soundcheck)\b/i;
+const NOISE = /\b(tuning|tune[\s-]?up|banter|stage\s+(?:chatter|announcements?|annoucements?|chaos|rap)|announcements?|crowd|dead\s+air|applause|intro(?:duction)?s?|band\s+intros?|set\s*break|encore\s*break|closing\s+remarks|final\s+remarks|rap|silence|break|filler|soundcheck|teases?)\b/i;
 
 // Taper spellings of a handful of titles that otherwise split the song
 // index ("Drumz" and "Drums" are one song). Kept short on purpose: only
@@ -244,6 +274,7 @@ const TITLE_ALIASES = {
   playin: "Playin' in the Band",
   'greatest story': 'Greatest Story Ever Told',
   'touch of gray': 'Touch of Grey',
+  'other one': 'The Other One',
 };
 
 // A cleaned name longer than this is not one song — it is a line whose
@@ -261,7 +292,7 @@ const TIME = /[[(]?\s*\d{1,2}:\d{2}(?::\d{2})?(?:\.\d+)?\s*[\])]?/g;
 function stripNumbering(raw) {
   return String(raw == null ? '' : raw)
     .replace(TIME, ' ')
-    .replace(/^\s*(?:d\d+\s*t\d+|t\d+|\d{1,2}\s*[.):]|\d{1,2}\s+-)\s*[-.:]*\s*/i, '');
+    .replace(/^\s*(?:d\d+\s*t\d+|t\d+|\d{1,2}\s*[.):]|\d{1,2}\s+-|\d{1,2}\s+(?=[A-Z]))\s*[-.:]*\s*/i, '');
 }
 
 // Footnote markers tapers put after a title ("Playin' In The Band *",
@@ -305,6 +336,8 @@ function isLineage(line) {
 // post …"). No Grateful Dead song title carries either.
 const DATE_LIKE = /\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?\s+\d{1,2}\b|\b(?:19|20)\d{2}\b/i;
 
+const TITLE_ABBREVIATIONS = /\b(Mr|Mrs|Ms|Dr|St|Jr|Sr|Mt)\./g;
+
 function looksLikeTitle(name) {
   if (!name) return false;
   if (name.length > MAX_TITLE_CHARS) return false;
@@ -315,7 +348,10 @@ function looksLikeTitle(name) {
   // A sentence: a full stop after a lowercase letter, then a capital
   // ("Late show. Though actually all one set"). "U.S. Blues" has its stop
   // after a capital.
-  if (/[a-z]\.\s+[A-Z]/.test(name) || /\b(though|actually|which|segments?)\b/i.test(name)) return false;
+  // "Dear Mr. Fantasy" and "St. Stephen" are titles, so the stop of a
+  // title abbreviation doesn't count.
+  const unabbreviated = name.replace(TITLE_ABBREVIATIONS, '$1');
+  if (/[a-z]\.\s+[A-Z]/.test(unabbreviated) || /\b(though|actually|which|segments?)\b/i.test(name)) return false;
   // A set header inside a "title" is two songs and a header run together.
   if (/\bset\s*(?:\d|iv|i{1,3})\b/i.test(name)) return false;
   return /[a-z]/i.test(name);
@@ -356,7 +392,13 @@ function splitChunk(text) {
   // An encore marker mid-line with no comma before it ("Morning Dew E: One
   // More Saturday Night", where a line break was flattened away) starts a
   // new item, the same as a comma would.
-  const separated = protectCommaTitles(stripNotes(text)).replace(/\s+(?=(?:E\d?|Encore(?:\s*\d)?)\s*:\s)/g, ', ');
+  const separated = protectCommaTitles(stripNotes(text))
+    .replace(/\s+(?=(?:E\d?|Encore(?:\s*\d)?)\s*:\s)/g, ', ')
+    // "Morning Dew % Good Morning Little Schoolgirl % Dark Star ->",
+    // "Drums#Space": a % or # with a title on both sides separates two
+    // songs. At the end of a title it is a footnote mark, which cleanTitle
+    // strips.
+    .replace(/(?<=[A-Za-z')])\s*[%#]+\s*(?=[A-Za-z])/g, ', ');
   for (const part of separated.split(/\s*,\s*/)) {
     if (!part.trim()) continue;
     const pieces = part.split(/(\s*-*>+\s*)/);
@@ -384,6 +426,8 @@ function stripTrailingIgnored(name, ignoreKeys) {
   return name;
 }
 
+const LAYOUT_TOKEN = /^(?:dis[ck]|cd|side|tape|reel)\s*[#]?\s*(?:\d+|[a-d])$/i;
+
 /**
  * Reads one chunk into song items without touching any state, so a caller
  * can decide whether to keep them. An inline encore marker ("E1: Casey
@@ -403,6 +447,8 @@ function readItems(chunk, { lenient = false, ignoreKeys = null } = {}) {
       raw = raw.slice(enc[0].length);
     }
     const name = cleanTitle(raw);
+    // "Set 1, disc 1", "Side B": layout that rode along on a header line.
+    if (LAYOUT_TOKEN.test(name)) continue;
     if (!name) {
       // A bare mark ("Let It Grow" on one line, "->" on the next) belongs
       // to the song before it.
@@ -504,10 +550,14 @@ function parseSetlistText(rawText, { lenient = false, endOnProse = false, ignore
 
   // Commits items read by readItems. Returns false when the text has to
   // stop here.
-  const commit = (chunk) => {
+  const commit = (chunk, { newParagraph = false } = {}) => {
     const { items, bad } = readItems(chunk, { lenient, ignoreKeys });
     if (bad) {
       if (songTotal() === 0) { reset(); return true; }
+      // A paragraph of notes after a whole setlist ("w/ David Crosby;
+      // Other artist on bill: NRPS"). Flattened text, the case strictness
+      // is for, has no blank lines to start a paragraph with.
+      if (newParagraph && items.length === 0 && songTotal() >= MIN_SONGS) return false;
       if (!endOnProse) rejected = bad;
       return false;
     }
@@ -524,9 +574,12 @@ function parseSetlistText(rawText, { lenient = false, endOnProse = false, ignore
     return true;
   };
 
+  let blankBefore = false;
   for (const rawLine of lines) {
     const line = rawLine.replace(/\t+/g, '  ').trim();
-    if (!line) continue;
+    if (!line) { blankBefore = true; continue; }
+    const newParagraph = blankBefore;
+    blankBefore = false;
 
     if (isLineage(line)) {
       if (songTotal() === 0) { reset(); continue; }
@@ -562,10 +615,19 @@ function parseSetlistText(rawText, { lenient = false, endOnProse = false, ignore
       break;
     }
     if (IGNORE_LINE.test(line)) continue;
-    // Footnote lines ("*w/ Bob Weir on acoustic") are not songs.
-    if (new RegExp(`^${FOOTNOTE_MARKS.source}`).test(line)) continue;
+    // Footnote lines ("*w/ Bob Weir on acoustic", "* Some minor static in
+    // bursts…") come after the songs they annotate, so once songs have
+    // started one ends the setlist; whatever follows is the footnote's own
+    // list ("- Ramble On Rose 4:07").
+    if (new RegExp(`^${FOOTNOTE_MARKS.source}`).test(line)) {
+      if (songTotal() >= MIN_SONGS) break;
+      continue;
+    }
+    // An indented lowercase line is a note on the track above it
+    // ("      announced by Bill Graham").
+    if (/^\s{2,}[a-z]/.test(rawLine)) continue;
 
-    if (!commit(line)) break;
+    if (!commit(line, { newParagraph })) break;
   }
 
   // A trailing header with nothing under it is a set the tape didn't
@@ -593,7 +655,7 @@ const PARTIAL = /\b(partial|excerpts?|incomplete|fragments?|filler|snippets?)\b/
 
 // A one-set tape says so in its identifier: "gd1985-06-24.140890.s1.…",
 // "gd85-06-24.set2.oade-schoeps.…".
-const ONE_SET_SEGMENT = /^(?:s|set)\d$/i;
+const ONE_SET_SEGMENT = /^(?:s|set)\d[p]?$/i;
 
 function isPartialItem(doc) {
   const identifier = String(doc.identifier || '');
@@ -603,20 +665,40 @@ function isPartialItem(doc) {
     || PARTIAL.test(String(Array.isArray(doc.description) ? doc.description.join(' ') : doc.description || '').slice(0, 200));
 }
 
-// Early/late shows on one date are separate shows on separate tapes, and
-// their titles usually say which. Two different values mean the date is
-// genuinely ambiguous.
+// A setlist whose first set is not Set 1 ("Set II" alone, 1969-11-08's
+// s2p tape) is the part of the show this tape reached, whatever its name
+// says.
+function startsAfterSetOne(parsed) {
+  const sets = parsed && Array.isArray(parsed.sets) ? parsed.sets.filter((x) => x.type === 'set') : [];
+  return sets.length > 0 && !sets.some((x) => x.number === 1);
+}
+
+// Early/late shows on one date are separate shows on separate tapes. The
+// title, the venue or the identifier usually says which ("Fillmore East
+// (Late Show)", "gd1970-02-13.early.sbd…"). A tape that names both
+// ("early-late") covers the two shows and belongs to neither.
 function showSlotOf(doc) {
-  const m = String(doc.title || '').match(/\b(early|late)\s+show\b/i);
-  return m ? m[1].toLowerCase() : '';
+  const text = [doc.title, doc.venue, String(doc.identifier || '').replace(/[._]/g, ' ')].join(' ').toLowerCase();
+  const early = /\bearly(?:\s*show)?\b/.test(text);
+  const late = /\blate(?:\s*show)?\b|\blateshow\b/.test(text);
+  if (early && late) return '';
+  return early ? 'early' : late ? 'late' : '';
 }
 
 function songKey(name) {
   return String(name || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
 }
 
+// Drums, Space and Jam are songs, but uploaders disagree about writing
+// them down (most descriptions of 1982-08-10 leave out the Space its track
+// list has), so they don't count for or against two tapes agreeing.
+// Compared on looseKey (see "Header-less lists"), so "Playing In The Band"
+// and "Playin' In The Band" are one song and a spelling is never a
+// disagreement.
+const SOFT_KEYS = new Set(['drums', 'space', 'jam', 'rhythmdevils', 'drumz']);
+
 function keySet(parsed) {
-  return new Set(parsed.sets.flatMap((s) => s.songs.map((song) => songKey(song.name))));
+  return new Set(parsed.sets.flatMap((s) => s.songs.map((song) => looseKey(song.name))).filter((k) => k && !SOFT_KEYS.has(k)));
 }
 
 function overlap(a, b) {
@@ -626,12 +708,45 @@ function overlap(a, b) {
   return shared / (a.size + b.size - shared);
 }
 
+// What kind of tape an item is, from its identifier first ("sbd", "mtx",
+// "aud" are how the collection names them) and its `source` text second.
+// A tape that names both a board and an audience source is a matrix.
+function sourceTypeOf(doc) {
+  const tokens = String(doc.identifier || '').toLowerCase().split(/[.\-_]+/);
+  const has = (...words) => words.some((w) => tokens.includes(w));
+  if (has('mtx', 'matrix', 'ultramatrix') || (has('sbd') && has('aud'))) return 'matrix';
+  if (has('sbd', 'soundboard')) return 'sbd';
+  if (has('aud')) return 'aud';
+  const source = String(Array.isArray(doc.source) ? doc.source.join(' ') : doc.source || '').toLowerCase();
+  if (/matrix/.test(source)) return 'matrix';
+  if (/\bsbd\b|soundboard/.test(source)) return 'sbd';
+  return 'aud';
+}
+
+const SOURCE_TYPE_RANK = { sbd: 0, matrix: 1, aud: 2 };
+
+// Two tapes of one show disagree when they share less than this much of
+// their songs (Drums, Space and Jam aside), or their song counts differ by
+// more than DISAGREE_COUNT_GAP.
+const AGREE_OVERLAP = 0.85;
+const DISAGREE_COUNT_GAP = 2;
+
 /**
  * rankCandidates(candidates) -> candidates sorted best first.
  *
- * Each candidate is { doc, parsed, partial }. Agreement with the other
- * candidates comes first, so a typo or an extra reprise on one upload
- * loses to the version the rest agree on.
+ * Each candidate is { doc, parsed, partial, inferred }. The rule, in order,
+ * every step deterministic so a re-run picks the same tape:
+ *
+ *   1. complete tapes before partial ones
+ *   2. tapes not much shorter than the fullest one
+ *   3. set breaks written by the uploader before set breaks inferred from
+ *      a header-less list (inferred ones still count toward agreement)
+ *   4. agreement with the other candidates (Drums/Space/Jam aside), so a
+ *      typo or an extra reprise on one upload loses to the version the
+ *      rest agree on
+ *   5. soundboard, then matrix, then audience
+ *   6. downloads
+ *   7. identifier, so a tie never depends on the order the search returned
  */
 function rankCandidates(candidates) {
   const keys = candidates.map((c) => keySet(c.parsed));
@@ -643,15 +758,38 @@ function rankCandidates(candidates) {
     let agreement = 0;
     keys.forEach((k, j) => { if (j !== i) agreement += overlap(keys[i], k); });
     const short = c.parsed.songCount < maxSongs * 0.8;
-    return { ...c, agreement, short };
+    return { ...c, agreement, short, sourceType: sourceTypeOf(c.doc) };
   });
   return scored.sort((a, b) => {
     if (a.partial !== b.partial) return a.partial ? 1 : -1;
     if (a.short !== b.short) return a.short ? 1 : -1;
+    if (!!a.inferred !== !!b.inferred) return a.inferred ? 1 : -1;
     if (Math.abs(b.agreement - a.agreement) > 0.05) return b.agreement - a.agreement;
-    if (b.parsed.songCount !== a.parsed.songCount) return b.parsed.songCount - a.parsed.songCount;
-    return (Number(b.doc.downloads) || 0) - (Number(a.doc.downloads) || 0);
+    if (SOURCE_TYPE_RANK[a.sourceType] !== SOURCE_TYPE_RANK[b.sourceType]) {
+      return SOURCE_TYPE_RANK[a.sourceType] - SOURCE_TYPE_RANK[b.sourceType];
+    }
+    const downloads = (Number(b.doc.downloads) || 0) - (Number(a.doc.downloads) || 0);
+    if (downloads !== 0) return downloads;
+    return String(a.doc.identifier).localeCompare(String(b.doc.identifier));
   });
+}
+
+/**
+ * disagreementOf(ranked) -> null | { with, overlap, songCounts }
+ *
+ * Whether the chosen tape and the best other complete tape tell different
+ * stories. One complete tape has nothing to disagree with, so null.
+ */
+function disagreementOf(ranked) {
+  const [best, ...rest] = ranked;
+  if (!best || best.partial) return null;
+  const other = rest.find((c) => !c.partial && !c.short);
+  if (!other) return null;
+  const a = keySet(best.parsed);
+  const b = keySet(other.parsed);
+  const shared = overlap(a, b);
+  if (shared >= AGREE_OVERLAP && Math.abs(a.size - b.size) <= DISAGREE_COUNT_GAP) return null;
+  return { with: String(other.doc.identifier), overlap: Math.round(shared * 100) / 100, songCounts: [a.size, b.size] };
 }
 
 function venueKey(value) {
@@ -693,7 +831,7 @@ function permalinkFor(identifier) {
  * the same shape songfishAdapter.mapShow returns, plus the three fields
  * that only this source has.
  */
-function mapShow(doc, parsed, { confidence, parsedFrom, partial, itemCount }) {
+function mapShow(doc, parsed, { confidence, parsedFrom, partial, itemCount, candidateCount = 0, disagreement = null }) {
   const rows = [];
   for (const set of parsed.sets) {
     set.songs.forEach((song, index) => {
@@ -728,6 +866,16 @@ function mapShow(doc, parsed, { confidence, parsedFrom, partial, itemCount }) {
     parsedFrom,
     partial: !!partial,
     itemCount,
+    // How many tapes produced a setlist, and whether the best two tell
+    // different stories. A disagreement is what `needsReview` means: the
+    // rule still picked one, but a person should look.
+    candidateCount,
+    disagreement,
+    needsReview: !!disagreement,
+    sourceType: sourceTypeOf(doc),
+    // Every item checked in the collection has an empty licenseurl, so this
+    // is null today; stored anyway, so a licensed upload is credited as one.
+    licenseUrl: cleanStr(doc.licenseurl) || null,
   };
 }
 
@@ -753,6 +901,132 @@ function tracksFromMetadata(meta) {
   // Reuse the parser with a synthetic header; the caller marks the result
   // 'tracks-only', so the header is never mistaken for a real set break.
   return parseSetlistText(`Set 1\n${text}`, { lenient: true });
+}
+
+// ── Header-less lists ─────────────────────────────────────────────────
+//
+// The most-downloaded tape of a night often has the oldest description
+// format: one comma list, no set headers, and a set break written as a
+// missing comma ("…, Row Jimmy, Dancin' In The Streets Scarlet Begonias->
+// Fire On The Mountain, …"). Nothing in the text says where one title ends
+// and the next begins. The same item's track titles do: split a piece only
+// where both halves are titles of that tape, and only when there is exactly
+// one such place.
+//
+// The result is marked `inferred`. It counts toward agreement between
+// tapes, but a setlist whose set breaks were inferred is never written on
+// an add without the user seeing it.
+
+// Spelling-tolerant key for comparing a description's title with a track
+// title: "Dancin' In The Streets" / "Dancing in the Streets", "Saint
+// Stephen" / "St. Stephen", "Touch Of Gray" / "Touch of Grey".
+function looseKey(name) {
+  const words = String(name || '')
+    .toLowerCase()
+    .replace(/&/g, ' and ')
+    .replace(/\([^)]*\)/g, ' ')
+    .replace(/['’.]/g, '')
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean)
+    .map((w) => (w === 'saint' ? 'st' : w === 'gray' ? 'grey' : w.replace(/ing$/, 'in')));
+  if (words[0] === 'the' && words.length > 1) words.shift();
+  return words.join('');
+}
+
+const MAX_UNKNOWN_SHARE = 0.25;
+
+/**
+ * splitHeaderless(text, trackTitles) -> the parseSetlistText shape, plus
+ * `inferred: true` on success. Refuses (`explicit: false`, `rejected`)
+ * anything it can't split with certainty.
+ */
+function splitHeaderless(rawText, trackTitles) {
+  const fail = (rejected) => ({ explicit: false, inferred: false, sets: [], songCount: 0, rejected });
+  const vocab = new Set((trackTitles || []).map(looseKey).filter(Boolean));
+  if (vocab.size < MIN_SONGS) return fail('no track titles to split with');
+
+  const text = htmlToText(rawText);
+  // Text with set headers is parseSetlistText's.
+  if (text.search(INLINE_SET_HEADER) >= 0) return fail('has set headers');
+  // The list is the first paragraph with a run of commas in it, plus any
+  // paragraphs right after it that start with an encore marker ("Sugar
+  // Magnolia\n\n E: Black Muddy River, Box Of Rain").
+  const paragraphs = text.split(/\n\s*\n/).map((p) => p.replace(/\s*\n\s*/g, ' ').trim());
+  const first = paragraphs.findIndex((p) => (p.match(/,/g) || []).length >= 4);
+  if (first < 0) return fail('no comma list');
+  let paragraph = paragraphs[first];
+  for (let i = first + 1; i < paragraphs.length && /^(?:E\d?|Encores?)\s*:/i.test(paragraphs[i]); i++) {
+    paragraph += `, ${paragraphs[i]}`;
+  }
+
+  // A shorter spelling of a track title ("Saturday Night" for "One More
+  // Saturday Night", "Minglewood Blues" for "New Minglewood Blues") is the
+  // same song. Only that direction: a piece that CONTAINS a title is what a
+  // set break looks like.
+  const known = (key) => vocab.has(key) || (key.length >= 8 && [...vocab].some((v) => v.length > key.length && v.includes(key)));
+
+  const sets = [{ type: 'set', number: 1, songs: [] }];
+  let current = sets[0];
+  let total = 0;
+  let unknown = 0;
+
+  for (const item of splitChunk(paragraph)) {
+    let raw = stripNumbering(item.raw).trim();
+    const enc = raw.match(ENCORE_HEADER);
+    if (enc && enc[0].trim()) {
+      const number = headerNumber(enc[1] || enc[2] || '1');
+      current = sets.find((x) => x.type === 'encore' && x.number === number);
+      if (!current) { current = { type: 'encore', number, songs: [] }; sets.push(current); }
+      raw = raw.slice(enc[0].length);
+    }
+    const name = cleanTitle(raw);
+    if (!name || LAYOUT_TOKEN.test(name)) {
+      const prev = current.songs[current.songs.length - 1];
+      if (!name && item.transition && prev && !prev.transition) prev.transition = item.transition;
+      continue;
+    }
+    if (NOISE.test(name)) continue;
+    if (!looksLikeTitle(name)) return fail(`"${name.slice(0, 40)}" is not a song title`);
+
+    if (known(looseKey(name))) {
+      current.songs.push({ name, transition: item.transition });
+      total++;
+      continue;
+    }
+
+    const words = name.split(' ');
+    const splits = [];
+    for (let i = 1; i < words.length; i++) {
+      const left = words.slice(0, i).join(' ');
+      const right = words.slice(i).join(' ');
+      if (vocab.has(looseKey(left)) && vocab.has(looseKey(right))) splits.push([left, right]);
+    }
+    if (splits.length > 1) return fail(`"${name.slice(0, 40)}" splits more than one way`);
+    if (splits.length === 1) {
+      if (current.type === 'encore') return fail('a set break after an encore');
+      const [left, right] = splits[0];
+      current.songs.push({ name: left, transition: '' });
+      current = { type: 'set', number: current.number + 1, songs: [{ name: right, transition: item.transition }] };
+      sets.push(current);
+      total += 2;
+      continue;
+    }
+
+    unknown++;
+    total++;
+    current.songs.push({ name, transition: item.transition });
+  }
+
+  const setCount = sets.filter((x) => x.type === 'set').length;
+  if (setCount < 2) return fail('no set break found');
+  if (setCount > 4) return fail('more set breaks than a show has');
+  if (total < MIN_SONGS) return fail('too few songs');
+  if (unknown / total > MAX_UNKNOWN_SHARE) return fail('too many titles the tape does not list');
+  if (sets.some((x) => x.songs.length === 0)) return fail('a set with no songs');
+
+  const last = sets[sets.length - 1].songs.slice(-1)[0];
+  if (last) last.transition = '';
+  return { explicit: true, inferred: true, sets, songCount: total, rejected: '' };
 }
 
 function txtFileName(meta) {
@@ -785,23 +1059,39 @@ function descriptionOf(doc) {
 }
 
 /**
- * fetchSetlists(date, { collection, venue }) -> { ok, message, shows, upstream }
+ * fetchSetlists(date, { collection, venue, config, deadlineMs }) ->
+ *   { ok, message, shows, upstream }
  *
- * Returns at most ONE show: this source has many tapes of a night, not
- * many shows, and the choosing happens here. A date with early and late
- * shows is reported as ambiguous on the show itself rather than split,
- * because tape titles are too inconsistent to group on reliably.
+ * One show per date, or one per show slot when the tapes say there were
+ * early and late shows: band-setlist.js's selectShow then sees two shows at
+ * one venue ('venue-tie'), and the merge rule chooses between them by
+ * overlap with the setlist the show already has. With no setlist to
+ * compare against, nothing is written — the early/late-without-evidence
+ * rule.
+ *
+ * `deadlineMs` bounds the optional reads (info files, header-less splits,
+ * extra metadata) so an interactive lookup answers inside a Netlify
+ * function's window. A result cut short by it carries `lookupCutShort`, and
+ * band-setlist.js does not cache it.
  *
  * Throws on network failure or rate limiting, so the caller can serve
  * stale cache and never caches an outage as "not found".
  */
-async function fetchSetlists(date, { collection = COLLECTION, venue = '', config = CONFIG } = {}) {
+async function fetchSetlists(date, { collection = COLLECTION, venue = '', config = CONFIG, deadlineMs = 0 } = {}) {
   if (!isEnabled(config)) {
     return { ok: false, disabled: true, message: 'The Internet Archive source is turned off (config/internet-archive.json)', shows: [] };
   }
   if (collection !== COLLECTION) {
     return { ok: false, message: `The Archive source only covers the ${COLLECTION} collection`, shows: [] };
   }
+
+  const startedAt = Date.now();
+  const ctx = {
+    timeLeft: () => !deadlineMs || Date.now() - startedAt < deadlineMs,
+    cutShort: false,
+    softError: null,
+    metaCache: new Map(),
+  };
 
   const search = await archiveGet(searchPath(date));
   if (search.statusCode !== 200 || !search.data?.response) {
@@ -814,116 +1104,33 @@ async function fetchSetlists(date, { collection = COLLECTION, venue = '', config
   }
 
   const docs = filterByVenue(allDocs, venue);
-  const slots = new Set(docs.map(showSlotOf).filter(Boolean));
-  const ambiguousSlot = slots.size > 1;
+  const slots = [...new Set(docs.map(showSlotOf).filter(Boolean))].sort();
 
-  // Everything after the search is best-effort per item: one slow info file
-  // must not cost a date whose other tapes answer fine. The last error is
-  // kept, and thrown only if nothing at all was found — so an outage is
-  // still never cached as "not found".
-  let softError = null;
-  const soft = async (fn) => {
-    try { return await fn(); } catch (e) { softError = e; return null; }
-  };
+  const groups = slots.length > 1
+    ? slots.map((slot) => ({ slot, docs: docs.filter((d) => showSlotOf(d) === slot) }))
+    : [{ slot: '', docs }];
 
-  const metaCache = new Map();
-  const metadata = async (identifier) => {
-    if (!metaCache.has(identifier)) {
-      const res = await soft(() => archiveGet(`/metadata/${encodeURIComponent(identifier)}`));
-      metaCache.set(identifier, res && res.statusCode === 200 ? res.data : null);
+  const shows = [];
+  for (const group of groups) {
+    const show = await pickShow(group.docs, ctx, allDocs.length);
+    if (!show) continue;
+    if (group.slot) {
+      show.showSlot = group.slot;
+      // So the review screen and selectShow's candidates can tell the two
+      // apart; the venue match still works on the venue itself.
+      if (!/\b(early|late)\b/i.test(show.venue)) show.venue = `${show.venue} (${group.slot === 'early' ? 'Early' : 'Late'} Show)`;
     }
-    return metaCache.get(identifier);
-  };
-
-  const byDownloads = [...docs].sort((a, b) => (Number(b.downloads) || 0) - (Number(a.downloads) || 0));
-  const complete = byDownloads.filter((d) => !isPartialItem(d));
-  const fallbackOrder = complete.length ? complete : byDownloads;
-  const usable = (parsed) => parsed.explicit && parsed.songCount >= MIN_SONGS;
-
-  // 1. Descriptions, from the search response itself. Comma-separated ones
-  //    survive the search API intact.
-  const candidates = [];
-  const flattened = [];
-  for (const doc of byDownloads) {
-    const parsed = parseSetlistText(descriptionOf(doc), { ignore: ignoreFor(doc) });
-    if (usable(parsed)) {
-      candidates.push({ doc, parsed, partial: isPartialItem(doc), parsedFrom: 'description', fromSearch: true });
-    } else if ((descriptionOf(doc).match(INLINE_SET_HEADER) || []).length > 0) {
-      flattened.push(doc);
-    }
+    if (ctx.cutShort) show.lookupCutShort = true;
+    shows.push(show);
   }
 
-  // 2. The search API joins a description's lines with spaces, so a
-  //    one-song-per-line setlist arrives as "Set 1 Alabama Getaway ->
-  //    Greatest Story Ever Told They Love Each Other …". The metadata
-  //    endpoint has the real line breaks. Read for the most-downloaded
-  //    complete tapes whose description had headers, until there are
-  //    enough complete candidates to compare.
-  const completeCount = () => candidates.filter((c) => !c.partial).length;
-  for (const doc of flattened.filter((d) => !isPartialItem(d)).slice(0, METADATA_DESCRIPTION_ITEMS)) {
-    if (completeCount() >= METADATA_DESCRIPTION_ITEMS) break;
-    const meta = await metadata(doc.identifier);
-    const parsed = parseSetlistText(descriptionOf(meta?.metadata || {}), { ignore: ignoreFor(doc) });
-    if (usable(parsed)) candidates.push({ doc, parsed, partial: false, parsedFrom: 'description' });
-  }
+  if (shows.length > 0) return { ok: true, message: '', shows, upstream };
 
-  // 3. Info files of the top items, only when no description had headers.
-  if (candidates.length === 0) {
-    for (const doc of fallbackOrder.slice(0, TXT_FALLBACK_ITEMS)) {
-      const meta = await metadata(doc.identifier);
-      const name = txtFileName(meta);
-      if (!name) continue;
-      const txt = await soft(() => archiveGet(`/download/${encodeURIComponent(doc.identifier)}/${encodeURIComponent(name)}`, { json: false }));
-      if (!txt || txt.statusCode !== 200) continue;
-      const parsed = parseSetlistText(txt.data, { endOnProse: true, ignore: ignoreFor(doc) });
-      if (usable(parsed)) {
-        candidates.push({ doc, parsed, partial: isPartialItem(doc), parsedFrom: 'info-file' });
-      }
-    }
-  }
-
-  if (candidates.length > 0) {
-    const [best] = rankCandidates(candidates);
-    // The winner was read from the search API's flattened copy of its
-    // description. The real one, with its line breaks, is one request away
-    // and is what gets returned when it parses — the flattened copy can
-    // join a trailing note or venue onto the last song.
-    if (best.fromSearch) {
-      const meta = await metadata(best.doc.identifier);
-      const reparsed = parseSetlistText(descriptionOf(meta?.metadata || {}), { ignore: ignoreFor(best.doc) });
-      if (usable(reparsed)) best.parsed = reparsed;
-    }
-    const show = mapShow(best.doc, best.parsed, {
-      confidence: 'explicit-sets',
-      parsedFrom: best.parsedFrom,
-      partial: best.partial,
-      itemCount: allDocs.length,
-    });
-    if (ambiguousSlot) show.ambiguousSlot = true;
-    return { ok: true, message: '', shows: [show], upstream };
-  }
-
-  // Anything weaker than a set-marked setlist, reached after a request
-  // failed, might only be weaker BECAUSE it failed. Better to fail now
-  // and be asked again than to cache a track list, or a "not found", for
-  // a date whose info file simply timed out.
-  if (softError) throw softError;
-
-  // 4. Track titles of the top complete item — a song list, no sets.
-  const top = fallbackOrder[0];
-  const meta = await metadata(top.identifier);
-  if (softError) throw softError;
-  const parsed = tracksFromMetadata(meta);
-  if (parsed.songCount > 0) {
-    const show = mapShow(top, parsed, {
-      confidence: 'tracks-only',
-      parsedFrom: 'track-titles',
-      partial: isPartialItem(top),
-      itemCount: allDocs.length,
-    });
-    if (ambiguousSlot) show.ambiguousSlot = true;
-    return { ok: true, message: '', shows: [show], upstream };
-  }
+  // Anything weaker than a setlist, reached after a request failed or the
+  // deadline cut a lookup short, might only be weaker BECAUSE of that.
+  // Better to fail now and be asked again than to cache a "not found".
+  if (ctx.softError) throw ctx.softError;
+  if (ctx.cutShort) throw new Error('Internet Archive lookup ran out of time');
 
   return {
     ok: true,
@@ -933,9 +1140,152 @@ async function fetchSetlists(date, { collection = COLLECTION, venue = '', config
   };
 }
 
+/**
+ * pickShow(docs, ctx, itemCount) -> one mapped show, or null.
+ *
+ * The tapes of one show. Reads as little as it can, in this order, and
+ * stops reading optional sources at the deadline:
+ *
+ *   1. every description in the search response (no extra requests)
+ *   2. descriptions the search API flattened, re-read from metadata
+ *   3. header-less descriptions, split with the tape's own track titles,
+ *      while fewer than two complete candidates agree or disagree
+ *   4. info files, only if nothing above produced a candidate
+ *   5. track titles of the top complete tape, as a last resort
+ */
+async function pickShow(docs, ctx, itemCount) {
+  if (docs.length === 0) return null;
+
+  const soft = async (fn) => {
+    try { return await fn(); } catch (e) { ctx.softError = e; return null; }
+  };
+  const metadata = async (identifier) => {
+    if (!ctx.metaCache.has(identifier)) {
+      const res = await soft(() => archiveGet(`/metadata/${encodeURIComponent(identifier)}`));
+      ctx.metaCache.set(identifier, res && res.statusCode === 200 ? res.data : null);
+    }
+    return ctx.metaCache.get(identifier);
+  };
+  const optional = () => {
+    if (ctx.timeLeft()) return true;
+    ctx.cutShort = true;
+    return false;
+  };
+
+  const byDownloads = [...docs].sort((a, b) => (Number(b.downloads) || 0) - (Number(a.downloads) || 0)
+    || String(a.identifier).localeCompare(String(b.identifier)));
+  const complete = byDownloads.filter((d) => !isPartialItem(d));
+  const fallbackOrder = complete.length ? complete : byDownloads;
+  const usable = (parsed) => parsed.explicit && parsed.songCount >= MIN_SONGS;
+  const partialOf = (doc, parsed) => isPartialItem(doc) || startsAfterSetOne(parsed);
+
+  // 1. Descriptions, from the search response itself. Comma-separated ones
+  //    survive the search API intact.
+  const candidates = [];
+  const flattened = [];
+  const headerless = [];
+  for (const doc of byDownloads) {
+    const text = descriptionOf(doc);
+    const parsed = parseSetlistText(text, { ignore: ignoreFor(doc) });
+    if (usable(parsed)) {
+      candidates.push({ doc, parsed, partial: partialOf(doc, parsed), parsedFrom: 'description', fromSearch: true });
+    } else if ((text.match(INLINE_SET_HEADER) || []).length > 0) {
+      flattened.push(doc);
+    } else if ((text.match(/,/g) || []).length >= 4) {
+      headerless.push(doc);
+    }
+  }
+
+  // 2. The search API joins a description's lines with spaces, so a
+  //    one-song-per-line setlist arrives as "Set 1 Alabama Getaway ->
+  //    Greatest Story Ever Told They Love Each Other …". The metadata
+  //    endpoint has the real line breaks.
+  const completeCount = () => candidates.filter((c) => !c.partial).length;
+  for (const doc of flattened.filter((d) => !isPartialItem(d)).slice(0, METADATA_DESCRIPTION_ITEMS)) {
+    if (completeCount() >= METADATA_DESCRIPTION_ITEMS || !optional()) break;
+    const meta = await metadata(doc.identifier);
+    const parsed = parseSetlistText(descriptionOf(meta?.metadata || {}), { ignore: ignoreFor(doc) });
+    if (usable(parsed)) candidates.push({ doc, parsed, partial: partialOf(doc, parsed), parsedFrom: 'description' });
+  }
+
+  // 3. Header-less lists, split with the tape's track titles, until there
+  //    are two complete candidates to compare.
+  for (const doc of headerless.filter((d) => !isPartialItem(d)).slice(0, HEADERLESS_ITEMS)) {
+    if (completeCount() >= 2 || !optional()) break;
+    const meta = await metadata(doc.identifier);
+    if (!meta) continue;
+    const tracks = tracksFromMetadata(meta).sets.flatMap((x) => x.songs.map((song) => song.name));
+    const parsed = splitHeaderless(descriptionOf(meta.metadata || {}), tracks);
+    if (usable(parsed)) candidates.push({ doc, parsed, partial: partialOf(doc, parsed), parsedFrom: 'description', inferred: true });
+  }
+
+  // 4. Info files of the top items, only when no description gave a setlist.
+  if (candidates.length === 0) {
+    for (const doc of fallbackOrder.slice(0, TXT_FALLBACK_ITEMS)) {
+      if (!optional()) break;
+      const meta = await metadata(doc.identifier);
+      const name = txtFileName(meta);
+      if (!name) continue;
+      const txt = await soft(() => archiveGet(`/download/${encodeURIComponent(doc.identifier)}/${encodeURIComponent(name)}`, { json: false }));
+      if (!txt || txt.statusCode !== 200) continue;
+      const parsed = parseSetlistText(txt.data, { endOnProse: true, ignore: ignoreFor(doc) });
+      if (usable(parsed)) candidates.push({ doc, parsed, partial: partialOf(doc, parsed), parsedFrom: 'info-file' });
+    }
+  }
+
+  if (candidates.length > 0) {
+    const ranked = rankCandidates(candidates);
+    const [best] = ranked;
+    // The winner was read from the search API's flattened copy of its
+    // description. The real one, with its line breaks, is one request away
+    // and is what gets returned when it parses — the flattened copy can
+    // join a trailing note or venue onto the last song.
+    if (best.fromSearch && optional()) {
+      const meta = await metadata(best.doc.identifier);
+      const reparsed = parseSetlistText(descriptionOf(meta?.metadata || {}), { ignore: ignoreFor(best.doc) });
+      if (usable(reparsed)) best.parsed = reparsed;
+    }
+    const disagreement = disagreementOf(ranked);
+    return mapShow(best.doc, best.parsed, {
+      confidence: best.inferred ? 'inferred-sets' : 'explicit-sets',
+      parsedFrom: best.parsedFrom,
+      partial: best.partial,
+      itemCount,
+      candidateCount: candidates.length,
+      disagreement,
+    });
+  }
+
+  // Weaker than a set-marked setlist; see the caller on why a failed or
+  // cut-short read stops here rather than settling for it.
+  if (ctx.softError || ctx.cutShort) return null;
+
+  // 5. Track titles of the top complete item — a song list, no sets.
+  const top = fallbackOrder[0];
+  const meta = await metadata(top.identifier);
+  if (ctx.softError) return null;
+  const parsed = tracksFromMetadata(meta);
+  if (parsed.songCount > 0) {
+    return mapShow(top, parsed, {
+      confidence: 'tracks-only',
+      parsedFrom: 'track-titles',
+      partial: isPartialItem(top),
+      itemCount,
+      candidateCount: 0,
+      disagreement: null,
+    });
+  }
+  return null;
+}
+
 module.exports = {
   COLLECTION,
   isEnabled,
+  setRequestGap,
+  getRequestGap,
+  disagreementOf,
+  showSlotOf,
+  sourceTypeOf,
   cleanTitle,
   fetchSetlists,
   filterByVenue,
@@ -947,5 +1297,6 @@ module.exports = {
   rankCandidates,
   searchPath,
   splitChunk,
+  splitHeaderless,
   tracksFromMetadata,
 };
