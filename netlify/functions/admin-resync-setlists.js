@@ -350,9 +350,12 @@ function buildProposal(data, summary, picked, nowIso) {
   };
 }
 
+// The user already decided about this recording: kept their own setlist
+// over it, accepted it, or was blocked by the stats check. Not offered
+// again; a different recording of the show would be.
 function declinedSame(show, data) {
   const p = show.setlistProposal;
-  return !!p && p.status === 'declined' && p.sourceShowId && p.sourceShowId === data.sourceShowId;
+  return !!p && ['declined', 'accepted', 'blocked'].includes(p.status) && !!p.sourceShowId && p.sourceShowId === data.sourceShowId;
 }
 
 /**
