@@ -210,6 +210,130 @@ test('two shows at one venue and no existing setlist: skipped, not guessed', asy
   assert.match(r.shows[0].note, /more than one show/);
 });
 
+// ── The Internet Archive: proposals only ───────────────────────────────
+
+const bandSetlistModule = require(path.join(__dirname, '../../netlify/functions/band-setlist.js'));
+const archiveAdapter = require(path.join(__dirname, '../../netlify/functions/lib/archiveAdapter.js'));
+
+function archiveSetUp({ declined = false } = {}) {
+  const archiveAsked = [];
+  bandSetlistModule.handler = async (event) => {
+    archiveAsked.push({ ...event.queryStringParameters, gap: archiveAdapter.getRequestGap() });
+    return {
+      statusCode: 200,
+      headers: { 'X-Cache': 'MISS' },
+      body: JSON.stringify({
+        ok: true, source: 'archive', selection: 'only', contested: [],
+        songs: [song('Minglewood Blues'), song('Loser'), song('Scarlet Begonias', 'Set II')],
+        sourceShowId: 'gd77-05-08.sbd.hicks.4982.sbeok.shnf',
+        sourcePermalink: 'https://archive.org/details/gd77-05-08.sbd.hicks.4982.sbeok.shnf',
+        confidence: 'explicit-sets', partial: false, needsReview: true,
+        disagreement: { with: 'gd77-05-08.aud.x', overlap: 0.7, songCounts: [3, 4] },
+        licenseUrl: null, sourceType: 'sbd',
+      }),
+    };
+  };
+  db = fakeFirestore({
+    shows: {
+      dead1: {
+        '700': {
+          artist: 'Grateful Dead', date: '08-05-1977', venue: 'Barton Hall',
+          setlist: [song('Minglewood Blues', 'Set I', { rating: 9 }), song('Jack Straw', 'Set I', { rating: 7 }), song('Loser')],
+          ...(declined ? { setlistProposal: { status: 'declined', sourceShowId: 'gd77-05-08.sbd.hicks.4982.sbeok.shnf' } } : {}),
+        },
+      },
+    },
+    profiles: { dead1: { handle: 'dead1' } },
+  });
+  return archiveAsked;
+}
+
+test('archive: a dry run reports the tape, review flag and unmatched ratings, and writes nothing', async () => {
+  const archiveAsked = archiveSetUp();
+  const r = await run({ source: 'archive' });
+  assert.deepStrictEqual(db.writes, []);
+  assert.strictEqual(r.wouldChange, 1);
+  assert.strictEqual(r.needsReview, 1);
+  const row = r.shows[0];
+  assert.strictEqual(row.archive.identifier, 'gd77-05-08.sbd.hicks.4982.sbeok.shnf');
+  assert.strictEqual(row.archive.licenseUrl, null);
+  assert.deepStrictEqual(row.archive.ratingsNotMatched, [{ title: 'Jack Straw', rating: 7 }]);
+  assert.strictEqual(row.userNotes.ratingsCarried, 1);
+  assert.strictEqual(archiveAsked[0].date, '1977-05-08', 'asked in-process with the ISO date');
+  assert.strictEqual(archiveAsked[0].gap, 1000, 'with the one-request-a-second gap on');
+  assert.strictEqual(archiveAdapter.getRequestGap(), 0, 'and the gap off again afterwards');
+});
+
+test('archive: a live run writes a proposal, never the setlist', async () => {
+  archiveSetUp();
+  const r = await run({ source: 'archive', dryRun: false });
+  assert.strictEqual(r.proposals, 1);
+  assert.strictEqual(db.writes.length, 1);
+  const written = db.writes[0].u;
+  assert.deepStrictEqual(Object.keys(written), ['setlistProposal']);
+  assert.strictEqual(written.setlistProposal.status, 'pending');
+  assert.strictEqual(written.setlistProposal.needsReview, true);
+  assert.strictEqual(written.setlistProposal.sourceShowId, 'gd77-05-08.sbd.hicks.4982.sbeok.shnf');
+  assert.strictEqual(written.setlistProposal.songs.length, 3);
+});
+
+test('archive: a recording the user already declined is not proposed again', async () => {
+  archiveSetUp({ declined: true });
+  const r = await run({ source: 'archive', dryRun: false });
+  assert.strictEqual(r.proposals, 0);
+  assert.strictEqual(r.declinedBefore, 1);
+  assert.deepStrictEqual(db.writes, []);
+});
+
+test('archive: switched off, Grateful Dead shows are not walked at all', async () => {
+  const archiveAsked = archiveSetUp();
+  const config = require(path.join(__dirname, '../../config/internet-archive.json'));
+  config.enabled = false;
+  try {
+    const r = await run({ dryRun: false });
+    assert.strictEqual(r.bandSourceShows, 0);
+    assert.strictEqual(archiveAsked.length, 0);
+    assert.deepStrictEqual(db.writes, []);
+  } finally { config.enabled = true; }
+});
+
+test('archive: no proposal from a partial, tracks-only or much shorter tape', () => {
+  const { proposalUnfit } = require(path.join(__dirname, '../../netlify/functions/admin-resync-setlists.js'));
+  const ok = { confidence: 'explicit-sets', partial: false };
+  assert.strictEqual(proposalUnfit(ok, { existingCount: 19, incomingCount: 18 }), '');
+  assert.match(proposalUnfit({ ...ok, partial: true }, { existingCount: 19, incomingCount: 19 }), /part of the show/);
+  assert.match(proposalUnfit({ ...ok, confidence: 'tracks-only' }, { existingCount: 19, incomingCount: 19 }), /no set breaks/);
+  assert.match(proposalUnfit(ok, { existingCount: 19, incomingCount: 6 }), /incomplete tape/, '1988-07-03: 6 songs against 19');
+  assert.strictEqual(proposalUnfit(ok, { existingCount: 0, incomingCount: 6 }), '', 'an empty setlist has nothing to compare with');
+});
+
+test('archive: applySourceOnly writes an unchanged setlist directly, and only that', async () => {
+  archiveSetUp();
+  // Same songs both sides, tapes agreeing: only the source changes.
+  const same = [song('Minglewood Blues'), song('Loser'), song('Scarlet Begonias', 'Set II')];
+  db = fakeFirestore({ shows: { dead1: { '701': { artist: 'Grateful Dead', date: '1977-05-08', setlist: same.map((x, i) => (i === 0 ? { ...x, rating: 9 } : x)) } } }, profiles: { dead1: {} } });
+  const prev = bandSetlistModule.handler;
+  bandSetlistModule.handler = async (event) => {
+    const res = await prev(event);
+    const body = JSON.parse(res.body);
+    return { ...res, body: JSON.stringify({ ...body, needsReview: false, disagreement: null, songs: same }) };
+  };
+  try {
+    const off = await run({ source: 'archive', dryRun: false });
+    assert.strictEqual(off.appliedSourceOnly, 0, 'off by default: a proposal instead');
+    assert.deepStrictEqual(Object.keys(db.writes[0].u), ['setlistProposal']);
+
+    db.writes.length = 0;
+    const on = await run({ source: 'archive', dryRun: false, applySourceOnly: true });
+    assert.strictEqual(on.appliedSourceOnly, 1);
+    const u = db.writes[0].u;
+    assert.strictEqual(u.setlistSource, 'archive');
+    assert.deepStrictEqual(u.setlistSourceChange && u.setlistSourceChange.songsChanged, false);
+    assert.strictEqual(u.setlist[0].rating, 9);
+    assert.ok(!('setlistProposal' in u));
+  } finally { bandSetlistModule.handler = prev; }
+});
+
 (async () => {
   let failed = 0;
   for (const { name, fn } of tests) {

@@ -4,6 +4,68 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.47.8] — 2026-10-23
+
+Ships in iOS 3.9.8 (`MARKETING_VERSION` 3.9.7 → 3.9.8; the build number is
+left to Xcode Cloud).
+
+**Grateful Dead setlists from the Internet Archive, for shows already
+logged, with the user's say-so.** Builds on 5.47.3's Archive adapter and
+5.47.7's re-sync.
+
+- **One switch.** `config/internet-archive.json` `enabled: false` stops every
+  Archive request: the app's registry, `/api/band-setlist` (which covers app
+  builds already installed), the adapter itself, and the admin re-sync. New
+  Grateful Dead adds then keep setlist.fm's setlist. Setlists already saved
+  from the Archive keep their credit.
+- **Parsing fixes**, each on the text that broke: `%` and `#` between titles
+  (1968-02-14, 1988-03-31), "disc 1" and bare track numbers (1971-08-14),
+  "Dear Mr. Fantasy" read as a sentence, a notes paragraph after the
+  setlist ("w/ David Crosby; …") rejecting the whole description, teases
+  counted as songs, footnote lists read as an encore.
+- **Choosing a tape**, in order: complete, not much shorter than the
+  fullest, set breaks written by the uploader before inferred ones,
+  agreement with the other tapes (spelling and Drums/Space/Jam aside),
+  soundboard > matrix > audience, downloads, identifier. A set-2-only tape
+  (`s2p`) is partial.
+- **Header-less descriptions** ("…Dancin' In The Streets Scarlet Begonias->…",
+  the most-downloaded upload's usual format) are split at the missing comma
+  using the tape's own track titles. Inferred set breaks are never written
+  on an add.
+- **needsReview.** When the two best tapes disagree, the rule still picks
+  one and the show is marked `needsReview`, with a "Check this setlist"
+  note naming the other tape. Archive shows also store `sourceLicenseUrl`
+  (null: no item in the collection carries a license).
+- **Early and late shows** come back as two shows; the existing setlist
+  picks one by song overlap, or nothing is written.
+- **Backfill by proposal.** `admin-resync-setlists` covers the Archive: dry
+  run by default, lookups in-process with one Archive request a second,
+  and a live run writes `setlistProposal`, never the setlist. The app shows
+  "Update setlist from the Internet Archive?" with the diff on the show, and
+  "Review N shows" on My Shows, with Accept all after the total change
+  count. Ratings, comments and songs you added are kept; a write that would
+  leave fewer rated or commented songs is refused and flagged. A
+  15-minute background variant and `scripts/archive-resync-dry-run.js` run
+  the same walk.
+- **Grateful Dead title aliases** (Rhythm Devils → Drums, Turn On Your
+  Lovelight → Turn On Your Love Light, and 49 more, taken from the dry run's
+  add/remove pairs) so ratings carry across spellings.
+- **No backfill proposal from a weak tape**: partial, tracks-only, inferred
+  set breaks, or fewer than 80% of the songs the show has now. Reported
+  instead.
+- **Drums, Space and Jam are protected** in Archive merges: an existing one
+  the tape doesn't list is kept, and a Jam where setlist.fm has Space becomes
+  Space. (Most tape descriptions write "Drums > Jam" or leave Space out.)
+- **Dylan & the Dead** (1987-07-04, -10, -12) stay on setlist.fm: the
+  Archive's tapes include Dylan's set. `excludedDates` in the config.
+- **`applySourceOnly`** (admin re-sync, off by default): a live run writes
+  an Archive setlist directly when no song changes and the tapes agree,
+  with a "Now sourced from the Internet Archive" note on the show.
+- Interactive lookups stop optional reads at 6.5 s so they answer inside a
+  function's window; a cut-short answer isn't cached.
+
+---
+
 ## [5.47.7] — 2026-10-23
 
 Ships in iOS 3.9.7 (`MARKETING_VERSION` 3.9.6 → 3.9.7; the build number is

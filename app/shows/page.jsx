@@ -22,6 +22,7 @@ import { removeFromBucketList } from '@/lib/bucketList';
 import YearInReviewCard from '@/components/yearInReview/YearInReviewCard';
 import ShowDetailView from '@/components/shows/ShowDetailView';
 import ArchiveBackfillCard from '@/components/shows/ArchiveBackfillCard';
+import ArchiveProposalReview from '@/components/shows/ArchiveProposalReview';
 import VenueShowsView from '@/components/shows/VenueShowsView';
 import UpcomingShowsSection from '@/components/upcoming/UpcomingShowsSection';
 import UpcomingShowForm from '@/components/upcoming/UpcomingShowForm';
@@ -54,6 +55,7 @@ export default function ShowsPage() {
     addShow, updateShowRating, updateShowComment, deleteShow, updateShowData, backfillArtistImages,
     addSongToShow, updateSetlistOrder, resyncSetlistFromSource,
     proposeSetlistFromSource, applySetlistProposal,
+    pendingProposalShows, acceptStoredProposal, declineStoredProposal, clearSetlistReview,
     deleteSong, restoreSongToShow,
     tagFriendsAtShow, tagFriendByEmail,
     tagFriendsShow, setTagFriendsShow,
@@ -314,6 +316,9 @@ export default function ShowsPage() {
           onResyncSetlist={!guestMode ? resyncSetlistFromSource : undefined}
           onProposeSetlist={!guestMode ? proposeSetlistFromSource : undefined}
           onApplySetlist={!guestMode ? applySetlistProposal : undefined}
+          onAcceptProposal={!guestMode ? acceptStoredProposal : undefined}
+          onDeclineProposal={!guestMode ? declineStoredProposal : undefined}
+          onClearReview={!guestMode ? clearSetlistReview : undefined}
           onDeleteSong={!guestMode ? deleteSong : undefined}
           onRestoreSong={restoreSongToShow}
           toggleFavoriteArtist={!guestMode ? toggleFavoriteArtist : undefined}
@@ -499,6 +504,17 @@ export default function ShowsPage() {
 
           {/* Grateful Dead shows with no setlist, offered from the Internet
               Archive for review — nothing is saved without a tap per show. */}
+          {/* Proposals from the Internet Archive backfill for shows that
+              already have a setlist: reviewed here, accepted or kept one at
+              a time, or all at once after seeing the total. */}
+          {!filterLabel && !activeSavedSearch && !guestMode && (
+            <ArchiveProposalReview
+              shows={pendingProposalShows}
+              onAccept={acceptStoredProposal}
+              onDecline={declineStoredProposal}
+            />
+          )}
+
           {!filterLabel && !activeSavedSearch && !guestMode && (
             <ArchiveBackfillCard
               shows={shows}

@@ -25,9 +25,9 @@ import {
 import { fetchArtistImage } from '@/lib/artistImage';
 import { isReturningUser as checkIsReturningUser } from '@/lib/popupManager';
 import { extractSongsFromSetlist } from '@/lib/setlistParser';
-import { enrichShowDataWithBandSetlist, fetchBandSetlist, fetchBandSetlistWithReason, bandSetlistShowFields, mergeSourceSetlist } from '@/lib/bandSetlist';
+import { enrichShowDataWithBandSetlist, fetchBandSetlist, fetchBandSetlistWithReason, bandSetlistShowFields, mergeSourceSetlist, userNoteCounts } from '@/lib/bandSetlist';
 import { describeSummary } from '@/lib/bandSetlistMerge';
-import { resolveSource } from '@/lib/setlistSources';
+import { resolveSource, SETLIST_SOURCES } from '@/lib/setlistSources';
 import { removeSongFromSetlist, insertSongAt } from '@/lib/setlistGrouping';
 import { buildExistingShowIndex, existingShowStatus } from '@/lib/tourBrowse';
 import { normalizeFestivalName, findFestivalMatches as matchFestivals } from '@/lib/festivalMatch';
@@ -2005,7 +2005,15 @@ export function AppProvider({ children }) {
   // `onlyIfEmpty` is the backfill's guarantee: it offers setlists for shows
   // that have none, and if one has gained a setlist since (another device,
   // the setlist.fm scan), saving refuses rather than replacing it.
-  const applySetlistProposal = async (showId, result, { onlyIfEmpty = false } = {}) => {
+  //
+  // Everything that reaches here has been shown to the user, so an Archive
+  // setlist written from here is `reviewed` and clears `needsReview`.
+  //
+  // The stats check: a merge may change how many songs a show has, but it
+  // must never leave fewer rated or commented songs than there were. The
+  // merge rule already guarantees that; this checks it again on the exact
+  // setlist about to be written, and refuses (writing nothing) if it fails.
+  const applySetlistProposal = async (showId, result, { onlyIfEmpty = false, extraFields = {} } = {}) => {
     const show = shows.find(s => s.id === showId);
     if (!show) return { ok: false, reason: 'show-not-found' };
     if (!result || !Array.isArray(result.songs)) return { ok: false, reason: 'no-songs' };
@@ -2015,10 +2023,18 @@ export function AppProvider({ children }) {
     const { setlist, changed, summary, result: chosen } = mergeSourceSetlist(show.setlist || [], result);
     if (!changed) return { ok: false, reason: summary.skipped === 'ambiguous-date' ? 'ambiguous-date' : 'nothing-to-change', summary, source };
 
+    const before = userNoteCounts(show.setlist);
+    const after = userNoteCounts(setlist);
+    if (after.rated < before.rated || after.commented < before.commented) {
+      console.error(`[RESYNC] refused ${show.artist} ${show.date}: rated ${before.rated} → ${after.rated}, commented ${before.commented} → ${after.commented}`);
+      return { ok: false, reason: 'would-lose-notes', before, after, summary, source };
+    }
+
     console.log(`[RESYNC] ${show.artist} ${show.date} via ${result.source}: ${describeSummary(summary)}`);
 
     const fields = {
-      ...bandSetlistShowFields(chosen, setlist),
+      ...bandSetlistShowFields(chosen, setlist, { reviewed: true }),
+      ...extraFields,
       // Same rule as the add path: take the source's tour name only where
       // the show hasn't got one already.
       ...(show.tour ? {} : (chosen.tour ? { tour: chosen.tour } : {})),
@@ -2034,6 +2050,71 @@ export function AppProvider({ children }) {
     }
 
     return { ok: true, summary, source, result, ambiguous: !!result.ambiguous, message: result.message };
+  };
+
+  // ── Stored proposals (the Internet Archive backfill) ──────────────────
+  //
+  // admin-resync-setlists writes `setlistProposal` on a Grateful Dead show
+  // instead of touching its setlist. Accept writes it through
+  // applySetlistProposal — the same merge, against the setlist as it is now,
+  // and the same stats check — and records the decision; Keep current
+  // records the decision and nothing else. Either way the re-sync does not
+  // offer the same recording again. Nothing here asks the Archive anything,
+  // but with the source switched off the proposals are not offered.
+  const pendingProposalShows = useMemo(
+    () => (SETLIST_SOURCES.archive ? shows.filter(s => s.setlistProposal?.status === 'pending') : []),
+    [shows]
+  );
+
+  const decideStoredProposal = (showId, status) => {
+    const show = shows.find(s => s.id === showId);
+    const p = show?.setlistProposal;
+    if (!p) return null;
+    return { ...p, status, decidedAt: new Date().toISOString() };
+  };
+
+  const acceptStoredProposal = async (showId) => {
+    const show = shows.find(s => s.id === showId);
+    const p = show?.setlistProposal;
+    if (!p || p.status !== 'pending') return { ok: false, reason: 'no-proposal' };
+    const result = {
+      source: p.source || 'archive',
+      songs: p.songs || [],
+      sourceShowId: p.sourceShowId || '',
+      sourcePermalink: p.sourcePermalink || '',
+      setlistNotes: p.setlistNotes || '',
+      licenseUrl: p.licenseUrl == null ? null : p.licenseUrl,
+      needsReview: !!p.needsReview,
+      disagreement: p.disagreement || null,
+      confidence: p.confidence || '',
+      partial: !!p.partial,
+      bandKey: resolveSource({ name: show.artist, mbid: show.artistMbid }).nameKey || '',
+      contested: [],
+    };
+    const outcome = await applySetlistProposal(showId, result, {
+      extraFields: { setlistProposal: decideStoredProposal(showId, 'accepted') },
+    });
+    if (!outcome.ok && outcome.reason === 'would-lose-notes') {
+      // Flagged, so the review list shows it and an admin can see why.
+      const blocked = decideStoredProposal(showId, 'blocked');
+      await updateShowData(showId, { setlistProposal: blocked });
+      if (selectedShow?.id === showId) setSelectedShow(prev => (prev ? { ...prev, setlistProposal: blocked } : prev));
+    }
+    return outcome;
+  };
+
+  const declineStoredProposal = async (showId) => {
+    const decided = decideStoredProposal(showId, 'declined');
+    if (!decided) return { ok: false, reason: 'no-proposal' };
+    await updateShowData(showId, { setlistProposal: decided });
+    if (selectedShow?.id === showId) setSelectedShow(prev => (prev ? { ...prev, setlistProposal: decided } : prev));
+    return { ok: true };
+  };
+
+  // The user has looked at a `needsReview` setlist and it is right.
+  const clearSetlistReview = async (showId) => {
+    await updateShowData(showId, { needsReview: false, needsReviewReason: null });
+    if (selectedShow?.id === showId) setSelectedShow(prev => (prev ? { ...prev, needsReview: false, needsReviewReason: null } : prev));
   };
 
   const resyncSetlistFromSource = async (showId) => {
@@ -4055,6 +4136,10 @@ export function AppProvider({ children }) {
     resyncSetlistFromSource,
     proposeSetlistFromSource,
     applySetlistProposal,
+    pendingProposalShows,
+    acceptStoredProposal,
+    declineStoredProposal,
+    clearSetlistReview,
     restoreSongToShow,
     deleteShow,
     backfillArtistImages,
