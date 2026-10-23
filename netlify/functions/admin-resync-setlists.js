@@ -16,6 +16,7 @@
  *     delayMs?: number,   // override the inter-request delay
  *     cursor?: string,    // resume token from a previous run's nextCursor
  *     budgetMs?: number,  // override the time budget (see the constants)
+ *     applySourceOnly?: boolean, // Archive only, DEFAULT FALSE: see below
  *     skipShowIds?: string[],    // shows to leave alone, by show id
  *     excludeUserIds?: string[], // accounts to leave alone, by uid
  *     includeTestAccounts?: boolean, // default false; see below
@@ -65,6 +66,12 @@
  *      constants below for why this is 300ms and not the 1200ms the first
  *      version used.
  *
+ * `applySourceOnly: true` (live runs only) writes an Archive setlist
+ * straight away, instead of proposing it, when it changes no song at all:
+ * nothing added, removed or moved, and the tapes agree. Only the source
+ * moves from setlist.fm to the Archive, and the show records
+ * `setlistSourceChange` so the app can say so. Off unless asked for.
+ *
  * Internet Archive (Grateful Dead) shows are different in three ways: the
  * lookup runs in-process with a 1-second gap between Archive requests (see
  * fetchSetlistFor); a live run writes a `setlistProposal` for the user to
@@ -81,6 +88,7 @@
 const https = require('https');
 
 const archiveAdapter = require('./lib/archiveAdapter');
+const archiveConfig = require('../../config/internet-archive.json');
 const { mergeBandSetlist, describeSummary, titleAliasesFor } = require('./lib/bandSetlistMergeRule');
 
 const ADMIN_EMAILS = ['phillip.leonard@gmail.com'];
@@ -370,6 +378,49 @@ function proposalUnfit(picked, summary) {
   return '';
 }
 
+// No song added, removed or moved, and nothing for the user to check: the
+// only change is where the setlist is credited to. (Drums/Space/Jam kept
+// by the protected group count as unchanged, which is what they are.)
+function isSourceOnly(summary, picked) {
+  return !picked.needsReview
+    && summary.added.length === 0 && summary.removed.length === 0
+    && summary.movedSet.length === 0 && summary.movedPosition.length === 0;
+}
+
+function noteCounts(setlist) {
+  const songs = Array.isArray(setlist) ? setlist : [];
+  return {
+    rated: songs.filter((x) => x && x.rating != null).length,
+    commented: songs.filter((x) => x && (typeof x.comment === 'string' ? x.comment.trim() !== '' : x.comment != null)).length,
+  };
+}
+
+// The stats check, server-side: the same rule as
+// AppContext.applySetlistProposal.
+function lostNotes(before, after) {
+  const a = noteCounts(before);
+  const b = noteCounts(after);
+  return b.rated < a.rated || b.commented < a.commented;
+}
+
+function sourceOnlyFields(show, setlist, picked, nowIso) {
+  return {
+    setlist,
+    setlistSource: 'archive',
+    sourceShowId: picked.sourceShowId || '',
+    sourcePermalink: picked.sourcePermalink || '',
+    setlistNotes: picked.setlistNotes || '',
+    sourceLicenseUrl: picked.licenseUrl == null ? null : picked.licenseUrl,
+    needsReview: false,
+    needsReviewReason: null,
+    setlistFetchedAt: nowIso,
+    isManual: false,
+    // What the show page's "Now sourced from the Internet Archive" note
+    // reads.
+    setlistSourceChange: { from: show.setlistSource || 'setlistfm', to: 'archive', at: nowIso, songsChanged: false },
+  };
+}
+
 function declinedSame(show, data) {
   const p = show.setlistProposal;
   return !!p && ['declined', 'accepted', 'blocked'].includes(p.status) && !!p.sourceShowId && p.sourceShowId === data.sourceShowId;
@@ -409,6 +460,7 @@ async function runResync(body, { defaultBudgetMs = DEFAULT_BUDGET_MS } = {}) {
   const skipShowIds = new Set(asIdList(body.skipShowIds));
   const excludeUserIds = new Set(asIdList(body.excludeUserIds));
   const includeTestAccounts = body.includeTestAccounts === true;
+  const applySourceOnly = body.applySourceOnly === true;
 
   // Keyed by the raw artist string, so two spellings of the same band show
   // up as the two separate entries they are.
@@ -443,6 +495,11 @@ async function runResync(body, { defaultBudgetMs = DEFAULT_BUDGET_MS } = {}) {
     // Internet Archive shows: a live run writes a proposal for each, never
     // the setlist itself.
     proposals: 0,
+    // Archive shows whose songs would not change at all: only the source
+    // would. Counted on a dry run; written directly when applySourceOnly.
+    sourceOnly: 0,
+    appliedSourceOnly: 0,
+    applySourceOnly,
     needsReview: 0,
     declinedBefore: 0,
     // Matched, but not good enough to replace a setlist with; see
@@ -584,6 +641,10 @@ async function runResync(body, { defaultBudgetMs = DEFAULT_BUDGET_MS } = {}) {
           report.excluded.shows.push({ userId, showId: showDoc.id, date: show.date, reason: 'skipShowIds' });
           continue;
         }
+        if (resolved.source === 'archive' && (archiveConfig.excludedDates || {})[toIsoDate(show.date)]) {
+          report.excluded.shows.push({ userId, showId: showDoc.id, date: show.date, reason: archiveConfig.excludedDates[toIsoDate(show.date)] });
+          continue;
+        }
         if (!includeTestAccounts && showDoc.id.startsWith(SEED_SHOW_ID_PREFIX)) {
           report.excluded.shows.push({ userId, showId: showDoc.id, date: show.date, reason: 'seed fixture' });
           continue;
@@ -660,6 +721,7 @@ async function runResync(body, { defaultBudgetMs = DEFAULT_BUDGET_MS } = {}) {
             const { setlist, changed, summary, chosenCandidate } = mergeBandSetlist(show.setlist || [], incoming, {
               aliases: titleAliasesFor(resolved.nameKey),
               candidates: data.contested,
+              protectedGroup: resolved.source === 'archive' ? archiveConfig.protectedGroup : undefined,
             });
             row.summary = summary;
             if (chosenCandidate) row.incomingSongCount = (chosenCandidate.songs || []).length;
@@ -723,7 +785,19 @@ async function runResync(body, { defaultBudgetMs = DEFAULT_BUDGET_MS } = {}) {
                 row.note = 'the user kept their own setlist over this recording before; not offered again';
               } else if (dryRun) {
                 report.wouldChange++;
+                if (isSourceOnly(summary, picked)) report.sourceOnly++;
+                row.archive.sourceOnly = isSourceOnly(summary, picked);
                 console.log(`[RESYNC dry] ${userId}/${showDoc.id} ${show.artist} ${show.date} — would propose ${picked.sourceShowId}: ${describeSummary(summary)}`);
+              } else if (applySourceOnly && isSourceOnly(summary, picked)) {
+                report.sourceOnly++;
+                if (lostNotes(show.setlist, setlist)) {
+                  row.note = 'not applied: the merge would have left fewer rated or commented songs';
+                  report.errors.push({ userId, showId: showDoc.id, date: show.date, message: row.note });
+                } else {
+                  await showDoc.ref.update(sourceOnlyFields(show, setlist, picked, new Date().toISOString()));
+                  report.appliedSourceOnly++;
+                  console.log(`[RESYNC source-only] ${userId}/${showDoc.id} ${show.artist} ${show.date} — now from ${picked.sourceShowId}`);
+                }
               } else {
                 await showDoc.ref.update({ setlistProposal: buildProposal(data, summary, picked, new Date().toISOString()) });
                 report.proposals++;
@@ -878,3 +952,4 @@ exports.runResync = runResync;
 exports.authorizeAdmin = authorizeAdmin;
 exports.CORS_HEADERS = CORS_HEADERS;
 exports.proposalUnfit = proposalUnfit;
+exports.isSourceOnly = isSourceOnly;

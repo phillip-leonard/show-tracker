@@ -307,6 +307,33 @@ test('archive: no proposal from a partial, tracks-only or much shorter tape', ()
   assert.strictEqual(proposalUnfit(ok, { existingCount: 0, incomingCount: 6 }), '', 'an empty setlist has nothing to compare with');
 });
 
+test('archive: applySourceOnly writes an unchanged setlist directly, and only that', async () => {
+  archiveSetUp();
+  // Same songs both sides, tapes agreeing: only the source changes.
+  const same = [song('Minglewood Blues'), song('Loser'), song('Scarlet Begonias', 'Set II')];
+  db = fakeFirestore({ shows: { dead1: { '701': { artist: 'Grateful Dead', date: '1977-05-08', setlist: same.map((x, i) => (i === 0 ? { ...x, rating: 9 } : x)) } } }, profiles: { dead1: {} } });
+  const prev = bandSetlistModule.handler;
+  bandSetlistModule.handler = async (event) => {
+    const res = await prev(event);
+    const body = JSON.parse(res.body);
+    return { ...res, body: JSON.stringify({ ...body, needsReview: false, disagreement: null, songs: same }) };
+  };
+  try {
+    const off = await run({ source: 'archive', dryRun: false });
+    assert.strictEqual(off.appliedSourceOnly, 0, 'off by default: a proposal instead');
+    assert.deepStrictEqual(Object.keys(db.writes[0].u), ['setlistProposal']);
+
+    db.writes.length = 0;
+    const on = await run({ source: 'archive', dryRun: false, applySourceOnly: true });
+    assert.strictEqual(on.appliedSourceOnly, 1);
+    const u = db.writes[0].u;
+    assert.strictEqual(u.setlistSource, 'archive');
+    assert.deepStrictEqual(u.setlistSourceChange && u.setlistSourceChange.songsChanged, false);
+    assert.strictEqual(u.setlist[0].rating, 9);
+    assert.ok(!('setlistProposal' in u));
+  } finally { bandSetlistModule.handler = prev; }
+});
+
 (async () => {
   let failed = 0;
   for (const { name, fn } of tests) {

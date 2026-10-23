@@ -1084,6 +1084,13 @@ async function fetchSetlists(date, { collection = COLLECTION, venue = '', config
   if (collection !== COLLECTION) {
     return { ok: false, message: `The Archive source only covers the ${COLLECTION} collection`, shows: [] };
   }
+  // Dates left to setlist.fm on purpose (config/internet-archive.json
+  // `excludedDates`): answered as "no show", without a request, so every
+  // caller falls back the way it already does.
+  const excludedBecause = (config.excludedDates || {})[date];
+  if (excludedBecause) {
+    return { ok: true, excluded: true, message: `Not read from the Internet Archive: ${excludedBecause}`, shows: [] };
+  }
 
   const startedAt = Date.now();
   const ctx = {

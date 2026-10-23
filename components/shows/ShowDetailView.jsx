@@ -802,6 +802,15 @@ export default function ShowDetailView({
             </p>
           )}
 
+          {/* Switched from setlist.fm by the Archive backfill with no song
+              changed (admin-resync-setlists, applySourceOnly). Said once,
+              plainly, so a change of credit is never silent. */}
+          {!editMode && show.setlistSource === 'archive' && show.setlistSourceChange?.to === 'archive' && show.setlistSourceChange.songsChanged === false && (
+            <p className="mt-1 text-[11px] text-muted">
+              Now sourced from the Internet Archive{show.setlistSourceChange.from && show.setlistSourceChange.from !== 'archive' ? ` (was ${sourceLabel(show.setlistSourceChange.from)})` : ''}. The songs didn&apos;t change.
+            </p>
+          )}
+
           {/* The tapes of this night disagreed and the recording rules
               picked one; the user is asked to check it once. */}
           {!editMode && show.setlistSource === 'archive' && show.needsReview && (

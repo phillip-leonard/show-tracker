@@ -468,7 +468,10 @@ exports.handler = async function (event) {
     // where an empty answer is neither cheap nor likely to change; see its
     // ADAPTERS entry. Only an answer the source actually gave — a thrown
     // error never reaches here, so an outage is never cached as "none".
-    const cacheEmpty = !!adapter.emptyTtlHours && payload.songs.length === 0;
+    // An excluded date (config/internet-archive.json) is not a finding about
+    // the Archive, so it isn't cached: taking a date off the list takes
+    // effect at once.
+    const cacheEmpty = !!adapter.emptyTtlHours && payload.songs.length === 0 && !result.excluded;
     if (db && !bypassCache && !payload.lookupCutShort && (payload.songs.length > 0 || cacheEmpty)) {
       const ttlHours = cacheEmpty ? adapter.emptyTtlHours : determineTtlHours(date, adapter.maxTtlHours || MAX_TTL_HOURS);
       const { Timestamp } = require('firebase-admin/firestore');
