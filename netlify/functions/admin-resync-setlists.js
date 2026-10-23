@@ -940,6 +940,10 @@ async function authorizeAdmin(event) {
   return null;
 }
 
+// A background run's id: what admin-resync-setlists-background.js accepts
+// as `runId` and the admin page passes to `readRun`.
+const RUN_ID = /^[A-Za-z0-9._-]{1,80}$/;
+
 exports.handler = async function (event) {
   if (event.httpMethod === 'OPTIONS') {
     return { statusCode: 204, headers: CORS_HEADERS, body: '' };
@@ -951,7 +955,27 @@ exports.handler = async function (event) {
   const denied = await authorizeAdmin(event);
   if (denied) return denied;
 
-  const { report, error } = await runResync(JSON.parse(event.body || '{}'));
+  const body = JSON.parse(event.body || '{}');
+
+  // `{ readRun: runId }` returns a background run's saved report
+  // (admin-resync-setlists-background.js writes adminResyncRuns/{runId})
+  // instead of walking anything. Read here, behind the admin check, so the
+  // admin page never needs Firestore rules for that collection.
+  if (body.readRun != null) {
+    const runId = String(body.readRun);
+    if (!RUN_ID.test(runId)) {
+      return { statusCode: 400, headers: CORS_HEADERS, body: JSON.stringify({ error: 'Bad runId' }) };
+    }
+    const { getFirestore } = require('firebase-admin/firestore');
+    const snap = await getFirestore().collection('adminResyncRuns').doc(runId).get();
+    return {
+      statusCode: 200,
+      headers: CORS_HEADERS,
+      body: JSON.stringify(snap.exists ? { found: true, runId, ...snap.data() } : { found: false, runId }),
+    };
+  }
+
+  const { report, error } = await runResync(body);
   if (error) {
     return { statusCode: 500, headers: CORS_HEADERS, body: JSON.stringify({ error, partial: report }) };
   }

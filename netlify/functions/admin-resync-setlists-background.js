@@ -25,12 +25,17 @@ exports.handler = async function (event) {
   }
 
   const body = JSON.parse(event.body || '{}');
-  const runId = String(body.runId || new Date().toISOString().replace(/[:.]/g, '-'));
+  const runId = /^[A-Za-z0-9._-]{1,80}$/.test(String(body.runId || ''))
+    ? String(body.runId)
+    : new Date().toISOString().replace(/[:.]/g, '-');
   const { report, error } = await resync.runResync(body, { defaultBudgetMs: MAX_BUDGET_MS });
 
   const { getFirestore } = require('firebase-admin/firestore');
   await getFirestore().collection('adminResyncRuns').doc(runId).set({
     finishedAt: new Date().toISOString(),
+    // Echoed back so the admin page can tell the report it asked for from
+    // an older one saved under the same runId.
+    requestId: typeof body.requestId === 'string' ? body.requestId.slice(0, 80) : null,
     error: error || null,
     // Firestore refuses `undefined`, which the report's rows use for
     // absent fields.
