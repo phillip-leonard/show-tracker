@@ -4,6 +4,35 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.47.11] — 2026-10-23
+
+Ships in iOS 3.9.11 (`MARKETING_VERSION` 3.9.9 → 3.9.11; 3.9.10 and
+5.47.10 are taken by the open Internet Archive dry-run PR, #365).
+
+**Relive this night's magic.** Open My Shows on the anniversary of a show
+you went to and that show is the first card, under "Relive this night's
+magic" and "N years ago tonight".
+
+- `lib/reliveThisNight.js` picks it: today's month and day, any earlier
+  year, the most recent one when there are several. Shows from this year
+  don't count. A Feb 29 show comes back on Feb 29 only.
+- "Today" is the device's local date, not the UTC date, so a US evening is
+  still today. Show dates are read through `toIsoDate`, so ticket-scanner
+  shows stored as `DD-MM-YYYY` match like the rest.
+- Once a day, per user, per device: the first load of the day shows the
+  card and records the date in localStorage
+  (`mysetlists_relive_this_night:<uid>`). A reload later that day shows
+  nothing. Within one visit the card stays put, including after opening the
+  show and coming back, until it is dismissed with its ✕.
+- Only on the plain My Shows list of a signed-in user whose shows have
+  loaded. Not for guests, not while a filter or saved search is active, and
+  not while the email-tag review replaces the list. Those visits don't use
+  up the day.
+- `showsLoadedFor` is now on the app context.
+- Not changed: `lib/anniversaries.js` and the anniversary reminder function
+  still read "today" as the UTC date and slice `DD-MM-YYYY` dates wrongly.
+  That is a separate fix.
+
 ## [5.47.9] — 2026-10-23
 
 Ships in iOS 3.9.9 (`MARKETING_VERSION` 3.9.8 → 3.9.9; the build number is

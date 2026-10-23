@@ -20,6 +20,8 @@ import { tourKeyFor, tourHref } from '@/lib/runIndex';
 import DeleteShowModal from '@/components/shows/DeleteShowModal';
 import { removeFromBucketList } from '@/lib/bucketList';
 import YearInReviewCard from '@/components/yearInReview/YearInReviewCard';
+import ReliveThisNightCard from '@/components/shows/ReliveThisNightCard';
+import { reliveShowFor } from '@/lib/reliveThisNight';
 import ShowDetailView from '@/components/shows/ShowDetailView';
 import ArchiveBackfillCard from '@/components/shows/ArchiveBackfillCard';
 import ArchiveProposalReview from '@/components/shows/ArchiveProposalReview';
@@ -44,7 +46,7 @@ export default function ShowsPage() {
   const upcomingParam = searchParams.get('upcoming');
 
   const {
-    shows, isLoading, user, guestMode,
+    shows, isLoading, showsLoadedFor, user, guestMode,
     selectedArtist, setSelectedArtist,
     showForm, setShowForm,
     bucketListPrefill, setBucketListPrefill,
@@ -404,6 +406,16 @@ export default function ShowsPage() {
     );
   }
 
+  // "Relive this night's magic" — only on the plain, unfiltered list of a
+  // signed-in user's own loaded shows. Asked only here, because the first
+  // ask of the day is what uses up the day (lib/reliveThisNight.js): a
+  // filtered visit, or the email-tag review, must not spend it unseen.
+  const reliveShow = user && !guestMode && showsLoadedFor === user.uid
+    && !filterLabel && !activeSavedSearch
+    && !(pendingTagsForReview && pendingTagsForReview.length > 0)
+    ? reliveShowFor(user.uid, shows)
+    : null;
+
   return (
     <>
       {/* Pending email tags review — shown once after signup if shows were tagged */}
@@ -499,6 +511,16 @@ export default function ShowsPage() {
               </>
             }
           />
+
+          {reliveShow && (
+            <ReliveThisNightCard
+              show={reliveShow}
+              friends={friends}
+              runInfo={runInfoByShowId.get(reliveShow.id) || null}
+              tourHref={tourHrefFor(reliveShow)}
+              festival={reliveShow.festivalId ? festivalById.get(reliveShow.festivalId) || null : null}
+            />
+          )}
 
           {!filterLabel && !activeSavedSearch && !guestMode && <YearInReviewCard shows={shows} user={user} />}
 

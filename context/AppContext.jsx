@@ -3979,6 +3979,7 @@ export function AppProvider({ children }) {
     setShareSuccess,
     isLoading,
     setIsLoading,
+    showsLoadedFor,
     sortBy,
     setSortBy,
     selectedArtist,
