@@ -4,6 +4,32 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.47.12] — 2026-10-23
+
+Ships in iOS 3.9.12 (`MARKETING_VERSION` 3.9.10 → 3.9.12; 3.9.11 and
+5.47.11 are taken by the open "Relive this night" PR, #366).
+
+**Anniversaries land on the right day, for every show.** Two date bugs in
+the "on this day" code, found while building "Relive this night".
+
+- Ticket-scanner shows store their date as `DD-MM-YYYY` ("23-10-2019").
+  Both the reminder job and the upcoming-anniversaries list sliced dates as
+  if they were `YYYY-MM-DD`, reading that one as month-day "10-20" and year
+  "23-1". Those shows never got a reminder, and showed up on the wrong day,
+  or not at all, in the calendar. Both now read dates through
+  `toIsoDate` / its CommonJS mirror `isoDate`.
+- The upcoming-anniversaries list (`lib/anniversaries.js`) took "today"
+  from the UTC date, which on a US evening is already tomorrow, so that
+  evening's anniversary showed as a year away. It now uses the device's
+  local date (`localIsoDate`, new in `lib/utils.js`).
+- The reminder job still uses the UTC date, on purpose: it runs at 13:00
+  UTC, when that is the local date everywhere from UTC−11 to UTC+10. New
+  Zealand and the Pacific get the reminder a day late, as before. Fixing
+  that needs a per-user time zone, which isn't stored.
+- The job's matching moved to `netlify/functions/lib/anniversaryMatch.js`,
+  with tests. `anniversaries.test.js` now runs in `test:unit` (it wasn't
+  before), pinned to Los Angeles.
+
 ## [5.47.10] — 2026-10-23
 
 Ships in iOS 3.9.10 (`MARKETING_VERSION` 3.9.9 → 3.9.10; the build number is

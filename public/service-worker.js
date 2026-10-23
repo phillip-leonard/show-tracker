@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mysetlists-v5.47.10';
+const CACHE_NAME = 'mysetlists-v5.47.12';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
