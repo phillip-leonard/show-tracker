@@ -25,7 +25,7 @@ import {
 import { fetchArtistImage } from '@/lib/artistImage';
 import { isReturningUser as checkIsReturningUser } from '@/lib/popupManager';
 import { extractSongsFromSetlist } from '@/lib/setlistParser';
-import { enrichShowDataWithBandSetlist, fetchBandSetlist, fetchBandSetlistWithReason, bandSetlistShowFields, mergeSourceSetlist, userNoteCounts } from '@/lib/bandSetlist';
+import { enrichShowDataWithBandSetlist, fetchBandSetlist, fetchBandSetlistWithReason, bandSetlistShowFields, mergeSourceSetlist, mergeNeedsWrite, userNoteCounts } from '@/lib/bandSetlist';
 import { describeSummary } from '@/lib/bandSetlistMerge';
 import { resolveSource, SETLIST_SOURCES } from '@/lib/setlistSources';
 import { removeSongFromSetlist, insertSongAt } from '@/lib/setlistGrouping';
@@ -1864,10 +1864,13 @@ export function AppProvider({ children }) {
       // `setlist: []` in most cases but not all, and a user who hand-added
       // two songs they remembered has a setlist worth keeping.
       const { setlist, changed, summary, result: chosen } = mergeSourceSetlist(show.setlist || [], result);
-      if (!changed) return false;
+      const fields = bandSetlistShowFields(chosen, setlist);
+      // Already up to date is still found: the band source has the night,
+      // so the setlist.fm search below has nothing to add.
+      if (!mergeNeedsWrite({ changed, summary }, show, fields)) return summary.skipped === 'identical';
 
       console.log(`[SETLIST SCAN] ${show.artist} ${show.date} via ${result.source}: ${describeSummary(summary)}`);
-      await updateShowData(show.id, bandSetlistShowFields(chosen, setlist));
+      await updateShowData(show.id, fields);
       return true;
     };
 
@@ -1989,11 +1992,13 @@ export function AppProvider({ children }) {
 
     // The same merge rule every other write goes through, so a rating or a
     // hand-added song cannot be lost by pressing this button. `changed` is
-    // false only when the incoming setlist is empty or entirely untitled,
-    // both of which are handled above — kept anyway, because the rule owns
-    // that decision and this should not second-guess it.
+    // false when the incoming setlist is empty or entirely untitled, both
+    // handled above, and when it matches the stored setlist exactly — which
+    // is nothing to change only if the show already credits this source.
     const { setlist, changed, summary, result: chosen } = mergeSourceSetlist(show.setlist || [], result);
-    if (!changed) return { ok: false, reason: summary.skipped === 'ambiguous-date' ? 'ambiguous-date' : 'nothing-to-change', summary, source };
+    if (!mergeNeedsWrite({ changed, summary }, show, bandSetlistShowFields(chosen, setlist))) {
+      return { ok: false, reason: summary.skipped === 'ambiguous-date' ? 'ambiguous-date' : 'nothing-to-change', summary, source };
+    }
 
     return { ok: true, source, result: chosen, setlist, summary };
   };
@@ -2021,7 +2026,20 @@ export function AppProvider({ children }) {
 
     const source = resolveSource({ name: show.artist, mbid: show.artistMbid });
     const { setlist, changed, summary, result: chosen } = mergeSourceSetlist(show.setlist || [], result);
-    if (!changed) return { ok: false, reason: summary.skipped === 'ambiguous-date' ? 'ambiguous-date' : 'nothing-to-change', summary, source };
+
+    const fields = {
+      ...bandSetlistShowFields(chosen, setlist, { reviewed: true }),
+      ...extraFields,
+      // Same rule as the add path: take the source's tour name only where
+      // the show hasn't got one already.
+      ...(show.tour ? {} : (chosen.tour ? { tour: chosen.tour } : {})),
+    };
+
+    // An identical setlist still writes when the fields do: a show that
+    // doesn't credit this source yet, or a stored proposal's decision.
+    if (!mergeNeedsWrite({ changed, summary }, show, fields)) {
+      return { ok: false, reason: summary.skipped === 'ambiguous-date' ? 'ambiguous-date' : 'nothing-to-change', summary, source };
+    }
 
     const before = userNoteCounts(show.setlist);
     const after = userNoteCounts(setlist);
@@ -2031,14 +2049,6 @@ export function AppProvider({ children }) {
     }
 
     console.log(`[RESYNC] ${show.artist} ${show.date} via ${result.source}: ${describeSummary(summary)}`);
-
-    const fields = {
-      ...bandSetlistShowFields(chosen, setlist, { reviewed: true }),
-      ...extraFields,
-      // Same rule as the add path: take the source's tour name only where
-      // the show hasn't got one already.
-      ...(show.tour ? {} : (chosen.tour ? { tour: chosen.tour } : {})),
-    };
 
     await updateShowData(showId, fields);
     // updateShowData refreshes the `shows` array but not `selectedShow`,
