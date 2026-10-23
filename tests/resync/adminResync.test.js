@@ -210,6 +210,28 @@ test('two shows at one venue and no existing setlist: skipped, not guessed', asy
   assert.match(r.shows[0].note, /more than one show/);
 });
 
+test('a live run leaves an already up-to-date show alone, and still writes one whose source fields lag', async () => {
+  setUp();
+  const upToDate = [song('Same Old Shenanigans'), song('Arcadia')];
+  const elgooseFields = { setlistSource: 'elgoose', sourceShowId: '', sourcePermalink: '', setlistNotes: '', isManual: false };
+  db = fakeFirestore({
+    shows: {
+      fan1: {
+        '700': { artist: 'Goose', date: '2026-08-15', venue: 'Frost', setlist: upToDate, ...elgooseFields, setlistFetchedAt: 'then' },
+        '800': { artist: 'Goose', date: '2026-08-15', venue: 'Frost', setlist: upToDate, setlistSource: 'setlistfm' },
+      },
+    },
+    profiles: { fan1: {} },
+  });
+
+  const r = await run({ source: 'elgoose', dryRun: false });
+  assert.strictEqual(r.unchanged, 1);
+  assert.strictEqual(r.changed, 1);
+  assert.match(r.shows.find((s) => s.showId === '700').note, /^unchanged/);
+  assert.deepStrictEqual(db.writes.map((w) => w.id), ['800'], 'only the show whose setlistSource changes is written');
+  assert.strictEqual(db.writes[0].u.setlistSource, 'elgoose');
+});
+
 (async () => {
   let failed = 0;
   for (const { name, fn } of tests) {

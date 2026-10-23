@@ -4,6 +4,34 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.47.9] — 2026-10-23
+
+Ships in iOS 3.9.9 (`MARKETING_VERSION` 3.9.7 → 3.9.9; the build number is
+left to Xcode Cloud). 5.47.8 / 3.9.8 is taken by the open Grateful Dead
+PR (#363).
+
+**A re-sync leaves an up-to-date show alone.** Found running the live Goose
+re-sync: `mergeBandSetlist` reported `changed: true` for any show the source
+had songs for, so 6 of 24 shows whose setlists already matched El Goose
+exactly would have been rewritten, moving only `setlistFetchedAt`. They had
+to be passed as `skipShowIds` by hand.
+
+- `mergeBandSetlist` (both copies) now compares the merged setlist with the
+  stored one and returns `changed: false`, `skipped: 'identical'` when they
+  match field for field. Key order doesn't matter, and null and missing
+  count as the same.
+- `admin-resync-setlists` skips an identical show unless its show-level
+  fields would change (`setlistSource`, `sourceShowId`, `sourcePermalink`,
+  `setlistNotes`, `isManual`, a missing `tour`). A setlist.fm show whose
+  songs already match is still switched to the band source. The row's note
+  reads "unchanged — the source matches the stored setlist".
+- Adding a show works as before: an identical setlist still takes the band
+  source's fields.
+- Checked against production: a Goose dry run after the live re-sync
+  reports all 24 shows unchanged and nothing to write.
+
+---
+
 ## [5.47.7] — 2026-10-23
 
 Ships in iOS 3.9.7 (`MARKETING_VERSION` 3.9.6 → 3.9.7; the build number is
