@@ -4,6 +4,26 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.47.10] — 2026-10-23
+
+Ships in iOS 3.9.10 (`MARKETING_VERSION` 3.9.9 → 3.9.10; the build number is
+left to Xcode Cloud).
+
+**"Internet Archive dry run" on the admin page.** Next to "Re-sync from El
+Goose": starts `admin-resync-setlists-background` with `dryRun: true` for
+every Grateful Dead show, using the signed-in admin's token, and shows the
+report saved at `adminResyncRuns/gd-dry-1` when it lands: proposals, source
+only, needs review, not proposed, nothing on the Archive, excluded, errors.
+"Last report" shows the saved one without starting a run. No write button.
+
+- `admin-resync-setlists` takes `{ readRun: runId }` and returns a saved
+  background report, behind the same admin check, so the page needs no
+  Firestore rules for that collection.
+- The background function saves the caller's `requestId` with the report,
+  so the page waits for its own run rather than showing an older one.
+
+---
+
 ## [5.47.9] — 2026-10-23
 
 Ships in iOS 3.9.9 (`MARKETING_VERSION` 3.9.8 → 3.9.9; the build number is

@@ -16,6 +16,7 @@ import AnnouncementsTab from '@/components/admin/AnnouncementsTab';
 import UnsubscribesTab from '@/components/admin/UnsubscribesTab';
 import UsersTab from '@/components/admin/UsersTab';
 import StatsTab from '@/components/admin/StatsTab';
+import ArchiveDryRunCard from '@/components/admin/ArchiveDryRunCard';
 import { buildUserRows } from '@/lib/adminUsers';
 import { sendEmailIfAllowed } from '@/lib/email';
 import { PageHeader, Button } from '@/components/ui';
@@ -1372,6 +1373,10 @@ function AdminView() {
               </div>
             )}
           </div>
+
+          {/* Every Grateful Dead show, not just this user's: the Archive
+              backfill's dry run, run in the background. See the card. */}
+          <ArchiveDryRunCard />
 
           {/* Search + Sort controls */}
           <div className="flex flex-col sm:flex-row gap-3">
