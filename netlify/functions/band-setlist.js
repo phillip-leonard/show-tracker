@@ -98,6 +98,35 @@ function songfishAdapters() {
   return out;
 }
 
+// The Internet Archive, Grateful Dead only. artistId is the collection
+// ('GratefulDead'). The venue goes to the adapter as well as to
+// selectShow, because here it narrows which TAPES are read rather than
+// which of several shows is returned.
+//
+// Its own cache rules, because nothing about it matches the other two:
+// these are tapes of shows from 1965–1995, not a reviewed archive being
+// corrected this week, so a found setlist is kept for 30 days rather
+// than 24 hours. And a "not found" is cached too, for 7 days: finding
+// one costs up to five requests to a service that asks to be used
+// gently, and a repeat lookup of a date with no tapes should not repeat
+// them.
+const ARCHIVE_ADAPTER = {
+  requiresApiKey: false,
+  maxTtlHours: 24 * 30,
+  emptyTtlHours: 24 * 7,
+  // A lookup someone is waiting on stops its optional reads at the
+  // deadline, leaving room inside the function's 10 seconds; the result is
+  // then not cached. A bulk walk (the admin re-sync, which spaces requests
+  // out with setRequestGap) has no deadline.
+  fetch: (date, { artistId, venue }) => archiveAdapter.fetchSetlists(date, {
+    collection: artistId || archiveAdapter.COLLECTION,
+    venue,
+    deadlineMs: archiveAdapter.getRequestGap() > 0 ? 0 : ARCHIVE_DEADLINE_MS,
+  }),
+};
+
+const ARCHIVE_DEADLINE_MS = 6500;
+
 const ADAPTERS = {
   ...songfishAdapters(),
   phishnet: {
@@ -105,24 +134,10 @@ const ADAPTERS = {
     apiKeyEnvVar: 'PHISHNET_API_KEY',
     fetch: (date, { apiKey, artistId }) => phishnetAdapter.fetchSetlists(date, { apiKey, artistId }),
   },
-  // The Internet Archive, Grateful Dead only. artistId is the collection
-  // ('GratefulDead'). The venue goes to the adapter as well as to
-  // selectShow, because here it narrows which TAPES are read rather than
-  // which of several shows is returned.
-  //
-  // Its own cache rules, because nothing about it matches the other two:
-  // these are tapes of shows from 1965–1995, not a reviewed archive being
-  // corrected this week, so a found setlist is kept for 30 days rather
-  // than 24 hours. And a "not found" is cached too, for 7 days: finding
-  // one costs up to five requests to a service that asks to be used
-  // gently, and a repeat lookup of a date with no tapes should not repeat
-  // them.
-  archive: {
-    requiresApiKey: false,
-    maxTtlHours: 24 * 30,
-    emptyTtlHours: 24 * 7,
-    fetch: (date, { artistId, venue }) => archiveAdapter.fetchSetlists(date, { collection: artistId || archiveAdapter.COLLECTION, venue }),
-  },
+  // The Internet Archive, Grateful Dead only. Present only while
+  // config/internet-archive.json has `enabled: true`; see the handler for
+  // what a request for it gets otherwise.
+  ...(archiveAdapter.isEnabled() ? { archive: ARCHIVE_ADAPTER } : {}),
 };
 
 // --- Firebase Admin (lazy init, graceful degradation if env vars missing) ---
@@ -198,7 +213,10 @@ function toIsoDate(value) {
 //       artistId in the key is the site's numeric id
 //   4 — ambiguous dates carry `selection` and `contested` (each candidate
 //       show with its songs), for the merge rule's overlap choice
-const CACHE_VERSION = 4;
+//   5 — 5.47.8: Archive results carry needsReview, disagreement,
+//       licenseUrl and sourceType, early and late shows come back as two
+//       shows, and the tape-selection rule changed
+const CACHE_VERSION = 5;
 
 function buildCacheKey(source, artist, date, venue, artistId) {
   const normalized = JSON.stringify({
@@ -242,6 +260,25 @@ exports.handler = async function (event) {
 
   const { source, artist, venue, debug } = event.queryStringParameters || {};
   let { date, artistId } = event.queryStringParameters || {};
+
+  // The Archive switched off (config/internet-archive.json). Answered
+  // before the cache, so no stored Archive setlist is served either, and
+  // as the same "no show" every app version already falls back to
+  // setlist.fm from, rather than as an error.
+  if (source === 'archive' && !archiveAdapter.isEnabled()) {
+    return {
+      statusCode: 200,
+      headers: { ...CORS_HEADERS, 'X-Cache': 'MISS' },
+      body: JSON.stringify({
+        ok: false,
+        disabled: true,
+        source,
+        message: 'The Internet Archive source is turned off',
+        shows: [],
+        songs: [],
+      }),
+    };
+  }
 
   // Own properties only: `ADAPTERS['constructor']` is truthy otherwise.
   if (!source || !Object.prototype.hasOwnProperty.call(ADAPTERS, source)) {
@@ -431,8 +468,11 @@ exports.handler = async function (event) {
     // where an empty answer is neither cheap nor likely to change; see its
     // ADAPTERS entry. Only an answer the source actually gave — a thrown
     // error never reaches here, so an outage is never cached as "none".
-    const cacheEmpty = !!adapter.emptyTtlHours && payload.songs.length === 0;
-    if (db && !bypassCache && (payload.songs.length > 0 || cacheEmpty)) {
+    // An excluded date (config/internet-archive.json) is not a finding about
+    // the Archive, so it isn't cached: taking a date off the list takes
+    // effect at once.
+    const cacheEmpty = !!adapter.emptyTtlHours && payload.songs.length === 0 && !result.excluded;
+    if (db && !bypassCache && !payload.lookupCutShort && (payload.songs.length > 0 || cacheEmpty)) {
       const ttlHours = cacheEmpty ? adapter.emptyTtlHours : determineTtlHours(date, adapter.maxTtlHours || MAX_TTL_HOURS);
       const { Timestamp } = require('firebase-admin/firestore');
       db.collection(CACHE_COLLECTION).doc(cacheKey).set({
@@ -578,12 +618,21 @@ function selectShow(shows, { source, date, venue }) {
     }
   }
 
-  // The Archive returns one show per date but can still be unsure of it:
-  // early and late shows are separate tapes it cannot reliably tell apart.
-  if (chosen.ambiguousSlot) {
-    ambiguous = true;
-    message = message || `There were early and late shows on ${date}, and the Internet Archive's tapes don't say clearly which one this setlist is.`;
-  }
+  // Archive only: the fields that decide whether a setlist may be written
+  // without asking, per show, so a contested early/late pick carries its
+  // own. Absent (and dropped from the JSON) for the other sources.
+  const archiveFields = (s) => ({
+    confidence: s.confidence,
+    parsedFrom: s.parsedFrom,
+    partial: s.partial,
+    itemCount: s.itemCount,
+    candidateCount: s.candidateCount,
+    needsReview: s.needsReview,
+    disagreement: s.disagreement,
+    sourceType: s.sourceType,
+    licenseUrl: s.licenseUrl,
+    showSlot: s.showSlot,
+  });
 
   return {
     ...base,
@@ -600,15 +649,13 @@ function selectShow(shows, { source, date, venue }) {
       sourcePermalink: s.sourcePermalink,
       setlistNotes: s.setlistNotes,
       songs: s.songs,
+      ...archiveFields(s),
     })),
     message,
-    // Archive only (absent, and so dropped from the JSON, for the other
-    // sources): how the setlist was read, which decides whether the app
-    // may write it without asking. See archiveAdapter.js.
-    confidence: chosen.confidence,
-    parsedFrom: chosen.parsedFrom,
-    partial: chosen.partial,
-    itemCount: chosen.itemCount,
+    // How the setlist was read, which decides whether the app may write it
+    // without asking. See archiveAdapter.js.
+    ...archiveFields(chosen),
+    lookupCutShort: shows.some((s) => s.lookupCutShort) || undefined,
     // The normalized setlist, which is what callers actually want.
     songs: chosen.songs,
     droppedSoundcheckCount: chosen.droppedSoundcheckCount,

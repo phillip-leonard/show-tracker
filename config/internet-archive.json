@@ -1,0 +1,27 @@
+{
+  "_comment": "The Internet Archive setlist source (Grateful Dead). `enabled` is the one switch: set it to false and the app stops resolving Grateful Dead to the Archive (lib/setlistSources.js), /api/band-setlist refuses source=archive without a request (netlify/functions/band-setlist.js, which also covers app builds already installed), the adapter makes no request whoever calls it (netlify/functions/lib/archiveAdapter.js), and admin-resync-setlists skips Grateful Dead. New adds then keep setlist.fm's setlist. Setlists already saved from the Archive stay as they are and keep their attribution. Read by lib/__tests__/archiveSwitch.test.js. `protectedGroup` is passed to the merge rule for Archive setlists: titles whose absence from a tape is not believed (see protectGroup in lib/bandSetlistMerge.js). `excludedDates` are dates the Archive is not asked about at all, so new adds and the backfill keep setlist.fm's setlist; each value says why.",
+  "enabled": true,
+  "id": "archive",
+  "label": "Internet Archive",
+  "homeUrl": "https://archive.org/details/GratefulDead",
+  "collection": "GratefulDead",
+  "artists": [
+    {
+      "name": "Grateful Dead",
+      "nameKey": "grateful-dead",
+      "mbids": [
+        "6faa7ca7-0d99-4a5e-bfa6-1fd5037520c6"
+      ]
+    }
+  ],
+  "protectedGroup": [
+    "Drums",
+    "Space",
+    "Jam"
+  ],
+  "excludedDates": {
+    "1987-07-04": "Dylan & the Dead: the Archive's tapes include Bob Dylan's set, which setlist.fm files under Bob Dylan",
+    "1987-07-10": "Dylan & the Dead: the Archive's tapes include Bob Dylan's set, which setlist.fm files under Bob Dylan",
+    "1987-07-12": "Dylan & the Dead: the Archive's tapes include Bob Dylan's set, which setlist.fm files under Bob Dylan"
+  }
+}
