@@ -25,8 +25,8 @@ import {
 import { fetchArtistImage } from '@/lib/artistImage';
 import { isReturningUser as checkIsReturningUser } from '@/lib/popupManager';
 import { extractSongsFromSetlist } from '@/lib/setlistParser';
-import { enrichShowDataWithBandSetlist, fetchBandSetlist, fetchBandSetlistWithReason, bandSetlistShowFields } from '@/lib/bandSetlist';
-import { mergeBandSetlist, describeSummary } from '@/lib/bandSetlistMerge';
+import { enrichShowDataWithBandSetlist, fetchBandSetlist, fetchBandSetlistWithReason, bandSetlistShowFields, mergeSourceSetlist } from '@/lib/bandSetlist';
+import { describeSummary } from '@/lib/bandSetlistMerge';
 import { resolveSource } from '@/lib/setlistSources';
 import { removeSongFromSetlist, insertSongAt } from '@/lib/setlistGrouping';
 import { buildExistingShowIndex, existingShowStatus } from '@/lib/tourBrowse';
@@ -1863,11 +1863,11 @@ export function AppProvider({ children }) {
       // shows are the ones with no setlist — because "no setlist" is
       // `setlist: []` in most cases but not all, and a user who hand-added
       // two songs they remembered has a setlist worth keeping.
-      const { setlist, changed, summary } = mergeBandSetlist(show.setlist || [], result.songs);
+      const { setlist, changed, summary, result: chosen } = mergeSourceSetlist(show.setlist || [], result);
       if (!changed) return false;
 
       console.log(`[SETLIST SCAN] ${show.artist} ${show.date} via ${result.source}: ${describeSummary(summary)}`);
-      await updateShowData(show.id, bandSetlistShowFields(result, setlist));
+      await updateShowData(show.id, bandSetlistShowFields(chosen, setlist));
       return true;
     };
 
@@ -1992,10 +1992,10 @@ export function AppProvider({ children }) {
     // false only when the incoming setlist is empty or entirely untitled,
     // both of which are handled above — kept anyway, because the rule owns
     // that decision and this should not second-guess it.
-    const { setlist, changed, summary } = mergeBandSetlist(show.setlist || [], result.songs);
-    if (!changed) return { ok: false, reason: 'nothing-to-change', summary, source };
+    const { setlist, changed, summary, result: chosen } = mergeSourceSetlist(show.setlist || [], result);
+    if (!changed) return { ok: false, reason: summary.skipped === 'ambiguous-date' ? 'ambiguous-date' : 'nothing-to-change', summary, source };
 
-    return { ok: true, source, result, setlist, summary };
+    return { ok: true, source, result: chosen, setlist, summary };
   };
 
   // Writes a proposal the user accepted. The merge is re-run against the
@@ -2012,16 +2012,16 @@ export function AppProvider({ children }) {
     if (onlyIfEmpty && (show.setlist || []).length > 0) return { ok: false, reason: 'has-setlist' };
 
     const source = resolveSource({ name: show.artist, mbid: show.artistMbid });
-    const { setlist, changed, summary } = mergeBandSetlist(show.setlist || [], result.songs);
-    if (!changed) return { ok: false, reason: 'nothing-to-change', summary, source };
+    const { setlist, changed, summary, result: chosen } = mergeSourceSetlist(show.setlist || [], result);
+    if (!changed) return { ok: false, reason: summary.skipped === 'ambiguous-date' ? 'ambiguous-date' : 'nothing-to-change', summary, source };
 
     console.log(`[RESYNC] ${show.artist} ${show.date} via ${result.source}: ${describeSummary(summary)}`);
 
     const fields = {
-      ...bandSetlistShowFields(result, setlist),
+      ...bandSetlistShowFields(chosen, setlist),
       // Same rule as the add path: take the source's tour name only where
       // the show hasn't got one already.
-      ...(show.tour ? {} : (result.tour ? { tour: result.tour } : {})),
+      ...(show.tour ? {} : (chosen.tour ? { tour: chosen.tour } : {})),
     };
 
     await updateShowData(showId, fields);

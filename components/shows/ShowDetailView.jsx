@@ -50,6 +50,7 @@ function describeResync(result, sourceName, date) {
     if (s.added?.length) parts.push(`${s.added.length} added`);
     if (s.removed?.length) parts.push(`${s.removed.length} removed`);
     if (s.keptManual?.length) parts.push(`${s.keptManual.length} of yours kept`);
+    if (s.keptNotInSource?.length) parts.push(`${s.keptNotInSource.length} rated song${s.keptNotInSource.length === 1 ? '' : 's'} ${sourceName} doesn't list kept`);
     if (carried) parts.push(`${carried} rating/note${carried === 1 ? '' : 's'} kept`);
     return `Updated from ${sourceName} — ${parts.join(', ')}.`;
   }
@@ -63,6 +64,10 @@ function describeResync(result, sourceName, date) {
       return `${sourceName} lists a show on ${date} but returned no songs — that's a problem on our end, not theirs. Nothing was changed.`;
     case 'nothing-to-change':
       return `Already matches ${sourceName} — nothing to change.`;
+    case 'ambiguous-date':
+      // More than one show on this date and the setlist here doesn't
+      // clearly match either (chooseCandidate in lib/bandSetlistMerge.js).
+      return `${sourceName} lists more than one show on ${date}, and this setlist doesn't clearly match one of them. Nothing was changed.`;
     case 'bad-date':
       // The stored date could not be read at all, so nothing was asked for.
       return `This show's date (${result.detail || 'blank'}) isn't in a form the archive can be asked about. Nothing was changed.`;
@@ -87,6 +92,7 @@ function buildSets(setlist = []) {
         duration: song.duration || null,
         tape: song.tape || false,
         manual: !!song.manuallyAdded,
+        notInSource: !!song.notInSource,
         // Band-source extras (El Goose, Phish.net). Undefined on a
         // setlist.fm-sourced show, which is what SetlistView expects — it
         // falls back to the generic segue indicator and renders no

@@ -16,7 +16,25 @@
  *     delayMs?: number,   // override the inter-request delay
  *     cursor?: string,    // resume token from a previous run's nextCursor
  *     budgetMs?: number,  // override the time budget (see the constants)
+ *     skipShowIds?: string[],    // shows to leave alone, by show id
+ *     excludeUserIds?: string[], // accounts to leave alone, by uid
+ *     includeTestAccounts?: boolean, // default false; see below
  *   }
+ *
+ * ── Who is walked ─────────────────────────────────────────────────────
+ *
+ * Users are listed with listDocuments(), not collection('users').get().
+ * A user's `users/{uid}` document does not exist in production: a show is
+ * written to users/{uid}/shows/{id} and nothing ever writes the parent, and
+ * a query only returns documents that exist. Until 5.47.7 this walk asked
+ * the query, got zero users, and every run, dry or not, scanned nothing.
+ *
+ * The App Review accounts are left out unless `includeTestAccounts: true`:
+ * a profile whose handle is in REVIEW_ACCOUNT_HANDLES or that is marked
+ * `isTestUser`, and any show whose id starts with `seed-` (written by
+ * scripts/seed-review-account.js). Their setlists are fixtures Apple's
+ * reviewers see; a re-sync would rewrite them. Each exclusion is listed in
+ * the report's `excluded`.
  *
  * ── dryRun defaults to TRUE, on purpose ──────────────────────────────
  *
@@ -56,7 +74,7 @@
 
 const https = require('https');
 
-const { mergeBandSetlist, describeSummary } = require('./lib/bandSetlistMergeRule');
+const { mergeBandSetlist, describeSummary, titleAliasesFor } = require('./lib/bandSetlistMergeRule');
 
 const ADMIN_EMAILS = ['phillip.leonard@gmail.com'];
 
@@ -94,6 +112,10 @@ const CORS_HEADERS = {
 // it is invoked (202 immediately, results only in the logs), which is why
 // it is not done here — a dry run you can read the output of is the whole
 // point of this endpoint.
+// The App Review demo accounts (scripts/seed-review-account.js).
+const REVIEW_ACCOUNT_HANDLES = ['alexreviewer', 'jordanmills'];
+const SEED_SHOW_ID_PREFIX = 'seed-';
+
 const DEFAULT_DELAY_MS = 300;
 const DEFAULT_LIMIT = 25;
 const MAX_LIMIT = 1000;
@@ -348,6 +370,11 @@ exports.handler = async function (event) {
   // halves page deterministically.
   const [cursorUserId, cursorShowId] = String(body.cursor || '').split('::');
 
+  const asIdList = (v) => (Array.isArray(v) ? v.map((x) => String(x).trim()).filter(Boolean) : []);
+  const skipShowIds = new Set(asIdList(body.skipShowIds));
+  const excludeUserIds = new Set(asIdList(body.excludeUserIds));
+  const includeTestAccounts = body.includeTestAccounts === true;
+
   // Keyed by the raw artist string, so two spellings of the same band show
   // up as the two separate entries they are.
   const artistsSeen = new Map();
@@ -388,6 +415,9 @@ exports.handler = async function (event) {
     artistsSeen: [],
     sourceReturnedNothing: [],
     ambiguousDates: [],
+    // Accounts and shows left out, and why: excludeUserIds, the App Review
+    // accounts, skipShowIds, seed fixtures.
+    excluded: { users: [], shows: [] },
     errors: [],
     shows: [],
     truncated: false,
@@ -404,15 +434,23 @@ exports.handler = async function (event) {
     // Users are walked in document-id order so a cursor means something.
     // `startAt` rather than `startAfter`: a cursor can point into the
     // middle of a user's shows, and that user still has shows left to do.
-    let userDocs;
-    if (onlyUserId) {
-      const snap = await db.collection('users').doc(onlyUserId).get();
-      userDocs = snap.exists ? [snap] : [];
-    } else {
-      let q = db.collection('users').orderBy(FieldPath.documentId());
-      if (cursorUserId) q = q.startAt(cursorUserId);
-      userDocs = (await q.get()).docs;
-    }
+    // References, not snapshots: see "Who is walked" above. listDocuments
+    // has no ordering guarantee, so the ids are sorted here for the cursor.
+    const byId = (a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+    const userDocs = (await db.collection('users').listDocuments())
+      .sort(byId)
+      .filter((ref) => (onlyUserId ? ref.id === onlyUserId : (!cursorUserId || ref.id >= cursorUserId)));
+
+    // Why a user is left out, or null.
+    const exclusionReason = async (userId) => {
+      if (excludeUserIds.has(userId)) return 'excludeUserIds';
+      if (includeTestAccounts) return null;
+      const profile = (await db.collection('userProfiles').doc(userId).get()).data() || {};
+      const handle = String(profile.handleLower || profile.handle || '').toLowerCase();
+      if (REVIEW_ACCOUNT_HANDLES.includes(handle)) return `App Review account (@${handle})`;
+      if (profile.isTestUser === true) return 'isTestUser';
+      return null;
+    };
 
     let processed = 0;
 
@@ -426,6 +464,12 @@ exports.handler = async function (event) {
     for (const userDoc of userDocs) {
       report.scannedUsers++;
       const userId = userDoc.id;
+
+      const excludedBecause = await exclusionReason(userId);
+      if (excludedBecause) {
+        report.excluded.users.push({ userId, reason: excludedBecause });
+        continue;
+      }
 
       let showQuery = db.collection('users').doc(userId).collection('shows')
         .orderBy(FieldPath.documentId());
@@ -489,6 +533,15 @@ exports.handler = async function (event) {
         if (!resolved) continue;
         if (onlySource && resolved.source !== onlySource) continue;
 
+        if (skipShowIds.has(showDoc.id)) {
+          report.excluded.shows.push({ userId, showId: showDoc.id, date: show.date, reason: 'skipShowIds' });
+          continue;
+        }
+        if (!includeTestAccounts && showDoc.id.startsWith(SEED_SHOW_ID_PREFIX)) {
+          report.excluded.shows.push({ userId, showId: showDoc.id, date: show.date, reason: 'seed fixture' });
+          continue;
+        }
+
         report.bandSourceShows++;
         processed++;
         report.considered++;
@@ -508,6 +561,17 @@ exports.handler = async function (event) {
           incomingSource: resolved.source,
           currentSongCount: (show.setlist || []).length,
           incomingSongCount: 0,
+          // What the user wrote on this show's songs, and what the merge
+          // does with it. Read off the merge summary, so it is what a real
+          // run would do.
+          userNotes: {
+            rated: (show.setlist || []).filter((x) => x.rating != null).length,
+            commented: (show.setlist || []).filter((x) => typeof x.comment === 'string' ? x.comment.trim() !== '' : x.comment != null).length,
+            ratingsCarried: 0,
+            commentsCarried: 0,
+            keptNotInSource: [],
+          },
+          selection: '',
           cache: '',
           summary: null,
           note: '',
@@ -541,20 +605,42 @@ exports.handler = async function (event) {
           } else {
             const incoming = Array.isArray(data.songs) ? data.songs : [];
             row.incomingSongCount = incoming.length;
+            row.selection = data.selection || '';
+
+            // The band's title aliases, and on a date the source has more
+            // than one show for, the contested shows: the existing setlist
+            // chooses by song overlap, or nothing is written.
+            const { setlist, changed, summary, chosenCandidate } = mergeBandSetlist(show.setlist || [], incoming, {
+              aliases: titleAliasesFor(resolved.nameKey),
+              candidates: data.contested,
+            });
+            row.summary = summary;
+            if (chosenCandidate) row.incomingSongCount = (chosenCandidate.songs || []).length;
+            row.userNotes.ratingsCarried = summary.carriedOver.rating || 0;
+            row.userNotes.commentsCarried = summary.carriedOver.comment || 0;
+            row.userNotes.keptNotInSource = summary.keptNotInSource || [];
 
             if (data.ambiguous) {
-              row.note = data.message || 'more than one show on this date';
+              row.note = summary.skipped === 'ambiguous-date'
+                ? describeSummary(summary)
+                : (summary.candidates?.reason === 'overlap'
+                  ? `${data.message}; chose the show with ${Math.round(summary.candidates.scored[summary.candidates.chosen].overlap * 100)}% song overlap`
+                  : (data.message || 'more than one show on this date'));
               report.ambiguousDates.push({ ...row, candidates: data.candidates || [] });
             }
 
-            const { setlist, changed, summary } = mergeBandSetlist(show.setlist || [], incoming);
-            row.summary = summary;
+            // Show-level fields from the show the merge actually used.
+            const picked = chosenCandidate ? { ...data, ...chosenCandidate } : data;
 
             if (!changed) {
-              // The write-nothing rule. An empty incoming setlist leaves
-              // the document alone, whether this is a dry run or not.
-              row.note = row.note || 'source returned no songs — leaving the existing setlist alone';
-              report.sourceReturnedNothing.push({ ...row });
+              // The write-nothing rule. An empty incoming setlist, or a
+              // date the existing setlist couldn't choose a show for (it is
+              // already in ambiguousDates), leaves the document alone,
+              // whether this is a dry run or not.
+              if (summary.skipped !== 'ambiguous-date') {
+                row.note = row.note || 'source returned no songs — leaving the existing setlist alone';
+                report.sourceReturnedNothing.push({ ...row });
+              }
               report.unchanged++;
             } else if (dryRun) {
               report.wouldChange++;
@@ -563,12 +649,12 @@ exports.handler = async function (event) {
               await showDoc.ref.update({
                 setlist,
                 setlistSource: resolved.source,
-                sourceShowId: data.sourceShowId || '',
-                sourcePermalink: data.sourcePermalink || '',
-                setlistNotes: data.setlistNotes || '',
+                sourceShowId: picked.sourceShowId || '',
+                sourcePermalink: picked.sourcePermalink || '',
+                setlistNotes: picked.setlistNotes || '',
                 setlistFetchedAt: new Date().toISOString(),
                 isManual: false,
-                ...(show.tour ? {} : (data.tour ? { tour: data.tour } : {})),
+                ...(show.tour ? {} : (picked.tour ? { tour: picked.tour } : {})),
               });
               report.changed++;
               console.log(`[RESYNC write] ${userId}/${showDoc.id} ${show.artist} ${show.date} — ${describeSummary(summary)}`);

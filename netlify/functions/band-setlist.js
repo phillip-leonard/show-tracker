@@ -192,11 +192,13 @@ function toIsoDate(value) {
 //   2 — 5.34.3: elgoose rows are filtered by artist, and everything the
 //       5.33.4/5.33.5 corrections changed (permalink, jamchart_notes,
 //       song_id, original_artist, shownotes)
-//   3 — 5.47.4: one Songfish adapter for every site. Encores (setnumber
+//   3 — 5.47.6: one Songfish adapter for every site. Encores (setnumber
 //       'e') are labelled Encore instead of Set I, rows are filtered
 //       strictly by numeric artist_id, every footnote is kept, and
 //       artistId in the key is the site's numeric id
-const CACHE_VERSION = 3;
+//   4 — ambiguous dates carry `selection` and `contested` (each candidate
+//       show with its songs), for the merge rule's overlap choice
+const CACHE_VERSION = 4;
 
 function buildCacheKey(source, artist, date, venue, artistId) {
   const normalized = JSON.stringify({
@@ -528,21 +530,41 @@ function selectShow(shows, { source, date, venue }) {
   let chosen = shows[0];
   let ambiguous = false;
   let message = '';
+  // How `chosen` was picked, and the shows it was picked from when that
+  // was not a clean answer. 'only': one show. 'venue': the one show whose
+  // venue matched. 'venue-tie': more than one show at the matched venue
+  // (BottleRock 2025: two Goose sets, both "Napa Valley Expo"), so the
+  // venue decided nothing. 'fullest': no venue match; the fullest setlist,
+  // a guess. For the last two, `contested` lists the candidates with their
+  // songs, and a caller that has the show's existing setlist picks between
+  // them by song overlap (chooseCandidate in lib/bandSetlistMerge.js)
+  // rather than taking `chosen`.
+  let selection = 'only';
+  let contested = [];
 
   if (shows.length > 1) {
     ambiguous = true;
     const wanted = venueKey(venue);
-    const matched = wanted
-      ? shows.find((s) => {
+    const venueMatches = wanted
+      ? shows.filter((s) => {
           const v = venueKey(s.venue);
           return v && (v === wanted || v.includes(wanted) || wanted.includes(v));
         })
-      : null;
+      : [];
+    const matched = venueMatches[0] || null;
 
-    if (matched) {
+    if (matched && venueMatches.length > 1) {
       chosen = matched;
+      selection = 'venue-tie';
+      contested = venueMatches;
+      message = `${shows.length} shows on ${date}, ${venueMatches.length} of them at "${chosen.venue}"; choose by song overlap`;
+    } else if (matched) {
+      chosen = matched;
+      selection = 'venue';
       message = `${shows.length} shows on ${date}; matched on venue "${chosen.venue}"`;
     } else {
+      selection = 'fullest';
+      contested = shows;
       // No venue match. Array order is not evidence of anything, so the
       // fullest setlist is the better guess than the first one: on a
       // festival day the two entries are usually a full set and a sit-in or
@@ -567,6 +589,18 @@ function selectShow(shows, { source, date, venue }) {
     ...base,
     ambiguous,
     candidates,
+    selection,
+    contested: contested.map((s) => ({
+      venue: s.venue,
+      city: s.city,
+      state: s.state,
+      country: s.country,
+      tour: s.tour,
+      sourceShowId: s.sourceShowId,
+      sourcePermalink: s.sourcePermalink,
+      setlistNotes: s.setlistNotes,
+      songs: s.songs,
+    })),
     message,
     // Archive only (absent, and so dropped from the JSON, for the other
     // sources): how the setlist was read, which decides whether the app

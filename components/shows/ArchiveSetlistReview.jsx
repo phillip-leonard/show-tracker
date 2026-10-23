@@ -59,6 +59,8 @@ function statusFromProposal(proposal) {
       return 'not-found';
     case 'nothing-to-change':
       return 'unchanged';
+    case 'ambiguous-date':
+      return 'not-found';
     default:
       return 'error';
   }

@@ -130,6 +130,18 @@ export default function SetlistView({ sets = [], showPlayCounts = false, playCou
                         added by you
                       </span>
                     )}
+                    {t.notInSource && !t.manual && (
+                      // A song the user rated or commented on that the
+                      // band's archive doesn't list. Kept so the rating
+                      // isn't lost (lib/bandSetlistMerge.js); marked so it
+                      // isn't mistaken for the archive's own.
+                      <span
+                        title="Your rating is kept, but the setlist source doesn't list this song"
+                        className="ml-2 inline-block text-[9px] font-extrabold tracking-[0.1em] uppercase text-amber bg-amber-subtle px-1.5 py-0.5 rounded"
+                      >
+                        not in source
+                      </span>
+                    )}
                     {showPlayCounts && playCounts[t.title] > 0 && (
                       getSongHref?.(t.title) ? (
                         <Link
