@@ -11,9 +11,9 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Sparkles, X } from 'lucide-react';
 import ShowCard from '@/components/shows/ShowCard';
-import { dismissReliveShow, localIsoDate } from '@/lib/reliveThisNight';
+import { dismissReliveShow } from '@/lib/reliveThisNight';
 import { showHref } from '@/lib/showRouting';
-import { toIsoDate } from '@/lib/utils';
+import { localIsoDate, toIsoDate } from '@/lib/utils';
 
 const GREEN = '#34D399';
 const ORANGE = '#FB923C';
