@@ -115,6 +115,26 @@ function hasUserNotes(song) {
   return song.rating != null || (typeof song.comment === 'string' ? song.comment.trim() !== '' : song.comment != null);
 }
 
+// Key order and null-vs-missing removed, so two setlists that say the same
+// thing compare equal. A stored song has no `footnote` key where the merged
+// one has `footnote: undefined`, and everything that reads a song treats
+// those, and null, alike.
+function canonicalSong(value) {
+  if (Array.isArray(value)) return value.map(canonicalSong);
+  if (value && typeof value === 'object') {
+    const out = {};
+    Object.keys(value).sort().forEach((k) => {
+      if (value[k] != null) out[k] = canonicalSong(value[k]);
+    });
+    return out;
+  }
+  return value;
+}
+
+function sameSetlist(a, b) {
+  return a.length === b.length && JSON.stringify(canonicalSong(a)) === JSON.stringify(canonicalSong(b));
+}
+
 function positionsWithinSets(songs, index = new Map()) {
   // Position within a set, derived rather than read off the song, because a
   // stored song carries no position field — groupSongsBySet infers
@@ -251,7 +271,11 @@ function protectGroup(existing, incoming, groupTitles, index) {
  *
  * `setlist` is the array to write. `changed` is false when there is nothing
  * worth writing — which happens when the incoming setlist is empty, and is
- * the caller's cue to leave the document alone entirely.
+ * the caller's cue to leave the document alone entirely. It is also false,
+ * with `skipped: 'identical'`, when the merged setlist is the stored one
+ * field for field. That covers the songs only: a caller that also writes
+ * show-level fields (setlistSource, sourcePermalink, ...) still has to
+ * check those before deciding there is nothing to write.
  *
  * `summary` is the per-show change report. On the Change 4 backfill's dry
  * run this IS the output, so it is shaped to be read by a human:
@@ -267,7 +291,7 @@ function protectGroup(existing, incoming, groupTitles, index) {
  *     protectedKept: [titles],     // protectedGroup songs kept or renamed
  *     aliased: [{ from, to }],     // matched through the band's alias map
  *     candidates: null | { reason, chosen, scored },
- *     skipped: null | 'empty-incoming' | 'no-titled-songs' | 'ambiguous-date',
+ *     skipped: null | 'empty-incoming' | 'no-titled-songs' | 'ambiguous-date' | 'identical',
  *   }
  */
 function mergeBandSetlist(existingSetlist, incomingSongs, options = {}) {
@@ -500,6 +524,14 @@ function mergeBandSetlist(existingSetlist, incomingSongs, options = {}) {
   summary.protectedKept = protectedKept;
   summary.resultCount = result.length;
 
+  // The source agrees with what is stored, down to every field. Writing it
+  // back would only move setlistFetchedAt, so a re-sync of a show that is
+  // already up to date leaves the document alone.
+  if (sameSetlist(existing, result)) {
+    summary.skipped = 'identical';
+    return { setlist: existing, changed: false, summary, chosenCandidate };
+  }
+
   return { setlist: result, changed: true, summary, chosenCandidate };
 }
 
@@ -519,6 +551,9 @@ function describeSummary(summary) {
   if (summary.skipped === 'ambiguous-date') {
     const scored = (summary.candidates?.scored || []).map((c) => `${c.songCount} songs, ${Math.round(c.overlap * 100)}% overlap`).join('; ');
     return `skipped — the source has more than one show this date could be (${summary.candidates?.reason}: ${scored}); kept existing ${summary.existingCount}`;
+  }
+  if (summary.skipped === 'identical') {
+    return `unchanged — the source matches the stored setlist (${summary.existingCount} songs)`;
   }
   const parts = [`${summary.existingCount} → ${summary.resultCount} songs`];
   if (summary.added.length) parts.push(`+${summary.added.length} added`);

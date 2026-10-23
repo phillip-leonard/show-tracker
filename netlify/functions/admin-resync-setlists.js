@@ -740,6 +740,14 @@ async function runResync(body, { defaultBudgetMs = DEFAULT_BUDGET_MS } = {}) {
 
             // Show-level fields from the show the merge actually used.
             const picked = chosenCandidate ? { ...data, ...chosenCandidate } : data;
+            const showFields = {
+              setlistSource: resolved.source,
+              sourceShowId: picked.sourceShowId || '',
+              sourcePermalink: picked.sourcePermalink || '',
+              setlistNotes: picked.setlistNotes || '',
+              isManual: false,
+              ...(show.tour ? {} : (picked.tour ? { tour: picked.tour } : {})),
+            };
 
             if (resolved.source === 'archive') {
               const notInSource = new Set(summary.keptNotInSource || []);
@@ -762,7 +770,17 @@ async function runResync(body, { defaultBudgetMs = DEFAULT_BUDGET_MS } = {}) {
               };
             }
 
-            if (!changed) {
+            // The merge compares songs only. A setlist it calls identical
+            // still needs writing when these would change — a setlist.fm show
+            // whose songs already match still needs its source and permalink.
+            // Blank, false and missing are one value here, as on the merge side.
+            const blank = (v) => (v == null || v === false ? '' : v);
+            const fieldsDiffer = Object.entries(showFields).some(([k, v]) => blank(show[k]) !== blank(v));
+
+            if (!changed && summary.skipped === 'identical' && !fieldsDiffer) {
+              row.note = [row.note, describeSummary(summary)].filter(Boolean).join('; ');
+              report.unchanged++;
+            } else if (!changed && summary.skipped !== 'identical') {
               // The write-nothing rule. An empty incoming setlist, or a
               // date the existing setlist couldn't choose a show for (it is
               // already in ambiguousDates), leaves the document alone,
@@ -809,13 +827,8 @@ async function runResync(body, { defaultBudgetMs = DEFAULT_BUDGET_MS } = {}) {
             } else {
               await showDoc.ref.update({
                 setlist,
-                setlistSource: resolved.source,
-                sourceShowId: picked.sourceShowId || '',
-                sourcePermalink: picked.sourcePermalink || '',
-                setlistNotes: picked.setlistNotes || '',
+                ...showFields,
                 setlistFetchedAt: new Date().toISOString(),
-                isManual: false,
-                ...(show.tour ? {} : (picked.tour ? { tour: picked.tour } : {})),
               });
               report.changed++;
               console.log(`[RESYNC write] ${userId}/${showDoc.id} ${show.artist} ${show.date} — ${describeSummary(summary)}`);
