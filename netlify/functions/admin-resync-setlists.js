@@ -353,6 +353,23 @@ function buildProposal(data, summary, picked, nowIso) {
 // The user already decided about this recording: kept their own setlist
 // over it, accepted it, or was blocked by the stats check. Not offered
 // again; a different recording of the show would be.
+// A backfill proposal replaces a setlist someone already has, so it needs
+// a better tape than an add does: complete, with set breaks the uploader
+// wrote, and not much shorter than the setlist it would replace (a
+// setlist.fm setlist is a fair measure of how much of the show a tape
+// reached). Anything less is reported, not proposed.
+const MIN_PROPOSAL_SHARE = 0.8;
+
+function proposalUnfit(picked, summary) {
+  if (picked.partial) return 'the Archive\'s best tape covers only part of the show';
+  if (picked.confidence === 'tracks-only') return 'the Archive\'s tape has no set breaks';
+  if (picked.confidence === 'inferred-sets') return 'the set breaks would be inferred, not written by the uploader';
+  if (summary.existingCount > 0 && summary.incomingCount < summary.existingCount * MIN_PROPOSAL_SHARE) {
+    return `the Archive's setlist has ${summary.incomingCount} songs against ${summary.existingCount} now; probably an incomplete tape`;
+  }
+  return '';
+}
+
 function declinedSame(show, data) {
   const p = show.setlistProposal;
   return !!p && ['declined', 'accepted', 'blocked'].includes(p.status) && !!p.sourceShowId && p.sourceShowId === data.sourceShowId;
@@ -428,6 +445,9 @@ async function runResync(body, { defaultBudgetMs = DEFAULT_BUDGET_MS } = {}) {
     proposals: 0,
     needsReview: 0,
     declinedBefore: 0,
+    // Matched, but not good enough to replace a setlist with; see
+    // proposalUnfit.
+    notProposed: [],
     // The interesting ones: a bad date, a side project the registry sends
     // to the wrong place, or an artist-name false positive (the Dutch
     // Goose). Reported separately rather than lumped in with "unchanged"
@@ -693,8 +713,12 @@ async function runResync(body, { defaultBudgetMs = DEFAULT_BUDGET_MS } = {}) {
             } else if (resolved.source === 'archive') {
               // Proposals only: see buildProposal. The show's setlist is
               // not touched by this walk, dry run or not.
-              if (picked.needsReview) report.needsReview++;
-              if (declinedSame(show, picked)) {
+              const unfit = proposalUnfit(picked, summary);
+              if (picked.needsReview && !unfit) report.needsReview++;
+              if (unfit) {
+                row.note = `no proposal: ${unfit}`;
+                report.notProposed.push({ ...row });
+              } else if (declinedSame(show, picked)) {
                 report.declinedBefore++;
                 row.note = 'the user kept their own setlist over this recording before; not offered again';
               } else if (dryRun) {
@@ -853,3 +877,4 @@ exports.resolveBandSource = resolveBandSource;
 exports.runResync = runResync;
 exports.authorizeAdmin = authorizeAdmin;
 exports.CORS_HEADERS = CORS_HEADERS;
+exports.proposalUnfit = proposalUnfit;

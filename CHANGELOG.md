@@ -48,8 +48,11 @@ logged, with the user's say-so.** Builds on 5.47.3's Archive adapter and
   15-minute background variant and `scripts/archive-resync-dry-run.js` run
   the same walk.
 - **Grateful Dead title aliases** (Rhythm Devils → Drums, Turn On Your
-  Lovelight → Turn On Your Love Light, and 25 more) so ratings carry across
-  spellings.
+  Lovelight → Turn On Your Love Light, and 49 more, taken from the dry run's
+  add/remove pairs) so ratings carry across spellings.
+- **No backfill proposal from a weak tape**: partial, tracks-only, inferred
+  set breaks, or fewer than 80% of the songs the show has now. Reported
+  instead.
 - Interactive lookups stop optional reads at 6.5 s so they answer inside a
   function's window; a cut-short answer isn't cached.
 

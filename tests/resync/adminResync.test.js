@@ -297,6 +297,16 @@ test('archive: switched off, Grateful Dead shows are not walked at all', async (
   } finally { config.enabled = true; }
 });
 
+test('archive: no proposal from a partial, tracks-only or much shorter tape', () => {
+  const { proposalUnfit } = require(path.join(__dirname, '../../netlify/functions/admin-resync-setlists.js'));
+  const ok = { confidence: 'explicit-sets', partial: false };
+  assert.strictEqual(proposalUnfit(ok, { existingCount: 19, incomingCount: 18 }), '');
+  assert.match(proposalUnfit({ ...ok, partial: true }, { existingCount: 19, incomingCount: 19 }), /part of the show/);
+  assert.match(proposalUnfit({ ...ok, confidence: 'tracks-only' }, { existingCount: 19, incomingCount: 19 }), /no set breaks/);
+  assert.match(proposalUnfit(ok, { existingCount: 19, incomingCount: 6 }), /incomplete tape/, '1988-07-03: 6 songs against 19');
+  assert.strictEqual(proposalUnfit(ok, { existingCount: 0, incomingCount: 6 }), '', 'an empty setlist has nothing to compare with');
+});
+
 (async () => {
   let failed = 0;
   for (const { name, fn } of tests) {
