@@ -43,6 +43,13 @@ Ships in iOS 3.9.6 (`MARKETING_VERSION` 3.9.5 → 3.9.6; the build number is
 left to Xcode Cloud). Built as 5.47.4 / 3.9.4 on 2026-10-21 and renumbered
 when it merged after 5.47.5.
 
+**Also fixes a 5.47.5 regression:** with site data blocked (Chrome's "Block
+all site data"), the app showed "Application error" on load. The new
+setlist.fm cache sweep read `window.localStorage` outside its `try`
+(`lib/setlistfmLocalCache.js`); it is read inside it now, with a unit test
+for that case. Caught by the "loads with all site storage blocked" smoke
+test.
+
 **One Songfish adapter for every Songfish archive, starting with Goose.**
 elgoose.net runs on Songfish, and so do ttbase.net (Tedeschi Trucks Band),
 kglw.net (King Gizzard), thecarton.net (Eggy), go-set.net (Dogs in a Pile)
