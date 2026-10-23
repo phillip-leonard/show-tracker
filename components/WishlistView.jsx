@@ -38,6 +38,7 @@ import { normalizeSongTitle, parseDate, humanizeGapDuration } from '@/lib/utils'
 import { artistKeyFor, loadWishlist, addWishlistSong, removeWishlistSong, listWishlistedArtists } from '@/lib/wishlist';
 import { artistSlugFromName, songSlugFromTitle } from '@/lib/songIndex';
 import { forEachSongOncePerShow, songTitleKey } from '@/lib/songCounts';
+import { SetlistfmCredit } from '@/components/shows/SetlistfmAttribution';
 
 const ERROR_FLASH_MS = 5000;
 
@@ -525,6 +526,7 @@ export default function WishlistView() {
                 />
               ))}
             </ul>
+            <SetlistfmCredit label="Song catalog from setlist.fm" className="mt-3 text-[11px] text-muted" />
           </>
         )}
       </Card>

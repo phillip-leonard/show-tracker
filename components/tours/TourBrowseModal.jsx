@@ -43,6 +43,7 @@ import {
   buildExistingShowIndex,
   existingShowStatus,
 } from '@/lib/tourBrowse';
+import { SetlistfmCredit } from '@/components/shows/SetlistfmAttribution';
 
 // Selecting more nights than this at once is worth a word of warning
 // before it turns into that many sequential writes and setlist fetches.
@@ -401,6 +402,7 @@ export default function TourBrowseModal({
     // setlist yet parses to [] and is still added, flagged as pending.
     setlist: extractSongsFromSetlist({ sets: s.sets }),
     setlistfmId: s.setlistfmId,
+    setlistfmUrl: s.url || null,
     tour: s.tour || tour?.name || null,
   });
 
@@ -736,6 +738,10 @@ export default function TourBrowseModal({
               </>
             )}
           </>
+        )}
+
+        {(step === 'tour' || step === 'shows') && (
+          <SetlistfmCredit label="Tour and show data from setlist.fm" className="text-[11px] text-muted" />
         )}
       </div>
 

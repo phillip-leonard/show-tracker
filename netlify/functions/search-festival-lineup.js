@@ -38,6 +38,7 @@
 const https = require('https');
 const crypto = require('crypto');
 const { setlistfmKey, missingSetlistfmKey } = require('./lib/setlistfmKey');
+const { readFresh, writeEntry } = require('./lib/setlistCache');
 
 const CORS_HEADERS = { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' };
 
@@ -198,6 +199,7 @@ function toLineup(setlists, { from, to }) {
 
     byKey.set(key, {
       setlistfmId: sl.id,
+      url: sl.url || '',
       artist,
       artistMbid: sl.artist?.mbid || null,
       date,
@@ -265,18 +267,9 @@ exports.handler = async function handler(event) {
     .digest('hex');
   const db = getDb();
 
-  if (db) {
-    try {
-      const snap = await db.collection('setlistCache').doc(`festival_${cacheKey}`).get();
-      if (snap.exists) {
-        const cached = snap.data();
-        if ((cached.expiresAt?.toMillis?.() || 0) > Date.now()) {
-          return { statusCode: 200, headers: { ...CORS_HEADERS, 'X-Cache': 'HIT' }, body: cached.response };
-        }
-      }
-    } catch (e) {
-      console.warn('[CACHE] Read error:', e.message);
-    }
+  const cached = await readFresh(db, `festival_${cacheKey}`);
+  if (cached) {
+    return { statusCode: 200, headers: { ...CORS_HEADERS, 'X-Cache': 'HIT' }, body: cached.response };
   }
 
   try {
@@ -335,17 +328,11 @@ exports.handler = async function handler(event) {
     const results = toLineup(setlists, { from, to });
     const responseBody = JSON.stringify({ venues, results, total: results.length, strategy });
 
-    if (db) {
-      const { Timestamp } = require('firebase-admin/firestore');
-      db.collection('setlistCache').doc(`festival_${cacheKey}`).set({
-        response: responseBody,
-        fetchedAt: Timestamp.now(),
-        expiresAt: Timestamp.fromDate(new Date(Date.now() + CACHE_TTL_HOURS * 3600 * 1000)),
-        ttlHours: CACHE_TTL_HOURS,
-        queryParams: { name: name.toLowerCase().trim(), venueId, city: cityName, artist: artist.trim(), year: effectiveYear, from, to },
-        hitCount: 0,
-      }).catch(e => console.warn('[CACHE] Write error:', e.message));
-    }
+    writeEntry(db, `festival_${cacheKey}`, {
+      response: responseBody,
+      ttlHours: CACHE_TTL_HOURS,
+      queryParams: { name: name.toLowerCase().trim(), venueId, city: cityName, artist: artist.trim(), year: effectiveYear, from, to },
+    });
 
     return { statusCode: 200, headers: { ...CORS_HEADERS, 'X-Cache': 'MISS' }, body: responseBody };
   } catch (e) {

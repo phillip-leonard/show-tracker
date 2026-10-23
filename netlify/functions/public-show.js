@@ -18,8 +18,9 @@
 // lib/__tests__/popupManager.test.js re-implements logic inline instead
 // of importing its ES module target directly).
 
-const { escapeHtml, page, notFoundPage, CACHE_HEADERS, SITE_URL, isoDate, formatShowDate } = require('./lib/publicPageHtml');
+const { escapeHtml, page, notFoundPage, CACHE_HEADERS, USER_PAGE_ROBOTS, SITE_URL, isoDate, formatShowDate } = require('./lib/publicPageHtml');
 const { routeParams } = require('./lib/publicRouteParams');
+const { isSetlistfmShow, setlistfmUrlFor, attributionHtml } = require('./lib/setlistfmSetlist');
 
 function getDb() {
   const privateKey = (process.env.FIREBASE_PRIVATE_KEY || '').replace(/\\n/g, '\n');
@@ -138,6 +139,12 @@ exports.handler = async function (event) {
       </ul>
     `).join('') : '<p class="sub">No setlist logged.</p>';
 
+    // setlist.fm's credit, which its API terms require wherever its data is
+    // shown (lib/setlistfmSetlist.js).
+    const sourceHtml = isSetlistfmShow(show)
+      ? attributionHtml(await setlistfmUrlFor(db, show), show.artist)
+      : '';
+
     const title = `${show.artist} at ${show.venue} — ${formatDate(show.date)} — MySetlists`;
     const description = `Setlist for ${show.artist} at ${show.venue}${show.city ? `, ${show.city}` : ''} on ${formatDate(show.date)}, logged by ${displayName} on MySetlists.`;
 
@@ -164,6 +171,7 @@ exports.handler = async function (event) {
       ${show.rating ? `<div class="stats"><div class="stat"><div class="n">${show.rating}/10</div><div class="l">Rating</div></div></div>` : ''}
       ${taggedHtml}
       ${setlistHtml}
+      ${sourceHtml}
       <div class="cta">
         <p style="margin:0 0 10px;">See ${escapeHtml(displayName)}'s full show history, or track your own.</p>
         <a href="${SITE_URL}/u/${handleLower}/">View full profile</a>
@@ -172,8 +180,8 @@ exports.handler = async function (event) {
 
     return {
       statusCode: 200,
-      headers: { 'Content-Type': 'text/html; charset=utf-8', ...CACHE_HEADERS },
-      body: page({ title, description, canonicalPath: `/u/${handleLower}/shows/${showId}/`, jsonLd, bodyHtml }),
+      headers: { 'Content-Type': 'text/html; charset=utf-8', ...CACHE_HEADERS, 'X-Robots-Tag': USER_PAGE_ROBOTS },
+      body: page({ title, description, canonicalPath: `/u/${handleLower}/shows/${showId}/`, jsonLd, bodyHtml, robots: USER_PAGE_ROBOTS }),
     };
   } catch (err) {
     console.error('public-show error:', err);

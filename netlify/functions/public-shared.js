@@ -15,6 +15,7 @@
 
 const { escapeHtml, page, notFoundPage, CACHE_HEADERS, SITE_URL } = require('./lib/publicPageHtml');
 const { routeParams } = require('./lib/publicRouteParams');
+const { creditHtml } = require('./lib/setlistfmSetlist');
 
 function getDb() {
   const privateKey = (process.env.FIREBASE_PRIVATE_KEY || '').replace(/\\n/g, '\n');
@@ -80,6 +81,7 @@ exports.handler = async function (event) {
         ${stats.avgRating ? `<div class="stat"><div class="n">${stats.avgRating}</div><div class="l">Avg Rating</div></div>` : ''}
       </div>
       ${showRows || '<p class="sub">No shows in this collection.</p>'}
+      ${(stats.totalSongs || 0) > 0 ? creditHtml('Setlist data from setlist.fm') : ''}
       <div class="cta">
         <p style="margin:0 0 10px;">Track your own concert history on MySetlists.</p>
         <a href="${SITE_URL}/">Get started free</a>

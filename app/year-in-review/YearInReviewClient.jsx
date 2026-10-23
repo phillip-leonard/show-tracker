@@ -7,8 +7,9 @@ import { useApp } from '@/context/AppContext';
 import { PageHeader, Button, Card, StatTile } from '@/components/ui';
 import ShareYearInReview from '@/components/yearInReview/ShareYearInReview';
 import {
-  computeYearInReview, saveYearInReview, getYearInReview, setYearInReviewPrivacy,
+  computeYearInReview, showYear, saveYearInReview, getYearInReview, setYearInReviewPrivacy,
 } from '@/lib/yearInReview';
+import { SetlistfmCredit, SetlistfmCreditFor } from '@/components/shows/SetlistfmAttribution';
 import { yearInReviewHref } from '@/lib/showRouting';
 
 export default function YearInReviewClient({ userId, year }) {
@@ -168,6 +169,13 @@ export default function YearInReviewClient({ userId, year }) {
           <ShareYearInReview stats={stats} shareUrl={shareUrl} userName={user?.displayName} />
         </div>
       )}
+
+      {/* The song numbers above come from setlists, most of them setlist.fm's.
+          A visitor sees only the saved stats, not the shows behind them, so
+          they always get the credit. */}
+      {isOwner
+        ? <SetlistfmCreditFor shows={shows.filter((s) => showYear(s) === Number(year))} className="mt-6 text-[11px] text-muted text-center" />
+        : <SetlistfmCredit className="mt-6 text-[11px] text-muted text-center" />}
     </div>
   );
 }

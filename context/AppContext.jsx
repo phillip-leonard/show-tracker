@@ -45,6 +45,7 @@ import { saveDisplayName } from '@/lib/handles';
 import { buildSongStats } from '@/lib/songCounts';
 import { applyShowFilters, availableYearsFor } from '@/lib/showFilters';
 import { sendEmailIfAllowed } from '@/lib/email';
+import { sweepExpiredSetlistfmCaches } from '@/lib/setlistfmLocalCache';
 import {
   inviteEmail,
   friendJoinedEmail,
@@ -652,6 +653,12 @@ export function AppProvider({ children }) {
       setFriendsInitialTab(null);
     }
   }, [activeView]);
+
+  // setlist.fm responses cached on this device expire after 24 hours; drop
+  // the expired ones nobody has read since (lib/setlistfmLocalCache.js).
+  useEffect(() => {
+    sweepExpiredSetlistfmCaches();
+  }, []);
 
   // Listen for community stats (for login page)
   useEffect(() => {
@@ -1917,7 +1924,7 @@ export function AppProvider({ children }) {
             // written before this release has no such field, and
             // backfilling millions of them to say what the default already
             // says would be pointless churn.
-            const updates = { setlist: songs, setlistfmId: match.id, isManual: false, setlistSource: 'setlistfm' };
+            const updates = { setlist: songs, setlistfmId: match.id, setlistfmUrl: match.url || null, isManual: false, setlistSource: 'setlistfm' };
             if (match.tour) updates.tour = match.tour.name;
             await updateShowData(show.id, updates);
             found++;
@@ -2700,6 +2707,7 @@ export function AppProvider({ children }) {
     city: show.city || '',
     tour: show.tour || '',
     setlistfmId: show.setlistfmId || null,
+    setlistfmUrl: show.setlistfmUrl || null,
     isManual: show.isManual || false,
     setlist: (show.setlist || []).map(song => ({
       id: song.id,

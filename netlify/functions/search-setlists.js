@@ -1,6 +1,7 @@
 const https = require('https');
 const crypto = require('crypto');
 const { setlistfmKey, missingSetlistfmKey } = require('./lib/setlistfmKey');
+const { readFresh, writeEntry } = require('./lib/setlistCache');
 
 const CORS_HEADERS = { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' };
 
@@ -38,6 +39,9 @@ function buildCacheKey(artistName, artistMbid, year, venueName, cityName, page) 
 }
 
 // Returns TTL in hours based on the dates of shows in the result set.
+// lib/setlistCache.js holds every entry to 24 hours at most (setlist.fm's
+// terms allow caching "for short periods"); results with an upcoming or
+// recent show expire sooner, since those are the setlists still changing.
 function determineTtlHours(setlists) {
   if (!setlists || setlists.length === 0) return 1;
   const now = new Date();
@@ -54,8 +58,7 @@ function determineTtlHours(setlists) {
   const newest = new Date(Math.max(...dates.map(d => d.getTime())));
   const monthsAgo = (now - newest) / (1000 * 60 * 60 * 24 * 30);
   if (monthsAgo < 6) return 6;
-  if (monthsAgo < 24) return 24;
-  return 168; // 7 days for older shows
+  return 24;
 }
 
 // --- Setlist.fm API call (promisified) ---
@@ -123,29 +126,13 @@ exports.handler = async function(event) {
     : (artistName || `venue:${venueName || ''} city:${cityName || ''}`);
   const cacheKey = buildCacheKey(artistName, artistMbid, year, venueName, cityName, p);
   const db = getDb();
-  let staleDoc = null;
 
-  // 1. Check cache
-  if (db) {
-    try {
-      const snap = await db.collection('setlistCache').doc(cacheKey).get();
-      if (snap.exists) {
-        const cached = snap.data();
-        const expired = (cached.expiresAt?.toMillis?.() || 0) < Date.now();
-        if (!expired) {
-          const newHits = (cached.hitCount || 0) + 1;
-          console.log(`[CACHE HIT]  ${artistLabel} p${p || 1} — hits: ${newHits}, ttl: ${cached.ttlHours}h`);
-          snap.ref.update({ hitCount: newHits }).catch(() => {});
-          return { statusCode: 200, headers: { ...CORS_HEADERS, 'X-Cache': 'HIT' }, body: cached.response };
-        }
-        console.log(`[CACHE EXPIRED] ${artistLabel} p${p || 1}`);
-        staleDoc = cached; // hold onto stale data for API failure fallback
-      } else {
-        console.log(`[CACHE MISS] ${artistLabel} p${p || 1}`);
-      }
-    } catch (e) {
-      console.warn('[CACHE] Read error:', e.message);
-    }
+  // 1. Check cache. An expired entry is a miss, never a fallback: see
+  // lib/setlistCache.js.
+  const cached = await readFresh(db, cacheKey);
+  if (cached) {
+    console.log(`[CACHE HIT]  ${artistLabel} p${p || 1} — ttl: ${cached.ttlHours}h`);
+    return { statusCode: 200, headers: { ...CORS_HEADERS, 'X-Cache': 'HIT' }, body: cached.response };
   }
 
   // 2. Fetch from Setlist.fm
@@ -154,13 +141,10 @@ exports.handler = async function(event) {
     const responseBody = JSON.stringify(data);
 
     // 3. Write to cache on success
-    if (db && statusCode === 200 && data.setlist) {
+    if (statusCode === 200 && data.setlist) {
       const ttlHours = determineTtlHours(data.setlist);
-      const { Timestamp } = require('firebase-admin/firestore');
-      db.collection('setlistCache').doc(cacheKey).set({
+      writeEntry(db, cacheKey, {
         response: responseBody,
-        fetchedAt: Timestamp.now(),
-        expiresAt: Timestamp.fromDate(new Date(Date.now() + ttlHours * 3600 * 1000)),
         ttlHours,
         queryParams: {
           artistName: artistMbid ? '' : (artistName || '').toLowerCase().trim(),
@@ -170,22 +154,11 @@ exports.handler = async function(event) {
           cityName: cityName || '',
           page: p || '1',
         },
-        hitCount: 0,
-      }).then(() => {
-        console.log(`[CACHE WRITE] ${artistLabel} p${p || 1} → TTL: ${ttlHours}h`);
-      }).catch(e => {
-        console.warn('[CACHE] Write error:', e.message);
-      });
+      }).then(() => console.log(`[CACHE WRITE] ${artistLabel} p${p || 1} → TTL: ${ttlHours}h`));
     }
 
     return { statusCode, headers: { ...CORS_HEADERS, 'X-Cache': 'MISS' }, body: responseBody };
   } catch (e) {
-    // 4. API failure — serve stale cache if available
-    if (staleDoc) {
-      const ageHours = Math.round((Date.now() - (staleDoc.fetchedAt?.toMillis?.() || 0)) / 3600000);
-      console.log(`[CACHE STALE] ${artistLabel} p${p || 1} — API down, serving stale (age: ${ageHours}h)`);
-      return { statusCode: 200, headers: { ...CORS_HEADERS, 'X-Cache': 'STALE' }, body: staleDoc.response };
-    }
-    return { statusCode: 500, headers: CORS_HEADERS, body: JSON.stringify({ error: 'Request failed', details: e.message }) };
+    return { statusCode: 502, headers: CORS_HEADERS, body: JSON.stringify({ error: 'upstream_error', message: "Couldn't reach setlist.fm. Try again in a moment.", details: e.message }) };
   }
 };

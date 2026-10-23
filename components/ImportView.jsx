@@ -321,6 +321,7 @@ function ImportView({ onImport, onUpdateShow, existingShows, onNavigate }) {
       return {
         setlist: songs,
         setlistfmId: match.id,
+        setlistfmUrl: match.url || null,
         tour: match.tour ? match.tour.name : null,
         setlistSource: 'setlistfm',
       };
@@ -389,6 +390,7 @@ function ImportView({ onImport, onUpdateShow, existingShows, onNavigate }) {
             const updates = {
               setlist: result.setlist,
               setlistfmId: result.setlistfmId,
+              ...(result.setlistfmUrl && { setlistfmUrl: result.setlistfmUrl }),
               isManual: false,
               setlistSource: result.setlistSource || 'setlistfm',
             };

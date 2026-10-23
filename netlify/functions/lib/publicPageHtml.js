@@ -106,6 +106,14 @@ function notFoundPage(message) {
 // API token wired up for a real on-demand purge.
 const CACHE_HEADERS = { 'Cache-Control': 'public, max-age=60, s-maxage=60' };
 
+// Robots policy for a user's own pages, /u/<handle>/ and its show pages
+// (5.47.5): kept out of search results, but links on them are followed —
+// setlist.fm's API terms forbid anything that discourages search engines
+// from following the attribution links to setlist.fm. Sent both as a
+// header and a meta tag, because public/_headers rules do not reach
+// function responses (checked in production: /u/ pages carried neither).
+const USER_PAGE_ROBOTS = 'noindex, follow';
+
 // Show dates aren't stored in one format: most add paths save YYYY-MM-DD,
 // but ticket-scanner shows carry setlist.fm's DD-MM-YYYY verbatim (see
 // toIsoDate in lib/utils.js, which this mirrors — that file is an ES
@@ -127,4 +135,4 @@ function formatShowDate(dateStr, month = 'short') {
   return new Date(y, m - 1, d).toLocaleDateString('en-US', { month, day: 'numeric', year: 'numeric' });
 }
 
-module.exports = { SITE_URL, escapeHtml, page, notFoundPage, CACHE_HEADERS, isoDate, formatShowDate };
+module.exports = { SITE_URL, escapeHtml, page, notFoundPage, CACHE_HEADERS, USER_PAGE_ROBOTS, isoDate, formatShowDate };

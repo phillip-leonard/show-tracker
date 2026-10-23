@@ -165,6 +165,7 @@ exports.handler = async function (event) {
 
     let songs = [];
     let setlistfmId = null;
+    let setlistfmUrl = null;
     let tour = null;
     let populatedFrom = 'admin-tool';
 
@@ -172,6 +173,7 @@ exports.handler = async function (event) {
       // Direct setlist data provided
       songs = setlistData.songs;
       setlistfmId = setlistData.setlistfmId || null;
+      setlistfmUrl = setlistData.setlistfmUrl || null;
       tour = setlistData.tour || null;
       populatedFrom = setlistData.populatedFrom || 'admin-tool';
     } else if (source === 'cross_reference' && donorUserId && donorShowId) {
@@ -184,6 +186,7 @@ exports.handler = async function (event) {
       const donorData = donorSnap.data();
       songs = donorData.setlist;
       setlistfmId = donorData.setlistfmId || null;
+      setlistfmUrl = donorData.setlistfmUrl || null;
       tour = donorData.tour || null;
       populatedFrom = 'admin-cross-reference';
     } else if (source === 'setlist_fm') {
@@ -226,6 +229,7 @@ exports.handler = async function (event) {
 
       songs = extractSongs(match);
       setlistfmId = match.id;
+      setlistfmUrl = match.url || null;
       tour = match.tour ? match.tour.name : null;
       populatedFrom = 'admin-setlist-fm';
     } else {
@@ -244,6 +248,7 @@ exports.handler = async function (event) {
       populatedFrom,
     };
     if (setlistfmId) updates.setlistfmId = setlistfmId;
+    if (setlistfmUrl) updates.setlistfmUrl = setlistfmUrl;
     if (tour) updates.tour = tour;
 
     await showRef.update(updates);

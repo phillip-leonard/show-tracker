@@ -27,6 +27,7 @@
 import { useMemo, useState } from 'react';
 import { Search, Check, AlertCircle, Music, MapPin, CalendarDays } from 'lucide-react';
 import { Modal, Button, Input, Spinner, Badge } from '@/components/ui';
+import { SetlistfmCredit } from '@/components/shows/SetlistfmAttribution';
 import { useApp } from '@/context/AppContext';
 import { apiUrl } from '@/lib/api';
 import { formatDate } from '@/lib/utils';
@@ -137,6 +138,7 @@ export default function FestivalLineupModal({ open, onClose, festival, onImport 
           date: r.date,
           setlist: extractSongsFromSetlist({ sets: r.sets }),
           setlistfmId: r.setlistfmId,
+          setlistfmUrl: r.url || null,
           tour: r.tour || null,
         }));
       const result = await onImport(candidates, { force });
@@ -302,6 +304,7 @@ export default function FestivalLineupModal({ open, onClose, festival, onImport 
                 </label>
               ))}
             </div>
+            <SetlistfmCredit label="Lineup and setlist data from setlist.fm" className="text-[11px] text-muted" />
           </>
         )}
       </div>

@@ -5,6 +5,7 @@ import { Music, Calendar, MapPin, ChevronLeft, ChevronDown, MessageSquare, Refre
 import { formatDate, parseDate, artistColor, normalizeSongTitle } from '@/lib/utils';
 import { attachSetBoundaryLabels } from '@/lib/setlistGrouping';
 import SetlistEditor from '@/components/SetlistEditor';
+import SetlistfmAttribution from '@/components/shows/SetlistfmAttribution';
 import PlaylistCreatorModal from '@/components/PlaylistCreatorModal';
 import { PLAYLIST_CREATION_ENABLED } from '@/lib/constants';
 import SongHistoryModal from '@/components/SongHistoryModal';
@@ -207,6 +208,7 @@ function ShowsTogetherView({ friend, getShowsTogether, onBack, onSelectShow, onA
                                 );
                               })}
                             </div>
+                            <SetlistfmAttribution show={show} />
                           </div>
                         )}
 

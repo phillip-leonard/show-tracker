@@ -284,6 +284,7 @@ exports.handler = async function (event) {
                 matchData = {
                   songs,
                   setlistfmId: sfmMatch.id,
+                  setlistfmUrl: sfmMatch.url || null,
                   tour: sfmMatch.tour ? sfmMatch.tour.name : null,
                 };
                 matchesFoundFromSetlistFm++;
@@ -323,6 +324,7 @@ exports.handler = async function (event) {
             populatedFrom: 'admin-setlist-fm',
           };
           if (matchData.setlistfmId) updates.setlistfmId = matchData.setlistfmId;
+          if (matchData.setlistfmUrl) updates.setlistfmUrl = matchData.setlistfmUrl;
           if (matchData.tour) updates.tour = matchData.tour;
 
           await db.collection('users').doc(ms.userId).collection('shows').doc(ms.showId).update(updates);

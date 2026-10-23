@@ -10,6 +10,7 @@ import StatsSubNav from '@/components/stats/StatsSubNav';
 import { useStatsPeriod } from '@/lib/useStatsPeriod';
 import ShowFilters from '@/components/shows/ShowFilters';
 import useShowFilters from '@/hooks/useShowFilters';
+import { SetlistfmCreditFor } from '@/components/shows/SetlistfmAttribution';
 
 export default function StatsPage() {
   const {
@@ -154,6 +155,9 @@ export default function StatsPage() {
           </Card>
         </>
       )}
+
+      {/* Song counts here are built from setlists, most of them setlist.fm's. */}
+      <SetlistfmCreditFor shows={filteredShows} className="mt-2 text-[11px] text-muted" />
     </>
   );
 }
