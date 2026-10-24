@@ -22,6 +22,7 @@
 
 const { sendNotificationEmail } = require('./lib/outgoingEmail');
 const { FOOTER_MARKER } = require('./lib/emailLayout');
+const { utcIsoDate, anniversaryYearsAgo } = require('./lib/anniversaryMatch');
 
 function initFirebase() {
   const { getApps, initializeApp, cert } = require('firebase-admin/app');
@@ -95,27 +96,22 @@ function normalizeShowKey(show) {
   return show.setlistfmId || `${norm(show.artist)}|${norm(show.venue)}|${norm(show.date)}`;
 }
 
-function monthDay(dateStr) {
-  return (dateStr || '').slice(5, 10); // "MM-DD"
-}
-
 exports.handler = async function () {
   initFirebase();
   const { getFirestore, FieldValue } = require('firebase-admin/firestore');
   const db = getFirestore();
 
-  const todayISO = new Date().toISOString().slice(0, 10);
-  const todayMonthDay = monthDay(todayISO);
+  // UTC on purpose; see lib/anniversaryMatch.js for why that is right at
+  // this job's hour.
+  const todayISO = utcIsoDate();
   const currentYear = Number(todayISO.slice(0, 4));
 
   const showsSnap = await db.collectionGroup('shows').get();
   const matches = [];
   showsSnap.forEach((docSnap) => {
     const show = docSnap.data();
-    if (!show.date || monthDay(show.date) !== todayMonthDay) return;
-    const showYear = Number(show.date.slice(0, 4));
-    const yearsAgo = currentYear - showYear;
-    if (!Number.isFinite(yearsAgo) || yearsAgo <= 0) return;
+    const yearsAgo = anniversaryYearsAgo(show.date, todayISO);
+    if (!yearsAgo) return;
     const uid = docSnap.ref.parent.parent?.id;
     if (!uid) return;
     matches.push({ uid, showId: docSnap.id, show, yearsAgo });
