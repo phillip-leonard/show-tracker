@@ -354,15 +354,28 @@ function createHeardApp(Heard, boot) {
     return `<a href="${esc(songHref(s))}">${esc(s.name)}</a>${s.isOriginal === false ? '<span class="tag">Cover</span>' : ''}`;
   }
 
+  // In "your shows" mode the address bar says ?mine=1, which opens a
+  // sign-in prompt for anyone else. The browser's own Share and Copy Link
+  // (Safari's and Chrome's on a phone) take the canonical link when there
+  // is one, so point it at this record's /r/ link while there is a record.
+  // The page is noindex in this mode, and a crawler never gets here.
+  const canonical = document.querySelector('link[rel="canonical"]');
+  const toolCanonical = canonical ? canonical.href : '';
+  function pointCanonical(record) {
+    if (!canonical || !mine) return;
+    canonical.href = (record.shows && linkNow()) || toolCanonical;
+  }
+
   function render() {
     applyFilters();
     yearCounts();
     const record = Heard.buildRecord(data, selected);
+    pointCanonical(record);
     const results = document.getElementById('h-results');
     const pickerOpen = !document.getElementById('h-picker').hidden;
     if (dock) {
       dock.hidden = !record.shows || !pickerOpen;
-      dock.innerHTML = record.shows ? `<span><b>${plural(record.shows, 'show')}</b> · ${plural(record.totalSongs, 'song')} heard</span><a class="btn" href="#h-results">See your record</a>` : '';
+      dock.innerHTML = record.shows ? `<span><b>${plural(record.shows, 'show')}</b> · ${plural(record.uniqueSongs, 'song')} heard</span><a class="btn" href="#h-results">See your record</a>` : '';
     }
     if (!record.shows) {
       results.innerHTML = `<div class="h-panel"><h2>Your ${esc(data.name)} record</h2>${mineLine(record)}<p class="h-empty">Tick the shows you were at and your record appears here: every song you've heard, your top songs, rarest catches and bust-outs.</p></div>`;
@@ -389,6 +402,7 @@ function createHeardApp(Heard, boot) {
         <div class="h-actions">
           <button type="button" class="btn" data-act="poster">Make my poster</button>
           <button type="button" class="btn btn-secondary" data-act="share">Share link</button>
+          <button type="button" class="btn btn-secondary" data-act="copy">Copy link</button>
         </div>
         <div id="h-poster"></div>
         <div id="h-share" class="h-share"></div>
@@ -446,7 +460,8 @@ function createHeardApp(Heard, boot) {
     else if (what === 'reset') resetToMine();
     else if (what === 'add-nearest') { setTicked(act.getAttribute('data-id'), true); edited(); update(); }
     else if (what === 'poster') makePoster(act);
-    else if (what === 'share') shareLink(act);
+    else if (what === 'share') shareLink(act, false);
+    else if (what === 'copy') shareLink(act, true);
     else if (what === 'save') saveToAccount(act);
     else if (what === 'download') download(act.getAttribute('data-kind'));
     else if (what === 'share-image') shareImage(act.getAttribute('data-kind'));
@@ -485,20 +500,37 @@ function createHeardApp(Heard, boot) {
   const shareUrl = (code) => `${location.origin}${boot.toolPath}r/${code}/`;
   const imageUrl = (code, kind) => `${shareUrl(code)}poster-${kind}.png`;
 
-  async function shareLink(btn) {
+  // The /r/ link for the current selection, without waiting when it can:
+  // an inline code, or a long one already stored. Copy link and Share use
+  // it inside the tap, since Safari refuses the clipboard and the share
+  // sheet once an await has gone by; null means shareCode() must store it.
+  function linkNow() {
+    const code = Heard.encodeSelection(data, [...selected]);
+    if (code.length <= MAX_INLINE_CODE) return shareUrl(code);
+    return stored.code === code ? shareUrl(stored.id) : null;
+  }
+
+  // Share link and Copy link: the same /r/ link, however the selection was
+  // made (ticked, imported from setlist.fm, or the user's logged shows).
+  // Share opens the share sheet on a phone and copies elsewhere.
+  async function shareLink(btn, copyOnly) {
     const box = document.getElementById('h-share');
     btn.disabled = true;
     try {
-      const url = shareUrl(await shareCode());
+      const ready = linkNow();
+      const title = Heard.headline(data.name, Heard.buildRecord(data, selected));
+      const sheet = !copyOnly && navigator.share && /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
+      let said = 'Copy the link above to share your record.';
+      let done = null;
+      if (ready && sheet) done = navigator.share({ title, url: ready }).then(() => '', () => said);
+      else if (ready && navigator.clipboard) done = navigator.clipboard.writeText(ready).then(() => 'Link copied.', () => said);
+      const url = ready || shareUrl(await shareCode());
       box.innerHTML = `<input type="text" readonly value="${esc(url)}" aria-label="Share link"><p class="h-msg" id="h-share-msg"></p>`;
       const input = box.querySelector('input');
       input.addEventListener('focus', () => input.select());
-      let said = 'Copy the link above to share your record.';
-      if (navigator.share && /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) {
-        try { await navigator.share({ title: Heard.headline(data.name, Heard.buildRecord(data, selected)), url }); said = ''; } catch (e) { /* cancelled */ }
-      } else if (navigator.clipboard) {
-        try { await navigator.clipboard.writeText(url); said = 'Link copied.'; } catch (e) { /* select it instead */ }
-      }
+      if (!done && sheet) done = navigator.share({ title, url }).then(() => '', () => said);
+      else if (!done && navigator.clipboard) done = navigator.clipboard.writeText(url).then(() => 'Link copied.', () => said);
+      if (done) said = await done;
       document.getElementById('h-share-msg').textContent = said;
     } catch (e) {
       box.innerHTML = '<p class="h-msg err">Couldn\'t make a link just now. Please try again.</p>';
@@ -564,8 +596,12 @@ function createHeardApp(Heard, boot) {
     const blob = blobs[kind];
     if (!blob) return;
     const file = new File([blob], fileName(kind), { type: 'image/png' });
-    const record = Heard.buildRecord(data, selected);
-    navigator.share({ files: [file], title: Heard.headline(data.name, record), text: `${Heard.headline(data.name, record)} · mysetlists.net/heard` })
+    const title = Heard.headline(data.name, Heard.buildRecord(data, selected));
+    // The record's own /r/ link in the text, not the page's address. In
+    // the text rather than as `url`, so the sheet still treats it as an
+    // image share; the posters' code is always stored or inline by now.
+    const link = linkNow();
+    navigator.share({ files: [file], title, text: link ? `${title} ${link}` : `${title} · mysetlists.net/heard` })
       .catch((e) => { if (!e || e.name !== 'AbortError') download(kind); });
   }
 
