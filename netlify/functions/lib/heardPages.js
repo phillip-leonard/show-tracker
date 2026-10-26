@@ -10,7 +10,8 @@
 //                             here, with a preview image
 //
 // The tool itself runs in the browser: heardRecord.js's createHeard and
-// heardClient.js's createHeardApp are inlined into the page, and the show
+// heardClient.js's createHeardApp are inlined into the page (with
+// heardImportPaging.js's createImportPaging for the setlist.fm import), and the show
 // list comes from /api/artist-shows. The HTML around it is real content
 // (what the tool does, the band's most played songs, where the data comes
 // from) so a crawler sees a page, not a spinner.
@@ -22,6 +23,7 @@ const { availability, cacheHeaders } = require('./publicArtistSnapshot');
 const { unavailablePage, bandPath, songPath } = require('./publicArtistPages');
 const heard = require('./heardRecord');
 const { createHeardApp } = require('./heardClient');
+const { createImportPaging } = require('./heardImportPaging');
 
 const HTML = { 'Content-Type': 'text/html; charset=utf-8' };
 
@@ -242,7 +244,8 @@ function toolScript(shows) {
   return `<script>
 (function () {
   var Heard = (${heard.createHeard.toString()})();
-  (${createHeardApp.toString()})(Heard, ${scriptJson(bootData(shows))});
+  var Paging = (${createImportPaging.toString()})();
+  (${createHeardApp.toString()})(Heard, ${scriptJson(bootData(shows))}, Paging);
 })();
 </script>`;
 }

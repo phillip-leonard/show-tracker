@@ -4,6 +4,55 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.47.16] — 2026-10-26
+
+Ships in iOS 3.9.16 (`MARKETING_VERSION` 3.9.15 → 3.9.16; the build number is
+left to Xcode Cloud). Web only in practice: `/heard` is not in the app bundle.
+
+**setlist.fm import on `/heard` reads every page, however many shows.** The
+import read the whole attended list in one function call, and a function
+stops at 10 seconds, so a large account was cut off: a real account with 231
+attended shows stopped a page short.
+
+- **One page per call.** `heard-import.js` takes `?page=` and returns that
+  page's band nights, each matched to an archive show or not
+  (`lib/heardImport.js` `matchNights`), with `total`, `pages` and the page's
+  setlist count. A page past the end is an empty page, not an unknown user.
+- **The browser pages through** (`lib/heardImportPaging.js`, inlined into the
+  page like `createHeard`): page 1, then the rest one after another, at
+  least 500 ms apart (about 2 a second). Progress reads "Importing… 120 of
+  231 shows checked · 9 Goose shows found", with Cancel, which keeps and
+  ticks what was found so far.
+- **Retries.** A failed page is asked for twice more (1 s, then 2 s). A 429
+  waits for setlist.fm's Retry-After (passed through) and retries, up to 5
+  times, without using up those two. A page that still fails is skipped,
+  the rest are read, and the result says how many pages were missed.
+- **Result** as before, in the new words: "Found 14 Goose shows on
+  setlist.fm; 13 matched elgoose.net", unmatched shows listed.
+- **Cache.** Each attended page is cached for 1 hour in `setlistCache`
+  (within the 24-hour rule, `lib/setlistCache.js`), keyed by username and
+  page and shared by the four bands, holding only artist mbid, date, venue
+  and city.
+- The signed-in "Edit selection" picker uses the same form and flow.
+
+## [5.47.15] — 2026-10-26
+
+Ships in iOS 3.9.15 (`MARKETING_VERSION` 3.9.14 → 3.9.15; the build number is
+left to Xcode Cloud).
+
+**Developer guide only; no app or site changes.**
+
+- **CLAUDE.md: a change to the band-page snapshot needs a forced run after
+  it deploys.** The snapshot job only rebuilds bands that are due, by age or
+  by `SCHEMA_VERSION`. After 5.47.13 (which added `overdueOriginals` and
+  `notPlayedSince` without a version bump), a plain re-run reported every
+  band "fresh" and wrote nothing. Production went without the overdue / not
+  played in 5+ years split until
+  `node scripts/run-artist-snapshot.js --force`. The note says when to force
+  a run and when to bump `SCHEMA_VERSION` instead (a bump also refetches
+  every band's full history). It also covers the hour-long CDN cache on
+  `/api/artist` and the band pages.
+
 ## [5.47.14] — 2026-10-26
 
 Ships in iOS 3.9.14 (`MARKETING_VERSION` 3.9.13 → 3.9.14; the build number is
