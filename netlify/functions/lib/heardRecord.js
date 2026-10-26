@@ -39,9 +39,11 @@
 //
 // The band pages' rules, so a number here means what it means there:
 // a song played twice in one show (a reprise, a sandwich) is heard once at
-// that show; "songs heard" counts every performance; a bust-out is a
-// performance after a gap of BUST_OUT_MIN_GAP or more shows, the gap
-// counting the show it came back at; and Jam, Drums, Space and the other
+// that show; "songs heard" counts distinct songs and "performances" every
+// play (the share page, its preview image and the posters show both, and
+// the headline uses songs); a bust-out is a performance after a gap of
+// BUST_OUT_MIN_GAP or more shows, the gap counting the show it came back
+// at; and Jam, Drums, Space and the other
 // non-songs (NON_SONG, the same list as artistSnapshotStats.js) stay in
 // "every song" but are left out of the top songs, rarest catches,
 // bust-outs, debuts and songs to chase.
@@ -362,9 +364,12 @@ function createHeard() {
     return data.sourceName ? `Setlists courtesy of ${data.sourceName}` : '';
   }
 
-  /** "A Goose record: 42 shows, 211 songs heard" (no names, ever). */
+  /**
+   * "A Goose record: 42 shows, 118 songs heard" (no names, ever): distinct
+   * songs, the "Songs" stat and "Every song heard (118)", not performances.
+   */
   function headline(bandName, record) {
-    return `A ${bandName} record: ${plural(record.shows, 'show')}, ${plural(record.totalSongs, 'song')} heard`;
+    return `A ${bandName} record: ${plural(record.shows, 'show')}, ${plural(record.uniqueSongs, 'song')} heard`;
   }
 
   // ── The poster ──────────────────────────────────────────────────────
