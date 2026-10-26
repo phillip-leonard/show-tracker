@@ -51,6 +51,8 @@ module.exports = {
         'header': 'calc(var(--mobile-header-h) + var(--safe-top))',
         // Keyboard height, so a sticky control can ride above it.
         'keyboard': 'var(--keyboard-height)',
+        // The fixed sidebar, left inset included (w-sidebar, md:left-sidebar).
+        'sidebar': 'var(--sidebar-w)',
       },
       minHeight: {
         // 44x44pt is the minimum comfortable touch target.

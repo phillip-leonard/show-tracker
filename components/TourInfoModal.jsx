@@ -177,8 +177,8 @@ export default function TourInfoModal({ artistName, mbid, onClose }) {
   const isLoading = tab === 'songs' ? songLoading : loading;
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[70] p-4" onClick={onClose}>
-      <Card variant="elevated" padding="none" className="max-w-lg w-full max-h-[85vh] overflow-hidden flex flex-col shadow-2xl" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[70] p-safe-gutter" onClick={onClose}>
+      <Card variant="elevated" padding="none" className="max-w-lg w-full max-h-[min(85dvh,100%)] overflow-hidden flex flex-col shadow-2xl" onClick={e => e.stopPropagation()}>
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-subtle">
           <div>

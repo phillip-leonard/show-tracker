@@ -1735,8 +1735,8 @@ function AdminView() {
 
               {/* Bulk Reset Confirmation Dialog */}
               {bulkResetConfirm && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-                  <div className="bg-base border border-subtle rounded-2xl p-6 max-w-md w-full max-h-[90vh] overflow-y-auto shadow-xl space-y-4">
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-safe-gutter">
+                  <div className="bg-base border border-subtle rounded-2xl p-6 max-w-md w-full max-h-[min(90dvh,100%)] overflow-y-auto shadow-xl space-y-4">
                     <div className="flex items-center gap-2 text-danger">
                       <AlertTriangle className="w-5 h-5" />
                       <span className="text-lg font-bold">Confirm Bulk Delete</span>
@@ -3216,8 +3216,8 @@ function AdminView() {
 
       {/* Delete User Confirmation Dialog */}
       {deleteConfirmUser && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[80] flex items-center justify-center p-4">
-          <div className="bg-elevated border border-danger/30 rounded-2xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto shadow-2xl shadow-danger/10">
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[80] flex items-center justify-center p-safe-gutter">
+          <div className="bg-elevated border border-danger/30 rounded-2xl w-full max-w-md p-6 max-h-[min(90dvh,100%)] overflow-y-auto shadow-2xl shadow-danger/10">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 bg-danger/20 rounded-xl flex items-center justify-center flex-shrink-0">
                 <Trash2 className="w-5 h-5 text-danger" />

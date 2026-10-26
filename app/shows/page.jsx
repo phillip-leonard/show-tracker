@@ -23,6 +23,8 @@ import YearInReviewCard from '@/components/yearInReview/YearInReviewCard';
 import ReliveThisNightCard from '@/components/shows/ReliveThisNightCard';
 import { reliveShowFor } from '@/lib/reliveThisNight';
 import ShowDetailView from '@/components/shows/ShowDetailView';
+import ShowsSplitList from '@/components/shows/ShowsSplitList';
+import useSplitView from '@/hooks/useSplitView';
 import ArchiveBackfillCard from '@/components/shows/ArchiveBackfillCard';
 import ArchiveProposalReview from '@/components/shows/ArchiveProposalReview';
 import VenueShowsView from '@/components/shows/VenueShowsView';
@@ -134,6 +136,10 @@ export default function ShowsPage() {
     detailShowId ? shows.find(s => s.id === detailShowId) : null,
     [shows, detailShowId]
   );
+
+  // Native app with a wide content column (iPhone Duo open): the open show
+  // sits beside a list of the others. See hooks/useSplitView.js.
+  const splitView = useSplitView();
 
   // Arriving from BucketListView's "Mark Attended" — open the manual add
   // form pre-filled with the saved show, and clear the prefill so it
@@ -299,35 +305,55 @@ export default function ShowsPage() {
       );
     }
 
+    const detailView = (
+      <ShowDetailView
+        show={detailShow}
+        friends={friends}
+        onClose={closeDetail}
+        backLabel={canGoBack ? 'Back' : 'All shows'}
+        onUpdateRating={updateShowRating}
+        onUpdateVenueRating={(showId, venueRating) => updateShowData(showId, { venueRating })}
+        onUpdateComment={!guestMode ? (showId, comment) => updateShowComment(showId, comment) : undefined}
+        festival={detailShow.festivalId ? festivals.find(f => f.id === detailShow.festivalId) || null : null}
+        onTagFriends={!guestMode ? (s) => setTagFriendsShow(s) : undefined}
+        onCreatePlaylist={PLAYLIST_CREATION_ENABLED && !guestMode ? (s) => setPlaylistShow(s) : undefined}
+        onDeleteShow={deleteShow}
+        onAddSong={!guestMode ? addSongToShow : undefined}
+        onReorderSetlist={!guestMode ? updateSetlistOrder : undefined}
+        onResyncSetlist={!guestMode ? resyncSetlistFromSource : undefined}
+        onProposeSetlist={!guestMode ? proposeSetlistFromSource : undefined}
+        onApplySetlist={!guestMode ? applySetlistProposal : undefined}
+        onAcceptProposal={!guestMode ? acceptStoredProposal : undefined}
+        onDeclineProposal={!guestMode ? declineStoredProposal : undefined}
+        onClearReview={!guestMode ? clearSetlistReview : undefined}
+        onDeleteSong={!guestMode ? deleteSong : undefined}
+        onRestoreSong={restoreSongToShow}
+        toggleFavoriteArtist={!guestMode ? toggleFavoriteArtist : undefined}
+        isArtistFavorite={isArtistFavorite}
+        allShows={shows}
+        user={user}
+      />
+    );
+
     return (
       <>
-        <ShowDetailView
-          show={detailShow}
-          friends={friends}
-          onClose={closeDetail}
-          backLabel={canGoBack ? 'Back' : 'All shows'}
-          onUpdateRating={updateShowRating}
-          onUpdateVenueRating={(showId, venueRating) => updateShowData(showId, { venueRating })}
-          onUpdateComment={!guestMode ? (showId, comment) => updateShowComment(showId, comment) : undefined}
-          festival={detailShow.festivalId ? festivals.find(f => f.id === detailShow.festivalId) || null : null}
-          onTagFriends={!guestMode ? (s) => setTagFriendsShow(s) : undefined}
-          onCreatePlaylist={PLAYLIST_CREATION_ENABLED && !guestMode ? (s) => setPlaylistShow(s) : undefined}
-          onDeleteShow={deleteShow}
-          onAddSong={!guestMode ? addSongToShow : undefined}
-          onReorderSetlist={!guestMode ? updateSetlistOrder : undefined}
-          onResyncSetlist={!guestMode ? resyncSetlistFromSource : undefined}
-          onProposeSetlist={!guestMode ? proposeSetlistFromSource : undefined}
-          onApplySetlist={!guestMode ? applySetlistProposal : undefined}
-          onAcceptProposal={!guestMode ? acceptStoredProposal : undefined}
-          onDeclineProposal={!guestMode ? declineStoredProposal : undefined}
-          onClearReview={!guestMode ? clearSetlistReview : undefined}
-          onDeleteSong={!guestMode ? deleteSong : undefined}
-          onRestoreSong={restoreSongToShow}
-          toggleFavoriteArtist={!guestMode ? toggleFavoriteArtist : undefined}
-          isArtistFavorite={isArtistFavorite}
-          allShows={shows}
-          user={user}
-        />
+        {splitView ? (
+          <div className="flex items-start gap-4">
+            <ShowsSplitList
+              shows={displayedShows}
+              selectedId={detailShow.id}
+              onSelect={(s) => {
+                // Replace, not push: switching shows in the pane is one
+                // place in history, so back still leaves the detail in a
+                // single step. The page itself is what scrolls, so start
+                // the new show at its top.
+                router.replace(showHref(s.id));
+                window.scrollTo({ top: 0 });
+              }}
+            />
+            <div className="flex-1 min-w-0">{detailView}</div>
+          </div>
+        ) : detailView}
         {tagFriendsShow && (
           <TagFriendsModal
             show={tagFriendsShow}

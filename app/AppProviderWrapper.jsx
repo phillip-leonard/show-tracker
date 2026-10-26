@@ -79,10 +79,10 @@ function isHomePath(pathname) {
 function AppSkeleton() {
   return (
     <div className="auth-skeleton" aria-busy="true" aria-label="Loading">
-      <div className="min-h-screen bg-base">
-        <div className="hidden md:block fixed inset-y-0 left-0 w-64 bg-sidebar border-r border-subtle" />
+      <div className="min-h-dscreen bg-base">
+        <div className="hidden md:block fixed inset-y-0 left-0 w-sidebar bg-sidebar border-r border-subtle" />
         <div className="md:hidden fixed top-0 inset-x-0 h-header bg-sidebar" />
-        <div className="md:pl-64 pt-header md:pt-0">
+        <div className="md:pl-64 pt-header md:pt-safe-top">
           <div className="w-full max-w-[1200px] mx-auto px-4 md:px-8 py-6 md:py-10 space-y-4 animate-pulse">
             <div className="h-8 w-48 rounded-lg bg-elevated" />
             <div className="h-24 rounded-2xl bg-elevated" />
@@ -163,7 +163,7 @@ function AppShell({ children }) {
   // (below); every other route waits, as before.
   if (authLoading && !isHomePath(pathname) && !isPublicPath(pathname)) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-base via-surface to-base flex items-center justify-center">
+      <div className="min-h-dscreen bg-gradient-to-br from-base via-surface to-base flex items-center justify-center">
         <div className="text-muted text-lg">Loading...</div>
       </div>
     );
@@ -255,10 +255,10 @@ function AppShell({ children }) {
 
   return (
     <SwipeBackLayer>
-    <div className="min-h-screen bg-base text-primary">
+    <div className="min-h-dscreen bg-base text-primary">
       {/* Migration Prompt Modal */}
       {showMigrationPrompt && (
-        <div className="fixed inset-0 md:left-64 bg-sidebar/50 backdrop-blur-xl flex items-center justify-center p-3 md:p-4 z-[60]">
+        <div className="fixed inset-0 md:left-sidebar bg-sidebar/50 backdrop-blur-xl flex items-center justify-center p-safe-gutter [--gutter:0.75rem] md:[--gutter:1rem] md:[--safe-left:0px] z-[60]">
           <div className="bg-elevated border border-subtle rounded-2xl md:rounded-3xl max-w-[95vw] sm:max-w-md w-full p-4 md:p-6 shadow-2xl">
             <h2 className="text-lg md:text-xl font-bold mb-4 text-primary">Import Existing Shows?</h2>
             <p className="text-secondary mb-4">
@@ -297,7 +297,7 @@ function AppShell({ children }) {
 
       {/* Guest Mode Account Prompt */}
       {showGuestPrompt && (
-        <div className="fixed inset-0 md:left-64 bg-sidebar/50 backdrop-blur-xl flex items-center justify-center p-4 z-[60]">
+        <div className="fixed inset-0 md:left-sidebar bg-sidebar/50 backdrop-blur-xl flex items-center justify-center p-safe-gutter md:[--safe-left:0px] z-[60]">
           <div className="bg-elevated border border-subtle rounded-3xl max-w-md w-full p-6 shadow-2xl">
             <div className="text-center mb-6">
               <div className="w-16 h-16 bg-gradient-to-br from-brand to-brand rounded-2xl flex items-center justify-center mx-auto mb-4">
@@ -353,7 +353,7 @@ function AppShell({ children }) {
 
       {/* Welcome modal — shown once when a new user joins via an invite */}
       {welcomeState && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[80] flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[80] flex items-center justify-center p-safe-gutter">
           <div className="bg-elevated border border-brand/30 rounded-2xl w-full max-w-md p-8 shadow-2xl shadow-brand/10 text-center">
             <div className="w-16 h-16 bg-brand-subtle rounded-2xl flex items-center justify-center mx-auto mb-5">
               <Music className="w-8 h-8 text-brand" />
@@ -400,9 +400,13 @@ function AppShell({ children }) {
       {/* Main Content Area.
           pt-header is the mobile header's bar plus the status-bar inset,
           from the safe-* tokens in globals.css — the body no longer pads
-          the top inset as well, which used to count it twice. */}
-      <div className="md:pl-64 min-h-screen pt-header md:pt-0">
-        <div className="w-full max-w-[1200px] mx-auto px-4 md:px-8 py-6 md:py-10">
+          the top inset as well, which used to count it twice. With no
+          header above md, the column still clears the status bar itself
+          (0 on the web; non-zero on a wide native display like iPhone
+          Duo's). data-content-column is what hooks/useSplitView.js
+          measures. */}
+      <div className="md:pl-64 min-h-dscreen pt-header md:pt-safe-top">
+        <div data-content-column className="w-full max-w-[1200px] mx-auto px-4 md:px-8 py-6 md:py-10">
           {children}
         </div>
       </div>

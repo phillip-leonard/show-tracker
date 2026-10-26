@@ -107,7 +107,10 @@ export default function MobileHeader({ onMenuClick, actions = null }) {
       className={[
         'md:hidden fixed top-0 left-0 right-0 z-40',
         'bg-surface/90 backdrop-blur-xl border-b border-subtle',
-        'pt-safe-top',
+        // Side insets too: below md in landscape (iPhone Duo's closed
+        // display among them) the camera sits at a side edge, and a fixed
+        // header doesn't get the body's side padding.
+        'pt-safe-top pl-safe-left pr-safe-right',
       ].join(' ')}
     >
       <div className="flex items-center gap-1 px-1 h-14">

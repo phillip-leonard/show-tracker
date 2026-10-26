@@ -4,6 +4,47 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.47.13] — 2026-10-26
+
+Ships in iOS 3.9.13 (`MARKETING_VERSION` 3.9.12 → 3.9.13; the build number is
+left to Xcode Cloud).
+
+**Ready for iPhone Duo, and for landscape on every iPhone.** Layout and
+safe-area work only; no tab, page or navigation changes. The web layout is
+unchanged at every width (every inset is 0 there).
+
+- **Sidebar and content column clear the status bar and side insets at md
+  and up.** Both used `md:pt-0`, on the assumption that only phones have a
+  top inset, and the fixed sidebar sat at `left: 0` with no side inset. In
+  landscape on a current iPhone the Dynamic Island covered the sidebar;
+  on iPhone Duo's open display the status bar would have covered the top
+  of the page. The sidebar is now `w-sidebar` (16rem plus the left inset,
+  new `--sidebar-w` token) and pads by the inset; the column pads by
+  `safe-top`. The mobile header also pads its side insets.
+- **The sidebar scrolls as a whole.** Its nav list had its own overflow,
+  so on a short landscape screen it shrank to nothing and only the footer
+  links (Admin, Feedback, Logout…) were left.
+- **Overlays keep clear of the insets.** New `p-safe-gutter` utility
+  (`app/globals.css`): 1rem, or the device inset where that is bigger —
+  exactly `p-4` on the web. Used by the centred modals, and at md and up by
+  the shared `Modal`, `SetlistEditor` and `SongHistoryModal` sheets (which
+  pad the side insets below md). Their `85vh`/`90vh` caps are now
+  `min(85dvh, 100%)` / `min(90dvh, 100%)`, so a card never runs past the
+  padded area. Overlays that start after the sidebar use `md:left-sidebar`.
+- **`min-h-screen` → `min-h-dscreen`** on page roots; the footer and the
+  show-detail "saved" toast clear the home indicator.
+- **My Shows side by side, native app only.** When the content column is at
+  least 600px wide (`SPLIT_VIEW_MIN_WIDTH`, `lib/platform.js`), an open show
+  sits beside a compact list of the shows the timeline is showing
+  (`components/shows/ShowsSplitList.jsx`, `hooks/useSplitView.js`). The
+  test is the column's measured width, not the device, so it follows
+  folding, unfolding and rotation. No iPhone reaches 600px; iPhone Duo's
+  open display does. Picking another show replaces the history entry, so
+  back still leaves the detail in one step. The web never splits.
+- Camera: no change. Ticket scanning uses the system camera picker with the
+  plugin's default rear camera, which is right for tickets; iOS owns
+  rotation and fold changes there.
+
 ## [5.47.12] — 2026-10-23
 
 Ships in iOS 3.9.12 (`MARKETING_VERSION` 3.9.11 → 3.9.12; the build number is

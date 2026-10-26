@@ -131,13 +131,23 @@ export default function Sidebar({
           // dvh, not vh: with the iOS URL bar showing, h-screen made the
           // drawer taller than the visible viewport and cut off the logout
           // row at the bottom.
-          'w-64 h-dscreen bg-sidebar flex flex-col fixed left-0 top-0 z-50',
+          //
+          // 16rem plus the left inset, padded by that inset: in landscape
+          // the Dynamic Island (and on iPhone Duo's open display, the
+          // vertical status bar) sits over the left edge, and a fixed
+          // element doesn't get the body's side padding. The content
+          // column's md:pl-64 sits after the body's own safe-left padding,
+          // so the two still meet. Both insets are 0 on the web.
+          'w-sidebar pl-safe-left h-dscreen bg-sidebar flex flex-col fixed left-0 top-0 z-50',
+          'overflow-y-auto overscroll-contain',
           'transform transition-transform duration-300 ease-out',
           isOpen ? 'translate-x-0' : '-translate-x-full',
           'md:translate-x-0',
-          // The status bar and home indicator both overlap a full-height
-          // drawer.
-          'pt-safe-top pb-safe-bottom md:pt-0 md:pb-0',
+          // The status bar and home indicator overlap a full-height
+          // sidebar at every width. md:pt-0 used to drop the top inset on
+          // the assumption that only phones have one, which put the brand
+          // row under the status bar on a wide native display.
+          'pt-safe-top pb-safe-bottom',
         ].join(' ')}
       >
         {/* Brand */}
@@ -184,8 +194,12 @@ export default function Sidebar({
           </Link>
         </div>
 
-        {/* Scrolling nav */}
-        <nav className="flex-1 px-3 py-2 space-y-0.5 overflow-y-auto">
+        {/* Nav. Fills the space between the search row and the footer
+            links, but never scrolls on its own: with its own overflow it
+            could shrink to nothing, and in landscape on a phone (or iPhone
+            Duo's open display) there was no room left for it at all — the
+            footer links took the whole height. The aside scrolls instead. */}
+        <nav className="flex-1 px-3 py-2 space-y-0.5">
           {primary.map((it) => navItem(it.id, it.href, it.icon, it.label, { badge: it.badge, beta: it.beta }))}
         </nav>
 
