@@ -4,9 +4,9 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
-## [5.47.13] — 2026-10-26
+## [5.47.14] — 2026-10-26
 
-Ships in iOS 3.9.13 (`MARKETING_VERSION` 3.9.12 → 3.9.13; the build number is
+Ships in iOS 3.9.14 (`MARKETING_VERSION` 3.9.13 → 3.9.14; the build number is
 left to Xcode Cloud).
 
 **Ready for iPhone Duo, and for landscape on every iPhone.** Layout and
@@ -44,6 +44,52 @@ unchanged at every width (every inset is 0 there).
 - Camera: no change. Ticket scanning uses the system camera picker with the
   plugin's default rear camera, which is right for tickets; iOS owns
   rotation and fold changes there.
+
+## [5.47.13] — 2026-10-26
+
+Ships in iOS 3.9.13 (`MARKETING_VERSION` 3.9.12 → 3.9.13; the build number is
+left to Xcode Cloud).
+
+**Share links say the right number and always point at the record.**
+
+- A shared "Songs I've heard" record said "4 shows, 49 songs heard" when it
+  had 43 songs and 49 performances. The headline (page title, description,
+  `og:title`, the h1, the share-sheet title) and the tool's dock now count
+  distinct songs, the same number as the Songs stat, "Every song heard" and
+  the preview card and posters, which already did.
+- On a `/heard/<slug>/?mine=1` page (the poster from your logged shows) the
+  address bar is a personal link that opens a sign-in prompt for anyone
+  else. Every control now gives the record's `/r/<code>/` link instead:
+  Share link, a new **Copy link** button, and the poster's Share (the link
+  is in its text). Both buttons write the link inside the tap, since Safari
+  refuses the clipboard and the share sheet after an `await`. In "your
+  shows" mode the page's canonical link points at the `/r/` link too, which
+  is what Safari on iOS and Chrome on Android share from their own share
+  buttons. `e2e/smoke/heard-share.smoke.spec.js` checks all three agree and
+  open the same record; it serves the pages itself, so it runs against any
+  base URL.
+
+**Band pages: most overdue vs. not played in 5+ years.**
+
+- Long-running bands' current-gap lists were their retired songs (Umphrey's
+  McGee's started with Slow, Vibe and Gut Strut, last played in 1998-99).
+  "Songs most overdue" and "Covers most overdue" now take only songs played
+  at least 5 times and at least once in the 5 years up to the band's latest
+  show (counted from that show, not today, so the Grateful Dead's page still
+  has a list). A new "Songs not played in 5+ years" lists the originals
+  played at least 5 times that weren't, oldest first, with the date.
+- The snapshot and `/api/artist` carry `overdueOriginals`, `overdueCovers` and
+  `notPlayedSince`. `originalGapLeaders` and `coverGapLeaders` stay as they
+  were for older readers. A snapshot written before this shows its old lists
+  under the old headings until the next run. The gap check before publishing
+  covers the new lists.
+- Checked against production data: on Umphrey's, Goose and Phish no song
+  played in the last 5 years leaves the lists. Goose's only song not played
+  in 5+ years is Gringo.
+- Umphrey's "I Am Hydrogen" is a Phish cover on allthings.umphreys.com
+  (6 plays, last 1998-03-19) as well as here, so no override was needed.
+  All 1,082 matched Umphrey's songs have the same original/cover flag as the
+  archive's song list.
 
 ## [5.47.12] — 2026-10-23
 

@@ -262,8 +262,33 @@ test('the record uses the band pages\' bust-out threshold and non-song list', ()
 });
 
 test('the headline has counts and the band, nothing else', () => {
-  assert.strictEqual(heard.headline('Goose', { shows: 42, totalSongs: 211 }), 'A Goose record: 42 shows, 211 songs heard');
-  assert.strictEqual(heard.headline('Phish', { shows: 1, totalSongs: 1 }), 'A Phish record: 1 show, 1 song heard');
+  assert.strictEqual(heard.headline('Goose', { shows: 42, uniqueSongs: 118, totalSongs: 211 }), 'A Goose record: 42 shows, 118 songs heard');
+  assert.strictEqual(heard.headline('Phish', { shows: 1, uniqueSongs: 1, totalSongs: 1 }), 'A Phish record: 1 show, 1 song heard');
+});
+
+test('"songs heard" is distinct songs, not performances, on the share page and its preview', async () => {
+  // Arcadia, Jam and Hot Tea at all four shows, Hot Tea twice at show 10,
+  // Rockdale and Madhuvan at shows 5 and 6: 5 songs, 17 performances.
+  const { loaded } = await goose();
+  const data = loaded.shows;
+  const code = heard.encodeSelection(data, idsOn(data, [dateOf(5), dateOf(6), dateOf(9), dateOf(10)]));
+  const record = heard.buildRecord(data, heard.decodeSelection(data, code).ids);
+  assert.strictEqual(record.uniqueSongs, 5);
+  assert.strictEqual(record.totalSongs, 17);
+  const headline = 'A Goose record: 4 shows, 5 songs heard';
+  assert.strictEqual(heard.headline('Goose', record), headline);
+  const res = pages.renderHeardShare(loaded, code, heard.decodeSelection(data, code).ids, NOW);
+  assert.ok(res.body.includes(`<title>${headline} | MySetlists</title>`));
+  assert.ok(res.body.includes(`<meta name="description" content="${headline}.`));
+  assert.ok(res.body.includes(`<meta property="og:title" content="${headline}`));
+  assert.ok(res.body.includes(`<h1>${headline}</h1>`));
+  assert.ok(res.body.includes('Every song heard (5)'));
+  assert.ok(!res.body.includes('17 songs'));
+  // The preview card and the posters: 5 songs, 17 performances.
+  for (const kind of ['card', 'feed', 'story']) {
+    const svg = heard.posterSvg(data, record, kind);
+    assert.ok(/>5<\/text><text[^>]*>SONGS</.test(svg) && />17<\/text><text[^>]*>PERFORMANCES</.test(svg), kind);
+  }
 });
 
 // ── Poster ───────────────────────────────────────────────────────────────
@@ -361,7 +386,7 @@ test('a share page renders the record, noindex, with its own preview image', asy
   assert.strictEqual(res.headers['X-Robots-Tag'], 'noindex, follow');
   assert.ok(res.body.includes('<meta name="robots" content="noindex, follow">'));
   assert.ok(res.body.includes(`<meta property="og:image" content="https://mysetlists.net/heard/goose/r/${code}/og.png">`));
-  assert.ok(res.body.includes('<title>A Goose record: 2 shows, 8 songs heard | MySetlists</title>'));
+  assert.ok(res.body.includes('<title>A Goose record: 2 shows, 5 songs heard | MySetlists</title>'));
   assert.ok(res.body.includes('Make your own'));
   assert.ok(res.body.includes('Bust-outs witnessed') && res.body.includes('Rockdale'));
 });

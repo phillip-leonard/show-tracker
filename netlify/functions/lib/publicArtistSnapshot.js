@@ -349,6 +349,9 @@ function buildSnapshot(artist, fetched, now) {
       gapLeaders: linked(band.gapLeaders),
       originalGapLeaders: linked(band.originalGapLeaders),
       coverGapLeaders: linked(band.coverGapLeaders),
+      overdueOriginals: linked(band.overdueOriginals),
+      overdueCovers: linked(band.overdueCovers),
+      notPlayedSince: linked(band.notPlayedSince),
       bustOuts: bustOuts && linked(bustOuts),
     },
     songs: artist.songPages ? songs : [],
@@ -401,6 +404,9 @@ function gapBeyondTotal(next) {
     ...(band.gapLeaders || []),
     ...(band.originalGapLeaders || []),
     ...(band.coverGapLeaders || []),
+    ...(band.overdueOriginals || []),
+    ...(band.overdueCovers || []),
+    ...(band.notPlayedSince || []),
     ...(band.bustOuts || []),
   ];
   for (const s of lists) {

@@ -13,6 +13,16 @@ const STREAMING_MENTION = /spotify|apple\s*music/i;
 function ReleaseNotesView() {
   const releases = [
     {
+      version: '5.47.13',
+      date: 'October 26, 2026',
+      title: 'Share Links and Overdue Songs',
+      changes: [
+        'A shared Songs I’ve heard record counts the songs you heard, not every time each was played',
+        'Copy link and Share always give a link to your record, even on the poster made from your shows',
+        'Band pages show each band’s most overdue songs, and the songs not played in 5+ years',
+      ]
+    },
+    {
       version: '5.46.0',
       date: 'October 21, 2026',
       title: 'Follow Your Bands',

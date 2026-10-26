@@ -2,9 +2,10 @@
 //
 // Band-wide song stats for the public band and song pages: times played,
 // first and last played, current gap, average gap, longest gap ever (and
-// the two shows either side of it), most played, current gap leaders split
-// into originals and covers, and the biggest bust-outs. Computed once per
-// snapshot run, from every show a source has for one artist.
+// the two shows either side of it), most played, the most overdue songs
+// split into originals and covers, the originals not played in years, and
+// the biggest bust-outs. Computed once per snapshot run, from every show a
+// source has for one artist.
 //
 // ── The gap math is lib/songIndex.js's, ported ────────────────────────
 //
@@ -56,6 +57,13 @@ const BUST_OUTS = 10;
 // band whose own songs barely exist on setlist.fm (Dead & Company: one
 // eight-show jam) from listing those.
 const BUST_OUT_MIN_GAP = 50;
+// A long-running band's longest current gaps are its retired songs
+// (Umphrey's McGee's were all last played in 1998-99), so the "overdue"
+// lists take only songs played in the last RETIRED_YEARS, and the rest go
+// to "not played in 5+ years". Counted back from the band's most recent
+// show, not today: the Grateful Dead's overdue songs are the ones in
+// rotation before 1995, not none at all.
+const RETIRED_YEARS = 5;
 
 // Setlist entries the archives list as songs that aren't: an unnamed jam, a
 // solo, Drums and Space, a placeholder for a song nobody identified.
@@ -192,6 +200,12 @@ function buildArtistStats(shows) {
     .sort((a, b) => b.currentGap - a.currentGap || byPlays(a, b))
     .slice(0, GAP_LEADERS)
     .map(summary);
+  // YYYY-MM-DD, RETIRED_YEARS before the last show: played on or after it
+  // is in rotation. ('' with no shows, so everything is.)
+  const lastDate = total ? timeline[total - 1].date : '';
+  const cutoff = lastDate ? `${String(Number(lastDate.slice(0, 4)) - RETIRED_YEARS).padStart(4, '0')}${lastDate.slice(4)}` : '';
+  const inRotation = (s) => s.lastPlayed.date >= cutoff;
+  const originals = songs.filter((s) => s.isOriginal === true);
 
   const band = {
     totalShows: total,
@@ -203,8 +217,22 @@ function buildArtistStats(shows) {
     // Originals and covers together. The pages no longer show it; it stays
     // for anything still reading the version 1 snapshot.
     gapLeaders: gapLeaders(songs),
-    originalGapLeaders: gapLeaders(songs.filter((s) => s.isOriginal === true)),
+    // Longest current gaps with retired songs in. The pages show the
+    // overdue lists below instead; these stay for older readers of the
+    // JSON, like gapLeaders.
+    originalGapLeaders: gapLeaders(originals),
     coverGapLeaders: gapLeaders(songs.filter((s) => s.isOriginal === false)),
+    // The most overdue: longest current gaps among songs played in the
+    // last RETIRED_YEARS.
+    overdueOriginals: gapLeaders(originals.filter(inRotation)),
+    overdueCovers: gapLeaders(songs.filter((s) => s.isOriginal === false && inRotation(s))),
+    // Originals played at least GAP_LEADER_MIN_PLAYS times and not in the
+    // last RETIRED_YEARS, longest ago first.
+    notPlayedSince: originals
+      .filter((s) => s.timesPlayed >= GAP_LEADER_MIN_PLAYS && isSong(s) && !inRotation(s))
+      .sort((a, b) => a.lastPlayed.date.localeCompare(b.lastPlayed.date) || byPlays(a, b))
+      .slice(0, GAP_LEADERS)
+      .map(summary),
     // The longest gaps ever between two performances of an original: the
     // biggest bust-outs. Only meaningful over a band's whole history;
     // publicArtistSnapshot.js drops it for a partial one.
@@ -302,4 +330,4 @@ function commonPrefix(values) {
   return prefix;
 }
 
-module.exports = { buildArtistStats, buildShowList, slugify, isSong, GAP_LEADER_MIN_PLAYS, BUST_OUT_MIN_GAP };
+module.exports = { buildArtistStats, buildShowList, slugify, isSong, GAP_LEADER_MIN_PLAYS, BUST_OUT_MIN_GAP, RETIRED_YEARS };

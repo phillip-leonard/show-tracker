@@ -523,7 +523,7 @@ test('band page: most played, original gaps, cover gaps, bust-outs, then recent 
   const store = memoryStore();
   await seededMixed(store);
   const body = pages.renderBand(await snap.loadArtist(store, 'goose'), NOW).body;
-  const order = ['Most played Goose songs', 'Goose songs with the longest gaps', 'Goose covers with the longest gaps', 'Biggest Goose bust-outs', 'Recent Goose shows']
+  const order = ['Most played Goose songs', 'Goose songs most overdue', 'Goose covers most overdue', 'Biggest Goose bust-outs', 'Recent Goose shows']
     .map((h) => body.indexOf(`<h2>${h}</h2>`));
   assert.ok(order.every((i) => i > 0), order.join());
   assert.deepStrictEqual(order.slice().sort((a, b) => a - b), order);
@@ -533,6 +533,96 @@ test('band page: most played, original gaps, cover gaps, bust-outs, then recent 
   assert.ok(!body.slice(order[1], order[4]).includes('Mystery'));
   assert.match(body.slice(order[0], order[1]), /Let&#39;s Dance<\/a><span class="tag">Cover<\/span>|Let's Dance<\/a><span class="tag">Cover<\/span>/);
   assert.match(body.slice(order[3], order[4]), /Rockdale<\/a><\/td><td class="num">94<\/td>/);
+});
+
+// Umphrey's McGee's shape: originals retired in 1998-99 with the longest
+// current gaps, beside songs in rotation. One show a month from January
+// 1998 (their archive's first year) to October 2026, 346 shows; the last on
+// 2026-10-01, so "the last 5 years" is 2021-10-01 (show 285) on.
+function retiredFixture() {
+  const shows = [];
+  for (let i = 0; i < 346; i++) {
+    const date = new Date(Date.UTC(1998, i, 1)).toISOString().slice(0, 10);
+    const year = Number(date.slice(0, 4));
+    const songs = [['In The Kitchen', true], ['Jam', true]];
+    if (year <= 1998) songs.push(['Slow', true]); // retired first
+    if (year <= 1999) songs.push(['Gut Strut', true]);
+    if (year <= 2003) songs.push(['Vibe', true]);
+    if (year <= 2003) songs.push(['Jimmy Stewart', false]); // a retired cover
+    if (i % 60 === 0) songs.push(['Bridgeless', true]); // rare, still played
+    if (i === 285) songs.push(['Boundary', true]); // 2021-10-01, the first day in rotation
+    if (i < 6 || i === 285) songs.push(['Wife Soup', true]);
+    if (i % 5 === 0) songs.push(['Cemetery Walk', false]); // a cover in rotation
+    if (i < 4) songs.push(['Once Or Twice', true]); // under 5 plays
+    shows.push(mixedShow(`s${i + 1}`, date, songs));
+  }
+  return shows;
+}
+
+test('overdue lists keep songs played in the last 5 years; older ones are "not played since", oldest first', () => {
+  const { buildArtistStats, RETIRED_YEARS } = require('../../netlify/functions/lib/artistSnapshotStats');
+  assert.strictEqual(RETIRED_YEARS, 5);
+  const { band } = buildArtistStats(retiredFixture());
+  const names = (list) => list.map((s) => s.name);
+  assert.strictEqual(band.lastShow.date, '2026-10-01');
+  // The old list, kept for older readers, is led by the retired songs.
+  assert.deepStrictEqual(names(band.originalGapLeaders).slice(0, 3), ['Slow', 'Gut Strut', 'Vibe']);
+  // Wife Soup (6 plays, last 2021-10-01, the first day in rotation) is
+  // overdue; Boundary has 1 play, under the minimum; Jam is no song.
+  assert.deepStrictEqual(names(band.overdueOriginals), ['Wife Soup', 'Bridgeless', 'In The Kitchen']);
+  assert.ok(band.overdueOriginals.every((s) => s.lastPlayed >= '2021-10-01'));
+  assert.deepStrictEqual(names(band.overdueCovers), ['Cemetery Walk']);
+  assert.deepStrictEqual(band.notPlayedSince.map((s) => [s.name, s.lastPlayed]), [
+    ['Slow', '1998-12-01'], ['Gut Strut', '1999-12-01'], ['Vibe', '2003-12-01'],
+  ], 'originals only, 5+ plays, oldest first');
+  assert.ok(band.notPlayedSince.every((s) => s.currentGap > 0 && s.isOriginal === true));
+});
+
+test('a band whose last show was years ago counts its 5 years back from that show', () => {
+  const { buildArtistStats } = require('../../netlify/functions/lib/artistSnapshotStats');
+  // The band stops in December 2003, so its 5 years start 1998-12-01:
+  // Slow (last that day) and Gut Strut are overdue, not retired, and Wife
+  // Soup (last in June 1998) is the one not played since.
+  const shows = retiredFixture().filter((s) => s.date <= '2003-12-31');
+  const { band } = buildArtistStats(shows);
+  assert.deepStrictEqual(band.overdueOriginals.map((s) => s.name).slice(0, 2), ['Slow', 'Gut Strut']);
+  assert.deepStrictEqual(band.notPlayedSince.map((s) => [s.name, s.lastPlayed]), [['Wife Soup', '1998-06-01']]);
+});
+
+test('Umphrey\'s band page and /api/artist: most overdue, then not played in 5+ years with the date', async () => {
+  const store = memoryStore();
+  const restore = stubSources({ songfish: (_a, y) => retiredFixture().filter((s) => s.date.startsWith(String(y))) });
+  try {
+    await snap.runSnapshot({ store, only: ['umphreys-mcgee'], force: 'full', now: () => Date.parse('2026-10-02T12:00:00Z'), log: quiet });
+  } finally { restore(); }
+  const loaded = await snap.loadArtist(store, 'umphreys-mcgee');
+  const body = pages.renderBand(loaded, Date.parse('2026-10-02T13:00:00Z')).body;
+  const at = (h) => body.indexOf(`<h2>Umphrey&#39;s McGee ${h}</h2>`);
+  const order = ['songs most overdue', 'covers most overdue', 'songs not played in 5+ years'].map(at).concat(body.indexOf('<h2>Recent Umphrey&#39;s McGee shows</h2>'));
+  assert.ok(order.every((i) => i > 0), order.join());
+  assert.deepStrictEqual(order.slice().sort((a, b) => a - b), order);
+  assert.ok(!body.includes('with the longest gaps'));
+  const overdue = body.slice(order[0], order[2]);
+  const retired = body.slice(order[2], order[3]);
+  for (const song of ['Slow', 'Gut Strut', 'Vibe', 'Jimmy Stewart']) assert.ok(!overdue.includes(`>${song}<`), song);
+  assert.match(retired, /Slow<\/a><\/td><td class="num">[\d,]+<\/td><td class="num">Dec 1, 1998<\/td>/);
+  assert.ok(retired.indexOf('Slow') < retired.indexOf('Gut Strut') && retired.indexOf('Gut Strut') < retired.indexOf('Vibe'));
+
+  const json = JSON.parse(pages.artistJson(loaded, Date.parse('2026-10-02T13:00:00Z')).body);
+  assert.deepStrictEqual(json.band.overdueOriginals.map((s) => s.name), ['Wife Soup', 'Bridgeless', 'In The Kitchen']);
+  assert.deepStrictEqual(json.band.overdueCovers.map((s) => s.name), ['Cemetery Walk']);
+  assert.deepStrictEqual(json.band.notPlayedSince.map((s) => s.name), ['Slow', 'Gut Strut', 'Vibe']);
+  assert.ok(json.band.notPlayedSince.every((s) => typeof s.hasPage === 'boolean' && s.lastPlayed));
+});
+
+test('a snapshot from before the overdue split renders its old lists under the old headings', async () => {
+  const store = memoryStore();
+  await seededMixed(store);
+  const loaded = await snap.loadArtist(store, 'goose');
+  const { overdueOriginals, overdueCovers, notPlayedSince, ...before } = loaded.snapshot.band;
+  const body = pages.renderBand({ ...loaded, snapshot: { ...loaded.snapshot, band: before } }, NOW).body;
+  assert.ok(body.includes('<h2>Goose songs with the longest gaps</h2>') && body.includes('<h2>Goose covers with the longest gaps</h2>'));
+  assert.ok(!body.includes('most overdue') && !body.includes('5+ years'));
 });
 
 test('a version 1 snapshot (before the split) still renders', async () => {

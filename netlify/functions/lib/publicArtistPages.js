@@ -151,9 +151,13 @@ function renderBand({ entry, snapshot }, now = Date.now()) {
   const top = band.mostPlayed[0];
   const title = `${name} Setlists, Song Stats & Gaps | MySetlists`;
   // A version 1 snapshot (written before the original/cover split) has
-  // none of these; its page shows what it can until the next run.
-  const originalGaps = band.originalGapLeaders || [];
-  const coverGaps = band.coverGapLeaders || [];
+  // none of these, and one from before 5.47.13 has the longest gaps with
+  // retired songs in, not the overdue lists; its page shows what it can,
+  // under the old headings, until the next run.
+  const split = !!band.overdueOriginals;
+  const originalGaps = (split ? band.overdueOriginals : band.originalGapLeaders) || [];
+  const coverGaps = (split ? band.overdueCovers : band.coverGapLeaders) || [];
+  const retired = band.notPlayedSince || [];
   const bustOuts = band.bustOuts || [];
 
   const description = coverage.kind === 'window'
@@ -182,15 +186,31 @@ function renderBand({ entry, snapshot }, now = Date.now()) {
       .map((s) => `<tr><td>${songName(slug, s)}</td><td class="num">${s.currentGap.toLocaleString('en-US')}</td><td class="num">${escapeHtml(date(s.lastPlayed))}</td></tr>`)
       .join('')}</tbody></table>` : '');
 
-  const originalGapLeaders = gapTable(
+  // "In the last 5 years" counts back from the band's latest show
+  // (artistSnapshotStats.js RETIRED_YEARS).
+  const recently = 'in the five years up to their latest show';
+  const originalGapLeaders = split ? gapTable(
+    `${escapeHtml(name)} songs most overdue`,
+    `${escapeHtml(name)} originals played at least 5 times${inWindow} and at least once ${recently}, by shows since they were last played.`,
+    originalGaps,
+  ) : gapTable(
     `${escapeHtml(name)} songs with the longest gaps`,
     `${escapeHtml(name)} originals played at least 5 times${inWindow}, by shows since they were last played.`,
     originalGaps,
   );
-  const coverGapLeaders = gapTable(
+  const coverGapLeaders = split ? gapTable(
+    `${escapeHtml(name)} covers most overdue`,
+    `Covers played at least 5 times${inWindow} and at least once ${recently}, by shows since ${escapeHtml(name)} last played them.`,
+    coverGaps,
+  ) : gapTable(
     `${escapeHtml(name)} covers with the longest gaps`,
     `Covers played at least 5 times${inWindow}, by shows since ${escapeHtml(name)} last played them.`,
     coverGaps,
+  );
+  const notPlayedSince = gapTable(
+    `${escapeHtml(name)} songs not played in 5+ years`,
+    `${escapeHtml(name)} originals played at least 5 times${inWindow} but not ${recently}, longest ago first.`,
+    retired,
   );
 
   const bustOutTable = bustOuts.length ? `
@@ -208,6 +228,7 @@ function renderBand({ entry, snapshot }, now = Date.now()) {
     ${mostPlayed}
     ${originalGapLeaders}
     ${coverGapLeaders}
+    ${notPlayedSince}
     ${bustOutTable}
     ${heardHref(slug) ? `
     <div class="cta">
