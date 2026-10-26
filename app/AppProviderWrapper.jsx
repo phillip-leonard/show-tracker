@@ -15,6 +15,7 @@ import { initKeyboardInsetTracking } from '@/lib/keyboardInset';
 import { registerServiceWorker } from '@/lib/service-worker';
 import { DismissStackProvider, useDismissable } from '@/context/DismissStackContext';
 import SwipeBackLayer from '@/components/layout/SwipeBackLayer';
+import DeepLinkListener from '@/components/layout/DeepLinkListener';
 import { Music, Check, Sparkles } from 'lucide-react';
 import { clearHintAttr } from '@/lib/signedInHint';
 import { isComparePath } from '@/lib/comparePages';
@@ -104,6 +105,9 @@ export default function AppProviderWrapper({ children }) {
           that registers with it lives further in) and outside everything
           that renders an overlay, so there is exactly one stack. */}
       <DismissStackProvider>
+        {/* Outside AppShell so it is mounted through every auth state: a
+            link that cold-launches the app arrives while auth resolves. */}
+        <DeepLinkListener />
         <AppShell>{children}</AppShell>
       </DismissStackProvider>
     </AppProvider>

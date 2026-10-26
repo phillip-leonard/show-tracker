@@ -4,6 +4,45 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.47.18] — 2026-10-26
+
+Ships in iOS 3.9.18 (`MARKETING_VERSION` 3.9.17 → 3.9.18; the build number is
+left to Xcode Cloud). Follows 5.47.17 / 3.9.17, the band and song screens
+(#372).
+
+**Links open the screen they name in the iOS app.** Before this, nothing in
+the app listened for a link: a `mysetlists://` URL opened the app on whatever
+screen it last showed, and universal links couldn't work at all, because
+mysetlists.net served the app shell where Apple looks for its
+`apple-app-site-association` file.
+
+- **`components/layout/DeepLinkListener.jsx`** follows `appUrlOpen` (warm) and
+  `App.getLaunchUrl()` (cold launch), once per link, and `router.push`es the
+  route `lib/deepLinks.js` gives. Mounted outside `AppShell`, so a cold-launch
+  link arriving while auth resolves isn't lost.
+- **A link starts a fresh trail.** The listener resets the in-app history
+  (`resetNavHistory` in `context/DismissStackContext.jsx`) and replaces the
+  current entry, so back from a linked screen follows `lib/navRoutes.js`
+  (a song → its band) instead of returning to whatever screen the app
+  happened to boot on.
+- **`lib/deepLinks.js`** maps `https://mysetlists.net/<path>` and
+  `mysetlists://<path>` to an in-app href, with the same old-shape rewrites
+  `netlify.toml` 301s on the web (`/shows/<id>` → `/shows/?show=<id>`, venues,
+  venue dashboards, Year in Review, festivals, `/upcoming`). A path
+  `lib/navRoutes.js` doesn't know isn't followed. `mysetlists://spotify-callback`
+  is left to the Spotify sign-in flow, which listens for it itself.
+- **`public/.well-known/apple-app-site-association`**, served as JSON
+  (`public/_headers`), lists the app's screens for team `66N4YR3VP9`,
+  `com.mysetlists.app`. `/` and the public web pages (`/artist/`, `/heard/`,
+  `/u/`, `/compare/`, the legal pages) stay in Safari.
+- **The list can't drift from the routes.** `lib/__tests__/deepLinks.test.js`
+  fails if a screen in `lib/navRoutes.js` is missing from the file, or the
+  file links a path the app can't open. `/bands` (the band and song screens,
+  5.47.17) is in it, so `mysetlists://bands/?band=goose&song=arcadia` opens
+  that song.
+
+---
+
 ## [5.47.17] — 2026-10-26
 
 Ships in iOS 3.9.17 (`MARKETING_VERSION` 3.9.16 → 3.9.17; the build number is
