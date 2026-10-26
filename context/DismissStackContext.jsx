@@ -74,6 +74,15 @@ export function DismissStackProvider({ children }) {
     setNavDepth(Math.max(0, historyRef.current.length - 1));
   }, []);
 
+  // A link that opens the app (components/layout/DeepLinkListener.jsx)
+  // starts a fresh trail: whatever screen the app was on is not "back" from
+  // the screen the link names, so back follows lib/navRoutes.js's parent
+  // instead. Called just before the link's navigation is recorded.
+  const resetNavHistory = useCallback(() => {
+    historyRef.current = [];
+    setNavDepth(0);
+  }, []);
+
   const push = useCallback((entry) => {
     stackRef.current = [...stackRef.current, entry];
     setDepth(stackRef.current.length);
@@ -106,8 +115,8 @@ export function DismissStackProvider({ children }) {
   }, []);
 
   const value = useMemo(
-    () => ({ push, remove, popTop, depth, navDepth, canGoBack: navDepth > 0 }),
-    [push, remove, popTop, depth, navDepth],
+    () => ({ push, remove, popTop, depth, navDepth, canGoBack: navDepth > 0, resetNavHistory }),
+    [push, remove, popTop, depth, navDepth, resetNavHistory],
   );
 
   return (
@@ -134,6 +143,7 @@ const EMPTY_STACK = {
   depth: 0,
   navDepth: 0,
   canGoBack: false,
+  resetNavHistory: () => {},
 };
 
 /**

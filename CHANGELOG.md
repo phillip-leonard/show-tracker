@@ -20,6 +20,11 @@ mysetlists.net served the app shell where Apple looks for its
   `App.getLaunchUrl()` (cold launch), once per link, and `router.push`es the
   route `lib/deepLinks.js` gives. Mounted outside `AppShell`, so a cold-launch
   link arriving while auth resolves isn't lost.
+- **A link starts a fresh trail.** The listener resets the in-app history
+  (`resetNavHistory` in `context/DismissStackContext.jsx`) and replaces the
+  current entry, so back from a linked screen follows `lib/navRoutes.js`
+  (a song → its band) instead of returning to whatever screen the app
+  happened to boot on.
 - **`lib/deepLinks.js`** maps `https://mysetlists.net/<path>` and
   `mysetlists://<path>` to an in-app href, with the same old-shape rewrites
   `netlify.toml` 301s on the web (`/shows/<id>` → `/shows/?show=<id>`, venues,
