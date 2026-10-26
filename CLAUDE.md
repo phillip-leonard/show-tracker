@@ -28,6 +28,13 @@ The public band pages (`/artist/...`) read a snapshot from Netlify Blobs, writte
 - **A function that uses Blobs from a background function must be a v2 function (`export default`) that imports `@netlify/blobs` at the top level.** A `require('@netlify/blobs')` inside a function body is left out of the v2 bundle ("Cannot find module '@netlify/blobs'"). The Lambda-style page functions use `openBlobStore(event)` in `lib/publicArtistSnapshot.js`, which calls `connectLambda(event)`.
 - **`netlify logs` without `--follow` shows only the first line of each invocation**, an empty `INFO`, so a failing background function looks like it ran and printed nothing. Stream with `netlify logs --deploy-id <id> --function <name> --follow` while you trigger it.
 
+**A change to what the snapshot contains does not reach production on deploy.** A run only rebuilds artists that are due (by age, or because their stored `schemaVersion` differs from `SCHEMA_VERSION` in `netlify/functions/lib/publicArtistSnapshot.js`). A plain re-run right after the deploy reports every artist "fresh" and writes nothing. 5.47.13 added `overdueOriginals` / `notPlayedSince` this way and production went without them until a forced run. After merging such a change, either:
+
+- run `node scripts/run-artist-snapshot.js --force` once the production deploy is live (an incremental rebuild of every artist; check it with `--report`), or
+- bump `SCHEMA_VERSION`, but only when stored data must be refetched: it also makes every raw cache stale, so the next run refetches every band's full history.
+
+`/api/artist` and the `/artist/...` pages are CDN-cached for up to an hour (`s-maxage=3600`, `stale-while-revalidate`), so the first request after a run can still show the old `fetchedAt`. Add any extra query parameter to bypass the cache when you check.
+
 Deploy previews always carry `X-Robots-Tag: noindex` (Netlify adds it). Lighthouse's `is-crawlable` and the Rich Results Test's "Indexing allowed?" fail there for that reason alone.
 
 ## Versioning: every PR bumps the App Store version
