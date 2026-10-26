@@ -4,7 +4,8 @@
 // publicArtistSnapshot.js: the band page, the song page, the /artists
 // index, and the "temporarily unavailable" state for phish.net data past
 // 24 hours. Also builds the /api/artist and /api/artist-song JSON from the
-// same loaded snapshot, so the HTML and the JSON can never disagree.
+// same loaded snapshot, so the HTML and the JSON can never disagree, and
+// the /api/artists list of bands that have one.
 //
 // Each function returns a complete Netlify response. Plain HTML through
 // publicPageHtml.page(), same shell as the /u/ pages.
@@ -445,6 +446,28 @@ function artistSongJson(loaded, songSlug, now = Date.now()) {
   }, cacheHeaders(entry, now));
 }
 
+// /api/artists: every band whose snapshot may be shown right now, so the
+// app can link a band name to its band screen only where there is one.
+// `index` is loadIndex()'s. A Phish entry past its 24 hours is left out
+// rather than listed and then refused; the short cache keeps that true
+// within minutes of the cutoff.
+function artistsIndexJson(index, now = Date.now()) {
+  const artists = index.artists
+    .filter((e) => findArtist(e.slug) && availability(e, now).available)
+    .map((e) => ({
+      slug: e.slug,
+      name: e.name,
+      source: e.source,
+      sourceName: e.sourceName,
+      songPages: !!e.songPages,
+      totalShows: e.totalShows,
+      songCount: e.songCount,
+      lastShowDate: e.lastShowDate,
+      fetchedAt: e.fetchedAt,
+    }));
+  return jsonResponse(200, { ok: true, schemaVersion: index.schemaVersion, artists }, { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=300' });
+}
+
 // /api/artist-shows: every show with its setlist, for the "Songs I've
 // heard" tool. `loaded` is loadArtistShows()'s { entry, shows }. The
 // compact shape is artistSnapshotStats.js's buildShowList.
@@ -472,5 +495,6 @@ module.exports = {
   artistJson,
   artistSongJson,
   artistShowsJson,
+  artistsIndexJson,
   jsonResponse,
 };

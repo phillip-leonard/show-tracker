@@ -4,6 +4,58 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.47.17] — 2026-10-26
+
+Ships in iOS 3.9.17 (`MARKETING_VERSION` 3.9.16 → 3.9.17; the build number is
+left to Xcode Cloud). The number may need re-basing at merge: this PR is held
+until after the Product Hunt launch.
+
+**Band and song screens in the app, with your stats beside the band's.** The
+public band and song pages (`/artist/…`) are Netlify Functions, so they have
+never existed in the iOS app. The same snapshot, as JSON, now renders natively
+at `/bands/?band=<slug>` and `/bands/?band=<slug>&song=<songSlug>`: a real
+pre-rendered route with query params (`out/bands/index.html`), no dynamic
+route, `noindex`. Signed in on the web you get the same screens; signed out,
+`/bands/` sends you to the public page.
+
+- **Band screen:** shows, first and last show, source credit; **You and this
+  band** (your shows, songs heard, your most heard, Make my poster for the
+  archive bands); most played with **heard N×**; most overdue originals and
+  covers, not played in 5+ years, and the biggest bust-outs, marking what
+  you've heard and the bust-outs you were there for; recent shows marked
+  **You were there**, linking to your show; Follow.
+- **Song screen:** "Played 221 times · you've heard it 3 times"; times
+  played, first and last played, current and longest gap, original or cover;
+  **your stats** (times heard, first and last heard, your gap, every show of
+  yours it was played at); recent performances, marking yours.
+- **Your numbers are Stats → Songs' numbers.** They come from
+  `lib/songIndex.js`'s `buildSongIndex`, run over the band's shows; no second
+  gap calculation. A band logged as "Goose" and "Goose (US)" is one band, and
+  titles go through the band's aliases (`config/song-title-aliases.json`), so
+  setlist.fm's "SOS" counts as Same Old Shenanigans here (Stats → Songs still
+  lists it as SOS).
+- **Entry points:** Band stats in My Shows → By artist and Stats → Artists;
+  the band name on a show; setlist titles on a show or a run open the band's
+  song screen when it has one, else the existing `/songs/` page. Shown only for
+  bands with a snapshot.
+- **New `/api/artists`:** the bands with a snapshot that may be shown now
+  (Phish past its 24 hours is left out). If it can't be fetched, the app
+  assumes every configured band has one, and that band's screen shows its
+  error state.
+- **Data and offline:** fetched through `apiUrl()` (absolute on iOS), cached
+  per band and song for the session. A cached Phish response older than 24
+  hours is dropped and fetched again, never shown; a 503 shows "temporarily
+  unavailable". Offline: "Couldn't load Goose stats. Try again".
+- **Back:** `lib/navRoutes.js` has `/bands` (back to Top Artists) with `song`
+  as a detail param whose parent is its own band, so a cold deep link to a
+  song goes back to `/bands/?band=goose`. A detail selector can now name its
+  own parent.
+- Tests: `lib/__tests__/bandScreens.test.js` (counts equal Stats → Songs,
+  aliases, the Phish cache rule, offline), `/bands` in `navRoutes.test.js`,
+  `/api/artists` in `tests/public-pages/artistPages.test.js`.
+
+---
+
 ## [5.47.16] — 2026-10-26
 
 Ships in iOS 3.9.16 (`MARKETING_VERSION` 3.9.15 → 3.9.16; the build number is

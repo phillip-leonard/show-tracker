@@ -8,6 +8,7 @@ import { countSongsByShow } from '@/lib/songCounts';
 import { buildRunIndex, buildTourIndex, tourKeyFor, tourHref } from '@/lib/runIndex';
 import { festivalHref } from '@/lib/festivalGrouping';
 import { venueKeyFor } from '@/lib/venues';
+import { bandHref } from '@/lib/showRouting';
 import { sourceLabel, sourceHomeUrl, resolveSource, SETLIST_SOURCES } from '@/lib/setlistSources';
 import SetlistView from './SetlistView';
 import SetlistfmAttribution from './SetlistfmAttribution';
@@ -26,6 +27,7 @@ import DeleteShowModal from './DeleteShowModal';
 import CommentsSection from '@/components/comments/CommentsSection';
 import ShowMediaSection from '@/components/photos/ShowMediaSection';
 import FollowBandButton from '@/components/artists/FollowBandButton';
+import { useBandFor, useBandSongHref } from '@/hooks/useBandScreens';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -370,8 +372,16 @@ export default function ShowDetailView({
     return buildTourIndex(allShows)[key] ? tourHref(key) : null;
   }, [allShows, show?.artist, show?.tour, show?.tourName]);
 
+  // A setlist title opens the band's song screen (/bands/?band=…&song=…)
+  // when the band has one for that song, and the user's own /songs/ page
+  // otherwise. The band name opens the band screen when there is one.
+  const bandFor = useBandFor();
+  const band = show?.artist ? bandFor(show.artist) : null;
+  const bandSongHrefFor = useBandSongHref(show?.artist);
   const artistSlug = show?.artist ? artistSlugFromName(show.artist) : null;
   const getSongHref = (title) => {
+    const bandSong = bandSongHrefFor(title);
+    if (bandSong) return bandSong;
     if (!artistSlug) return null;
     const songSlug = songSlugFromTitle(title);
     return songSlug ? `/songs/?artist=${artistSlug}&song=${songSlug}` : null;
@@ -492,7 +502,13 @@ export default function ShowDetailView({
         {/* Artist name + action icons */}
         <div className="flex items-start justify-between gap-4 pb-4 mb-4 border-b border-subtle">
           <div className="flex items-center gap-3 flex-wrap min-w-0">
-            <h1 className="text-2xl font-bold text-amber">{show.artist}</h1>
+            <h1 className="text-2xl font-bold text-amber">
+              {band ? (
+                <Link href={bandHref(band.slug)} className="hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 rounded">
+                  {show.artist}
+                </Link>
+              ) : show.artist}
+            </h1>
           </div>
 
           <div className="flex items-center gap-0.5 shrink-0 -mr-1">
@@ -664,6 +680,11 @@ export default function ShowDetailView({
                 <a href={`/stats?artist=${encodeURIComponent(show.artist)}`} className="text-xs text-brand hover:underline block">
                   View full artist stats →
                 </a>
+                {band && (
+                  <Link href={bandHref(band.slug)} className="text-xs text-brand hover:underline block">
+                    {band.name} band stats and your songs →
+                  </Link>
+                )}
               </div>
             }
           />

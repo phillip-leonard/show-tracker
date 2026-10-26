@@ -685,6 +685,30 @@ test('stale Phish: pages and JSON answer 503 "temporarily unavailable"', async (
   assert.strictEqual(pages.renderIndex(await snap.loadIndex(store), later).body.includes('/artist/phish/'), false);
 });
 
+test('/api/artists lists the bands with a snapshot that may be shown now', async () => {
+  const store = memoryStore();
+  await seededGoose(store);
+  const years = yearsFixture();
+  const restore = stubSources({ phishnet: (_a, y) => years[y] || [] });
+  try {
+    await snap.runSnapshot({ store, only: ['phish'], env: { PHISHNET_API_KEY: 'test' }, force: 'full', now: () => NOW, log: quiet });
+  } finally { restore(); }
+  const index = await snap.loadIndex(store);
+  const res = pages.artistsIndexJson(index, NOW + HOUR);
+  assert.strictEqual(res.statusCode, 200);
+  assert.strictEqual(res.headers['Access-Control-Allow-Origin'], '*');
+  const body = JSON.parse(res.body);
+  assert.deepStrictEqual(body.artists.map((a) => a.slug).sort(), ['goose', 'phish']);
+  const goose = body.artists.find((a) => a.slug === 'goose');
+  assert.strictEqual(goose.songPages, true);
+  assert.strictEqual(goose.name, 'Goose');
+  assert.ok(goose.fetchedAt);
+  assert.strictEqual('songSlugs' in goose, false, 'the index stays small');
+  // Past 24 hours Phish is left out: no entry point to a screen that would refuse it.
+  const later = JSON.parse(pages.artistsIndexJson(index, NOW + 25 * HOUR).body);
+  assert.deepStrictEqual(later.artists.map((a) => a.slug), ['goose']);
+});
+
 test('JSON and HTML come from the same snapshot', async () => {
   const store = memoryStore();
   await seededGoose(store);

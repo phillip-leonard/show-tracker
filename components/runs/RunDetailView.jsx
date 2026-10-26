@@ -21,6 +21,7 @@ import { artistSlugFromName, songSlugFromTitle } from '@/lib/songIndex';
 import SetlistView from '@/components/shows/SetlistView';
 import SetlistfmAttribution from '@/components/shows/SetlistfmAttribution';
 import { showHref } from '@/lib/showRouting';
+import { useBandSongHref } from '@/hooks/useBandScreens';
 
 function buildSets(setlist = []) {
   return groupSongsBySet(setlist).map(({ label, songs }) => ({
@@ -48,8 +49,12 @@ export default function RunDetailView({ run }) {
     router.push(showHref(showId));
   };
 
+  // The band's song screen when it has one for the title, else /songs/.
+  const bandSongHrefFor = useBandSongHref(run.artistName);
   const artistSlug = run.artistSlug;
   const getSongHref = (title) => {
+    const bandSong = bandSongHrefFor(title);
+    if (bandSong) return bandSong;
     if (!artistSlug) return null;
     const songSlug = songSlugFromTitle(title);
     return songSlug ? `/songs/?artist=${artistSlug}&song=${songSlug}` : null;
