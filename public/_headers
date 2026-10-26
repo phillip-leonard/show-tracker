@@ -66,3 +66,8 @@
 
 /best-concert-tracker-apps-jam-bands/
   X-Robots-Tag: index, follow
+
+# iOS universal links (lib/deepLinks.js). Apple fetches this file with no
+# extension and needs it served as JSON, not as the default octet-stream.
+/.well-known/apple-app-site-association
+  Content-Type: application/json

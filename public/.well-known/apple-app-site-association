@@ -1,0 +1,211 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": [
+          "66N4YR3VP9.com.mysetlists.app"
+        ],
+        "components": [
+          {
+            "/": "/shows"
+          },
+          {
+            "/": "/shows/*"
+          },
+          {
+            "/": "/search"
+          },
+          {
+            "/": "/search/*"
+          },
+          {
+            "/": "/stats"
+          },
+          {
+            "/": "/stats/*"
+          },
+          {
+            "/": "/profile"
+          },
+          {
+            "/": "/profile/*"
+          },
+          {
+            "/": "/songs"
+          },
+          {
+            "/": "/songs/*"
+          },
+          {
+            "/": "/runs"
+          },
+          {
+            "/": "/runs/*"
+          },
+          {
+            "/": "/tours"
+          },
+          {
+            "/": "/tours/*"
+          },
+          {
+            "/": "/festivals"
+          },
+          {
+            "/": "/festivals/*"
+          },
+          {
+            "/": "/wishlist"
+          },
+          {
+            "/": "/wishlist/*"
+          },
+          {
+            "/": "/bucket-list"
+          },
+          {
+            "/": "/bucket-list/*"
+          },
+          {
+            "/": "/setlist-photos"
+          },
+          {
+            "/": "/setlist-photos/*"
+          },
+          {
+            "/": "/scan-import"
+          },
+          {
+            "/": "/scan-import/*"
+          },
+          {
+            "/": "/venues"
+          },
+          {
+            "/": "/venues/*"
+          },
+          {
+            "/": "/venue-dashboard"
+          },
+          {
+            "/": "/venue-dashboard/*"
+          },
+          {
+            "/": "/stats/runs"
+          },
+          {
+            "/": "/stats/runs/*"
+          },
+          {
+            "/": "/stats/songs"
+          },
+          {
+            "/": "/stats/songs/*"
+          },
+          {
+            "/": "/stats/top-artists"
+          },
+          {
+            "/": "/stats/top-artists/*"
+          },
+          {
+            "/": "/stats/top-venues"
+          },
+          {
+            "/": "/stats/top-venues/*"
+          },
+          {
+            "/": "/year-in-review"
+          },
+          {
+            "/": "/year-in-review/*"
+          },
+          {
+            "/": "/advanced-search"
+          },
+          {
+            "/": "/advanced-search/*"
+          },
+          {
+            "/": "/friends"
+          },
+          {
+            "/": "/friends/*"
+          },
+          {
+            "/": "/invite"
+          },
+          {
+            "/": "/invite/*"
+          },
+          {
+            "/": "/activity"
+          },
+          {
+            "/": "/activity/*"
+          },
+          {
+            "/": "/notifications"
+          },
+          {
+            "/": "/notifications/*"
+          },
+          {
+            "/": "/meetups"
+          },
+          {
+            "/": "/meetups/*"
+          },
+          {
+            "/": "/community"
+          },
+          {
+            "/": "/community/*"
+          },
+          {
+            "/": "/roadmap"
+          },
+          {
+            "/": "/roadmap/*"
+          },
+          {
+            "/": "/feedback"
+          },
+          {
+            "/": "/feedback/*"
+          },
+          {
+            "/": "/how-to-use"
+          },
+          {
+            "/": "/how-to-use/*"
+          },
+          {
+            "/": "/release-notes"
+          },
+          {
+            "/": "/release-notes/*"
+          },
+          {
+            "/": "/admin"
+          },
+          {
+            "/": "/admin/*"
+          },
+          {
+            "/": "/admin/venue-verifications"
+          },
+          {
+            "/": "/admin/venue-verifications/*"
+          },
+          {
+            "/": "/upcoming"
+          },
+          {
+            "/": "/upcoming/*"
+          }
+        ]
+      }
+    ]
+  }
+}
