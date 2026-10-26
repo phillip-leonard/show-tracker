@@ -71,7 +71,7 @@ function SpotifyCallbackContent() {
   }, [searchParams]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-base via-surface to-base flex items-center justify-center p-4">
+    <div className="min-h-dscreen bg-gradient-to-br from-base via-surface to-base flex items-center justify-center p-4">
       <div className="bg-hover border border-subtle rounded-2xl p-8 max-w-sm w-full text-center">
         <div className="w-12 h-12 rounded-full bg-brand-subtle flex items-center justify-center mx-auto mb-4">
           <Music className="w-6 h-6 text-brand" />
@@ -125,7 +125,7 @@ export default function SpotifyCallbackPage() {
 
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-gradient-to-br from-base via-surface to-base flex items-center justify-center p-4">
+      <div className="min-h-dscreen bg-gradient-to-br from-base via-surface to-base flex items-center justify-center p-4">
         <div className="bg-hover border border-subtle rounded-2xl p-8 max-w-sm w-full text-center">
           <div className="w-12 h-12 rounded-full bg-brand-subtle flex items-center justify-center mx-auto mb-4">
             <Music className="w-6 h-6 text-brand" />

@@ -65,9 +65,9 @@ function SongHistoryModal({ songName, artistName, allShows, onClose, onViewShow 
   }, [performances]);
 
   return (
-    <div className="fixed inset-0 md:left-64 flex items-end md:items-center justify-center md:p-4 z-[70]" onClick={onClose}>
+    <div className="fixed inset-0 md:left-sidebar flex items-end md:items-center justify-center pl-safe-left pr-safe-right md:p-safe-gutter md:[--safe-left:0px] z-[70]" onClick={onClose}>
       <div ref={backdropRef} aria-hidden="true" className="absolute inset-0 bg-sidebar/50 backdrop-blur-xl" />
-      <Card ref={sheetRef} variant="elevated" padding="none" className="relative rounded-t-2xl md:rounded-3xl max-w-[100vw] sm:max-w-lg md:max-w-xl w-full max-h-[85dvh] md:max-h-[80dvh] overflow-hidden flex flex-col shadow-2xl pb-safe-bottom md:pb-0" onClick={e => e.stopPropagation()}>
+      <Card ref={sheetRef} variant="elevated" padding="none" className="relative rounded-t-2xl md:rounded-3xl max-w-[100vw] sm:max-w-lg md:max-w-xl w-full max-h-[85dvh] md:max-h-[min(80dvh,100%)] overflow-hidden flex flex-col shadow-2xl pb-safe-bottom md:pb-0" onClick={e => e.stopPropagation()}>
         {/* Grabber — mobile only */}
         <div {...dragHandleProps} className="md:hidden flex-shrink-0 flex items-center justify-center pt-2.5 pb-1">
           <div className="sheet-grabber" />

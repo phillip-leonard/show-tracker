@@ -9,7 +9,8 @@ import Link from 'next/link';
 // the public profile pages.
 export default function Footer() {
   return (
-    <div className="mt-auto py-8 border-t border-subtle">
+    // The bottom padding clears the home indicator; 2rem on the web.
+    <div className="mt-auto pt-8 pb-[calc(2rem+var(--safe-bottom))] border-t border-subtle">
       <div className="max-w-6xl mx-auto px-4 text-center">
         <div className="flex items-center justify-center gap-4 text-sm text-muted flex-wrap">
           <Link href="/release-notes" className="hover:text-primary transition-colors">Release Notes</Link>

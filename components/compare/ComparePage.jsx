@@ -126,7 +126,7 @@ function Cta() {
 export default function ComparePage({ path, title, faq, children }) {
   const related = COMPARE_PAGES.filter((p) => p.path !== path);
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-br from-base via-surface to-base text-primary">
+    <div className="min-h-dscreen flex flex-col bg-gradient-to-br from-base via-surface to-base text-primary">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd(faq)) }}

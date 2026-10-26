@@ -996,7 +996,7 @@ export default function ShowDetailView({
 
       {/* Share toast */}
       {toast && (
-        <div className="fixed bottom-4 right-4 z-50 bg-success text-white font-medium text-sm px-4 py-2 rounded-lg shadow-lg pointer-events-none">
+        <div className="fixed bottom-[calc(1rem+var(--safe-bottom))] right-[calc(1rem+var(--safe-right))] z-50 bg-success text-white font-medium text-sm px-4 py-2 rounded-lg shadow-lg pointer-events-none">
           Link copied to clipboard!
         </div>
       )}

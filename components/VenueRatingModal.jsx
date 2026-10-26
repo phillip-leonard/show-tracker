@@ -94,8 +94,8 @@ function VenueRatingModal({ show, currentUser, onClose, onSaved }) {
   );
 
   return (
-    <div className="fixed inset-0 md:left-64 bg-black/70 backdrop-blur-sm z-[70] flex items-center justify-center p-4">
-      <Card variant="elevated" padding="none" className="w-full max-w-md max-h-[90vh] overflow-hidden flex flex-col">
+    <div className="fixed inset-0 md:left-sidebar bg-black/70 backdrop-blur-sm z-[70] flex items-center justify-center p-safe-gutter md:[--safe-left:0px]">
+      <Card variant="elevated" padding="none" className="w-full max-w-md max-h-[min(90dvh,100%)] overflow-hidden flex flex-col">
         <div className="p-6 border-b border-subtle flex items-center justify-between">
           <div>
             <h2 className="text-lg font-semibold text-primary">{existingId ? 'Edit Your Rating' : 'Rate This Venue'}</h2>

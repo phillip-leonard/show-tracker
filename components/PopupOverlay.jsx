@@ -121,7 +121,7 @@ export default function PopupOverlay({
   return (
     <div
       ref={overlayRef}
-      className="fixed inset-0 z-[70] flex items-center justify-center p-4 animate-fade-in"
+      className="fixed inset-0 z-[70] flex items-center justify-center p-safe-gutter animate-fade-in"
       onClick={handleBackdropClick}
       onKeyDown={handleKeyDown}
       role="presentation"

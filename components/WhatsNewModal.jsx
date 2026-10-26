@@ -63,13 +63,13 @@ function WhatsNewModal({ onClose, navigateTo }) {
 
   return (
     <div
-      className={`fixed inset-0 z-[80] flex items-center justify-center p-4 transition-all duration-200 ${visible ? 'bg-sidebar/50 backdrop-blur-sm' : 'bg-black/0'}`}
+      className={`fixed inset-0 z-[80] flex items-center justify-center p-safe-gutter transition-all duration-200 ${visible ? 'bg-sidebar/50 backdrop-blur-sm' : 'bg-black/0'}`}
       onClick={handleClose}
     >
       <Card
         variant="elevated"
         padding="none"
-        className={`w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden shadow-2xl transition-all duration-200 ${visible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}
+        className={`w-full max-w-md max-h-[min(90dvh,100%)] flex flex-col overflow-hidden shadow-2xl transition-all duration-200 ${visible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}

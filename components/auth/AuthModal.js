@@ -92,7 +92,7 @@ export default function AuthModal({ mode, onClose, onSwitchMode, onSuccess }) {
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-center justify-center"
+      className="fixed inset-0 z-[60] flex items-center justify-center p-safe-gutter"
       style={keyboardInset ? { paddingBottom: keyboardInset } : undefined}
     >
       {/* Backdrop */}
@@ -110,11 +110,14 @@ export default function AuthModal({ mode, onClose, onSwitchMode, onSuccess }) {
           enough to scroll. The outer box clips, the inner one scrolls,
           and the button sits between them where it stays put. */}
       <div
-        className="relative bg-surface backdrop-blur-xl border border-subtle rounded-3xl w-full max-w-md mx-4 shadow-2xl flex flex-col"
+        className="relative bg-surface backdrop-blur-xl border border-subtle rounded-3xl w-full max-w-md shadow-2xl flex flex-col"
         style={
           keyboardInset
             ? { maxHeight: maxHeightAboveKeyboard(keyboardInset) }
-            : { maxHeight: '90vh' }
+            // The overlay's p-safe-gutter replaces the old mx-4 and keeps
+            // the card clear of the status bar and home indicator; 100%
+            // is what is left inside it.
+            : { maxHeight: 'min(90dvh, 100%)' }
         }
       >
         <button

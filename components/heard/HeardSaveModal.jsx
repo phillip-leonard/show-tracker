@@ -168,10 +168,10 @@ export default function HeardSaveModal() {
 
   return (
     <div
-      className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-[9999]"
+      className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-safe-gutter z-[9999]"
       onClick={(e) => { if (e.target === e.currentTarget && stage !== 'saving') close(); }}
     >
-      <div className="bg-elevated border border-brand/30 rounded-2xl max-w-md w-full p-6 shadow-2xl shadow-brand/10 max-h-[90vh] overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="heard-save-title">
+      <div className="bg-elevated border border-brand/30 rounded-2xl max-w-md w-full p-6 shadow-2xl shadow-brand/10 max-h-[min(90dvh,100%)] overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="heard-save-title">
         <div className="flex items-center gap-3 mb-4">
           <div className="w-10 h-10 bg-brand-subtle rounded-xl flex items-center justify-center flex-shrink-0">
             <Music className="w-5 h-5 text-brand" />

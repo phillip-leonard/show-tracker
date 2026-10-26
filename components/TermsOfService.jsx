@@ -8,7 +8,7 @@ import { TERMS_VERSION } from '@/lib/terms';
 
 export default function TermsOfService() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-base via-surface to-base text-primary">
+    <div className="min-h-dscreen bg-gradient-to-br from-base via-surface to-base text-primary">
       {/* Header */}
       <div className="bg-black/20 backdrop-blur-xl border-b border-subtle">
         <div className="max-w-4xl mx-auto px-4 py-4">

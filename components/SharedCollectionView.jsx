@@ -20,7 +20,7 @@ export default function SharedCollectionView({ data }) {
   const sortedArtists = Object.entries(artistGroups).sort((a, b) => b[1].length - a[1].length);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-base via-surface to-base text-primary">
+    <div className="min-h-dscreen bg-gradient-to-br from-base via-surface to-base text-primary">
       <div className="max-w-3xl mx-auto px-4 py-12">
         {/* Header */}
         <div className="mb-8">

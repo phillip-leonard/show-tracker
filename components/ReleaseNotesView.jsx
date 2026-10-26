@@ -13,6 +13,16 @@ const STREAMING_MENTION = /spotify|apple\s*music/i;
 function ReleaseNotesView() {
   const releases = [
     {
+      version: '5.47.14',
+      date: 'October 26, 2026',
+      title: 'Ready for iPhone Duo',
+      changes: [
+        'In landscape, the menu and every page now stay clear of the Dynamic Island and the status bar',
+        'Pop-ups and sheets fit the screen on any iPhone, folded or open',
+        'In the app, on a wide screen like iPhone Duo open, your shows list sits beside the show you’re looking at',
+      ]
+    },
+    {
       version: '5.47.13',
       date: 'October 26, 2026',
       title: 'Share Links and Overdue Songs',

@@ -49,6 +49,12 @@
   /* Height of the mobile header's bar, excluding its safe-area padding. */
   --mobile-header-h: 56px;
 
+  /* The fixed sidebar's width at md and up: 16rem, plus the left inset it
+     pads itself by (see components/layout/Sidebar.jsx). Resolved here, on
+     :root, so an element that zeroes --safe-left locally still lines up
+     with the real sidebar. */
+  --sidebar-w: calc(16rem + var(--safe-left));
+
   /* How much of the viewport the on-screen keyboard covers. Written by the
      Capacitor Keyboard plugin on native and by visualViewport on web —
      see lib/keyboardInset.js. Declared here so it is always a valid length
@@ -283,6 +289,20 @@ label {
 @media (prefers-reduced-motion: reduce) {
   .pressable:active {
     transform: none;
+  }
+}
+
+/* ── Overlay gutter ─────────────────────────────────
+   Padding for a fixed, full-screen overlay that centres a card: --gutter
+   on every side (1rem unless overridden), or the device inset on that side
+   where the inset is bigger. Insets are 0 on the web, so there this is
+   exactly p-4. In @layer utilities so md: and friends work with it. */
+@layer utilities {
+  .p-safe-gutter {
+    padding-top: max(var(--gutter, 1rem), var(--safe-top));
+    padding-right: max(var(--gutter, 1rem), var(--safe-right));
+    padding-bottom: max(var(--gutter, 1rem), var(--safe-bottom));
+    padding-left: max(var(--gutter, 1rem), var(--safe-left));
   }
 }
 

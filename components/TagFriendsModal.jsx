@@ -64,8 +64,8 @@ function TagFriendsModal({ show, friends, onTag, onInviteByEmail, onClose, upcom
   };
 
   return (
-    <div className="fixed inset-0 md:left-64 bg-black/70 backdrop-blur-sm z-[70] flex items-center justify-center p-4">
-      <Card variant="elevated" padding="none" className="w-full max-w-md max-h-[85vh] overflow-hidden flex flex-col">
+    <div className="fixed inset-0 md:left-sidebar bg-black/70 backdrop-blur-sm z-[70] flex items-center justify-center p-safe-gutter md:[--safe-left:0px]">
+      <Card variant="elevated" padding="none" className="w-full max-w-md max-h-[min(85dvh,100%)] overflow-hidden flex flex-col">
         {/* Header */}
         <div className="p-6 border-b border-subtle">
           <div className="flex items-center justify-between mb-3">

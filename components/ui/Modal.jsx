@@ -82,7 +82,7 @@ export default function Modal({
 
   return (
     <div
-      className="fixed inset-0 z-[9000] flex items-end md:items-center justify-center p-0 md:p-4"
+      className="fixed inset-0 z-[9000] flex items-end md:items-center justify-center pl-safe-left pr-safe-right md:p-safe-gutter"
       style={keyboardInset ? { paddingBottom: keyboardInset } : undefined}
       onClick={onClose}
       role="dialog"
@@ -111,7 +111,7 @@ export default function Modal({
         className={[
           // 92dvh, but never into the status bar: on a short viewport 8% is
           // less than the top inset.
-          'relative bg-surface w-full shadow-theme-xl flex flex-col max-h-[min(92dvh,calc(100dvh_-_var(--safe-top)_-_0.5rem))] animate-slide-up',
+          'relative bg-surface w-full shadow-theme-xl flex flex-col max-h-[min(92dvh,calc(100dvh_-_var(--safe-top)_-_0.5rem))] md:max-h-[min(92dvh,100%)] animate-slide-up',
           'rounded-t-2xl md:rounded-2xl',
           // The home indicator sits over the bottom of a full-width sheet.
           'pb-safe-bottom md:pb-0',

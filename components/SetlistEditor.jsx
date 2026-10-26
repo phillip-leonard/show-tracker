@@ -154,7 +154,7 @@ function SetlistEditor({ show, allShows, onAddSong, onRateSong, onCommentSong, o
   }, [friendAnnotations]);
 
   return (
-    <div className="fixed inset-0 md:left-64 flex items-end md:items-center justify-center md:p-4 z-[60]">
+    <div className="fixed inset-0 md:left-sidebar flex items-end md:items-center justify-center pl-safe-left pr-safe-right md:p-safe-gutter md:[--safe-left:0px] z-[60]">
       {/* Backdrop split out of the wrapper so the swipe-down drag can fade
           it in step with the sheet. */}
       <div
@@ -164,7 +164,7 @@ function SetlistEditor({ show, allShows, onAddSong, onRateSong, onCommentSong, o
       />
       <div
         ref={sheetRef}
-        className="relative bg-surface border border-subtle rounded-t-2xl md:rounded-3xl max-w-[100vw] sm:max-w-lg md:max-w-2xl w-full max-h-[92dvh] md:max-h-[90dvh] overflow-hidden flex flex-col shadow-2xl pb-safe-bottom md:pb-0"
+        className="relative bg-surface border border-subtle rounded-t-2xl md:rounded-3xl max-w-[100vw] sm:max-w-lg md:max-w-2xl w-full max-h-[min(92dvh,calc(100dvh_-_var(--safe-top)_-_0.5rem))] md:max-h-[min(90dvh,100%)] overflow-hidden flex flex-col shadow-2xl pb-safe-bottom md:pb-0"
       >
         {/* Grabber — mobile only; the drag region is this plus the top bar. */}
         <div

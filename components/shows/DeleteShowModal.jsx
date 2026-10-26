@@ -27,10 +27,10 @@ export default function DeleteShowModal({ show, isOpen, onClose, onConfirm }) {
 
   return (
     <div
-      className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-[9999]"
+      className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-safe-gutter z-[9999]"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className="bg-elevated border border-danger/30 rounded-2xl max-w-md w-full p-6 shadow-2xl shadow-danger/10 max-h-[90vh] overflow-y-auto">
+      <div className="bg-elevated border border-danger/30 rounded-2xl max-w-md w-full p-6 shadow-2xl shadow-danger/10 max-h-[min(90dvh,100%)] overflow-y-auto">
         <div className="flex items-center gap-3 mb-4">
           <div className="w-10 h-10 bg-danger/20 rounded-xl flex items-center justify-center flex-shrink-0">
             <Trash2 className="w-5 h-5 text-danger" />
