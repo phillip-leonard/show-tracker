@@ -3,8 +3,9 @@
 // "Import from setlist.fm" on /heard/<slug>/: read a setlist.fm user's
 // attended list (GET /1.0/user/{userId}/attended, 20 setlists a page,
 // newest first, every artist mixed together) and tick the band's shows it
-// names. heard-import.js does the fetching; this is the matching, kept
-// apart so the tests can run it without the network.
+// names. heard-import.js does the fetching, one page a call, and
+// heardImportPaging.js the paging, in the browser; this is the matching,
+// kept apart so the tests can run it without the network.
 //
 // A setlist is the band's when its artist mbid is the band's setlistfmMbid
 // (config/public-artists.json). The name alone won't do: setlist.fm has a
@@ -17,6 +18,7 @@
 
 const { isoDate } = require('./publicPageHtml');
 const { decodeEntities } = require('./publicArtistSources');
+const { mergeNights } = require('./heardImportPaging');
 
 const squash = (s) => String(s || '').toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '');
 
@@ -33,12 +35,17 @@ function shiftDay(date, days) {
 }
 
 /**
+ * The band's nights among `setlists` (one page of the attended list), each
+ * with the archive show it matches or id null, in order.
+ * heardImportPaging.js's mergeNights puts the pages together; `key` is the
+ * night, so a night entered twice on setlist.fm counts once.
+ *
  * @param shows    the band's show list (buildShowList shape)
  * @param setlists setlist.fm setlist objects from /user/{id}/attended
  * @param mbid     the band's setlist.fm mbid
- * @returns { ids, unmatched: [{ date, venue, city }], attended }
+ * @returns [{ key, date, venue, city, id }]
  */
-function matchAttended(shows, setlists, mbid) {
+function matchNights(shows, setlists, mbid) {
   const byDate = new Map();
   for (const show of shows.shows) {
     if (!byDate.has(show.date)) byDate.set(show.date, []);
@@ -46,21 +53,16 @@ function matchAttended(shows, setlists, mbid) {
   }
   const venueName = (show) => (shows.venues[show.venue] || [''])[0];
 
-  const ids = [];
-  const unmatched = [];
-  const seen = new Set();
-  // setlist.fm can hold the same night twice (two users entering it); one
-  // night is one show attended.
+  const out = [];
   const nights = new Set();
-
   for (const sl of setlists) {
     if (!sl || !sl.artist || sl.artist.mbid !== mbid) continue;
     const date = isoDate(sl.eventDate);
     if (!date) continue;
     const venue = decodeEntities(sl.venue && sl.venue.name);
-    const night = `${date}|${squash(venue)}`;
-    if (nights.has(night)) continue;
-    nights.add(night);
+    const key = `${date}|${squash(venue)}`;
+    if (nights.has(key)) continue;
+    nights.add(key);
     const sameDay = byDate.get(date) || [];
     let match = sameDay.length === 1 ? sameDay[0] : sameDay.find((s) => venueMatches(venueName(s), venue));
     if (!match && sameDay.length > 1) match = sameDay[0];
@@ -68,13 +70,15 @@ function matchAttended(shows, setlists, mbid) {
       const near = [...(byDate.get(shiftDay(date, -1)) || []), ...(byDate.get(shiftDay(date, 1)) || [])];
       match = near.find((s) => venueMatches(venueName(s), venue));
     }
-    if (match) {
-      if (!seen.has(match.id)) { seen.add(match.id); ids.push(match.id); }
-    } else {
-      unmatched.push({ date, venue, city: decodeEntities(sl.venue && sl.venue.city && sl.venue.city.name) });
-    }
+    const city = decodeEntities(sl.venue && sl.venue.city && sl.venue.city.name);
+    out.push({ key, date, venue, city, id: match ? match.id : null });
   }
-  return { ids, unmatched, attended: nights.size };
+  return out;
 }
 
-module.exports = { matchAttended, venueMatches };
+/** Every page at once: { ids, unmatched: [{ date, venue, city }], attended } */
+function matchAttended(shows, setlists, mbid) {
+  return mergeNights(matchNights(shows, setlists, mbid));
+}
+
+module.exports = { matchNights, matchAttended, venueMatches };
