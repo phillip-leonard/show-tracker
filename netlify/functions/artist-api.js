@@ -1,5 +1,7 @@
 // netlify/functions/artist-api.js
 //
+//   GET /api/artists                            every band with a snapshot
+//                                               that may be shown now
 //   GET /api/artist?slug=<slug>                 band stats + song list
 //   GET /api/artist-song?slug=<slug>&song=<song> one song's stats
 //   GET /api/artist-shows?slug=<slug>           every show with its setlist,
@@ -17,10 +19,10 @@
 // data is past its 24 hours.
 //
 // netlify.toml rewrites the public paths to /.netlify/functions/artist-api/band,
-// .../song and .../shows; the visitor's query string passes through untouched.
+// .../song, .../shows and .../index; the visitor's query string passes through untouched.
 
-const { openBlobStore, loadArtist, loadArtistShows } = require('./lib/publicArtistSnapshot');
-const { artistJson, artistSongJson, artistShowsJson, jsonResponse } = require('./lib/publicArtistPages');
+const { openBlobStore, loadIndex, loadArtist, loadArtistShows } = require('./lib/publicArtistSnapshot');
+const { artistJson, artistSongJson, artistShowsJson, artistsIndexJson, jsonResponse } = require('./lib/publicArtistPages');
 const { selectedShowsJson } = require('./lib/heardPages');
 const { openShareStore, resolveCode } = require('./lib/heardShares');
 
@@ -29,6 +31,7 @@ function whichKind(event) {
   try { if (event.rawUrl) paths.push(new URL(event.rawUrl).pathname); } catch { /* path is enough */ }
   if (paths.some((p) => /\/(song|artist-song)\/?$/.test(p))) return 'song';
   if (paths.some((p) => /\/(shows|artist-shows)\/?$/.test(p))) return 'shows';
+  if (paths.some((p) => /\/(index|artists)\/?$/.test(p))) return 'index';
   return 'band';
 }
 
@@ -40,6 +43,14 @@ exports.handler = async function (event) {
   const isSong = kind === 'song';
   const notFound = () => jsonResponse(404, { ok: false, error: 'not_found' }, { 'Cache-Control': 'public, s-maxage=300' });
 
+  if (kind === 'index') {
+    try {
+      return artistsIndexJson(await loadIndex(openBlobStore(event)));
+    } catch (err) {
+      console.error('artist-api error:', err);
+      return jsonResponse(500, { ok: false, error: 'server_error' }, { 'Cache-Control': 'no-store' });
+    }
+  }
   if (!/^[a-z0-9-]+$/.test(slug)) return notFound();
   if (isSong && !/^[a-z0-9-]+$/.test(song)) return notFound();
 

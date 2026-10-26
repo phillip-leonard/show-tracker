@@ -19,6 +19,8 @@ import DeepLinkListener from '@/components/layout/DeepLinkListener';
 import { Music, Check, Sparkles } from 'lucide-react';
 import { clearHintAttr } from '@/lib/signedInHint';
 import { isComparePath } from '@/lib/comparePages';
+import { isNativePlatform } from '@/lib/platform';
+import { publicBandUrl } from '@/lib/bandScreens';
 // Statically imported, not code-split: the landing page is the static HTML
 // of `/` and has to be in out/index.html as real markup for crawlers and
 // first paint. It was `dynamic(..., { ssr: false })` while authLoading
@@ -155,6 +157,16 @@ function AppShell({ children }) {
   useEffect(() => {
     if (!authLoading) clearHintAttr();
   }, [authLoading]);
+
+  // A band screen (/bands/?band=…) is the signed-in view of a public band
+  // page. Signed out on the web, the public page is the one to see, not
+  // the landing page every other app route shows. The iOS app has no
+  // public pages in its bundle, so it keeps the sign-in screen.
+  useEffect(() => {
+    if (authLoading || user || guestMode || isNativePlatform()) return;
+    const url = publicBandUrl(pathname, typeof window !== 'undefined' ? window.location.search : '');
+    if (url) window.location.replace(url);
+  }, [authLoading, user, guestMode, pathname]);
 
   // The comparison pages (lib/comparePages.js) are web pages with their
   // own header and footer, the same for everyone, signed in or not. They
