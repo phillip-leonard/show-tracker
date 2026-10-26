@@ -4,9 +4,9 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
-## [5.47.15] — 2026-10-26
+## [5.47.16] — 2026-10-26
 
-Ships in iOS 3.9.15 (`MARKETING_VERSION` 3.9.14 → 3.9.15; the build number is
+Ships in iOS 3.9.16 (`MARKETING_VERSION` 3.9.15 → 3.9.16; the build number is
 left to Xcode Cloud). Web only in practice: `/heard` is not in the app bundle.
 
 **setlist.fm import on `/heard` reads every page, however many shows.** The
@@ -34,6 +34,24 @@ attended shows stopped a page short.
   page and shared by the four bands, holding only artist mbid, date, venue
   and city.
 - The signed-in "Edit selection" picker uses the same form and flow.
+
+## [5.47.15] — 2026-10-26
+
+Ships in iOS 3.9.15 (`MARKETING_VERSION` 3.9.14 → 3.9.15; the build number is
+left to Xcode Cloud).
+
+**Developer guide only; no app or site changes.**
+
+- **CLAUDE.md: a change to the band-page snapshot needs a forced run after
+  it deploys.** The snapshot job only rebuilds bands that are due, by age or
+  by `SCHEMA_VERSION`. After 5.47.13 (which added `overdueOriginals` and
+  `notPlayedSince` without a version bump), a plain re-run reported every
+  band "fresh" and wrote nothing. Production went without the overdue / not
+  played in 5+ years split until
+  `node scripts/run-artist-snapshot.js --force`. The note says when to force
+  a run and when to bump `SCHEMA_VERSION` instead (a bump also refetches
+  every band's full history). It also covers the hour-long CDN cache on
+  `/api/artist` and the band pages.
 
 ## [5.47.14] — 2026-10-26
 
