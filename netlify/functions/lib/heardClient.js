@@ -7,7 +7,7 @@
 // bundle, nothing in out/ or the iOS app.
 //
 // So this is browser code that lives in a CommonJS file: everything it uses
-// is inside createHeardApp or passed in (Heard, boot). Node never runs it;
+// is inside createHeardApp or passed in (Heard, boot, Paging). Node never runs it;
 // the tests check only that it parses and that the page carries it.
 //
 // ── Storage ───────────────────────────────────────────────────────────
@@ -35,7 +35,7 @@
 // the page's stored picks either. ?mine=1 with none of them asks the
 // visitor to sign in and comes back (AppContext's ?login=1&next=).
 
-function createHeardApp(Heard, boot) {
+function createHeardApp(Heard, boot, Paging) {
   'use strict';
 
   const root = document.getElementById('heard-app');
@@ -292,6 +292,9 @@ function createHeardApp(Heard, boot) {
       update();
     });
     document.getElementById('h-import').addEventListener('submit', (e) => { e.preventDefault(); importAttended(); });
+    document.getElementById('h-import-msg').addEventListener('click', (e) => {
+      if (importing && e.target.closest && e.target.closest('[data-act="cancel-import"]')) importing.cancel();
+    });
     document.getElementById('h-results').addEventListener('click', onResultsClick);
   }
 
@@ -618,36 +621,84 @@ function createHeardApp(Heard, boot) {
 
   // ── setlist.fm import ───────────────────────────────────────────────
 
+  // One page of the attended list per call, paged here
+  // (heardImportPaging.js), with progress and a Cancel that keeps what was
+  // found. The ticks go in once, at the end. The form is the same whether
+  // the picker is open from the start or behind "Edit selection".
+  let importing = null; // { cancel() } while an import runs
+
   async function importAttended() {
     const input = document.getElementById('h-user');
+    const form = document.getElementById('h-import');
     const msg = document.getElementById('h-import-msg');
     const user = input.value.trim();
+    if (importing) return;
     if (!user) { input.focus(); return; }
-    msg.innerHTML = '<p class="h-msg">Reading your setlist.fm attendance…</p>';
+
+    let stop = false;
+    let controller = null;
+    const wakers = new Set();
+    importing = {
+      cancel() {
+        stop = true;
+        if (controller) controller.abort();
+        wakers.forEach((wake) => wake());
+      },
+    };
+    const sleep = (ms) => new Promise((resolve) => {
+      const done = () => { clearTimeout(timer); wakers.delete(done); resolve(); };
+      const timer = setTimeout(done, ms);
+      wakers.add(done);
+    });
+    const fetchPage = async (page) => {
+      controller = window.AbortController ? new AbortController() : null;
+      const res = await fetch(`${boot.importApi}?slug=${encodeURIComponent(boot.slug)}&user=${encodeURIComponent(user)}&page=${page}`, controller ? { signal: controller.signal } : {});
+      return { status: res.status, json: await res.json().catch(() => null) };
+    };
+    const cancelButton = '<button type="button" class="h-link" data-act="cancel-import">Cancel</button>';
+    const showProgress = (p) => {
+      const line = p
+        ? `Importing… ${num(p.checked)} of ${plural(p.total, 'show')} checked · ${plural(p.found, `${data.name} show`)} found`
+        : 'Reading your setlist.fm attendance…';
+      msg.innerHTML = `<p class="h-msg">${esc(line)} · ${cancelButton}</p>`;
+    };
+
+    form.querySelectorAll('input, button').forEach((el) => { el.disabled = true; });
+    showProgress(null);
+    let out;
     try {
-      const res = await fetch(`${boot.importApi}?slug=${encodeURIComponent(boot.slug)}&user=${encodeURIComponent(user)}`);
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok || !json.ok) {
-        const why = json.error === 'not_found' ? `There's no setlist.fm user called "${esc(user)}". Check the spelling (it's the name in your profile's address).`
-          : json.error === 'busy' ? 'setlist.fm is busy right now. Please try again in a minute.'
-            : 'Couldn\'t reach setlist.fm just now. Please try again.';
-        msg.innerHTML = `<p class="h-msg err">${why}</p>`;
-        return;
-      }
-      let added = 0;
-      json.ids.forEach((id) => { if (!selected.has(id)) added++; setTicked(id, true); });
-      if (added) edited();
-      update();
-      const parts = [`Found ${plural(json.attended, `${data.name} show`)} on setlist.fm and matched ${num(json.ids.length)}${added < json.ids.length ? ` (${num(json.ids.length - added)} already ticked)` : ''}.`];
-      if (json.truncated) parts.push(`We read your ${num(json.scanned)} most recent attended shows.`);
-      let html = `<p class="h-msg">${esc(parts.join(' '))}</p>`;
-      if (json.unmatched.length) {
-        html += `<details><summary class="h-msg">${plural(json.unmatched.length, 'show')} we couldn't match</summary><ul class="h-msg">${json.unmatched.map((u) => `<li>${esc(shortDate(u.date, true))}, ${esc(u.venue)}${u.city ? `, ${esc(u.city)}` : ''}</li>`).join('')}</ul></details>`;
-      }
-      msg.innerHTML = html;
+      out = await Paging.importAttended({ fetchPage, sleep, cancelled: () => stop, onProgress: showProgress });
     } catch (e) {
-      msg.innerHTML = '<p class="h-msg err">Couldn\'t reach setlist.fm just now. Please try again.</p>';
+      out = { error: 'upstream' };
+    } finally {
+      importing = null;
+      form.querySelectorAll('input, button').forEach((el) => { el.disabled = false; });
     }
+
+    if (out.error) {
+      const why = out.error === 'not_found' ? `There's no setlist.fm user called "${esc(user)}". Check the spelling (it's the name in your profile's address).`
+        : out.error === 'busy' ? 'setlist.fm is busy right now. Please try again in a minute.'
+          : 'Couldn\'t reach setlist.fm just now. Please try again.';
+      msg.innerHTML = `<p class="h-msg err">${why}</p>`;
+      return;
+    }
+    if (out.cancelled && !out.checked) { msg.innerHTML = '<p class="h-msg">Import cancelled.</p>'; return; }
+
+    let added = 0;
+    out.ids.forEach((id) => { if (!selected.has(id)) added++; setTicked(id, true); });
+    if (added) edited();
+    update();
+    const parts = [];
+    if (out.cancelled) parts.push(`Stopped after checking ${num(out.checked)} of ${plural(out.total, 'show')}.`);
+    parts.push(`Found ${plural(out.attended, `${data.name} show`)} on setlist.fm; ${num(out.ids.length)} matched ${data.sourceName}${added < out.ids.length ? ` (${num(out.ids.length - added)} already ticked)` : ''}.`);
+    if (out.skipped.length) {
+      parts.push(`setlist.fm didn't answer for ${num(out.skipped.length)} of ${plural(out.pages, 'page')} (up to ${num(out.skipped.length * 20)} of your shows), so some may be missing. Import again to try ${out.skipped.length === 1 ? 'it' : 'them'}.`);
+    }
+    let html = `<p class="h-msg">${esc(parts.join(' '))}</p>`;
+    if (out.unmatched.length) {
+      html += `<details><summary class="h-msg">${plural(out.unmatched.length, 'show')} we couldn't match</summary><ul class="h-msg">${out.unmatched.map((u) => `<li>${esc(shortDate(u.date, true))}, ${esc(u.venue)}${u.city ? `, ${esc(u.city)}` : ''}</li>`).join('')}</ul></details>`;
+    }
+    msg.innerHTML = html;
   }
 }
 

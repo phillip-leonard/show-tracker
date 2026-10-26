@@ -18,7 +18,8 @@ const heard = require('../../netlify/functions/lib/heardRecord');
 const pages = require('../../netlify/functions/lib/heardPages');
 const artistPages = require('../../netlify/functions/lib/publicArtistPages');
 const shares = require('../../netlify/functions/lib/heardShares');
-const { matchAttended } = require('../../netlify/functions/lib/heardImport');
+const { matchAttended, matchNights } = require('../../netlify/functions/lib/heardImport');
+const paging = require('../../netlify/functions/lib/heardImportPaging');
 const { createHeardApp } = require('../../netlify/functions/lib/heardClient');
 const { routeParams } = require('../../netlify/functions/lib/publicRouteParams');
 const { heardUrls } = require('../../netlify/functions/sitemap');
@@ -466,6 +467,149 @@ test('setlist.fm attendance matches by mbid, date and venue, and reports what it
   assert.deepStrictEqual(out.ids, ['rr1', 'cap', 'late']);
   assert.strictEqual(out.attended, 4);
   assert.deepStrictEqual(out.unmatched, [{ date: '2025-09-05', venue: 'Nowhere', city: 'Somewhere' }]);
+});
+
+test('matchNights returns the band\'s nights on one page; pages merge to the same answer as one list', () => {
+  const MBID = 'b925a474-d245-4217-bc13-2e153d82bebb';
+  const data = { venues: [['Red Rocks Amphitheatre', 'Morrison, CO']], songs: [], urlBase: '', shows: [{ id: 'rr1', date: '2025-06-20', venue: 0, sets: [] }] };
+  const sl = (date, venue, mbid = MBID) => ({ artist: { mbid }, eventDate: date, venue: { name: venue, city: { name: 'Morrison' } } });
+  const page1 = [sl('20-06-2025', 'Red Rocks Amphitheatre'), sl('01-01-2025', 'Elsewhere', 'other-band')];
+  const page2 = [sl('20-06-2025', 'Red Rocks Amphitheatre'), sl('05-09-2025', 'Nowhere')]; // the same night again, on the next page
+  assert.deepStrictEqual(matchNights(data, page1, MBID), [{ key: '2025-06-20|redrocksamphitheatre', date: '2025-06-20', venue: 'Red Rocks Amphitheatre', city: 'Morrison', id: 'rr1' }]);
+  const merged = paging.mergeNights([...matchNights(data, page1, MBID), ...matchNights(data, page2, MBID)]);
+  assert.deepStrictEqual(merged, matchAttended(data, [...page1, ...page2], MBID));
+  assert.deepStrictEqual(merged, { ids: ['rr1'], unmatched: [{ date: '2025-09-05', venue: 'Nowhere', city: 'Morrison' }], attended: 2 });
+});
+
+// A fake heard-import.js and a fake clock for the paging: `pages` pages of
+// 20, each with one band night (n<page>, matched as id<page>), and
+// `script[page]` a list of statuses to answer with before a 200.
+function fakeImport({ total = 231, script = {}, onFetch } = {}) {
+  let clock = 0;
+  const calls = [];
+  const pages = Math.ceil(total / 20);
+  return {
+    calls,
+    now: () => clock,
+    sleep: async (ms) => { clock += ms; },
+    async fetchPage(page) {
+      calls.push({ page, at: clock });
+      if (onFetch) onFetch(page);
+      clock += 100; // the request itself
+      const next = (script[page] || []).shift();
+      if (next === 'throw') throw new Error('network');
+      if (next === 404) return { status: 404, json: { ok: false, error: 'not_found' } };
+      if (next === 429) return { status: 429, json: { ok: false, error: 'busy', retryAfter: 3 } };
+      if (next) return { status: next, json: { ok: false, error: 'upstream' } };
+      const count = page < pages ? 20 : total - 20 * (pages - 1);
+      return { status: 200, json: { ok: true, page, pages, total, count, nights: [{ key: `n${page}`, date: '2025-01-01', venue: 'V', city: 'C', id: `id${page}` }] } };
+    },
+  };
+}
+
+test('the import reads every page, one call each, about 2 a second, with progress', async () => {
+  const fake = fakeImport();
+  const progress = [];
+  const out = await paging.importAttended({ ...fake, onProgress: (p) => progress.push(p) });
+  assert.deepStrictEqual(fake.calls.map((c) => c.page), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+  for (let i = 1; i < fake.calls.length; i++) assert.ok(fake.calls[i].at - fake.calls[i - 1].at >= paging.SPACING_MS, 'requests stay 500 ms apart');
+  assert.strictEqual(out.checked, 231);
+  assert.strictEqual(out.ids.length, 12);
+  assert.deepStrictEqual(out.skipped, []);
+  assert.strictEqual(out.cancelled, false);
+  assert.deepStrictEqual(progress[4], { checked: 100, total: 231, found: 5, page: 5, pages: 12 });
+});
+
+test('a failed page is retried twice with backoff, then skipped, and the rest are still read', async () => {
+  const fake = fakeImport({ total: 60, script: { 2: [502, 'throw', 502], 3: [502] } });
+  const out = await paging.importAttended(fake);
+  assert.deepStrictEqual(fake.calls.map((c) => c.page), [1, 2, 2, 2, 3, 3]);
+  assert.ok(fake.calls[2].at - fake.calls[1].at >= 1000 && fake.calls[3].at - fake.calls[2].at >= 2000, 'backs off 1 s, then 2 s');
+  assert.deepStrictEqual(out.skipped, [2]);
+  assert.deepStrictEqual(out.ids, ['id1', 'id3']);
+  assert.strictEqual(out.pages, 3);
+});
+
+test('a 429 waits for Retry-After and carries on, without using up the retries', async () => {
+  const fake = fakeImport({ total: 40, script: { 2: [429, 429, 502, 502] } });
+  const out = await paging.importAttended(fake);
+  const twos = fake.calls.filter((c) => c.page === 2);
+  assert.strictEqual(twos.length, 5);
+  assert.ok(twos[1].at - twos[0].at >= 3000, 'waits the 3 s setlist.fm asked for');
+  assert.deepStrictEqual(out.skipped, []);
+  assert.deepStrictEqual(out.ids, ['id1', 'id2']);
+});
+
+test('Cancel mid-import keeps the shows found so far', async () => {
+  let stop = false;
+  const fake = fakeImport({ onFetch: (page) => { if (page === 5) stop = true; } });
+  const out = await paging.importAttended({ ...fake, cancelled: () => stop });
+  assert.strictEqual(out.cancelled, true);
+  assert.deepStrictEqual(out.ids, ['id1', 'id2', 'id3', 'id4']);
+  assert.strictEqual(out.checked, 80);
+  assert.strictEqual(fake.calls.length, 5);
+});
+
+test('an unknown user is an error, not an empty import; page 1 failing is upstream', async () => {
+  assert.deepStrictEqual(await paging.importAttended(fakeImport({ script: { 1: [404] } })), { error: 'not_found' });
+  const down = fakeImport({ script: { 1: [502, 502, 502] } });
+  assert.deepStrictEqual(await paging.importAttended(down), { error: 'upstream' });
+  assert.strictEqual(down.calls.length, 3);
+});
+
+test('heard-import reads one page a call and says how many there are', async () => {
+  const { store, loaded } = await goose();
+  const MBID = 'b925a474-d245-4217-bc13-2e153d82bebb';
+  const calls = [];
+  const answers = {
+    1: { statusCode: 200, data: { total: 45, itemsPerPage: 20, setlist: [
+      { artist: { mbid: MBID }, eventDate: (() => { const [y, m, d] = dateOf(3).split('-'); return `${d}-${m}-${y}`; })(), venue: { name: 'Venue 3', city: { name: 'Denver' } }, sets: { set: [{ song: [{ name: 'Arcadia' }] }] } },
+      { artist: { mbid: 'someone-else' }, eventDate: '01-01-2020', venue: { name: 'X', city: { name: 'Y' } } },
+    ] } },
+    2: { statusCode: 429, data: null, retryAfter: '4' },
+    3: { statusCode: 404, data: null },
+  };
+  const savedJson = sources.getSetlistfmJson;
+  const savedOpen = snap.openBlobStore;
+  const savedKey = process.env.SETLISTFM_API_KEY;
+  sources.getSetlistfmJson = async (path) => { calls.push(path); return answers[/p=(\d+)/.exec(path)[1]]; };
+  snap.openBlobStore = () => store;
+  process.env.SETLISTFM_API_KEY = 'test';
+  const fnPath = require.resolve('../../netlify/functions/heard-import');
+  delete require.cache[fnPath];
+  try {
+    const { handler } = require(fnPath);
+    const call = async (q) => { const r = await handler({ queryStringParameters: { slug: 'goose', user: 'someone', ...q } }); return { status: r.statusCode, json: JSON.parse(r.body) }; };
+    const one = await call({});
+    assert.strictEqual(one.status, 200);
+    assert.deepStrictEqual({ ...one.json, nights: undefined }, { ok: true, page: 1, pages: 3, total: 45, itemsPerPage: 20, count: 2, nights: undefined });
+    assert.deepStrictEqual(one.json.nights.map((n) => n.id), idsOn(loaded.shows, [dateOf(3)]));
+    assert.deepStrictEqual(calls, ['/user/someone/attended?p=1']);
+    assert.deepStrictEqual(await call({ page: '2' }), { status: 429, json: { ok: false, error: 'busy', retryAfter: 4 } });
+    assert.deepStrictEqual((await call({ page: '3' })).json.nights, [], 'past the end is an empty page');
+    answers[1] = { statusCode: 404, data: null };
+    assert.deepStrictEqual(await call({ user: 'nobody' }), { status: 404, json: { ok: false, error: 'not_found' } });
+    assert.strictEqual((await call({ page: '0' })).status, 400);
+    assert.strictEqual((await call({ page: 'x' })).status, 400);
+  } finally {
+    sources.getSetlistfmJson = savedJson;
+    snap.openBlobStore = savedOpen;
+    if (savedKey === undefined) delete process.env.SETLISTFM_API_KEY; else process.env.SETLISTFM_API_KEY = savedKey;
+    delete require.cache[fnPath];
+  }
+});
+
+test('the cached attended page keeps only what the matching reads', () => {
+  const { trimPage } = require('../../netlify/functions/heard-import');
+  const page = trimPage({ total: 3, itemsPerPage: 20, setlist: [{ id: 'x', url: 'u', artist: { mbid: 'm', name: 'Goose' }, eventDate: '01-02-2025', venue: { name: 'V', id: 'v', city: { name: 'C', state: 'S' } }, sets: { set: [{ song: [{ name: 'Arcadia' }] }] } }] });
+  assert.deepStrictEqual(page, { total: 3, itemsPerPage: 20, setlist: [{ artist: { mbid: 'm' }, eventDate: '01-02-2025', venue: { name: 'V', city: { name: 'C' } } }] });
+});
+
+test('the tool page carries the import paging, and it parses on its own', async () => {
+  const { loaded } = await goose();
+  const body = pages.renderHeardBand(loaded, NOW + HOUR).body;
+  assert.ok(body.includes('function createImportPaging()') && body.includes('Paging);'));
+  assert.doesNotThrow(() => new Function(`return (${paging.createImportPaging.toString()})();`)());
 });
 
 test('personal variants of the tool page are noindex, all canonical to /heard/<slug>/', async () => {

@@ -1,6 +1,6 @@
 {
   "name": "show-tracker",
-  "version": "5.47.15",
+  "version": "5.47.16",
   "private": true,
   "dependencies": {
     "@capacitor-firebase/authentication": "^8.1.0",
