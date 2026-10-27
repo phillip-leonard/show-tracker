@@ -19,7 +19,7 @@ on:
 jobs:
   integration:
     name: Integration Tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # Only run integration tests when pushing to main, not on PRs
     # (PRs get smoke tests; full integration runs only after merge)
     if: github.event_name != 'pull_request'
