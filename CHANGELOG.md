@@ -4,6 +4,14 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.47.19] — 2026-10-27
+
+Ships in iOS 3.9.19 (`MARKETING_VERSION` 3.9.18 → 3.9.19; the build number is
+left to Xcode Cloud). A version bump only, so a new App Store version can carry
+the refreshed screenshots and app preview. No code changes beyond 5.47.18.
+
+- Bug fixes and performance improvements.
+
 ## [5.47.18] — 2026-10-26
 
 Ships in iOS 3.9.18 (`MARKETING_VERSION` 3.9.17 → 3.9.18; the build number is

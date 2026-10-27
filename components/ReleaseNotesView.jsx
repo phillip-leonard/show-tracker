@@ -13,6 +13,14 @@ const STREAMING_MENTION = /spotify|apple\s*music/i;
 function ReleaseNotesView() {
   const releases = [
     {
+      version: '5.47.19',
+      date: 'October 27, 2026',
+      title: 'Bug Fixes and Performance',
+      changes: [
+        'Bug fixes and performance improvements',
+      ]
+    },
+    {
       version: '5.47.14',
       date: 'October 26, 2026',
       title: 'Ready for iPhone Duo',
