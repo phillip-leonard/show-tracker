@@ -4,6 +4,29 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.49.1] — 2026-10-29
+
+Ships in iOS 3.11.1 (`MARKETING_VERSION` 3.11 → 3.11.1; the build number is
+left to Xcode Cloud). No change to the app or the site.
+
+**The `pushTokens` rule is tested, and the rules tests now run in CI.**
+
+- **`tests/rules/pushTokens.rules.test.js`** (in `npm run test:rules`)
+  tries every attack on the 5.49.0 rule against the emulator:
+  - a token is readable only by its owner, whether fetched alone or by query
+  - nobody can list the collection
+  - a write must name the writer as owner and carry only `userId`,
+    `platform` and `updatedAt`
+  - only the owner can delete a token
+  - a token another account left on the same device can be taken over,
+    and is then the new owner's alone
+  - signed out, nothing
+- **`.github/workflows/rules-tests.yml`** runs `npm run test:rules` (Java 21
+  plus the Firestore emulator) on every PR that touches `firestore.rules`,
+  `firebase.json` or `tests/rules/`. Until now nothing ran it:
+  `deploy-firestore-rules.yml` deploys whatever is on `main` untested, and
+  the emulator needs Java, which not every dev machine has.
+
 ## [5.49.0] — 2026-10-28
 
 Ships in iOS 3.11 (`MARKETING_VERSION` 3.10.1 → 3.11, a minor bump for a new

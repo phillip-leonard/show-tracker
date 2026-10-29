@@ -1,0 +1,47 @@
+name: Firestore Rules Tests
+
+# `npm run test:rules` runs tests/rules/*.rules.test.js against the Firestore
+# emulator. Nothing ran it: the emulator needs Java, which not every dev
+# machine has, and deploy-firestore-rules.yml deploys whatever is on main
+# without testing it. A rule that is wrong fails silently and permissively,
+# so this runs the attacks on every PR that changes the rules or the tests.
+
+on:
+  pull_request:
+    paths:
+      - 'firestore.rules'
+      - 'firebase.json'
+      - 'tests/rules/**'
+      - '.github/workflows/rules-tests.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: rules-tests-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  rules:
+    name: Firestore rules
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      # The Firestore emulator is a Java program.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run rules tests against the emulator
+        run: npm run test:rules
