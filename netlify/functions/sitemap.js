@@ -32,6 +32,7 @@ const STATIC_URLS = [
   // static export serves them at, matching each page's canonical.
   { loc: '/compare/concert-archives/', lastmod: '2026-10-21', changefreq: 'monthly', priority: '0.6' },
   { loc: '/compare/setlist-fm/', lastmod: '2026-10-21', changefreq: 'monthly', priority: '0.6' },
+  { loc: '/switch/concert-archives/', lastmod: '2026-10-29', changefreq: 'monthly', priority: '0.6' },
   { loc: '/best-concert-tracker-apps-jam-bands/', lastmod: '2026-10-21', changefreq: 'monthly', priority: '0.6' },
 ];
 

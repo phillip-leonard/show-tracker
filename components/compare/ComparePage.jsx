@@ -95,16 +95,16 @@ export function Bullets({ items }) {
   );
 }
 
-function Cta() {
+function Cta({ cta }) {
   return (
     <div className="mt-10 rounded-2xl border border-brand/30 bg-brand-subtle p-6 text-center">
-      <p className="text-primary font-semibold mb-4">Free on the web and iPhone.</p>
+      <p className="text-primary font-semibold mb-4">{cta?.note || 'Free on the web and iPhone.'}</p>
       <div className="flex flex-col sm:flex-row gap-3 justify-center">
         <Link
-          href={SIGNUP_HREF}
+          href={cta?.href || SIGNUP_HREF}
           className="inline-flex items-center justify-center min-h-touch px-6 py-3 rounded-xl font-semibold bg-gradient-to-r from-brand to-amber text-[#1f1f3a] shadow-lg shadow-brand/20 hover:opacity-90 transition-opacity"
         >
-          Start tracking your shows
+          {cta?.label || 'Start tracking your shows'}
         </Link>
         {APP_STORE_URL && (
           <a
@@ -120,10 +120,11 @@ function Cta() {
 }
 
 /**
- * @param {{ path: string, title: string, faq: { q: string, a: string }[], children: React.ReactNode }} props
+ * @param {{ path: string, title: string, faq: { q: string, a: string }[], cta?: { label: string, href: string, note?: string }, children: React.ReactNode }} props
  *   `path` is this page's entry in COMPARE_PAGES, left out of the related links.
+ *   `cta` replaces the default "Start tracking your shows" button.
  */
-export default function ComparePage({ path, title, faq, children }) {
+export default function ComparePage({ path, title, faq, cta, children }) {
   const related = COMPARE_PAGES.filter((p) => p.path !== path);
   return (
     <div className="min-h-dscreen flex flex-col bg-gradient-to-br from-base via-surface to-base text-primary">
@@ -153,7 +154,7 @@ export default function ComparePage({ path, title, faq, children }) {
 
           {children}
 
-          <Cta />
+          <Cta cta={cta} />
 
           <Section title="FAQ">
             <dl className="space-y-6">

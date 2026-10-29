@@ -4,6 +4,61 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.50.0] — 2026-10-29
+
+Ships in iOS 3.12 (`MARKETING_VERSION` 3.11.3 → 3.12, a minor bump as asked;
+the build number is left to Xcode Cloud).
+
+**Internet Archive setlists for more bands.**
+
+- The Internet Archive source now covers Live Music Archive bands as well as
+  Grateful Dead: Keller Williams, Karl Denson's Tiny Universe, Tea Leaf
+  Green, Galactic and moe. Chosen from production data (shows logged with
+  no setlist or a thin one) and a five-date check per band against the tapes;
+  the audit table, and the bands not added and why, are in
+  `docs/setlist-sources/internet-archive.md`.
+- One adapter for every band (`netlify/functions/lib/archiveAdapter.js`),
+  each band one opt-in entry in `config/internet-archive.json`: collection,
+  exact creator names, protected titles, excluded dates, title aliases. Items
+  are kept only when a creator matches exactly, because archive.org's creator
+  search is a phrase match and returns tribute acts.
+- Parser fixes found on the new bands, shared with Grateful Dead: "set
+  break"/"encore break" tracks become breaks (with none, one set rather than
+  a guess), "I:" headers, a "Disc 1" block before "(set II)", unnamed or
+  "untitled" tracks mark the tape incomplete, and banter, thanks, band-member
+  lists, photo credits, "tmp", fades, bracketed talk, cover credits and lost
+  apostrophes are cleaned. With only track titles to go on, the tape is
+  picked soundboard first, then the fullest list, then downloads.
+- The credit now reads "Setlist from a tape on the Internet Archive,
+  recording `<id>`. Tape setlists can be incomplete." in the app and on
+  public show pages.
+- `band-setlist` cache version 6. Fixture tests for 25 real dates
+  (`lib/__tests__/archiveBands.test.js`).
+
+**Import from Concert Archives, or any spreadsheet.**
+
+- The file import (Scan / Import → Import File) was rebuilt: CSV (comma or
+  semicolon) and Excel, columns detected from common headers and fixable,
+  remembered for the session. Dates in ISO, US, day-first and month-name
+  forms; ambiguous ones like 03/04/2019 must be confirmed before importing.
+  A row listing several artists can be split into one show per band.
+- Every row is matched before anything is saved (band archive, then the
+  Internet Archive, then setlist.fm), and the preview says what it found or
+  why not. Shows already logged, and repeats within the file, are skipped and
+  never doubled. An Internet Archive setlist that can't be written unasked
+  arrives as a pending proposal to review.
+- Importing saves one show at a time with progress and a Stop that keeps
+  what's saved, and ends with "Imported N shows; N with setlists; N skipped
+  as duplicates; N not matched" and a CSV of the rows that weren't imported.
+- `search-setlists` takes a `date`, so a row costs one setlist.fm request.
+- New page `/switch/concert-archives/` (static, indexable, FAQPage JSON-LD),
+  linked from the comparison page and the import, whose button signs you in
+  and opens the import (`/scan-import/?import=1`; not `?tab=`, which the app strips for the
+  Friends deep link). No Concert Archives
+  pages or APIs are read; the import only reads the file you choose.
+- Tests: `lib/__tests__/importSheet.test.js` (headers, dates, duplicates)
+  and `lib/__tests__/importFlow.test.js`, a 300-row file end to end.
+
 ## [5.49.3] — 2026-10-29
 
 Ships in iOS 3.11.3 (`MARKETING_VERSION` 3.11.2 → 3.11.3, after #379's

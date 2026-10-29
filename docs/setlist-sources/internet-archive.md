@@ -19,6 +19,7 @@ That covers the metadata MySetlists reads: item descriptions, info `.txt` files 
 - `config/internet-archive.json`: the switch (`enabled`) and one entry per band: its collection, exact creator names, protected titles, excluded dates and title aliases. A band is added by adding an entry; nothing is inferred.
 - `netlify/functions/lib/archiveAdapter.js`: every request to archive.org for setlists, and how a setlist is chosen from a night's tapes.
 - `netlify/functions/band-setlist.js`: the only route the app uses to reach the adapter (`/api/band-setlist?source=archive`), with the cache.
+- `lib/importMatch.js`: the spreadsheet import (5.50.0). It asks `/api/band-setlist` like every other add path, one show at a time with a gap between requests, so imports get the same cache, User-Agent and request rules; a setlist it may not write unasked is stored as a `setlistProposal` for the user to review.
 - `netlify/functions/admin-resync-setlists.js`: the backfill, which calls band-setlist's handler in-process with the adapter's request gap set.
 - `netlify/functions/archival-audio-lookup.js` and `components/shows/ArchivalAudioSection.jsx`: "Listen to This Night", through Relisten.
 - `components/shows/BandSourceAttribution.jsx` and `netlify/functions/lib/archiveAttribution.js`: the credit line.
