@@ -4,6 +4,34 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.49.3] — 2026-10-29
+
+Ships in iOS 3.11.3 (`MARKETING_VERSION` 3.11.2 → 3.11.3, after #379's
+3.11.2; the build number is left to Xcode Cloud).
+
+**Signing in keeps the link you opened.**
+
+- Open an email's venue or Year in Review link while signed out, and you see
+  the landing page with the link's URL intact. Signing in from there sent
+  you to My Shows instead of the venue or the Year in Review: the auth
+  listener (`context/AppContext.jsx`) went to `/shows/` on every sign-in
+  that wasn't a session being restored. It now does that only when a
+  *different* account signs in on the same page, the case it exists for
+  (the URL may name the last account's show). Signing out already goes to
+  `/`, so a signed-out visitor still on a detail URL came from a link. The
+  same fix makes a `/p/` poster's "Make your own" land on `/my-poster/`
+  after signing in, as `app/AppProviderWrapper.jsx` says it should. A guest
+  signing in still goes to My Shows, since the URL may name a local guest
+  show that the migration prompt is about to move.
+- The rule is `signInLeavesRoute` in `lib/deepLinks.js`, with five cases in
+  `lib/__tests__/deepLinks.test.js`.
+- Audited the reload and deep-link paths for `/venues/`, `/venue-dashboard/`
+  and `/year-in-review/`: the query-param routes (5.46.0), the `netlify.toml`
+  301s from the old path shapes, and the iOS translation of those shapes
+  (5.47.18) all hold. They are checked against production, against `out/`
+  served with no Netlify in front, and by the existing deep-link tests. No
+  route changes.
+
 ## [5.49.2] — 2026-10-29
 
 Ships in iOS 3.11.2 (`MARKETING_VERSION` 3.11 → 3.11.2; the build number is
@@ -46,6 +74,7 @@ nothing at all.
 
   `lib/__tests__/alertChannels.test.js` checks that the anniversary link
   opens the show.
+
 ## [5.49.1] — 2026-10-29
 
 Ships in iOS 3.11.1 (`MARKETING_VERSION` 3.11 → 3.11.1; the build number is

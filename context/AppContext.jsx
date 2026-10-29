@@ -47,6 +47,7 @@ import { buildSongStats } from '@/lib/songCounts';
 import { applyShowFilters, availableYearsFor } from '@/lib/showFilters';
 import { sendEmailIfAllowed } from '@/lib/email';
 import { sweepExpiredSetlistfmCaches } from '@/lib/setlistfmLocalCache';
+import { signInLeavesRoute } from '@/lib/deepLinks';
 import {
   inviteEmail,
   friendJoinedEmail,
@@ -1058,9 +1059,9 @@ export function AppProvider({ children }) {
   }, []);
 
   // ── Auth state listener ─────────────────────────────────────────────
-  // The uid from the previous auth callback: undefined until the first one,
-  // which is a saved session being restored (or nobody), not a sign-in.
-  const lastAuthUidRef = useRef(undefined);
+  // The last account signed in on this page: undefined until there is one.
+  // A saved session being restored sets it without counting as a switch.
+  const lastSignedInUidRef = useRef(undefined);
 
   useEffect(() => {
     // Safety timeout: if onAuthStateChanged never fires (e.g. IndexedDB hang
@@ -1074,9 +1075,12 @@ export function AppProvider({ children }) {
 
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       clearTimeout(authTimeout);
-      const restoringSession = lastAuthUidRef.current === undefined;
-      const accountChanged = lastAuthUidRef.current !== (currentUser?.uid || null);
-      lastAuthUidRef.current = currentUser?.uid || null;
+      const leaveRoute = signInLeavesRoute(
+        lastSignedInUidRef.current,
+        currentUser?.uid,
+        !!storage.get(STORAGE_KEYS.GUEST_SESSION),
+      );
+      if (currentUser) lastSignedInUidRef.current = currentUser.uid;
       setUser(currentUser);
       setAuthLoading(false);
       // Next launch, paint the app skeleton rather than the landing page
@@ -1092,11 +1096,12 @@ export function AppProvider({ children }) {
         // Navigate to shows list to clear any lingering detail view query
         // params from a previous user. This prevents signing in as a
         // different account from landing on the previous user's show.
-        // Only on an actual sign-in or account switch: restoring a saved
-        // session on page load used to do this too, which threw away every
-        // deep link a signed-in user opened (an email's /venues/?venue=…,
-        // /year-in-review/?…, /how-to-use) in favor of My Shows.
-        if (!restoringSession && accountChanged) router.push('/shows/');
+        // Only on an account switch: restoring a saved session on page load
+        // used to do this too (fixed 5.46.0), and so did signing in from
+        // signed out (fixed 5.49.3), each throwing away the deep link the
+        // person opened (an email's /venues/?venue=…, /year-in-review/?…,
+        // /how-to-use) in favor of My Shows. See signInLeavesRoute.
+        if (leaveRoute) router.push('/shows/');
 
         // Before anything else writes to the profile — see
         // ensureProfileCreatedAt above.
