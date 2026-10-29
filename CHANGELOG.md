@@ -4,6 +4,48 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.49.2] — 2026-10-29
+
+Ships in iOS 3.11.2 (`MARKETING_VERSION` 3.11 → 3.11.2; the build number is
+left to Xcode Cloud). 3.11.1 and 5.49.1 went to the rules-test PR (#378),
+which merged first.
+
+**Anniversary reminders push to iPhones too.** Since 5.49.0, band alerts
+went to every device, while anniversary reminders still went only to the
+legacy web token. So on iOS, the anniversary "Push only" setting sent
+nothing at all.
+
+- **Every device.** The reminder now goes to each device in `pushTokens`,
+  plus the legacy web token, and dead tokens are deleted.
+  `netlify/functions/lib/pushDelivery.js` now holds the token loading,
+  sending, dead-token removal, FCM message shape and `prefFor` for both
+  jobs. The band job uses it unchanged; all of its tests pass as before.
+- **A tap opens the show** (`/shows/?show=<id>`), through the same
+  deep-link handling. The email's "Relive this show" button now opens that
+  show too; before, it went to the show list.
+- **Nobody is told twice.** The reminder is now written with `create()`,
+  not `set(merge)`, and the email and push go out only when the create
+  succeeds. Before, any second run on the same day (a retry, or "Run now"
+  in Netlify) emailed everyone again and marked their reminder unread.
+- **Settings.** Anniversary reminders get the same separate Push and Email
+  switches as band alerts. The old "Notify me via" menu is gone. Saved
+  `method` values still read the same. The push explainer and the settings
+  card now mention anniversaries.
+- **Code.** The job's logic moved into
+  `netlify/functions/lib/anniversaryAlerts.js`. The handler only connects
+  it to Firestore, Resend and FCM.
+- **Tests:** `tests/notifications/anniversaries.test.js` (in `test:unit`)
+  covers:
+  - only today's anniversaries match
+  - one push per device and one email per reminder
+  - a same-day rerun sends nothing and keeps a read reminder read
+  - a dead token is deleted
+  - push and email are switched separately, and old `method` prefs read
+    the same way
+  - reminders off means nothing at all
+
+  `lib/__tests__/alertChannels.test.js` checks that the anniversary link
+  opens the show.
 ## [5.49.1] — 2026-10-29
 
 Ships in iOS 3.11.1 (`MARKETING_VERSION` 3.11 → 3.11.1; the build number is

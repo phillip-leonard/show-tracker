@@ -9,13 +9,19 @@ import { pushPermission, requestPushPermission } from '@/lib/pushAlerts';
 import { openAppSettings } from '@/lib/nativePermissions';
 import Button from '@/components/ui/Button';
 
-// The followed-band job's two alerts (netlify/functions/lib/followedBandAlerts.js
-// reads these prefs). Every alert is also in Notifications in the app; these
+// The daily jobs' alerts (netlify/functions/lib/anniversaryAlerts.js and
+// followedBandAlerts.js read these prefs). Every alert is also in
+// Notifications in the app; these
 // choose whether it is pushed and emailed too, each on its own
 // (lib/alertChannels.js). Push needs permission on this device first: on
 // iOS from PushAlertsCard below (or the first follow), on the web from
 // "Enable Notifications".
 const ALERT_PREFS = [
+  {
+    key: 'anniversaries',
+    title: 'Anniversary reminders',
+    description: '"X years ago today you saw..." — on the exact date, once a year per show',
+  },
   {
     key: 'followedBands',
     title: 'Bands you follow',
@@ -108,7 +114,7 @@ function PushAlertsCard({ userId, state, onState }) {
           {state === 'prompt' && (
             <>
               <p className="text-secondary text-xs mt-1">
-                Get a push when a band you follow announces a tour or plays a venue on your bucket list. Nothing else.
+                Get a push when a band you follow announces a tour or plays a venue on your bucket list, and on the anniversary of a show you saw. Nothing else.
               </p>
               <div className="mt-3">
                 <Button size="sm" icon={Bell} onClick={turnOn} loading={busy}>Turn on push alerts</Button>
@@ -279,39 +285,6 @@ export default function NotificationSettings({ userId }) {
           </div>
         )}
 
-        {/* Anniversary reminders */}
-        <div className="mt-5 pt-5 border-t border-subtle">
-          <label className="flex items-start gap-3 cursor-pointer group">
-            <input
-              type="checkbox"
-              checked={preferences.anniversaries?.enabled !== false}
-              onChange={(e) => handlePreferenceChange('anniversaries', { ...preferences.anniversaries, enabled: e.target.checked })}
-              className="mt-1 w-4 h-4 rounded border-active bg-hover text-brand focus:ring-brand/50 focus:ring-offset-0 cursor-pointer"
-            />
-            <div>
-              <span className="text-primary text-sm font-medium group-hover:text-brand transition-colors">
-                Anniversary reminders
-              </span>
-              <p className="text-secondary text-xs">"X years ago today you saw..." — on the exact date, once a year per show</p>
-            </div>
-          </label>
-
-          {preferences.anniversaries?.enabled !== false && (
-            <div className="mt-3 pl-7">
-              <label className="text-secondary text-xs font-medium block mb-1.5">Notify me via</label>
-              <select
-                value={preferences.anniversaries?.method || 'both'}
-                onChange={(e) => handlePreferenceChange('anniversaries', { ...preferences.anniversaries, method: e.target.value })}
-                className="text-sm bg-hover border border-active rounded-lg px-2.5 py-1.5 text-primary focus:ring-2 focus:ring-brand/50 focus:outline-none"
-              >
-                <option value="both">Push and email</option>
-                <option value="push">Push only</option>
-                <option value="email">Email only</option>
-              </select>
-            </div>
-          )}
-        </div>
-
         <PushAlertsCard userId={userId} state={pushState} onState={setPushState} />
         <AlertPrefs preferences={preferences} onChange={handlePreferenceChange} pushReady={pushState === 'granted'} />
       </div>
@@ -425,39 +398,6 @@ export default function NotificationSettings({ userId }) {
               <option value="immediate">Immediately</option>
             </select>
             <p className="text-muted text-xs mt-1">Daily and weekly digest options are coming later.</p>
-          </div>
-        )}
-      </div>
-
-      {/* Anniversary reminders */}
-      <div className="mt-5 pt-5 border-t border-subtle">
-        <label className="flex items-start gap-3 cursor-pointer group">
-          <input
-            type="checkbox"
-            checked={preferences.anniversaries?.enabled !== false}
-            onChange={(e) => handlePreferenceChange('anniversaries', { ...preferences.anniversaries, enabled: e.target.checked })}
-            className="mt-1 w-4 h-4 rounded border-active bg-hover text-brand focus:ring-brand/50 focus:ring-offset-0 cursor-pointer"
-          />
-          <div>
-            <span className="text-primary text-sm font-medium group-hover:text-brand transition-colors">
-              Anniversary reminders
-            </span>
-            <p className="text-secondary text-xs">"X years ago today you saw..." — on the exact date, once a year per show</p>
-          </div>
-        </label>
-
-        {preferences.anniversaries?.enabled !== false && (
-          <div className="mt-3 pl-7">
-            <label className="text-secondary text-xs font-medium block mb-1.5">Notify me via</label>
-            <select
-              value={preferences.anniversaries?.method || 'both'}
-              onChange={(e) => handlePreferenceChange('anniversaries', { ...preferences.anniversaries, method: e.target.value })}
-              className="text-sm bg-hover border border-active rounded-lg px-2.5 py-1.5 text-primary focus:ring-2 focus:ring-brand/50 focus:outline-none"
-            >
-              <option value="both">Push and email</option>
-              <option value="push">Push only</option>
-              <option value="email">Email only</option>
-            </select>
           </div>
         )}
       </div>
