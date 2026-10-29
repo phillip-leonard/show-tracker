@@ -13,6 +13,14 @@ const STREAMING_MENTION = /spotify|apple\s*music/i;
 function ReleaseNotesView() {
   const releases = [
     {
+      version: '5.48.1',
+      date: 'October 28, 2026',
+      title: 'Credit for the Archive’s Tapes',
+      changes: [
+        'Grateful Dead setlists from the Internet Archive now link to the recording they came from on run nights, Shows Together, the setlist editor and public show pages',
+      ]
+    },
+    {
       version: '5.48.0',
       date: 'October 28, 2026',
       title: 'A Poster for Every Band',

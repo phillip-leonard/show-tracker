@@ -6,6 +6,7 @@ import { formatDate, parseDate, artistColor, normalizeSongTitle } from '@/lib/ut
 import { attachSetBoundaryLabels } from '@/lib/setlistGrouping';
 import SetlistEditor from '@/components/SetlistEditor';
 import SetlistfmAttribution from '@/components/shows/SetlistfmAttribution';
+import BandSourceAttribution from '@/components/shows/BandSourceAttribution';
 import PlaylistCreatorModal from '@/components/PlaylistCreatorModal';
 import { PLAYLIST_CREATION_ENABLED } from '@/lib/constants';
 import SongHistoryModal from '@/components/SongHistoryModal';
@@ -209,6 +210,7 @@ function ShowsTogetherView({ friend, getShowsTogether, onBack, onSelectShow, onA
                               })}
                             </div>
                             <SetlistfmAttribution show={show} />
+                            <BandSourceAttribution show={show} />
                           </div>
                         )}
 

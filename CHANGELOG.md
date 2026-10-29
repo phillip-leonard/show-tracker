@@ -4,6 +4,37 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.48.1] — 2026-10-28
+
+Ships in iOS 3.10.1 (`MARKETING_VERSION` 3.10 → 3.10.1; the build number is
+left to Xcode Cloud).
+
+**Every Internet Archive setlist links to its tape.** An audit against the
+Archive's permission (Patron Services, October 26, 2026, request 1669802),
+now recorded in `docs/setlist-sources/internet-archive.md`, found the credit
+only on the show page and the review screens.
+
+- **The credit is now shown in four more places:** run nights, Shows
+  Together, the setlist editor and the public show page
+  (`/u/<handle>/shows/<id>`). It reads "Setlist via the Internet Archive,
+  recording `<identifier>`" and links the archive.org item.
+- **One component.** The show page's inline credit is now
+  `components/shows/BandSourceAttribution.jsx`, used by every per-show view.
+  El Goose and Phish.net setlists get their credit in those views too. The
+  server-rendered page uses `netlify/functions/lib/archiveAttribution.js`.
+- **Run nights** carry `sourceShowId` and `sourcePermalink`
+  (`lib/runIndex.js`).
+- **Confirmed, no change needed:**
+  - Every archive.org request is made from a Netlify function.
+  - The backfill sends at most one request a second, a single lookup makes
+    its requests one at a time, and results are cached in `bandSetlistCache`.
+  - Requests send `MySetlistsApp/1.0 (https://mysetlists.net; …)`.
+  - Recordings are link-out only. No audio is downloaded, proxied or stored.
+- **Test:** `tests/setlist-cache/archiveAttribution.test.js` (in
+  `test:unit`). It pins the credit in every per-show view and on the public
+  page, and checks that no client code requests archive.org, that the
+  User-Agent is right, and that the only download is the info `.txt`.
+
 ## [5.48.0] — 2026-10-28
 
 Ships in iOS 3.10 (`MARKETING_VERSION` 3.9.19 → 3.10, a minor bump for a new

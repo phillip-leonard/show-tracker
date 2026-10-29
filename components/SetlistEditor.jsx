@@ -15,6 +15,7 @@ import EntityInfoPanel from '@/components/EntityInfoPanel';
 import SongHistoryModal from '@/components/SongHistoryModal';
 import StreamingLinks from '@/components/StreamingLinks';
 import SetlistfmAttribution from '@/components/shows/SetlistfmAttribution';
+import BandSourceAttribution from '@/components/shows/BandSourceAttribution';
 import { useDismissable } from '@/context/DismissStackContext';
 import useSheetDrag from '@/hooks/useSheetDrag';
 import useIsMobile from '@/hooks/useIsMobile';
@@ -495,6 +496,7 @@ function SetlistEditor({ show, allShows, onAddSong, onRateSong, onCommentSong, o
             </div>
           )}
           <SetlistfmAttribution show={show} />
+          <BandSourceAttribution show={show} />
           <UpcomingShows artistName={show.artist} />
 
           <StreamingLinks show={show} />
