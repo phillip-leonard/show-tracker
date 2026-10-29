@@ -3,7 +3,7 @@
 // The daily followed-band run: new-tour alerts and bucket-list venue
 // matches for every band someone follows. What it decides, and why nobody
 // is told twice, is in lib/followedBandAlerts.js; this file only connects
-// it to Firestore, Ticketmaster, Resend and web push.
+// it to Firestore, Ticketmaster, Resend and push (FCM: iOS and web).
 //
 // Replaces venue-bucket-list-notifications.js (5.24.0–5.45.x), which wrote
 // its notification with set(merge) and emailed on every run, so the same
@@ -59,10 +59,15 @@ exports.handler = async function (event) {
     // Ticketmaster allows 5 requests a second; a band costs up to two.
     pause: () => sleep(500),
     sendEmail: (msg) => sendNotificationEmail({ db, ...msg }),
-    sendPush: (token, { title, body }) => require('firebase-admin/messaging').getMessaging().send({
+    // One message for both kinds of token. On iOS, `data.link` is what a
+    // tap opens (lib/pushAlerts.js hands it to lib/deepLinks.js); on the
+    // web, fcmOptions.link does the same.
+    sendPush: (token, { title, body, link, threadId, notificationId }) => require('firebase-admin/messaging').getMessaging().send({
       token,
       notification: { title, body },
-      webpush: { fcmOptions: { link: 'https://mysetlists.net/notifications/' } },
+      data: { link, notificationId },
+      apns: { payload: { aps: { sound: 'default', 'thread-id': threadId } } },
+      webpush: { fcmOptions: { link } },
     }),
     createdAt: FieldValue.serverTimestamp(),
     deadline: started + RUN_BUDGET_MS,

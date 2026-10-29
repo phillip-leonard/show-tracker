@@ -40,6 +40,11 @@ const config: CapacitorConfig = {
       skipNativeAuth: false,
       providers: ['google.com', 'apple.com'],
     },
+    // Push alerts (lib/pushAlerts.js). A push that arrives while the app is
+    // open still shows as a banner.
+    FirebaseMessaging: {
+      presentationOptions: ['badge', 'sound', 'alert'],
+    },
   },
 };
 

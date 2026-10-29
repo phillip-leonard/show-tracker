@@ -224,6 +224,155 @@ test('a user who unsubscribed from all email still gets the in-app alert, but no
   assert.strictEqual(sent.length, 0);
 });
 
+// ── Push (5.49.0) ───────────────────────────────────────────────────────
+
+const IPHONE = 'fcm-token-alice-iphone';
+const IPAD = 'fcm-token-alice-ipad';
+
+/** A sendPush that records every call and rejects for the tokens in `dead`. */
+function fakePush(dead = []) {
+  const calls = [];
+  const sendPush = async (token, msg) => {
+    calls.push({ token, ...msg });
+    if (dead.includes(token)) {
+      const err = new Error('Requested entity was not found.');
+      err.code = 'messaging/registration-token-not-registered';
+      throw err;
+    }
+    return 'projects/x/messages/1';
+  };
+  return { calls, sendPush };
+}
+
+test('push copy: a tour names its season and size, a venue match its date', () => {
+  const band = { key: 'goose', name: 'Goose' };
+  const spring = ['2027-03-20', '2027-04-02', '2027-04-03', '2027-05-01'].map((d, i) => ev(`s${i}`, d, 'V', 'C'));
+  assert.strictEqual(
+    alerts.pushFor({ kind: 'tour', band, dates: spring }).body,
+    'Goose announced a spring tour: 4 dates',
+  );
+  const sprawling = ['2027-01-10', '2027-04-02', '2027-07-03', '2027-10-01'].map((d, i) => ev(`x${i}`, d, 'V', 'C'));
+  assert.strictEqual(alerts.pushFor({ kind: 'tour', band, dates: sprawling }).body, 'Goose announced a tour: 4 dates');
+  assert.strictEqual(alerts.tourSeason([ev('a', '2027-12-30'), ev('b', '2028-01-02'), ev('c', '2028-02-10')]), 'winter');
+
+  const now = Date.parse('2027-02-01T00:00:00Z');
+  const strings = { key: 'billy strings', name: 'Billy Strings' };
+  const venue = alerts.pushFor({ kind: 'venue', band: strings, event: ev('r', '2027-06-03', 'Red Rocks', 'Morrison') }, now);
+  assert.strictEqual(venue.body, 'Billy Strings plays Red Rocks on Jun 3');
+  const nextYear = alerts.pushFor({ kind: 'venue', band: strings, event: ev('r', '2028-06-03', 'Red Rocks', 'Morrison') }, now);
+  assert.strictEqual(nextYear.body, 'Billy Strings plays Red Rocks on Jun 3, 2028');
+});
+
+test('push links: a band with a screen opens it, anything else opens Notifications', () => {
+  const tour = (name) => alerts.pushFor({ kind: 'tour', band: { key: artistKey(name), name }, dates: FALL_TOUR });
+  assert.strictEqual(tour('Goose').link, 'https://mysetlists.net/bands/?band=goose');
+  assert.strictEqual(tour('Goose (US)').link, 'https://mysetlists.net/bands/?band=goose');
+  assert.strictEqual(tour('Some Band Nobody Configured').link, 'https://mysetlists.net/notifications/');
+  const venue = alerts.pushFor({ kind: 'venue', band: { key: 'goose', name: 'Goose' }, event: FALL_TOUR[2] });
+  assert.strictEqual(venue.link, 'https://mysetlists.net/notifications/');
+});
+
+test('old method prefs still read right, and push and email switch separately', () => {
+  const p = (prefs) => alerts.prefFor({ notificationPrefs: { followedBands: prefs } }, 'followedBands');
+  assert.deepStrictEqual(p(undefined), { enabled: true, push: true, email: true });
+  assert.deepStrictEqual(p({ method: 'email' }), { enabled: true, push: false, email: true });
+  assert.deepStrictEqual(p({ method: 'push' }), { enabled: true, push: true, email: false });
+  assert.deepStrictEqual(p({ method: 'both', push: false, email: true }), { enabled: true, push: false, email: true });
+  assert.deepStrictEqual(p({ enabled: false }), { enabled: false, push: true, email: true });
+});
+
+test('one tour alert: one push to each device and one email, then nothing on the rerun', async () => {
+  const { db, sent, state, job } = setup();
+  db._put(`pushTokens/${IPHONE}`, { userId: ALICE.uid, platform: 'ios' });
+  db._put(`pushTokens/${IPAD}`, { userId: ALICE.uid, platform: 'ios' });
+  // Bob has alerts off: his device hears nothing.
+  db._put('pushTokens/fcm-token-bob', { userId: BOB.uid, platform: 'ios' });
+  const push = fakePush();
+  await job({ sendPush: push.sendPush });
+  state.goose = [...SUMMER, ...FALL_TOUR];
+  const r = await job({ sendPush: push.sendPush });
+
+  assert.strictEqual(sent.length, 1, 'one email');
+  assert.strictEqual(r.pushed, 1, 'one alert pushed');
+  assert.deepStrictEqual(push.calls.map((c) => c.token).sort(), [IPAD, IPHONE], 'once per device, never to Bob');
+  const [msg] = push.calls;
+  assert.strictEqual(msg.body, 'Goose announced a fall tour: 3 dates');
+  assert.strictEqual(msg.link, 'https://mysetlists.net/bands/?band=goose');
+  assert.match(msg.notificationId, /^bandTour_aliceUid000001_/);
+  // The bucket-list date rides in the tour push, as it does in the email.
+  assert.ok(!push.calls.some((c) => /plays/.test(c.body)));
+
+  await job({ sendPush: push.sendPush });
+  assert.strictEqual(push.calls.length, 2);
+  assert.strictEqual(sent.length, 1);
+});
+
+test('a dead token is deleted and not tried again; the live one still gets the push', async () => {
+  const { db, state, job } = setup();
+  db._put(`pushTokens/${IPHONE}`, { userId: ALICE.uid, platform: 'ios' });
+  db._put(`pushTokens/${IPAD}`, { userId: ALICE.uid, platform: 'ios' });
+  const push = fakePush([IPAD]);
+  await job({ sendPush: push.sendPush });
+  state.goose = [...SUMMER, ...FALL_TOUR];
+  const r = await job({ sendPush: push.sendPush });
+  assert.strictEqual(r.deadTokens, 1);
+  assert.strictEqual(r.pushed, 1);
+  assert.strictEqual(db._get(`pushTokens/${IPAD}`), undefined, 'dead token removed');
+  assert.ok(db._get(`pushTokens/${IPHONE}`), 'live token kept');
+});
+
+test('a dead legacy web token is cleared from the profile', async () => {
+  const { db, state, job } = setup();
+  db._put(`userProfiles/${ALICE.uid}`, { ...db._get(`userProfiles/${ALICE.uid}`), fcmToken: 'old-web-token' });
+  const push = fakePush(['old-web-token']);
+  await job({ sendPush: push.sendPush });
+  state.goose = [...SUMMER, ...FALL_TOUR];
+  const r = await job({ sendPush: push.sendPush });
+  assert.strictEqual(r.deadTokens, 1);
+  assert.strictEqual(db._get(`userProfiles/${ALICE.uid}`).fcmToken, null);
+});
+
+test('push off sends no push; email off sends no email; the alert is still in Notifications', async () => {
+  const { db, sent, state, job } = setup();
+  db._put(`pushTokens/${IPHONE}`, { userId: ALICE.uid, platform: 'ios' });
+  db._put(`userProfiles/${ALICE.uid}`, {
+    ...db._get(`userProfiles/${ALICE.uid}`),
+    notificationPrefs: { followedBands: { enabled: true, push: false, email: true } },
+  });
+  const push = fakePush();
+  await job({ sendPush: push.sendPush });
+  state.goose = [...SUMMER, ...FALL_TOUR];
+  await job({ sendPush: push.sendPush });
+  assert.strictEqual(push.calls.length, 0);
+  assert.strictEqual(sent.length, 1);
+
+  const second = setup();
+  second.db._put(`pushTokens/${IPHONE}`, { userId: ALICE.uid, platform: 'ios' });
+  second.db._put(`userProfiles/${ALICE.uid}`, {
+    ...second.db._get(`userProfiles/${ALICE.uid}`),
+    notificationPrefs: { followedBands: { enabled: true, push: true, email: false } },
+  });
+  const push2 = fakePush();
+  await second.job({ sendPush: push2.sendPush });
+  second.state.goose = [...SUMMER, ...FALL_TOUR];
+  await second.job({ sendPush: push2.sendPush });
+  assert.strictEqual(push2.calls.length, 1);
+  assert.strictEqual(second.sent.length, 0);
+  assert.strictEqual(notifications(second.db).filter((n) => n.type === 'followed_band_tour').length, 1);
+});
+
+test('a bucket-list date on its own is pushed once, naming the venue and date', async () => {
+  const { db, state, job } = setup();
+  db._put(`pushTokens/${IPHONE}`, { userId: ALICE.uid, platform: 'ios' });
+  const push = fakePush();
+  await job({ sendPush: push.sendPush });
+  state.goose = [...SUMMER, FALL_TOUR[2]];
+  await job({ sendPush: push.sendPush });
+  await job({ sendPush: push.sendPush });
+  assert.strictEqual(push.calls.length, 1);
+  assert.match(push.calls[0].body, /^Goose plays The Gorge Amphitheatre on Oct 4/);
+});
+
 // ── The email's links ───────────────────────────────────────────────────
 
 test('every alert email has the unsubscribe footer, List-Unsubscribe and an unfollow link', async () => {

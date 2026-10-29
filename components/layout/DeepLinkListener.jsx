@@ -12,6 +12,10 @@
 // launch can deliver the same link both ways, so a link repeated within a
 // couple of seconds is followed once.
 //
+// A tapped push alert (lib/pushAlerts.js) is a link too: its data.link is
+// a universal link, followed exactly the same way, cold or warm (the plugin
+// holds a tap that launched the app until this listener is added).
+//
 // A link starts a fresh trail. On a cold launch the app has already shown
 // its first screen, and pushing on top of it made back go there (My Shows)
 // rather than to the linked screen's parent (a song's band). So the
@@ -22,6 +26,7 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { isNativePlatform } from '@/lib/platform';
 import { deepLinkTarget } from '@/lib/deepLinks';
+import { onPushTap } from '@/lib/pushAlerts';
 import { useDismissStack } from '@/context/DismissStackContext';
 
 export default function DeepLinkListener() {
@@ -32,6 +37,7 @@ export default function DeepLinkListener() {
     if (!isNativePlatform()) return undefined;
     let live = true;
     let handle = null;
+    let removePushTap = null;
     let last = { url: null, at: 0 };
 
     const follow = (url) => {
@@ -56,9 +62,15 @@ export default function DeepLinkListener() {
       // No App plugin: the app opens where it would have anyway.
     });
 
+    onPushTap(follow).then((remove) => {
+      if (live) removePushTap = remove;
+      else remove();
+    });
+
     return () => {
       live = false;
       handle?.remove();
+      removePushTap?.();
     };
   }, [router, resetNavHistory]);
 

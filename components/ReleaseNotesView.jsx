@@ -13,6 +13,16 @@ const STREAMING_MENTION = /spotify|apple\s*music/i;
 function ReleaseNotesView() {
   const releases = [
     {
+      version: '5.49.0',
+      date: 'October 28, 2026',
+      title: 'Push Alerts for Bands You Follow',
+      changes: [
+        'Get a push on your iPhone when a band you follow announces a tour or plays a venue on your bucket list',
+        'Tap the alert to open the band, or the dates and tickets in Notifications',
+        'Turn push and email on or off separately for each kind of alert in Notifications settings',
+      ]
+    },
+    {
       version: '5.48.1',
       date: 'October 28, 2026',
       title: 'Credit for the Archive’s Tapes',

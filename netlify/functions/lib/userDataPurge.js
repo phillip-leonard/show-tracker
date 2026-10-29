@@ -80,6 +80,9 @@ const OWNED_DOCUMENTS = [
 
   // send-email's per-sender hourly counter (v5.38.0).
   { collection: 'emailRateLimits', fields: ['uid'] },
+
+  // One doc per device that takes push alerts, id = the FCM token (5.49.0).
+  { collection: 'pushTokens', fields: ['userId'] },
 ];
 
 /**

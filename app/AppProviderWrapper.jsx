@@ -38,6 +38,7 @@ const HeardSaveModal = dynamic(() => import('@/components/heard/HeardSaveModal')
 const TermsGate = dynamic(() => import('@/components/auth/TermsGate'), { ssr: false });
 const SuspendedScreen = dynamic(() => import('@/components/auth/SuspendedScreen'), { ssr: false });
 const VenueRatingModal = dynamic(() => import('@/components/VenueRatingModal'), { ssr: false });
+const PushOfferModal = dynamic(() => import('@/components/notifications/PushOfferModal'), { ssr: false });
 
 // Routes that render their own content for a signed-out visitor instead of
 // being replaced by the landing page.
@@ -121,6 +122,7 @@ function AppShell({ children }) {
     sidebarOpen, setSidebarOpen,
     toast, setToast,
     venueRatingShow, setVenueRatingShow,
+    pushOffer, setPushOffer,
     showMigrationPrompt, handleMigrateData, handleSkipMigration, localShowsToMigrate,
     showGuestPrompt, setShowGuestPrompt, openAuthModal,
     showCelebration, welcomeState, setWelcomeState,
@@ -441,6 +443,14 @@ function AppShell({ children }) {
       <InstallPrompt />
 
       {/* Venue Rating Modal */}
+      {pushOffer && user && (
+        <PushOfferModal
+          artist={pushOffer}
+          uid={user.uid}
+          onDone={(message) => { setPushOffer(null); setToast(message); }}
+        />
+      )}
+
       {venueRatingShow && user && (
         <VenueRatingModal
           show={venueRatingShow}
