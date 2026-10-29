@@ -13,6 +13,15 @@ const STREAMING_MENTION = /spotify|apple\s*music/i;
 function ReleaseNotesView() {
   const releases = [
     {
+      version: '5.49.2',
+      date: 'October 29, 2026',
+      title: 'Anniversary Reminders on Your iPhone',
+      changes: [
+        'Get a push on the anniversary of a show you saw, and tap it to open that show',
+        'Turn push and email on or off separately for anniversary reminders in Notifications settings',
+      ]
+    },
+    {
       version: '5.49.0',
       date: 'October 28, 2026',
       title: 'Push Alerts for Bands You Follow',

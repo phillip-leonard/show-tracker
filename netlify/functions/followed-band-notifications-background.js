@@ -19,6 +19,7 @@ const { getDb } = require('./lib/firebaseAdmin');
 const { sendNotificationEmail } = require('./lib/outgoingEmail');
 const { fetchArtistEvents } = require('./lib/ticketmasterEvents');
 const { runFollowedBandJob } = require('./lib/followedBandAlerts');
+const { fcmMessage } = require('./lib/pushDelivery');
 
 const TOKEN_TTL_MS = 10 * 60 * 1000;
 const RUN_BUDGET_MS = 12 * 60 * 1000;
@@ -59,16 +60,7 @@ exports.handler = async function (event) {
     // Ticketmaster allows 5 requests a second; a band costs up to two.
     pause: () => sleep(500),
     sendEmail: (msg) => sendNotificationEmail({ db, ...msg }),
-    // One message for both kinds of token. On iOS, `data.link` is what a
-    // tap opens (lib/pushAlerts.js hands it to lib/deepLinks.js); on the
-    // web, fcmOptions.link does the same.
-    sendPush: (token, { title, body, link, threadId, notificationId }) => require('firebase-admin/messaging').getMessaging().send({
-      token,
-      notification: { title, body },
-      data: { link, notificationId },
-      apns: { payload: { aps: { sound: 'default', 'thread-id': threadId } } },
-      webpush: { fcmOptions: { link } },
-    }),
+    sendPush: (token, msg) => require('firebase-admin/messaging').getMessaging().send(fcmMessage(token, msg)),
     createdAt: FieldValue.serverTimestamp(),
     deadline: started + RUN_BUDGET_MS,
   });

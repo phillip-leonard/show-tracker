@@ -29,23 +29,20 @@
  * the alerts, so a run that dies in between finds the same new ids next
  * time, computes the same ids, and every create() fails quietly.
  *
- * PUSH (5.49.0). One alert is one push to each of the user's devices:
- * pushTokens/{fcmToken} docs ({ userId, platform }, written by the iOS app,
- * lib/pushAlerts.js) plus the legacy web token on userProfiles.fcmToken.
- * A token FCM reports as unregistered is deleted on the spot. Email and
- * push are switched separately (notificationPrefs.<key>.push / .email);
- * profiles from before then carry `method` ('both' | 'push' | 'email').
+ * PUSH (5.49.0). One alert is one push to each of the user's devices,
+ * dead tokens deleted on the spot, push and email switched separately:
+ * lib/pushDelivery.js, shared with the anniversary job.
  */
 
 const crypto = require('crypto');
 const { escapeHtml, wrapEmail } = require('./emailLayout');
 const { unfollowUrl } = require('./unfollowToken');
+const { PUSH_TOKENS, prefFor, loadPushTokens, isDeadToken, pushToDevices } = require('./pushDelivery');
 const { artistNameKeyLoose } = require('./songfishSites');
 const publicArtists = require('../../../config/public-artists.json');
 
 const SITE_URL = 'https://mysetlists.net';
 const LEDGER_COLLECTION = 'bandAnnouncementLedger';
-const PUSH_TOKENS = 'pushTokens';
 const TOUR_MIN_NEW_DATES = 3;
 // Ticketmaster ids are ~20 chars; this keeps a ledger doc far below 1 MiB
 // while remembering more dates than any band has on sale at once.
@@ -88,22 +85,6 @@ function batchKey(newEvents) {
 function nextSeenIds(ledger, events) {
   const ids = [...events.map((e) => e.id).filter(Boolean), ...(ledger?.seenEventIds || [])];
   return Array.from(new Set(ids)).slice(0, MAX_SEEN_IDS);
-}
-
-/**
- * { enabled, push, email } for one alert type. `enabled` off means no alert
- * at all, not even in Notifications. Push and email default on; push only
- * reaches a user who has a device token, so "on" before permission is
- * granted sends nothing.
- */
-function prefFor(profile, key) {
-  const p = profile?.notificationPrefs?.[key] || {};
-  const method = p.method || 'both';
-  return {
-    enabled: p.enabled !== false,
-    push: typeof p.push === 'boolean' ? p.push : method === 'both' || method === 'push',
-    email: typeof p.email === 'boolean' ? p.email : method === 'both' || method === 'email',
-  };
 }
 
 function byDate(a, b) {
@@ -325,44 +306,6 @@ function pushFor(alert, nowMs = Date.now()) {
   };
 }
 
-/** FCM's answer for a token that will never work again: delete it. */
-function isDeadToken(err) {
-  const code = err?.code || err?.errorInfo?.code;
-  return code === 'messaging/registration-token-not-registered'
-    || code === 'messaging/invalid-registration-token';
-}
-
-async function removeDeadToken(db, t) {
-  try {
-    if (t.legacy) {
-      await db.collection('userProfiles').doc(t.uid).update({ fcmToken: null });
-    } else {
-      await db.collection(PUSH_TOKENS).doc(t.token).delete();
-    }
-  } catch (err) {
-    console.warn('[followedBands] could not remove dead token for', t.uid, err.message);
-  }
-}
-
-/** uid -> [{ uid, token, legacy }]: pushTokens docs, then the legacy web token. */
-async function loadPushTokens(db, profiles) {
-  const byUid = new Map();
-  const add = (t) => {
-    if (!byUid.has(t.uid)) byUid.set(t.uid, []);
-    const list = byUid.get(t.uid);
-    if (!list.some((x) => x.token === t.token)) list.push(t);
-  };
-  const snap = await db.collection(PUSH_TOKENS).get();
-  snap.docs.forEach((d) => {
-    const uid = d.data()?.userId;
-    if (uid && profiles.has(uid)) add({ uid, token: d.id, legacy: false });
-  });
-  profiles.forEach((p, uid) => {
-    if (p.fcmToken) add({ uid, token: p.fcmToken, legacy: true });
-  });
-  return byUid;
-}
-
 function isAlreadyExists(err) {
   return err?.code === 6 || err?.code === 'already-exists' || /already exists/i.test(err?.message || '');
 }
@@ -396,24 +339,9 @@ async function deliverAlerts({ db, alerts, profiles, tokens = new Map(), created
     const devices = tokens.get(alert.uid) || [];
     if (alert.push && devices.length && sendPush) {
       const msg = { ...pushFor(alert, now()), notificationId: alert.id };
-      let reached = false;
-      for (const t of [...devices]) {
-        try {
-          await sendPush(t.token, msg);
-          reached = true;
-        } catch (err) {
-          if (!isDeadToken(err)) {
-            console.warn('[followedBands] push failed for', alert.uid, err.message);
-            continue;
-          }
-          // Gone for good (app deleted, token rotated): stop using it for
-          // the rest of this run as well.
-          devices.splice(devices.indexOf(t), 1);
-          await removeDeadToken(db, t);
-          out.deadTokens++;
-        }
-      }
-      if (reached) out.pushed++;
+      const r = await pushToDevices({ db, devices, sendPush, msg, tag: 'followedBands' });
+      if (r.reached) out.pushed++;
+      out.deadTokens += r.dead;
     }
   }
   return out;
