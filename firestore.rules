@@ -183,6 +183,24 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // ── Push tokens (v5.49.0) ──────────────────────────────────────────
+    // One document per device that takes push alerts, id = its FCM token,
+    // { userId, platform, updatedAt } (lib/pushAlerts.js). The followed-band
+    // job reads them with the Admin SDK and deletes the ones FCM reports
+    // dead.
+    //
+    // Not on userProfiles, which every signed-in user can read. Owner-only
+    // reads. A write may take over a token another account left behind (the
+    // same iPhone, signed in as someone else, after a sign-out that couldn't
+    // reach the server) but must name the writer as its owner.
+    match /pushTokens/{token} {
+      allow read, delete: if request.auth != null
+                  && resource.data.userId == request.auth.uid;
+      allow create, update: if request.auth != null
+                  && request.resource.data.userId == request.auth.uid
+                  && request.resource.data.keys().hasOnly(['userId', 'platform', 'updatedAt']);
+    }
+
     // ── Reports (v5.32.0) ──────────────────────────────────────────────
     // Guideline 1.2's "mechanism for users to report offensive content".
     //

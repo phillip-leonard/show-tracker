@@ -1,14 +1,20 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { Bell, BellOff, Check, AlertCircle } from 'lucide-react';
+import { Bell, BellOff, BellRing, Check, AlertCircle } from 'lucide-react';
 import { doc, updateDoc, getDoc } from 'firebase/firestore';
 import { db, requestNotificationPermission } from '@/lib/firebase';
 import { isNativePlatform } from '@/lib/native-auth';
+import { alertChannels, withChannel } from '@/lib/alertChannels';
+import { pushPermission, requestPushPermission } from '@/lib/pushAlerts';
+import { openAppSettings } from '@/lib/nativePermissions';
+import Button from '@/components/ui/Button';
 
 // The followed-band job's two alerts (netlify/functions/lib/followedBandAlerts.js
 // reads these prefs). Every alert is also in Notifications in the app; these
-// choose whether it is emailed and pushed too. The iOS app has no push yet,
-// so there it is email or nothing.
+// choose whether it is pushed and emailed too, each on its own
+// (lib/alertChannels.js). Push needs permission on this device first: on
+// iOS from PushAlertsCard below (or the first follow), on the web from
+// "Enable Notifications".
 const ALERT_PREFS = [
   {
     key: 'followedBands',
@@ -22,10 +28,25 @@ const ALERT_PREFS = [
   },
 ];
 
-function AlertPrefs({ preferences, onChange, pushAvailable }) {
+function ChannelToggle({ label, checked, onChange }) {
+  return (
+    <label className="flex items-center gap-2 cursor-pointer text-sm text-primary min-h-touch md:min-h-0">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        className="w-4 h-4 rounded border-active bg-hover text-brand focus:ring-brand/50 focus:ring-offset-0 cursor-pointer"
+      />
+      {label}
+    </label>
+  );
+}
+
+function AlertPrefs({ preferences, onChange, pushReady }) {
   return ALERT_PREFS.map(({ key, title, description }) => {
     const pref = preferences[key] || {};
     const enabled = pref.enabled !== false;
+    const channels = alertChannels(pref);
     return (
       <div key={key} className="mt-5 pt-5 border-t border-subtle">
         <label className="flex items-start gap-3 cursor-pointer group">
@@ -41,23 +62,77 @@ function AlertPrefs({ preferences, onChange, pushAvailable }) {
           </div>
         </label>
 
-        {enabled && pushAvailable && (
-          <div className="mt-3 pl-7">
-            <label className="text-secondary text-xs font-medium block mb-1.5">Notify me via</label>
-            <select
-              value={pref.method || 'both'}
-              onChange={(e) => onChange(key, { ...pref, method: e.target.value })}
-              className="text-sm bg-hover border border-active rounded-lg px-2.5 py-1.5 text-primary focus:ring-2 focus:ring-brand/50 focus:outline-none"
-            >
-              <option value="both">Push and email</option>
-              <option value="push">Push only</option>
-              <option value="email">Email only</option>
-            </select>
+        {enabled && (
+          <div className="mt-2 pl-7 flex flex-wrap gap-x-6">
+            {pushReady && (
+              <ChannelToggle label="Push" checked={channels.push} onChange={(on) => onChange(key, withChannel(pref, 'push', on))} />
+            )}
+            <ChannelToggle label="Email" checked={channels.email} onChange={(on) => onChange(key, withChannel(pref, 'email', on))} />
           </div>
         )}
       </div>
     );
   });
+}
+
+/**
+ * Push alerts on this iPhone: the button that asks for permission, or what
+ * to do when iOS has it switched off. Asking happens here or on the first
+ * follow, never at launch.
+ */
+function PushAlertsCard({ userId, state, onState }) {
+  const [busy, setBusy] = useState(false);
+  const [declined, setDeclined] = useState(false);
+
+  if (!state || state === 'unsupported') return null;
+
+  const turnOn = async () => {
+    setBusy(true);
+    const next = await requestPushPermission(userId);
+    setBusy(false);
+    setDeclined(next !== 'granted');
+    onState(next);
+  };
+
+  return (
+    <div className="mt-5 pt-5 border-t border-subtle">
+      <div className="flex items-start gap-3">
+        <BellRing className="w-5 h-5 text-brand flex-shrink-0 mt-0.5" />
+        <div className="flex-1">
+          <p className="text-primary text-sm font-medium">Push alerts</p>
+          {state === 'granted' && (
+            <p className="text-secondary text-xs mt-1 flex items-center gap-1.5">
+              <Check className="w-3.5 h-3.5 text-brand" /> On for this iPhone. Choose which alerts below.
+            </p>
+          )}
+          {state === 'prompt' && (
+            <>
+              <p className="text-secondary text-xs mt-1">
+                Get a push when a band you follow announces a tour or plays a venue on your bucket list. Nothing else.
+              </p>
+              <div className="mt-3">
+                <Button size="sm" icon={Bell} onClick={turnOn} loading={busy}>Turn on push alerts</Button>
+              </div>
+            </>
+          )}
+          {state === 'denied' && (
+            <>
+              <p className="text-secondary text-xs mt-1">
+                {declined ? 'No problem. ' : ''}Push is off for MySetlists in iOS Settings. Email alerts still work.
+              </p>
+              <button
+                type="button"
+                onClick={openAppSettings}
+                className="mt-2 text-brand text-xs font-semibold hover:underline"
+              >
+                Open Settings
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default function NotificationSettings({ userId }) {
@@ -66,6 +141,8 @@ export default function NotificationSettings({ userId }) {
   );
   const [loading, setLoading] = useState(false);
   const [fcmToken, setFcmToken] = useState(null);
+  // iOS push permission: null until checked, then lib/pushAlerts.js's state.
+  const [pushState, setPushState] = useState(null);
   const [preferences, setPreferences] = useState({
     showReminders: true,
     newFeatures: true,
@@ -104,6 +181,20 @@ export default function NotificationSettings({ userId }) {
     };
     loadPreferences();
   }, [userId]);
+
+  // Checked on open and again on returning from iOS Settings.
+  useEffect(() => {
+    if (!isNativePlatform()) return undefined;
+    let live = true;
+    let handle = null;
+    const check = () => pushPermission().then((s) => { if (live) setPushState(s); });
+    check();
+    import('@capacitor/app')
+      .then(({ App }) => App.addListener('appStateChange', ({ isActive }) => { if (isActive) check(); }))
+      .then((h) => { if (live) handle = h; else h.remove(); })
+      .catch(() => {});
+    return () => { live = false; handle?.remove(); };
+  }, []);
 
   const handleEnableNotifications = async () => {
     setLoading(true);
@@ -221,7 +312,8 @@ export default function NotificationSettings({ userId }) {
           )}
         </div>
 
-        <AlertPrefs preferences={preferences} onChange={handlePreferenceChange} pushAvailable={false} />
+        <PushAlertsCard userId={userId} state={pushState} onState={setPushState} />
+        <AlertPrefs preferences={preferences} onChange={handlePreferenceChange} pushReady={pushState === 'granted'} />
       </div>
     );
   }
@@ -370,7 +462,7 @@ export default function NotificationSettings({ userId }) {
         )}
       </div>
 
-      <AlertPrefs preferences={preferences} onChange={handlePreferenceChange} pushAvailable />
+      <AlertPrefs preferences={preferences} onChange={handlePreferenceChange} pushReady={permission === 'granted'} />
     </div>
   );
 }

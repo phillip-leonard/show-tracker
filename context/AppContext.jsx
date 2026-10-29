@@ -33,6 +33,7 @@ import { buildExistingShowIndex, existingShowStatus } from '@/lib/tourBrowse';
 import { normalizeFestivalName, findFestivalMatches as matchFestivals } from '@/lib/festivalMatch';
 import { logActivity } from '@/lib/activityFeed';
 import { rememberHeardShows } from '@/lib/heardLinks';
+import { syncPushToken, forgetPushToken, shouldOfferPush, markPushOffered, pushPermission } from '@/lib/pushAlerts';
 import {
   subscribeBlocks, blockUser as blockUserDoc, unblockUser as unblockUserDoc,
   withoutBlocked,
@@ -636,6 +637,16 @@ export function AppProvider({ children }) {
 
   // Global toast notification
   const [toast, setToast] = useState(null);
+
+  // The band whose follow is offering push alerts (iOS, first follow only;
+  // components/notifications/PushOfferModal.jsx), or null.
+  const [pushOffer, setPushOffer] = useState(null);
+
+  // This iPhone's push token, refreshed on launch and on sign-in. Never asks
+  // for permission (lib/pushAlerts.js).
+  useEffect(() => {
+    if (user?.uid) syncPushToken(user.uid);
+  }, [user?.uid]);
 
   // Venue rating modal
   const [venueRatingShow, setVenueRatingShow] = useState(null);
@@ -1409,6 +1420,8 @@ export function AppProvider({ children }) {
 
   const handleLogout = async () => {
     try {
+      // While still signed in, so this device's pushTokens doc can go.
+      await forgetPushToken();
       await signOut(auth);
       clearSignedInHint();
       rememberHeardShows(null);
@@ -3748,7 +3761,16 @@ export function AppProvider({ children }) {
         const updated = [...favoriteArtists, newFav];
         setFavoriteArtists(updated);
         await updateDoc(profileRef, { favoriteArtists: updated });
-        setToast(`Following ${artistName.trim()}. We'll email you when they announce a tour.`);
+        // The first follow on an iPhone that has never been asked offers
+        // push, with an explainer before iOS's own prompt.
+        if (await shouldOfferPush()) {
+          markPushOffered();
+          setPushOffer(artistName.trim());
+        } else if ((await pushPermission()) === 'granted') {
+          setToast(`Following ${artistName.trim()}. We'll let you know when they announce a tour.`);
+        } else {
+          setToast(`Following ${artistName.trim()}. We'll email you when they announce a tour.`);
+        }
       }
     } catch (err) {
       console.error('Failed to toggle followed band:', err);
@@ -4118,6 +4140,8 @@ export function AppProvider({ children }) {
     favoriteArtists,
     toggleFavoriteArtist,
     isArtistFavorite,
+    pushOffer,
+    setPushOffer,
 
     // Venue rating
     venueRatingShow,

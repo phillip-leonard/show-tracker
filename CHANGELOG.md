@@ -4,6 +4,53 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.49.0] — 2026-10-28
+
+Ships in iOS 3.11 (`MARKETING_VERSION` 3.10.1 → 3.11, a minor bump for a new
+feature; the build number is left to Xcode Cloud).
+
+**Push alerts on iPhone for bands you follow.** A tour announcement or a
+bucket-list venue match now sends a push alongside the email, with push and
+email switched separately in Notifications settings.
+
+- **Asked in context, never at launch.** The first time you follow a band in
+  the app, a short explainer (`components/notifications/PushOfferModal.jsx`)
+  comes before iOS's own prompt. "Turn on push alerts" in Notifications
+  settings asks too, and points to iOS Settings once push has been refused.
+  Declining says email alerts still work.
+- **Tokens per device**, in a new owner-only `pushTokens/{fcmToken}`
+  collection (`{ userId, platform, updatedAt }`), not on `userProfiles`,
+  which every signed-in user can read. A token is refreshed on launch and
+  whenever FCM rotates it. It is removed on sign-out and on account deletion
+  (`userDataPurge.js`). The job also deletes any token FCM reports as
+  unregistered (`lib/pushAlerts.js`, `firestore.rules`).
+- **One push per alert per device**, behind the same `create()` dedup as the
+  email: a rerun, or a run that died before saving its ledger, pushes
+  nothing again. A bucket-list date inside a new tour rides in the tour push,
+  as it does in the email. Copy: "Goose announced a spring tour: 14 dates" /
+  "Billy Strings plays Red Rocks Amphitheatre on Jun 3". No marketing pushes.
+- **A tap opens the right screen.** The push carries a universal link that
+  `DeepLinkListener` routes like any other: a tour opens the band's screen
+  (`/bands/?band=<slug>`) when it has one, and Notifications otherwise. A
+  venue match opens Notifications, where the date and ticket link are.
+- **Per-channel settings.** `notificationPrefs.followedBands` and
+  `.venueBucketList` gain `push` and `email` booleans
+  (`lib/alertChannels.js`). Saved `method` values still read the same, and
+  every save writes `method` too for older app versions. Defaults: push on
+  once permission is granted; email unchanged.
+- **Plugin swap.** `@capacitor/push-notifications`, which was installed but
+  never used, is replaced by `@capacitor-firebase/messaging`. That plugin
+  returns an FCM token, so iOS and web push share one send path. The two
+  can't be installed together. `AppDelegate.swift` forwards the APNs token
+  to it.
+- **Manual step before this works:** upload an APNs auth key (.p8) to
+  Firebase → Project settings → Cloud Messaging. See the PR.
+- **Tests:** `tests/notifications/followedBands.test.js` (push copy and links,
+  one push per device and one email per alert, rerun sends nothing, dead
+  tokens removed, channel switches) and `lib/__tests__/alertChannels.test.js`
+  (client/job pref parity, every push link opens a known screen), both in
+  `test:unit`.
+
 ## [5.48.1] — 2026-10-28
 
 Ships in iOS 3.10.1 (`MARKETING_VERSION` 3.10 → 3.10.1; the build number is

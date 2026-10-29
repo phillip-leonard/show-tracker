@@ -28,14 +28,24 @@
  * push go out only after a create succeeds. The ledger is written after
  * the alerts, so a run that dies in between finds the same new ids next
  * time, computes the same ids, and every create() fails quietly.
+ *
+ * PUSH (5.49.0). One alert is one push to each of the user's devices:
+ * pushTokens/{fcmToken} docs ({ userId, platform }, written by the iOS app,
+ * lib/pushAlerts.js) plus the legacy web token on userProfiles.fcmToken.
+ * A token FCM reports as unregistered is deleted on the spot. Email and
+ * push are switched separately (notificationPrefs.<key>.push / .email);
+ * profiles from before then carry `method` ('both' | 'push' | 'email').
  */
 
 const crypto = require('crypto');
 const { escapeHtml, wrapEmail } = require('./emailLayout');
 const { unfollowUrl } = require('./unfollowToken');
+const { artistNameKeyLoose } = require('./songfishSites');
+const publicArtists = require('../../../config/public-artists.json');
 
 const SITE_URL = 'https://mysetlists.net';
 const LEDGER_COLLECTION = 'bandAnnouncementLedger';
+const PUSH_TOKENS = 'pushTokens';
 const TOUR_MIN_NEW_DATES = 3;
 // Ticketmaster ids are ~20 chars; this keeps a ledger doc far below 1 MiB
 // while remembering more dates than any band has on sale at once.
@@ -80,9 +90,20 @@ function nextSeenIds(ledger, events) {
   return Array.from(new Set(ids)).slice(0, MAX_SEEN_IDS);
 }
 
+/**
+ * { enabled, push, email } for one alert type. `enabled` off means no alert
+ * at all, not even in Notifications. Push and email default on; push only
+ * reaches a user who has a device token, so "on" before permission is
+ * granted sends nothing.
+ */
 function prefFor(profile, key) {
-  const p = profile?.notificationPrefs?.[key];
-  return { enabled: p?.enabled !== false, method: p?.method || 'both' };
+  const p = profile?.notificationPrefs?.[key] || {};
+  const method = p.method || 'both';
+  return {
+    enabled: p.enabled !== false,
+    push: typeof p.push === 'boolean' ? p.push : method === 'both' || method === 'push',
+    email: typeof p.email === 'boolean' ? p.email : method === 'both' || method === 'email',
+  };
 }
 
 function byDate(a, b) {
@@ -125,7 +146,8 @@ function planAlerts({ band, events, newEvents, baseline, followers }) {
         id: `bandTour_${f.uid}_${lid}_${tourBatch}`,
         uid: f.uid,
         kind: 'tour',
-        method: tourPref.method,
+        push: tourPref.push,
+        email: tourPref.email,
         band,
         dates,
         bucketListEventIds: bucketHits.filter((e) => newIds.has(e.id)).map((e) => e.id),
@@ -149,7 +171,8 @@ function planAlerts({ band, events, newEvents, baseline, followers }) {
         id: `venueMatch_${f.uid}_${e.id}`,
         uid: f.uid,
         kind: 'venue',
-        method: venuePref.method,
+        push: venuePref.push,
+        email: venuePref.email,
         // Already in today's tour email, marked as a bucket-list venue:
         // one email, not two, on the morning a tour lands there.
         inAppOnly: tourAlertSent && newIds.has(e.id),
@@ -234,10 +257,110 @@ function venueEmail(alert) {
   return { subject, html };
 }
 
-function pushFor(alert) {
-  return alert.kind === 'tour'
-    ? { title: `${alert.band.name} announced new dates`, body: alert.notification.message }
-    : { title: 'Bucket list match!', body: alert.notification.message };
+// ── Push ────────────────────────────────────────────────────────────────
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const SEASONS = ['winter', 'winter', 'spring', 'spring', 'spring', 'summer', 'summer', 'summer', 'fall', 'fall', 'fall', 'winter'];
+
+function monthOf(date) {
+  const m = /^\d{4}-(\d{2})-\d{2}/.exec(String(date || ''));
+  return m ? Number(m[1]) - 1 : null;
+}
+
+/** 'spring' when at least two thirds of the dates fall in one season, else null. */
+function tourSeason(dates) {
+  const counts = {};
+  let known = 0;
+  dates.forEach((e) => {
+    const m = monthOf(e.date);
+    if (m == null) return;
+    known++;
+    counts[SEASONS[m]] = (counts[SEASONS[m]] || 0) + 1;
+  });
+  const [season, n] = Object.entries(counts).sort((a, b) => b[1] - a[1])[0] || [];
+  return season && n * 3 >= known * 2 ? season : null;
+}
+
+/** 'Jun 3', or 'Jun 3, 2027' outside the current year. */
+function shortDate(date, nowMs) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(date || ''));
+  if (!m) return String(date || '');
+  const day = `${MONTHS[Number(m[2]) - 1]} ${Number(m[3])}`;
+  return Number(m[1]) === new Date(nowMs).getUTCFullYear() ? day : `${day}, ${m[1]}`;
+}
+
+// The band screens in the app (/bands/?band=<slug>) exist for the bands in
+// config/public-artists.json; lib/bandScreens.js matches names the same way.
+const BAND_SLUGS = new Map(publicArtists.artists.map((a) => [artistNameKeyLoose(a.name), a.slug]));
+
+/**
+ * Where tapping the push goes, as a universal link: the iOS app routes it
+ * through lib/deepLinks.js, the web through the service worker. A tour
+ * opens the band's screen when it has one; everything else opens
+ * Notifications, where the alert lists its dates and ticket links.
+ */
+function pushLink(alert) {
+  const slug = alert.kind === 'tour' ? BAND_SLUGS.get(artistNameKeyLoose(alert.band.name)) : null;
+  return slug ? `${SITE_URL}/bands/?band=${encodeURIComponent(slug)}` : `${SITE_URL}/notifications/`;
+}
+
+/** { title, body, link, threadId }. Alerts only: there are no marketing pushes. */
+function pushFor(alert, nowMs = Date.now()) {
+  const name = alert.band.name;
+  if (alert.kind === 'tour') {
+    const season = tourSeason(alert.dates);
+    const n = alert.dates.length;
+    return {
+      title: 'Tour announced',
+      body: `${name} announced ${season ? `a ${season}` : 'a'} tour: ${n} date${n === 1 ? '' : 's'}`,
+      link: pushLink(alert),
+      threadId: alert.band.key,
+    };
+  }
+  return {
+    title: 'Bucket-list venue',
+    body: `${name} plays ${alert.event.venue} on ${shortDate(alert.event.date, nowMs)}`,
+    link: pushLink(alert),
+    threadId: alert.band.key,
+  };
+}
+
+/** FCM's answer for a token that will never work again: delete it. */
+function isDeadToken(err) {
+  const code = err?.code || err?.errorInfo?.code;
+  return code === 'messaging/registration-token-not-registered'
+    || code === 'messaging/invalid-registration-token';
+}
+
+async function removeDeadToken(db, t) {
+  try {
+    if (t.legacy) {
+      await db.collection('userProfiles').doc(t.uid).update({ fcmToken: null });
+    } else {
+      await db.collection(PUSH_TOKENS).doc(t.token).delete();
+    }
+  } catch (err) {
+    console.warn('[followedBands] could not remove dead token for', t.uid, err.message);
+  }
+}
+
+/** uid -> [{ uid, token, legacy }]: pushTokens docs, then the legacy web token. */
+async function loadPushTokens(db, profiles) {
+  const byUid = new Map();
+  const add = (t) => {
+    if (!byUid.has(t.uid)) byUid.set(t.uid, []);
+    const list = byUid.get(t.uid);
+    if (!list.some((x) => x.token === t.token)) list.push(t);
+  };
+  const snap = await db.collection(PUSH_TOKENS).get();
+  snap.docs.forEach((d) => {
+    const uid = d.data()?.userId;
+    if (uid && profiles.has(uid)) add({ uid, token: d.id, legacy: false });
+  });
+  profiles.forEach((p, uid) => {
+    if (p.fcmToken) add({ uid, token: p.fcmToken, legacy: true });
+  });
+  return byUid;
 }
 
 function isAlreadyExists(err) {
@@ -246,10 +369,11 @@ function isAlreadyExists(err) {
 
 /**
  * Write each alert's notification, then email/push it — only if the write
- * created it. Resolves { created, duplicates, emailed, pushed, failed }.
+ * created it. Resolves { created, duplicates, emailed, pushed, deadTokens,
+ * failed }; `pushed` counts alerts that reached at least one device.
  */
-async function deliverAlerts({ db, alerts, profiles, createdAt, sendEmail, sendPush }) {
-  const out = { created: 0, duplicates: 0, emailed: 0, pushed: 0, failed: 0 };
+async function deliverAlerts({ db, alerts, profiles, tokens = new Map(), createdAt, sendEmail, sendPush, now = () => Date.now() }) {
+  const out = { created: 0, duplicates: 0, emailed: 0, pushed: 0, deadTokens: 0, failed: 0 };
   for (const alert of alerts) {
     try {
       await db.collection('notifications').doc(alert.id).create({ ...alert.notification, createdAt });
@@ -263,19 +387,33 @@ async function deliverAlerts({ db, alerts, profiles, createdAt, sendEmail, sendP
     if (alert.inAppOnly) continue;
 
     const profile = profiles.get(alert.uid) || {};
-    if ((alert.method === 'email' || alert.method === 'both') && profile.email && sendEmail) {
+    if (alert.email && profile.email && sendEmail) {
       const { subject, html } = alert.kind === 'tour' ? tourEmail(alert) : venueEmail(alert);
       const type = alert.kind === 'tour' ? 'followed_band_tour' : 'venue_bucket_list';
       const r = await sendEmail({ uid: alert.uid, email: profile.email, subject, html, type });
       if (r === 'sent') out.emailed++;
     }
-    if ((alert.method === 'push' || alert.method === 'both') && profile.fcmToken && sendPush) {
-      try {
-        await sendPush(profile.fcmToken, pushFor(alert));
-        out.pushed++;
-      } catch (err) {
-        console.warn('[followedBands] push failed for', alert.uid, err.message);
+    const devices = tokens.get(alert.uid) || [];
+    if (alert.push && devices.length && sendPush) {
+      const msg = { ...pushFor(alert, now()), notificationId: alert.id };
+      let reached = false;
+      for (const t of [...devices]) {
+        try {
+          await sendPush(t.token, msg);
+          reached = true;
+        } catch (err) {
+          if (!isDeadToken(err)) {
+            console.warn('[followedBands] push failed for', alert.uid, err.message);
+            continue;
+          }
+          // Gone for good (app deleted, token rotated): stop using it for
+          // the rest of this run as well.
+          devices.splice(devices.indexOf(t), 1);
+          await removeDeadToken(db, t);
+          out.deadTokens++;
+        }
       }
+      if (reached) out.pushed++;
     }
   }
   return out;
@@ -287,7 +425,8 @@ async function deliverAlerts({ db, alerts, profiles, createdAt, sendEmail, sendP
  * One full run. Everything outside this file is injected:
  *   fetchEvents(name, ledger) → { events: [...], attractionId|null }
  *   sendEmail({ uid, email, subject, html, type }) → 'sent'|'skipped'|'failed'
- *   sendPush(token, { title, body })
+ *   sendPush(token, { title, body, link, threadId, notificationId }) —
+ *     rejects with FCM's error; a dead-token code removes the token
  *   createdAt  — FieldValue.serverTimestamp() in production
  *   deadline   — ms timestamp; bands not reached are first in line next run
  */
@@ -321,13 +460,15 @@ async function runFollowedBandJob({ db, fetchEvents, sendEmail, sendPush, create
   const ledgerSnap = await db.collection(LEDGER_COLLECTION).get();
   const ledgers = new Map(ledgerSnap.docs.map((d) => [d.id, d.data()]));
 
+  const tokens = sendPush ? await loadPushTokens(db, profiles) : new Map();
+
   // Least recently checked first, so a run that hits its deadline picks up
   // where the last one stopped instead of re-checking the same bands.
   const bands = [...followersByBand.entries()]
     .map(([key, v]) => ({ key, name: v.name, uids: v.uids, ledger: ledgers.get(ledgerId(key)) || null }))
     .sort((a, b) => (a.ledger?.checkedAtMs || 0) - (b.ledger?.checkedAtMs || 0));
 
-  const totals = { bands: 0, baselines: 0, tours: 0, created: 0, duplicates: 0, emailed: 0, pushed: 0, failed: 0, skippedForTime: 0 };
+  const totals = { bands: 0, baselines: 0, tours: 0, created: 0, duplicates: 0, emailed: 0, pushed: 0, deadTokens: 0, failed: 0, skippedForTime: 0 };
 
   for (const b of bands) {
     if (now() > deadline) { totals.skippedForTime = bands.length - totals.bands; break; }
@@ -348,7 +489,7 @@ async function runFollowedBandJob({ db, fetchEvents, sendEmail, sendPush, create
       uid, profile: profiles.get(uid), venueKeys: venuesByUid.get(uid) || new Set(),
     }));
     const alerts = planAlerts({ band: { key: b.key, name: b.name }, events, newEvents, baseline, followers });
-    const r = await deliverAlerts({ db, alerts, profiles, createdAt, sendEmail, sendPush });
+    const r = await deliverAlerts({ db, alerts, profiles, tokens, createdAt, sendEmail, sendPush, now });
     Object.keys(r).forEach((k) => { totals[k] += r[k]; });
     if (baseline) totals.baselines++;
     if (!baseline && isNewTour(newEvents)) totals.tours++;
@@ -367,7 +508,8 @@ async function runFollowedBandJob({ db, fetchEvents, sendEmail, sendPush, create
 }
 
 module.exports = {
-  LEDGER_COLLECTION, TOUR_MIN_NEW_DATES,
+  LEDGER_COLLECTION, PUSH_TOKENS, TOUR_MIN_NEW_DATES,
   artistKey, ledgerId, venueKeyFor, newEventsSince, isNewTour, batchKey, nextSeenIds,
-  planAlerts, deliverAlerts, runFollowedBandJob, tourEmail, venueEmail,
+  prefFor, planAlerts, deliverAlerts, runFollowedBandJob, tourEmail, venueEmail,
+  pushFor, tourSeason, isDeadToken,
 };

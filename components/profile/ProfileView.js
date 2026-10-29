@@ -12,6 +12,7 @@ import { contentProblem } from '@/lib/contentFilter';
 import { publicProfileUrl, openExternalUrl, externalLinkClick } from '@/lib/publicProfile';
 import BlockedAccountsSection from '@/components/moderation/BlockedAccountsSection';
 import NotificationSettings from '@/components/notifications/NotificationSettings';
+import { forgetPushToken } from '@/lib/pushAlerts';
 import TourInfoModal from '@/components/TourInfoModal';
 import FollowBandButton from '@/components/artists/FollowBandButton';
 
@@ -296,6 +297,9 @@ export default function ProfileView({ user, shows, userRank, onProfileUpdate, on
         throw new Error(data.error || 'Deletion failed');
       }
 
+      // The server already deleted this device's pushTokens doc with the
+      // account; this drops the FCM token on the phone too.
+      await forgetPushToken();
       await signOut(auth);
       window.location.href = '/';
     } catch (err) {
