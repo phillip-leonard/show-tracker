@@ -13,7 +13,9 @@
 //   buildRecord                         the record: counts, top songs,
 //                                       rarest catches, bust-outs, debuts,
 //                                       songs still to chase
-//   posterSvg                           the poster and the preview card
+//   posterSvg                           the poster and the preview card,
+//                                       for an archive record or a personal
+//                                       one (below)
 //
 // ── One source, two runtimes ──────────────────────────────────────────
 //
@@ -47,6 +49,16 @@
 // non-songs (NON_SONG, the same list as artistSnapshotStats.js) stay in
 // "every song" but are left out of the top songs, rarest catches,
 // bust-outs, debuts and songs to chase.
+//
+// ── Personal records ──────────────────────────────────────────────────
+//
+// A band without an archive has no show list to count against, so its
+// poster (/my-poster/, lib/myPoster.js) is built in the app from the
+// user's own logged shows: the same counts, top songs and every song, and
+// none of the band-history sections. posterSvg draws it when `data` is
+// { name, personal: true }: "First show / latest show" where the rarest
+// catch and bust-outs go, a longer "Most heard", and PERSONAL_CREDIT as
+// the source line.
 
 function createHeard() {
   'use strict';
@@ -59,6 +71,8 @@ function createHeard() {
   const EPOCH_DAY = Date.UTC(1950, 0, 1) / DAY_MS;
   const B64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
   const VERSION = 'a';
+  const PERSONAL_CREDIT = 'From my MySetlists show log';
+  const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
   function dayNumber(date) {
     const [y, m, d] = String(date).split('-').map(Number);
@@ -348,6 +362,59 @@ function createHeard() {
     };
   }
 
+  // ── A personal record ───────────────────────────────────────────────
+  //
+  // The app counts the user's shows (lib/myPoster.js) and passes the
+  // result through here; the functions pass whatever was posted to them
+  // through here too (my-poster.js), so the poster on the phone and the
+  // poster behind a /p/ link come from the same record. Only what's
+  // listed survives: a band name, counts, the first and latest show
+  // (date and venue) and every song heard with its count. No names,
+  // emails, notes or ratings.
+
+  const MAX_PERSONAL_SONGS = 3000;
+
+  /** A personal record, cleaned and sorted, with its top songs; null if unusable. */
+  function cleanPersonalRecord(input) {
+    if (!input || typeof input !== 'object') return null;
+    const str = (v, max) => String(v == null ? '' : v).replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, max);
+    const int = (v) => {
+      const n = Math.floor(Number(v));
+      return Number.isFinite(n) && n > 0 ? Math.min(n, 1000000) : 0;
+    };
+    const iso = (v) => (/^\d{4}-\d{2}-\d{2}$/.test(String(v || '')) ? String(v) : '');
+    const showOf = (s) => (s && iso(s.date) ? { date: iso(s.date), venue: str(s.venue, 160), city: str(s.city, 120) } : null);
+
+    const name = str(input.name, 120);
+    const shows = int(input.shows);
+    if (!name || !shows) return null;
+    const songs = (Array.isArray(input.songs) ? input.songs : [])
+      .slice(0, MAX_PERSONAL_SONGS)
+      .map((s) => ({ name: str(s && s.name, 160), count: int(s && s.count), firstHeard: iso(s && s.firstHeard), lastHeard: iso(s && s.lastHeard) }))
+      .filter((s) => s.name && s.count)
+      .sort((a, b) => b.count - a.count || byName(a, b));
+    const firstShow = showOf(input.firstShow) || showOf(input.lastShow);
+    const lastShow = showOf(input.lastShow) || firstShow;
+
+    return {
+      personal: true,
+      name,
+      shows,
+      showsWithSetlist: Math.min(int(input.showsWithSetlist), shows),
+      years: int(input.years),
+      venues: Math.min(int(input.venues), shows),
+      uniqueSongs: songs.length,
+      totalSongs: Math.max(int(input.totalSongs), songs.reduce((n, s) => n + s.count, 0)),
+      firstShow,
+      lastShow,
+      songs,
+      top: songs.filter(isSong).slice(0, 10),
+    };
+  }
+
+  /** The `data` posterSvg takes for a personal record. */
+  const personalData = (record) => ({ name: record.name, personal: true });
+
   // "2016" or "2016–2026"
   function yearSpan(record) {
     if (!record.firstShow) return '';
@@ -361,8 +428,19 @@ function createHeard() {
 
   /** "Setlists courtesy of elgoose.net", for the page and the poster. */
   function credit(data) {
+    if (data.personal) return PERSONAL_CREDIT;
     return data.sourceName ? `Setlists courtesy of ${data.sourceName}` : '';
   }
+
+  // "Mar 4, 2016"
+  function posterDate(iso) {
+    const [y, m, d] = String(iso).split('-').map(Number);
+    return y && m && d ? `${MONTHS[m - 1]} ${d}, ${y}` : '';
+  }
+
+  // The poster's footer address: the tool for an archive record, the site
+  // for a personal one (made in the app, which has no public tool page).
+  const footerUrl = (data) => (data.personal ? 'mysetlists.net' : 'mysetlists.net/heard');
 
   /**
    * "A Goose record: 42 shows, 118 songs heard" (no names, ever): distinct
@@ -511,14 +589,28 @@ function createHeard() {
 
     // Bottom up: footer, then the rarest catch and bust-outs.
     const footY = height - (story ? 200 : 126);
-    out.push(text(width / 2, footY, 'mysetlists.net/heard', { size: story ? 40 : 36, weight: 800, fill: COLORS.amber, anchor: 'middle' }));
+    out.push(text(width / 2, footY, footerUrl(data), { size: story ? 40 : 36, weight: 800, fill: COLORS.amber, anchor: 'middle' }));
     out.push(text(width / 2, footY + 44, clip(credit(data), 22, 400, inner), { size: 22, weight: 400, fill: COLORS.muted, anchor: 'middle' }));
     let bottom = footY - (story ? 74 : 64);
     out.push(rule(pad, width - pad, bottom));
 
-    const rare = record.rarest[0];
-    const busts = record.bustOuts.slice(0, story ? 2 : 1);
-    if (rare || busts.length) {
+    const rare = data.personal ? null : record.rarest[0];
+    const busts = data.personal ? [] : record.bustOuts.slice(0, story ? 2 : 1);
+    if (data.personal && record.firstShow) {
+      // First show / latest show, one column when they're the same night.
+      const top2 = bottom - (story ? 60 : 50) - 68;
+      const one = record.firstShow.date === record.lastShow.date;
+      const cols = one ? [['Your show', record.firstShow]] : [['First show', record.firstShow], ['Latest show', record.lastShow]];
+      const colW = one ? inner : inner / 2 - 24;
+      cols.forEach(([label, show], i) => {
+        const x = pad + i * (inner / 2 + 24);
+        out.push(sectionLabel(x, top2, label, 22));
+        out.push(text(x, top2 + 44, posterDate(show.date), { size: 30, weight: 800 }));
+        if (show.venue) out.push(text(x, top2 + 80, clip(show.venue, 24, 400, colW), { size: 24, weight: 400, fill: COLORS.muted }));
+      });
+      bottom = top2 - (story ? 64 : 52);
+      out.push(rule(pad, width - pad, bottom));
+    } else if (rare || busts.length) {
       const rowsHeight = Math.max(rare ? 100 : 0, busts.length ? 56 + (busts.length - 1) * 92 + 40 : 0);
       const top2 = bottom - 56 - rowsHeight;
       const half = inner / 2 - 24;
@@ -543,7 +635,9 @@ function createHeard() {
 
     const rowHeight = story ? 62 : 54;
     const room = Math.floor((bottom - 36 - (listTop + 58)) / rowHeight) + 1;
-    const top = record.top.slice(0, Math.max(0, Math.min(story ? 10 : 6, room)));
+    // A personal poster gives "most heard" the band-history block's room.
+    const most = data.personal ? (story ? 14 : 9) : (story ? 10 : 6);
+    const top = record.top.slice(0, Math.max(0, Math.min(most, room)));
     if (top.length) {
       out.push(sectionLabel(pad, listTop, 'Most heard', 26));
       out.push(songList(pad, listTop + 58, top, { size: story ? 40 : 36, rowHeight, width: inner, countWidth: 100 }));
@@ -577,7 +671,7 @@ function createHeard() {
       out.push(sectionLabel(rx, 118, 'Most heard', 20));
       out.push(songList(rx, 170, top, { size: 28, rowHeight: 50, width: width - rx - pad, countWidth: 74 }));
     }
-    out.push(text(width - pad, height - 70, 'mysetlists.net/heard', { size: 26, weight: 800, fill: COLORS.amber, anchor: 'end' }));
+    out.push(text(width - pad, height - 70, footerUrl(data), { size: 26, weight: 800, fill: COLORS.amber, anchor: 'end' }));
     return out.join('');
   }
 
@@ -591,6 +685,8 @@ function createHeard() {
   return {
     BUST_OUT_MIN_GAP,
     NON_SONG,
+    PERSONAL_CREDIT,
+    MAX_PERSONAL_SONGS,
     SIZES,
     isSong,
     encodeSelection,
@@ -598,6 +694,8 @@ function createHeard() {
     venuesFuzzyMatch,
     matchLoggedShows,
     buildRecord,
+    cleanPersonalRecord,
+    personalData,
     headline,
     credit,
     yearSpan,

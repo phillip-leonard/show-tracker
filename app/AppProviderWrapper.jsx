@@ -168,6 +168,14 @@ function AppShell({ children }) {
     if (url) window.location.replace(url);
   }, [authLoading, user, guestMode, pathname]);
 
+  // A personal poster (/my-poster/?artist=…, from a /p/ link's "Make your
+  // own") needs an account: open sign-in over the landing page. The URL
+  // stays put, so signing in lands on the poster.
+  useEffect(() => {
+    if (authLoading || user || guestMode) return;
+    if ((pathname || '').replace(/\/+$/, '') === '/my-poster') setAuthModal((m) => m || 'login');
+  }, [authLoading, user, guestMode, pathname, setAuthModal]);
+
   // The comparison pages (lib/comparePages.js) are web pages with their
   // own header and footer, the same for everyone, signed in or not. They
   // never wait on auth, so the static export has their full HTML.

@@ -4,6 +4,54 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.48.0] — 2026-10-28
+
+Ships in iOS 3.10 (`MARKETING_VERSION` 3.9.19 → 3.10, a minor bump for a new
+feature; the build number is left to Xcode Cloud).
+
+**A "Songs I've heard" poster for every band you've logged.** Until now the
+poster tool (`/heard/<slug>/`) covered only the four archive-backed bands,
+because rarest catches, bust-outs and "still chasing" need the band's whole
+history. A signed-in user can now make one for any band, from their own
+logged shows and setlists. No new data is fetched.
+
+- **`/my-poster/?artist=<name>`** (`app/my-poster/`,
+  `components/heard/MyPosterView.jsx`): a real pre-rendered route with a query
+  parameter, per CLAUDE.md, so it works on the web and in the iOS app with no
+  Netlify behind it. `noindex`. Shows, years, venues, songs and performances;
+  your top 10; every song with its count and first and last time heard,
+  sortable; shows with no setlist listed with an "Add setlist" link. The
+  band-history sections are left out, with one line saying which bands have
+  them. Signed out, the page opens sign-in and stays on the poster.
+- **The record** (`lib/myPoster.js`) counts the way Stats → Songs does
+  (`lib/songCounts.js`): a song played twice at one show is heard once there,
+  "performances" counts every play, and manual and `notInSource` songs count
+  like any other. One band is one `artistNameKeyLoose`, so "Widespread Panic"
+  and "Widespread Panic (US)" are one band.
+- **The poster** is the `/heard/` poster (`heardRecord.js` `posterSvg`) in a
+  personal mode: same design and sizes, "First show / latest show" where
+  rarest catch and bust-outs go, a longer "Most heard", and the credit "From my
+  MySetlists show log". Drawn on the server from the record the app posts
+  (`POST /api/my-poster`, signed in), so it matches the share image. Download
+  on the web; the share sheet on iOS and phones.
+- **Share links**, `/p/<code>/` (`netlify/functions/public-poster.js`,
+  `lib/myPosters.js`): the record is stored in Netlify Blobs (`my-posters`)
+  under a random 12-character code and served as a `noindex` page with an OG
+  image and "Make your own". Only a band name, counts, the first and latest
+  show and the songs heard are stored: no user id, name, email, notes or
+  ratings. `heardRecord.js` `cleanPersonalRecord` keeps those fields and drops
+  the rest, in the app and again on the server.
+- **"Make my poster"** (`components/heard/MakePosterButton.jsx`) on band rows
+  in My Shows (By artist), Stats → Artists and the band screens now goes to
+  `/my-poster/` for every band without an archive, once it has 2 shows with a
+  setlist. Archive-backed bands still go to `/heard/<slug>/?mine=1`.
+- The resvg renderer moved to `netlify/functions/lib/posterImage.js`, shared
+  by `public-heard-image.js` and the two new functions (each has the resvg and
+  font lines in `netlify.toml`).
+- `/my-poster` is in `lib/navRoutes.js` (back goes to the band's screen, or Top
+  Artists) and in the universal-link list.
+- New tests: `lib/__tests__/myPoster.test.js`.
+
 ## [5.47.19] — 2026-10-27
 
 Ships in iOS 3.9.19 (`MARKETING_VERSION` 3.9.18 → 3.9.19; the build number is

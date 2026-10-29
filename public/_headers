@@ -48,6 +48,12 @@
 /heard/*/r/*
   X-Robots-Tag: noindex, follow
 
+# Personal posters (netlify/functions/lib/myPosters.js), shared at
+# /p/<code>/: function responses, which send noindex themselves; this
+# entry documents it. The app's /my-poster/ keeps the default above.
+/p/*
+  X-Robots-Tag: noindex, follow
+
 # Comparison pages (lib/comparePages.js)
 /compare/concert-archives
   X-Robots-Tag: index, follow
