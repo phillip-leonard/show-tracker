@@ -6,6 +6,7 @@
  *   GET /api/band-setlist?source=phishnet&artist=Phish&date=1997-11-22&venue=Hampton%20Coliseum
  *   GET /api/band-setlist?source=elgoose&artist=Goose&date=2026-08-15&debug=1
  *   GET /api/band-setlist?source=archive&artist=Grateful%20Dead&date=1977-05-08&artistId=GratefulDead
+ *   GET /api/band-setlist?source=archive&artist=Keller%20Williams&date=2003-07-04&artistId=keller-williams
  *
  * `debug=1` adds an `upstream` object reporting the envelope's top-level
  * keys, the type of `data`, the row count and the first row's key names.
@@ -98,13 +99,15 @@ function songfishAdapters() {
   return out;
 }
 
-// The Internet Archive, Grateful Dead only. artistId is the collection
-// ('GratefulDead'). The venue goes to the adapter as well as to
+// The Internet Archive, for every band in config/internet-archive.json.
+// artistId is the band's `artistId` there ('GratefulDead',
+// 'keller-williams'); older app builds send 'GratefulDead' for Grateful
+// Dead, which is the same value. The venue goes to the adapter as well as to
 // selectShow, because here it narrows which TAPES are read rather than
 // which of several shows is returned.
 //
 // Its own cache rules, because nothing about it matches the other two:
-// these are tapes of shows from 1965–1995, not a reviewed archive being
+// these are tapes of shows, mostly decades old, not a reviewed archive being
 // corrected this week, so a found setlist is kept for 30 days rather
 // than 24 hours. And a "not found" is cached too, for 7 days: finding
 // one costs up to five requests to a service that asks to be used
@@ -119,7 +122,7 @@ const ARCHIVE_ADAPTER = {
   // then not cached. A bulk walk (the admin re-sync, which spaces requests
   // out with setRequestGap) has no deadline.
   fetch: (date, { artistId, venue }) => archiveAdapter.fetchSetlists(date, {
-    collection: artistId || archiveAdapter.COLLECTION,
+    artistId: artistId || archiveAdapter.DEFAULT_ARTIST_ID,
     venue,
     deadlineMs: archiveAdapter.getRequestGap() > 0 ? 0 : ARCHIVE_DEADLINE_MS,
   }),
@@ -134,8 +137,8 @@ const ADAPTERS = {
     apiKeyEnvVar: 'PHISHNET_API_KEY',
     fetch: (date, { apiKey, artistId }) => phishnetAdapter.fetchSetlists(date, { apiKey, artistId }),
   },
-  // The Internet Archive, Grateful Dead only. Present only while
-  // config/internet-archive.json has `enabled: true`; see the handler for
+  // The Internet Archive. Present only while config/internet-archive.json
+  // has `enabled: true`; see the handler for
   // what a request for it gets otherwise.
   ...(archiveAdapter.isEnabled() ? { archive: ARCHIVE_ADAPTER } : {}),
 };
@@ -216,7 +219,11 @@ function toIsoDate(value) {
 //   5 — 5.47.8: Archive results carry needsReview, disagreement,
 //       licenseUrl and sourceType, early and late shows come back as two
 //       shows, and the tape-selection rule changed
-const CACHE_VERSION = 5;
+//   6 — 5.50.0: the Archive covers Live Music Archive bands; a track list
+//       reads "set break"/"encore break" tracks as breaks, drops "tmp" and
+//       bracketed banter, and is chosen soundboard-first among the top
+//       three complete tapes
+const CACHE_VERSION = 6;
 
 function buildCacheKey(source, artist, date, venue, artistId) {
   const normalized = JSON.stringify({

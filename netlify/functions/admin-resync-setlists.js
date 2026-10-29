@@ -72,7 +72,8 @@
  * moves from setlist.fm to the Archive, and the show records
  * `setlistSourceChange` so the app can say so. Off unless asked for.
  *
- * Internet Archive (Grateful Dead) shows are different in three ways: the
+ * Internet Archive shows (Grateful Dead and the Live Music Archive bands in
+ * config/internet-archive.json) are different in three ways: the
  * lookup runs in-process with a 1-second gap between Archive requests (see
  * fetchSetlistFor); a live run writes a `setlistProposal` for the user to
  * accept, never the setlist itself (see buildProposal); and the whole
@@ -157,15 +158,29 @@ const MAX_ARTISTS_REPORTED = 40;
 // KEEP IN STEP with SETLIST_SOURCES in lib/setlistSources.js. Adding a
 // source or an act there means adding it here too.
 //
-// Grateful Dead is here only while config/internet-archive.json has
+// The Internet Archive's bands (config/internet-archive.json `artists`,
+// each by its name and aliases) are here only while the file has
 // `enabled: true`, read through the adapter so the switch has one meaning
-// everywhere. Off, the walk treats Grateful Dead shows as setlist.fm shows
-// and sends the Archive nothing.
+// everywhere. Off, the walk treats their shows as setlist.fm shows and
+// sends the Archive nothing. Each carries its config entry as `archive`,
+// for its excluded dates and protected titles.
+function archiveNameKeys(archiveEnabled) {
+  if (!archiveEnabled) return {};
+  const out = {};
+  for (const artist of archiveConfig.artists || []) {
+    for (const name of [artist.name, ...(artist.aliases || [])]) {
+      const key = artistNameKey(name);
+      if (key) out[key] = { source: 'archive', artistId: artist.artistId, archive: artist };
+    }
+  }
+  return out;
+}
+
 function bandSourceNameKeys(archiveEnabled = archiveAdapter.isEnabled()) {
   return {
     goose: { source: 'elgoose', artistId: 'goose' },
     phish: { source: 'phishnet', artistId: '1' },
-    ...(archiveEnabled ? { 'grateful-dead': { source: 'archive', artistId: archiveAdapter.COLLECTION } } : {}),
+    ...archiveNameKeys(archiveEnabled),
   };
 }
 
@@ -641,8 +656,9 @@ async function runResync(body, { defaultBudgetMs = DEFAULT_BUDGET_MS } = {}) {
           report.excluded.shows.push({ userId, showId: showDoc.id, date: show.date, reason: 'skipShowIds' });
           continue;
         }
-        if (resolved.source === 'archive' && (archiveConfig.excludedDates || {})[toIsoDate(show.date)]) {
-          report.excluded.shows.push({ userId, showId: showDoc.id, date: show.date, reason: archiveConfig.excludedDates[toIsoDate(show.date)] });
+        const excludedBecause = resolved.source === 'archive' && ((resolved.archive || {}).excludedDates || {})[toIsoDate(show.date)];
+        if (excludedBecause) {
+          report.excluded.shows.push({ userId, showId: showDoc.id, date: show.date, reason: excludedBecause });
           continue;
         }
         if (!includeTestAccounts && showDoc.id.startsWith(SEED_SHOW_ID_PREFIX)) {
@@ -721,7 +737,7 @@ async function runResync(body, { defaultBudgetMs = DEFAULT_BUDGET_MS } = {}) {
             const { setlist, changed, summary, chosenCandidate } = mergeBandSetlist(show.setlist || [], incoming, {
               aliases: titleAliasesFor(resolved.nameKey),
               candidates: data.contested,
-              protectedGroup: resolved.source === 'archive' ? archiveConfig.protectedGroup : undefined,
+              protectedGroup: resolved.source === 'archive' ? (resolved.archive || {}).protectedGroup : undefined,
             });
             row.summary = summary;
             if (chosenCandidate) row.incomingSongCount = (chosenCandidate.songs || []).length;

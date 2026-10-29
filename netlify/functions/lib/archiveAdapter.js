@@ -1,12 +1,16 @@
 /**
  * netlify/functions/lib/archiveAdapter.js
  *
- * The Internet Archive's Grateful Dead collection, as a setlist source.
- * Grateful Dead only: the collection id is the registry's
- * sourceArtistFilter ('GratefulDead'), and no other band is wired to it.
+ * The Internet Archive as a setlist source, for every band in
+ * config/internet-archive.json's `artists`. Each band is one entry there,
+ * opt-in: the Grateful Dead collection, and Live Music Archive (etree)
+ * bands scoped by their exact `creator`. The registry's sourceArtistFilter
+ * for a band is its `artistId` ('GratefulDead', 'keller-williams'), and an
+ * artistId the config doesn't list gets no request at all.
  *
  *   GET https://archive.org/advancedsearch.php
  *         ?q=collection:GratefulDead AND date:<YYYY-MM-DD>
+ *         (or collection:etree AND (creator:"Keller Williams") AND date:…)
  *         &fl[]=identifier&fl[]=title&fl[]=venue&fl[]=coverage
  *         &fl[]=downloads&fl[]=description&rows=50&output=json
  *   GET https://archive.org/metadata/<identifier>
@@ -15,6 +19,12 @@
  * No key and no auth. One identifying User-Agent, the same one
  * archival-audio-lookup.js sends.
  *
+ * A creator search on archive.org is a phrase match, so creator:"Jerry
+ * Garcia Band" also returns "Rosebud (Jerry Garcia Band Tribute)" and
+ * creator:"Keller Williams" returns "Keller Williams Incident". Items are
+ * kept only when a creator equals one in the band's `creators`, ignoring
+ * case and surrounding space.
+ *
  * ── The Archive has recordings, not setlists ──────────────────────────
  *
  * Every item in the collection is one TAPE of a show. A well-taped night
@@ -22,8 +32,10 @@
  * remasters), each uploaded by a different person with a description in
  * whatever format they liked. So "the Archive's setlist" for a date is
  * something this adapter has to pick out of those items, not something it
- * can read. Checked against ten dates from 1966 to 1995 and a survey of
- * ~2,400 items over four years before this was written (see the PR):
+ * can read. Checked against ten Grateful Dead dates from 1966 to 1995 and
+ * a survey of ~2,400 items over four years before this was written, and
+ * against five dates for each Live Music Archive band when it was added
+ * (see docs/setlist-sources/internet-archive.md):
  *
  *   - About 85% of descriptions carry explicit set headers ("Set I:",
  *     "Set 1\n\n", "-Set II-") with songs separated by commas or lines
@@ -42,6 +54,10 @@
  *     in a different format per uploader.
  *   - Track titles on the audio files are the cleanest song names but
  *     carry no set breaks, and include "Tuning", "Stage Banter" and so on.
+ *     Live Music Archive items lean on them more than Grateful Dead ones:
+ *     many have a bare numbered list or no description at all. Some mark a
+ *     break with a track of its own ("encore break", "set break"), which
+ *     is read as one; with no such track the songs stay in one set.
  *
  * ── How a result is chosen ────────────────────────────────────────────
  *
@@ -54,17 +70,18 @@
  *      beat partial ones; more songs, then more downloads, break ties.
  *   3. Only if no description has headers: the .txt info file of the top
  *      two items, same parser, same rule.
- *   4. Only if that fails too: the track titles of the top complete item,
- *      as one unlabeled set — returned with confidence 'tracks-only', which
- *      the app never auto-applies and the review screen labels as such.
+ *   4. Only if that fails too: the track titles of one complete item —
+ *      soundboard first, then the fullest track list, then downloads —
+ *      returned with confidence 'tracks-only', which the app never
+ *      auto-applies and the review screen labels as such.
  *
- * Worst case is five requests for a date, once; band-setlist.js caches the
- * answer, including a "nothing found".
+ * Worst case is a handful of requests for a date, once; band-setlist.js
+ * caches the answer, including a "nothing found".
  *
  * `confidence` on the result is the contract with the app:
  *   'explicit-sets' – parsed from text with set headers. Auto-applied on a
  *                     new add (unless partial or ambiguous).
- *   'tracks-only'   – a song list with no set structure. Shown for review
+ *   'tracks-only'   – a song list from track titles. Shown for review
  *                     only, never written without the user saying so.
  */
 
@@ -74,7 +91,6 @@ const { buildSetlist, cleanStr, pickSetLabel, setSortKey } = require('./bandSetl
 const CONFIG = require('../../../config/internet-archive.json');
 
 const HOSTNAME = 'archive.org';
-const COLLECTION = CONFIG.collection;
 const USER_AGENT = 'MySetlistsApp/1.0 (https://mysetlists.net; contact@mysetlists.net)';
 const REQUEST_TIMEOUT_MS = 10000;
 const SEARCH_ROWS = 50;
@@ -98,6 +114,42 @@ const MIN_SONGS = 3;
 // request while the source is off.
 function isEnabled(config = CONFIG) {
   return !!config && config.enabled === true;
+}
+
+// ── The bands ─────────────────────────────────────────────────────────
+//
+// One entry per band in config/internet-archive.json. `artistId` is what
+// /api/band-setlist receives (the registry's sourceArtistFilter).
+
+function artistsOf(config = CONFIG) {
+  return Array.isArray(config?.artists) ? config.artists : [];
+}
+
+function artistFor(artistId, config = CONFIG) {
+  if (!artistId) return null;
+  return artistsOf(config).find((a) => a.artistId === artistId) || null;
+}
+
+// Grateful Dead: the band this adapter was built for, and what a caller
+// that names no band (older app builds, the parser's own tests) means.
+const DEFAULT_ARTIST_ID = 'GratefulDead';
+const COLLECTION = DEFAULT_ARTIST_ID;
+const DEFAULT_ARTIST = artistFor(DEFAULT_ARTIST_ID) || { artistId: DEFAULT_ARTIST_ID, name: 'Grateful Dead', collection: DEFAULT_ARTIST_ID };
+
+function titleAliasesOf(artist) {
+  const aliases = artist && artist.titleAliases;
+  return aliases && typeof aliases === 'object' ? aliases : {};
+}
+
+const DEFAULT_TITLE_ALIASES = titleAliasesOf(DEFAULT_ARTIST);
+
+// Whether an item is the band's, for a Live Music Archive band. A whole
+// collection (Grateful Dead) has no `creators` and keeps every item.
+function isBandItem(doc, artist) {
+  const wanted = Array.isArray(artist?.creators) ? artist.creators.map((c) => String(c).trim().toLowerCase()) : [];
+  if (wanted.length === 0) return true;
+  const creators = Array.isArray(doc.creator) ? doc.creator : [doc.creator];
+  return creators.some((c) => wanted.includes(String(c || '').trim().toLowerCase()));
 }
 
 // ── HTTP ──────────────────────────────────────────────────────────────
@@ -195,10 +247,18 @@ function collect(res, json) {
   });
 }
 
-function searchPath(date) {
+function searchQuery(date, artist = DEFAULT_ARTIST) {
+  const creators = Array.isArray(artist.creators) ? artist.creators : [];
+  const byCreator = creators.length
+    ? ` AND (${creators.map((c) => `creator:"${String(c).replace(/"/g, '')}"`).join(' OR ')})`
+    : '';
+  return `collection:${artist.collection}${byCreator} AND date:${date}`;
+}
+
+function searchPath(date, artist = DEFAULT_ARTIST) {
   const params = new URLSearchParams();
-  params.set('q', `collection:${COLLECTION} AND date:${date}`);
-  ['identifier', 'title', 'venue', 'coverage', 'downloads', 'description', 'source', 'licenseurl'].forEach((f) => params.append('fl[]', f));
+  params.set('q', searchQuery(date, artist));
+  ['identifier', 'title', 'creator', 'venue', 'coverage', 'downloads', 'description', 'source', 'licenseurl'].forEach((f) => params.append('fl[]', f));
   params.set('sort[]', 'downloads desc');
   params.set('rows', String(SEARCH_ROWS));
   params.set('output', 'json');
@@ -237,8 +297,10 @@ function headerNumber(raw) {
 // A set header at the start of a line, with whatever follows it on the same
 // line returned as `rest` ("Set I: Promised Land, Sugaree, …").
 // Covers "Set 1", "Set I:", "-Set II-", "Set:One", "SET 2 cont.",
-// "First Set", "2nd set:", "Disc 1 Set 1" (the disc prefix is dropped).
-const SET_HEADER = /^[\s\-*=[(<]*(?:(?:dis[ck]|cd)\s*\d+\s*[-:,]?\s*)?(?:set\s*[:#.]?\s*(\d|iv|i{1,3}|one|two|three|four)\b|(first|second|third|1st|2nd|3rd)\s+set\b)\s*(?:\(?\s*cont(?:inued|'d|\.)?\s*\)?)?\s*[-:.)\]=>]*\s*/i;
+// "First Set", "2nd set:", "Disc 1 Set 1" (the disc prefix is dropped),
+// and a bare numeral with its colon, "I:" and "II:", the shorthand that
+// goes with "E:" ("I: Thin Mint>\nPeople Watching, …\nE: We Want the Funk").
+const SET_HEADER = /^[\s\-*=[(<]*(?:(?:dis[ck]|cd)\s*\d+\s*[-:,]?\s*)?(?:set\s*[:#.]?\s*(\d|iv|i{1,3}|one|two|three|four)\b|(first|second|third|1st|2nd|3rd)\s+set\b|(iv|i{1,3})(?=\s*:))\s*(?:\(?\s*cont(?:inued|'d|\.)?\s*\)?)?\s*[-:.)\]=>]*\s*/i;
 
 // An encore header or an inline encore marker: "Encore:", "Encore 2",
 // "E:", "E1:", "E2: Saturday Night". A bare "E" needs its colon, so a song
@@ -247,11 +309,11 @@ const ENCORE_HEADER = /^[\s\-*=[(]*(?:encores?(?:\(s\))?\b\s*(\d|ii?|one|two)?|e
 
 // A band-member line ("Jerry Garcia - Guitar", "Bob Weir: vocals"), which
 // ends the setlist in descriptions that list the lineup after it.
-const PERSONNEL = /\s[-–:]\s*(?:lead\s+|rhythm\s+|acoustic\s+|pedal\s+steel\s+)?(guitars?|bass|drums?|keyboards?|keys|vocals?|piano|organ|percussion|harmonica|saxophone|sax)\b/i;
+const PERSONNEL = /\s[-–:/]\s*(?:lead\s+|rhythm\s+|acoustic\s+|pedal\s+steel\s+)?(guitars?|bass|drums?|keyboards?|keys|vocals?|piano|organ|percussion|harmonica|saxophone|sax)\b/i;
 
 // Lines that end the setlist once songs have started (and are skipped
 // before). Taper notes follow the setlist in nearly every info file.
-const STOP_LINE = /^[\s\-*=]*(w\/|other\s+artists?|comments?|general\s+comments?|notes?|footnotes?|musicians|band\s+members|source|lineage|transfer(?:red)?|taper|recorded\s+by|recording|other\s+artist|flaws?|shntool|md5|ffp|seeded|band\s*line\s*-?up|personnel|thanks?|conversion|editing|equipment|location|mics?|uploaded|checksum|info)\b\s*[:(-]?/i;
+const STOP_LINE = /^[\s\-*=]*(w\/|other\s+artists?|comments?|general\s+comments?|notes?|footnotes?|musicians|band\s+members|source|lineage|transfer(?:red)?|taper|recorded\s+by|recording|other\s+artist|flaws?|shntool|md5|ffp|seeded|band\s*line\s*-?up|band(?=\s*:)|(?:cover\s+)?photo(?:\s+credits?)?|credits?|personnel|thanks?|conversion|editing|equipment|location|mics?|uploaded|checksum|info)\b\s*[:(-]?/i;
 
 // More than one set header on a single line means the line breaks were
 // lost ("Set I Morning Dew Good Morning Little Schoolgirl Dark Star > …
@@ -259,30 +321,41 @@ const STOP_LINE = /^[\s\-*=]*(w\/|other\s+artists?|comments?|general\s+comments?
 const INLINE_SET_HEADER = /\bset\s*[:#.]?\s*(?:\d|iv|i{1,3}|one|two|three|four)\b/gi;
 
 // Lines that are layout, not content: disc labels, rules, bare times.
-const IGNORE_LINE = /^[\s\-=_*~.]*$|^[\s\-*]*(dis[ck]|cd|side|tape|reel)\s*[#]?\s*\d+\b[^a-z]*(\(.*\))?[^a-z]*$|^[\s[(]*\d{1,2}:\d{2}(?::\d{2})?(?:\.\d+)?[\])]*\s*$|^\s*total\s*(time|length)?\b/i;
+const IGNORE_LINE = /^[\s\-=_*~.]*$|^[\s\-*]*(dis[ck]|cd|side|tape|reel)\s*[#]?\s*(?:\d+|one|two|three|four)\b[^a-z]*(\(.*\))?[^a-z]*$|^[\s[(]*\d{1,2}:\d{2}(?::\d{2})?(?:\.\d+)?[\])]*\s*$|^\s*(?:total\s*(time|length)?|trt)\b/i;
+
+// The first disc's label on a line of its own: "Disc 1", "CD1", "Disc One".
+const DISC_ONE = /^[\s\-*=[(]*(?:dis[ck]|cd)\s*#?\s*(?:1|one)\b[^a-z]*$/i;
+
+// A numbered track with nothing but a time where its title should be:
+// "1. (15:53)", "02)", "t03 - 5:22".
+const UNTITLED_TRACK = /^\s*(?:d\d+\s*)?t?\d{1,3}\s*[.):-]\s*(?:[[(]?\s*\d{1,2}:\d{2}(?::\d{2})?(?:\.\d+)?\s*[\])]?)?\s*$/i;
+
+// A line that starts with a track number: "06. …", "d1t03 - …", "2) …",
+// "09 ?".
+const NUMBERED_TRACK = /^\s*(?:d\d+\s*)?t?\d{1,3}(?:\s*[.):-]|\s)\s*\S/i;
+
+// Someone thanking the crowd, on a line of its own after the songs have
+// started. Skipped rather than read as the end of the setlist, which is
+// what a line that isn't a title otherwise means in an info file.
+const BANTER_LINE = /^[^,>]{0,40}\b(?:says?\s+thanks|thanks|thank\s+you)\b[^,>]{0,20}$/i;
 
 // Not songs. Drums, Space and Jam ARE songs in every Grateful Dead archive
 // (and in the app's own song index), so they are deliberately absent.
-const NOISE = /\b(tuning|tune[\s-]?up|banter|stage\s+(?:chatter|announcements?|annoucements?|chaos|rap)|announcements?|crowd|dead\s+air|applause|intro(?:duction)?s?|band\s+intros?|set\s*break|encore\s*break|closing\s+remarks|final\s+remarks|rap|silence|break|filler|soundcheck|teases?)\b/i;
+const NOISE = /\b(tuning|tune[\s-]?up|tmp|banter|stage\s+(?:chatter|announcements?|annoucements?|chaos|rap)|announcements?|crowd|dead\s+air|applause|intro(?:duction)?s?|band\s+intros?|set\s*break|encore\s*break|closing\s+remarks|final\s+remarks|rap|silence|break|filler|soundcheck|teases?|fade[\s-]?(?:in|out))\b/i;
 
 // Taper spellings of a handful of titles that otherwise split the song
-// index ("Drumz" and "Drums" are one song). Kept short on purpose: only
-// abbreviations the archives themselves agree are the same song.
-const TITLE_ALIASES = {
-  drumz: 'Drums',
-  'saturday night': 'One More Saturday Night',
-  playin: "Playin' in the Band",
-  'greatest story': 'Greatest Story Ever Told',
-  'touch of gray': 'Touch of Grey',
-  'other one': 'The Other One',
-};
+// index ("Drumz" and "Drums" are one song) are per band, in the band's
+// `titleAliases` in config/internet-archive.json: "Saturday Night" is One
+// More Saturday Night at a Grateful Dead show and its own song at an
+// Ozomatli one. Kept short on purpose: only abbreviations the archives
+// themselves agree are the same song.
 
 // A cleaned name longer than this is not one song — it is a line whose
 // separators were lost ("Set 1 Good Morning Little Schoolgirl Death Don't
 // Have No Mercy …"). The longest real title in the sample, "Stuck Inside
 // Of Mobile With The Memphis Blues Again", is 52 characters.
 const MAX_TITLE_CHARS = 60;
-const MAX_TITLE_WORDS = 10;
+const MAX_TITLE_WORDS = 12;
 
 // Times, bracketed or not: "[ 4:14.13]", "(6:15)", "05:05.32". Removed
 // before track numbers, or the "14:" of "14:50.59" reads as track 14.
@@ -299,8 +372,18 @@ function stripNumbering(raw) {
 // "Sugar Magnolia $"), and at the start of the footnote line itself.
 const FOOTNOTE_MARKS = /[*#@%^+~§†$&]+/;
 
-function cleanTitle(raw) {
-  let s = stripNumbering(raw).replace(/\s+/g, ' ').trim();
+function cleanTitle(raw, aliases = DEFAULT_TITLE_ALIASES) {
+  // U+FFFD is a character lost to a bad encoding. Between two letters it
+  // was nearly always a curly apostrophe ("Baker�s Dozen", "Don�t");
+  // anywhere else ("�Pleas") it is dropped.
+  let s = stripNumbering(String(raw == null ? '' : raw)
+    .replace(/(?<=[A-Za-z])\uFFFD(?=[a-z])/g, "'")
+    .replace(/\uFFFD/g, ' ')).replace(/\s+/g, ' ').trim();
+  // A footnote mark followed by a note in parentheses is the note's
+  // ("Big River* (White Strat)"), not the title's; so is a credit in
+  // square brackets after the title ("Miss You [The Rolling Stones]").
+  s = s.replace(new RegExp(`\\s*${FOOTNOTE_MARKS.source}\\s*\\([^)]*\\)$`), '')
+    .replace(/(?<=\S)\s*\[[^\]]*\]$/, '');
   // Cut-tape slashes and footnote markers at either end.
   s = s.replace(/^[/\s]+|[/\s]+$/g, '')
     .replace(new RegExp(`${FOOTNOTE_MARKS.source}$`), '')
@@ -315,13 +398,13 @@ function cleanTitle(raw) {
   // What is left of a time or a disc total is not a title.
   if (/^[\d\s.:]*$/.test(s)) return '';
   s = s.split(SAFE_COMMA).join(',');
-  const alias = TITLE_ALIASES[s.toLowerCase()];
+  const alias = aliases[s.toLowerCase()];
   return alias || s;
 }
 
 // Words that mark a line as taper prose rather than a title. Song titles
 // in this catalogue never contain them; lineage notes nearly always do.
-const PROSE = /\b(encod\w*|transferr?\w*|record(?:ed|ing)|master(?:ed|ing)?|seeded|patch(?:ed|es)?|splices?|spliced|remaster\w*|lineage|generation|tapes?|taped|taper|reels?|mix-?down|ampex|uploaded|thanks|requires|minute)\b/i;
+const PROSE = /\b(encod\w*|transferr?\w*|record(?:ed|ing)|master(?:ed|ing)?|seeded|patch(?:ed|es)?|splices?|spliced|remaster\w*|lineage|generation|tapes?|taped|taper|reels?|mix-?down|ampex|uploaded|thanks|requires|minutes?)\b/i;
 
 // Recording-chain vocabulary. Two of these on one line is a lineage
 // ("Nak 300 > D5 > CM > CDR"), never a run of segues.
@@ -354,6 +437,8 @@ function looksLikeTitle(name) {
   if (/[a-z]\.\s+[A-Z]/.test(unabbreviated) || /\b(though|actually|which|segments?)\b/i.test(name)) return false;
   // A set header inside a "title" is two songs and a header run together.
   if (/\bset\s*(?:\d|iv|i{1,3})\b/i.test(name)) return false;
+  // A note naming a kind of set ("Karl Denson and Chris Wood tweener set").
+  if (/\b(?:tweener|acoustic|electric|opening|late[-\s]?night|bonus|solo|duo|trio)\s+set\b/i.test(name)) return false;
   return /[a-z]/i.test(name);
 }
 
@@ -363,7 +448,7 @@ function looksLikeTitle(name) {
 // Tracks)") has none of the note vocabulary and stays.
 function stripNotes(text) {
   return String(text).replace(/\s*\(([^)]*)\)/g, (whole, inner) => (
-    PROSE.test(inner) || isLineage(inner) || /\b(splice|aud|sbd|cut|fades?|partial|missing|w\/|with|incomplete|patch|tk|track|first|last)\b|\d/i.test(inner)
+    PROSE.test(inner) || isLineage(inner) || /\b(splice|aud|sbd|cuts?|fades?|partial|missing|w\/|with|incomplete|patch|tk|track|first|last)\b|\d/i.test(inner)
       ? ''
       : whole
   ));
@@ -375,6 +460,7 @@ function stripNotes(text) {
 const COMMA_TITLES = [
   /it'?s all over now,\s*baby blue/gi,
   /don'?t think twice,\s*it'?s all right/gi,
+  /no woman,\s*no cry/gi,
 ];
 const SAFE_COMMA = '‚';
 
@@ -433,26 +519,32 @@ const LAYOUT_TOKEN = /^(?:dis[ck]|cd|side|tape|reel)\s*[#]?\s*(?:\d+|[a-d])$/i;
  * can decide whether to keep them. An inline encore marker ("E1: Casey
  * Jones") comes back on the item as `encore`.
  */
-function readItems(chunk, { lenient = false, ignoreKeys = null } = {}) {
+function readItems(chunk, { lenient = false, ignoreKeys = null, aliases = DEFAULT_TITLE_ALIASES } = {}) {
   const items = [];
   let bad = '';
+  let unnamed = 0;
   for (const item of splitChunk(chunk)) {
     // Numbering off first, so "5. E:Knockin' On Heaven's Door" is seen as
     // an encore marker.
     let raw = stripNumbering(item.raw).trim();
+    // A whole title in square brackets is what someone said between songs
+    // ("[this song is for your birthday then]"), never a song; a whole one
+    // in parentheses is a note on the track ("(or one song)").
+    if (/^\[[^\]]*\]\W*$/.test(raw) || /^\([^)]*\)\W*$/.test(raw)) continue;
     let encore = null;
     const enc = raw.match(ENCORE_HEADER);
     if (enc && enc[0].trim()) {
       encore = headerNumber(enc[1] || enc[2] || '1');
       raw = raw.slice(enc[0].length);
     }
-    const name = cleanTitle(raw);
+    const name = cleanTitle(raw, aliases);
     // "Set 1, disc 1", "Side B": layout that rode along on a header line.
     if (LAYOUT_TOKEN.test(name)) continue;
     if (!name) {
       // A bare mark ("Let It Grow" on one line, "->" on the next) belongs
       // to the song before it.
       if (item.transition) items.push({ markOnly: item.transition, encore });
+      else if (/^[\d\s.:]+$/.test(raw)) unnamed++;
       continue;
     }
     if (!looksLikeTitle(name)) {
@@ -464,7 +556,7 @@ function readItems(chunk, { lenient = false, ignoreKeys = null } = {}) {
     if (ignoreKeys && ignoreKeys.has(songKey(name))) continue;
     items.push({ name: ignoreKeys ? stripTrailingIgnored(name, ignoreKeys) : name, transition: item.transition, encore });
   }
-  return { items, bad };
+  return { items, bad, unnamed };
 }
 
 /**
@@ -499,8 +591,13 @@ function readItems(chunk, { lenient = false, ignoreKeys = null } = {}) {
  * like titles — the item's venue and city, which uploaders often put on
  * a line after the setlist ("… E: One More Saturday Night\n\nCornell
  * University").
+ *
+ * `aliases` is the band's `titleAliases` (Grateful Dead's by default).
+ * `band` is the band's name: on a line of its own after the songs, it
+ * ends the setlist.
  */
-function parseSetlistText(rawText, { lenient = false, endOnProse = false, ignore = [] } = {}) {
+function parseSetlistText(rawText, { lenient = false, endOnProse = false, ignore = [], aliases = DEFAULT_TITLE_ALIASES, band = '' } = {}) {
+  const bandKey = songKey(band);
   const ignoreKeys = new Set(
     ignore.flatMap((v) => String(v || '').split(/,|\s[-–]\s/)).map(songKey).filter((k) => k.length > 3)
   );
@@ -551,9 +648,13 @@ function parseSetlistText(rawText, { lenient = false, endOnProse = false, ignore
   // Commits items read by readItems. Returns false when the text has to
   // stop here.
   const commit = (chunk, { newParagraph = false } = {}) => {
-    const { items, bad } = readItems(chunk, { lenient, ignoreKeys });
+    const { items, bad, unnamed } = readItems(chunk, { lenient, ignoreKeys, aliases });
     if (bad) {
       if (songTotal() === 0) { reset(); return true; }
+      // A numbered track this can't read as a title ("06. Let a Woman be a
+      // Woman and a Man be a Man* (07:48)") is still a track: a gap, not
+      // the end of the setlist.
+      if (NUMBERED_TRACK.test(chunk) && items.length === 0) { gaps++; return true; }
       // A paragraph of notes after a whole setlist ("w/ David Crosby;
       // Other artist on bill: NRPS"). Flattened text, the case strictness
       // is for, has no blank lines to start a paragraph with.
@@ -561,6 +662,8 @@ function parseSetlistText(rawText, { lenient = false, endOnProse = false, ignore
       if (!endOnProse) rejected = bad;
       return false;
     }
+    // Tracks whose title was nothing but numbers ("10 1 2 3 4").
+    gaps += unnamed;
     for (const item of items) {
       if (item.encore != null) openSet('encore', item.encore);
       if (item.markOnly) {
@@ -573,6 +676,13 @@ function parseSetlistText(rawText, { lenient = false, endOnProse = false, ignore
     }
     return true;
   };
+
+  // Lines under a "Disc 1" label before any set header, kept in case a
+  // later header turns out to be Set 2.
+  let discOne = null;
+  // Numbered tracks with no title ("1. (15:53)"): the uploader didn't know
+  // the song. The setlist is short by that many, so it is never complete.
+  let gaps = 0;
 
   let blankBefore = false;
   for (const rawLine of lines) {
@@ -592,7 +702,18 @@ function parseSetlistText(rawText, { lenient = false, endOnProse = false, ignore
     // and neither starts with a lowercase word.
     const isSentence = setMatch && /^[a-z]{2,}\b/.test(stripNumbering(line.slice(setMatch[0].length)).trim());
     if (setMatch && !isSentence) {
-      openSet('set', headerNumber(setMatch[1] || setMatch[2]));
+      const number = headerNumber(setMatch[1] || setMatch[2] || setMatch[3]);
+      // "Disc 1" songs with no header, then "(set II)": the songs before
+      // the Set 2 header were Set 1 (see discOne below).
+      if (!started && number === 2 && discOne && discOne.length) {
+        const read = discOne.map((l) => readItems(l, { lenient, ignoreKeys, aliases }));
+        if (read.every((r) => !r.bad) && read.some((r) => r.items.some((it) => it.name))) {
+          openSet('set', 1);
+          discOne.forEach((l) => commit(l));
+        }
+      }
+      discOne = null;
+      openSet('set', number);
       const rest = line.slice(setMatch[0].length).trim();
       if (rest && !IGNORE_LINE.test(rest) && !/^\(.*\)$/.test(rest) && !commit(rest)) break;
       continue;
@@ -609,7 +730,17 @@ function parseSetlistText(rawText, { lenient = false, endOnProse = false, ignore
       continue;
     }
 
-    if (!started) continue;
+    if (!started) {
+      if (DISC_ONE.test(line)) discOne = [];
+      else if (discOne) discOne.push(line);
+      continue;
+    }
+    if (UNTITLED_TRACK.test(line)) { gaps++; continue; }
+    // The band's name on a line of its own after a whole setlist starts
+    // the lineup that follows it (" - Galactic - \nTheryl Declouet\n…").
+    if (bandKey && songTotal() >= MIN_SONGS && songKey(line) === bandKey) break;
+    // "Keller says thanks" between the last set and the encore.
+    if (BANTER_LINE.test(line)) continue;
     if (STOP_LINE.test(line) || PERSONNEL.test(line)) {
       if (songTotal() === 0) { reset(); continue; }
       break;
@@ -635,7 +766,7 @@ function parseSetlistText(rawText, { lenient = false, endOnProse = false, ignore
   while (sets.length && sets[sets.length - 1].songs.length === 0) sets.pop();
   if (!rejected && sets.some((s) => s.songs.length === 0)) rejected = 'a set header with no songs under it';
 
-  if (rejected) return { explicit: false, sets: [], songCount: 0, rejected };
+  if (rejected) return { explicit: false, sets: [], songCount: 0, gaps: 0, rejected };
 
   // The last song of the show has nothing to segue into.
   const last = sets.length ? sets[sets.length - 1].songs.slice(-1)[0] : null;
@@ -645,6 +776,7 @@ function parseSetlistText(rawText, { lenient = false, endOnProse = false, ignore
     explicit: sets.some((s) => s.type === 'set'),
     sets,
     songCount: songTotal(),
+    gaps,
     rejected: '',
   };
 }
@@ -883,9 +1015,39 @@ function mapShow(doc, parsed, { confidence, parsedFrom, partial, itemCount, cand
 
 const AUDIO_FORMATS = /^(flac|24bit flac|shorten|vbr mp3|wave|ogg vorbis)$/i;
 
-function tracksFromMetadata(meta) {
+// A track that is only a break ("encore break", "set break", "Setbreak",
+// "Intermission"). Not a song; where a tape has one, it is the one place a
+// track list says where a set ends, so it becomes a header for the parser.
+const SET_BREAK_TRACK = /^[\s\-*[(]*(?:set\s*break|intermission|end\s+of\s+(?:first\s+)?set(?:\s*(?:1|i|one))?)[\s\-*\])]*$/i;
+const ENCORE_BREAK_TRACK = /^[\s\-*[(]*(?:encore\s*break|encores?)[\s\-*\])]*$/i;
+
+function trackLines(titles) {
+  const lines = [];
+  let set = 1;
+  let encores = 0;
+  for (const title of titles) {
+    const bare = stripNumbering(title).replace(TIME, ' ').trim();
+    if (ENCORE_BREAK_TRACK.test(bare)) {
+      encores++;
+      lines.push(encores === 1 ? 'Encore' : `Encore ${encores}`);
+    } else if (SET_BREAK_TRACK.test(bare) && encores === 0) {
+      set++;
+      lines.push(`Set ${set}`);
+    } else {
+      lines.push(title);
+    }
+  }
+  return lines;
+}
+
+// A track whose title says nobody knew the song: "untitled", "unknown",
+// "track 12", "?". Counted as a gap, like a track with no title at all.
+const UNKNOWN_TRACK = /^[\s\d.)-]*(?:untitled|unknown(?:\s+(?:song|tune|title))?|track\s*\d*|song\s*\d+|\?+)[\s?*]*$/i;
+
+function tracksFromMetadata(meta, { aliases = DEFAULT_TITLE_ALIASES, ignore = [] } = {}) {
   const files = Array.isArray(meta?.files) ? meta.files : [];
   const audio = files.filter((f) => f && f.title && AUDIO_FORMATS.test(String(f.format || '')));
+  const untitledIn = (format) => files.filter((f) => f && !f.title && String(f.format || '').toLowerCase() === format).length;
   // Each track exists in several formats; keep the format with the most
   // titled tracks, in track order.
   const byFormat = new Map();
@@ -895,12 +1057,26 @@ function tracksFromMetadata(meta) {
     byFormat.get(k).push(f);
   });
   let best = [];
-  byFormat.forEach((list) => { if (list.length > best.length) best = list; });
+  let bestFormat = '';
+  byFormat.forEach((list, format) => { if (list.length > best.length) { best = list; bestFormat = format; } });
   best.sort((a, b) => (parseInt(a.track, 10) || 0) - (parseInt(b.track, 10) || 0) || String(a.name).localeCompare(String(b.name)));
-  const text = best.map((f) => f.title).join('\n');
+  const titles = best.map((f) => f.title);
+  const known = titles.filter((t) => !UNKNOWN_TRACK.test(String(t)));
+  const text = trackLines(known).join('\n');
   // Reuse the parser with a synthetic header; the caller marks the result
   // 'tracks-only', so the header is never mistaken for a real set break.
-  return parseSetlistText(`Set 1\n${text}`, { lenient: true });
+  // Breaks the tape marks itself (trackLines) are real ones.
+  const parsed = parseSetlistText(`Set 1\n${text}`, { lenient: true, aliases, ignore });
+  // Files of the same format with no title, or titled "untitled", are
+  // tracks nobody named: the song list is short by that many.
+  parsed.gaps = (parsed.gaps || 0) + (titles.length - known.length) + (bestFormat ? untitledIn(bestFormat) : 0);
+  // The same few titles over and over are labels the uploader copied onto
+  // every file (band, room, venue, city), not songs.
+  const names = parsed.sets.flatMap((x) => x.songs.map((song) => songKey(song.name)));
+  if (names.length >= 6 && new Set(names).size <= names.length / 2) {
+    return { explicit: false, sets: [], songCount: 0, gaps: 0, rejected: 'the same titles repeat on every track' };
+  }
+  return parsed;
 }
 
 // ── Header-less lists ─────────────────────────────────────────────────
@@ -940,7 +1116,7 @@ const MAX_UNKNOWN_SHARE = 0.25;
  * `inferred: true` on success. Refuses (`explicit: false`, `rejected`)
  * anything it can't split with certainty.
  */
-function splitHeaderless(rawText, trackTitles) {
+function splitHeaderless(rawText, trackTitles, { aliases = DEFAULT_TITLE_ALIASES } = {}) {
   const fail = (rejected) => ({ explicit: false, inferred: false, sets: [], songCount: 0, rejected });
   const vocab = new Set((trackTitles || []).map(looseKey).filter(Boolean));
   if (vocab.size < MIN_SONGS) return fail('no track titles to split with');
@@ -979,7 +1155,7 @@ function splitHeaderless(rawText, trackTitles) {
       if (!current) { current = { type: 'encore', number, songs: [] }; sets.push(current); }
       raw = raw.slice(enc[0].length);
     }
-    const name = cleanTitle(raw);
+    const name = cleanTitle(raw, aliases);
     if (!name || LAYOUT_TOKEN.test(name)) {
       const prev = current.songs[current.songs.length - 1];
       if (!name && item.transition && prev && !prev.transition) prev.transition = item.transition;
@@ -1049,9 +1225,9 @@ function describeUpstream(docs) {
 // The item's venue and city, plus the venue as its title spells it
 // ("Grateful Dead Live at Barton Hall - Cornell University on 1977-05-08"),
 // which is often fuller than the `venue` field ("Barton Hall").
-function ignoreFor(doc) {
+function ignoreFor(doc, artist = DEFAULT_ARTIST) {
   const fromTitle = String(doc.title || '').match(/\blive at (.+?) on \d{4}-\d{2}-\d{2}/i);
-  return [doc.venue, doc.coverage, fromTitle ? fromTitle[1] : ''];
+  return [doc.venue, doc.coverage, fromTitle ? fromTitle[1] : '', artist.name];
 }
 
 function descriptionOf(doc) {
@@ -1059,8 +1235,12 @@ function descriptionOf(doc) {
 }
 
 /**
- * fetchSetlists(date, { collection, venue, config, deadlineMs }) ->
+ * fetchSetlists(date, { artistId, venue, config, deadlineMs }) ->
  *   { ok, message, shows, upstream }
+ *
+ * `artistId` names the band (config/internet-archive.json `artists`);
+ * Grateful Dead when absent. A band the config doesn't list is refused
+ * without a request.
  *
  * One show per date, or one per show slot when the tapes say there were
  * early and late shows: band-setlist.js's selectShow then sees two shows at
@@ -1077,17 +1257,18 @@ function descriptionOf(doc) {
  * Throws on network failure or rate limiting, so the caller can serve
  * stale cache and never caches an outage as "not found".
  */
-async function fetchSetlists(date, { collection = COLLECTION, venue = '', config = CONFIG, deadlineMs = 0 } = {}) {
+async function fetchSetlists(date, { artistId = DEFAULT_ARTIST_ID, venue = '', config = CONFIG, deadlineMs = 0 } = {}) {
   if (!isEnabled(config)) {
     return { ok: false, disabled: true, message: 'The Internet Archive source is turned off (config/internet-archive.json)', shows: [] };
   }
-  if (collection !== COLLECTION) {
-    return { ok: false, message: `The Archive source only covers the ${COLLECTION} collection`, shows: [] };
+  const artist = artistFor(artistId, config);
+  if (!artist || !artist.collection) {
+    return { ok: false, message: `"${artistId}" is not a band the Internet Archive source covers (config/internet-archive.json)`, shows: [] };
   }
-  // Dates left to setlist.fm on purpose (config/internet-archive.json
-  // `excludedDates`): answered as "no show", without a request, so every
-  // caller falls back the way it already does.
-  const excludedBecause = (config.excludedDates || {})[date];
+  // Dates left to setlist.fm on purpose (the band's `excludedDates`):
+  // answered as "no show", without a request, so every caller falls back
+  // the way it already does.
+  const excludedBecause = (artist.excludedDates || {})[date];
   if (excludedBecause) {
     return { ok: true, excluded: true, message: `Not read from the Internet Archive: ${excludedBecause}`, shows: [] };
   }
@@ -1100,14 +1281,15 @@ async function fetchSetlists(date, { collection = COLLECTION, venue = '', config
     metaCache: new Map(),
   };
 
-  const search = await archiveGet(searchPath(date));
+  const search = await archiveGet(searchPath(date, artist));
   if (search.statusCode !== 200 || !search.data?.response) {
     return { ok: false, message: `Internet Archive search returned HTTP ${search.statusCode}`, shows: [] };
   }
-  const allDocs = Array.isArray(search.data.response.docs) ? search.data.response.docs : [];
+  const returned = Array.isArray(search.data.response.docs) ? search.data.response.docs : [];
+  const allDocs = returned.filter((doc) => isBandItem(doc, artist));
   const upstream = describeUpstream(allDocs);
   if (allDocs.length === 0) {
-    return { ok: true, message: `No Grateful Dead recordings on the Internet Archive for ${date}`, shows: [], upstream };
+    return { ok: true, message: `No ${artist.name} recordings on the Internet Archive for ${date}`, shows: [], upstream };
   }
 
   const docs = filterByVenue(allDocs, venue);
@@ -1119,7 +1301,7 @@ async function fetchSetlists(date, { collection = COLLECTION, venue = '', config
 
   const shows = [];
   for (const group of groups) {
-    const show = await pickShow(group.docs, ctx, allDocs.length);
+    const show = await pickShow(group.docs, ctx, allDocs.length, artist);
     if (!show) continue;
     if (group.slot) {
       show.showSlot = group.slot;
@@ -1158,10 +1340,12 @@ async function fetchSetlists(date, { collection = COLLECTION, venue = '', config
  *   3. header-less descriptions, split with the tape's own track titles,
  *      while fewer than two complete candidates agree or disagree
  *   4. info files, only if nothing above produced a candidate
- *   5. track titles of the top complete tape, as a last resort
+ *   5. track titles of one complete tape, as a last resort (see
+ *      pickTrackList)
  */
-async function pickShow(docs, ctx, itemCount) {
+async function pickShow(docs, ctx, itemCount, artist = DEFAULT_ARTIST) {
   if (docs.length === 0) return null;
+  const aliases = titleAliasesOf(artist);
 
   const soft = async (fn) => {
     try { return await fn(); } catch (e) { ctx.softError = e; return null; }
@@ -1184,7 +1368,7 @@ async function pickShow(docs, ctx, itemCount) {
   const complete = byDownloads.filter((d) => !isPartialItem(d));
   const fallbackOrder = complete.length ? complete : byDownloads;
   const usable = (parsed) => parsed.explicit && parsed.songCount >= MIN_SONGS;
-  const partialOf = (doc, parsed) => isPartialItem(doc) || startsAfterSetOne(parsed);
+  const partialOf = (doc, parsed) => isPartialItem(doc) || startsAfterSetOne(parsed) || parsed.gaps > 0;
 
   // 1. Descriptions, from the search response itself. Comma-separated ones
   //    survive the search API intact.
@@ -1193,7 +1377,7 @@ async function pickShow(docs, ctx, itemCount) {
   const headerless = [];
   for (const doc of byDownloads) {
     const text = descriptionOf(doc);
-    const parsed = parseSetlistText(text, { ignore: ignoreFor(doc) });
+    const parsed = parseSetlistText(text, { ignore: ignoreFor(doc, artist), aliases, band: artist.name });
     if (usable(parsed)) {
       candidates.push({ doc, parsed, partial: partialOf(doc, parsed), parsedFrom: 'description', fromSearch: true });
     } else if ((text.match(INLINE_SET_HEADER) || []).length > 0) {
@@ -1211,7 +1395,7 @@ async function pickShow(docs, ctx, itemCount) {
   for (const doc of flattened.filter((d) => !isPartialItem(d)).slice(0, METADATA_DESCRIPTION_ITEMS)) {
     if (completeCount() >= METADATA_DESCRIPTION_ITEMS || !optional()) break;
     const meta = await metadata(doc.identifier);
-    const parsed = parseSetlistText(descriptionOf(meta?.metadata || {}), { ignore: ignoreFor(doc) });
+    const parsed = parseSetlistText(descriptionOf(meta?.metadata || {}), { ignore: ignoreFor(doc, artist), aliases, band: artist.name });
     if (usable(parsed)) candidates.push({ doc, parsed, partial: partialOf(doc, parsed), parsedFrom: 'description' });
   }
 
@@ -1221,8 +1405,8 @@ async function pickShow(docs, ctx, itemCount) {
     if (completeCount() >= 2 || !optional()) break;
     const meta = await metadata(doc.identifier);
     if (!meta) continue;
-    const tracks = tracksFromMetadata(meta).sets.flatMap((x) => x.songs.map((song) => song.name));
-    const parsed = splitHeaderless(descriptionOf(meta.metadata || {}), tracks);
+    const tracks = tracksFromMetadata(meta, { aliases, ignore: ignoreFor(doc, artist) }).sets.flatMap((x) => x.songs.map((song) => song.name));
+    const parsed = splitHeaderless(descriptionOf(meta.metadata || {}), tracks, { aliases });
     if (usable(parsed)) candidates.push({ doc, parsed, partial: partialOf(doc, parsed), parsedFrom: 'description', inferred: true });
   }
 
@@ -1235,7 +1419,7 @@ async function pickShow(docs, ctx, itemCount) {
       if (!name) continue;
       const txt = await soft(() => archiveGet(`/download/${encodeURIComponent(doc.identifier)}/${encodeURIComponent(name)}`, { json: false }));
       if (!txt || txt.statusCode !== 200) continue;
-      const parsed = parseSetlistText(txt.data, { endOnProse: true, ignore: ignoreFor(doc) });
+      const parsed = parseSetlistText(txt.data, { endOnProse: true, ignore: ignoreFor(doc, artist), aliases, band: artist.name });
       if (usable(parsed)) candidates.push({ doc, parsed, partial: partialOf(doc, parsed), parsedFrom: 'info-file' });
     }
   }
@@ -1249,7 +1433,7 @@ async function pickShow(docs, ctx, itemCount) {
     // join a trailing note or venue onto the last song.
     if (best.fromSearch && optional()) {
       const meta = await metadata(best.doc.identifier);
-      const reparsed = parseSetlistText(descriptionOf(meta?.metadata || {}), { ignore: ignoreFor(best.doc) });
+      const reparsed = parseSetlistText(descriptionOf(meta?.metadata || {}), { ignore: ignoreFor(best.doc, artist), aliases, band: artist.name });
       if (usable(reparsed)) best.parsed = reparsed;
     }
     const disagreement = disagreementOf(ranked);
@@ -1267,26 +1451,57 @@ async function pickShow(docs, ctx, itemCount) {
   // cut-short read stops here rather than settling for it.
   if (ctx.softError || ctx.cutShort) return null;
 
-  // 5. Track titles of the top complete item — a song list, no sets.
-  const top = fallbackOrder[0];
-  const meta = await metadata(top.identifier);
-  if (ctx.softError) return null;
-  const parsed = tracksFromMetadata(meta);
-  if (parsed.songCount > 0) {
-    return mapShow(top, parsed, {
-      confidence: 'tracks-only',
-      parsedFrom: 'track-titles',
-      partial: isPartialItem(top),
-      itemCount,
-      candidateCount: 0,
-      disagreement: null,
-    });
+  // 5. Track titles of one complete item.
+  const picked = await pickTrackList(fallbackOrder, { metadata, optional, aliases, ignoreOf: (doc) => ignoreFor(doc, artist) });
+  if (ctx.softError || !picked) return null;
+  return mapShow(picked.doc, picked.parsed, {
+    confidence: 'tracks-only',
+    parsedFrom: 'track-titles',
+    partial: isPartialItem(picked.doc) || picked.parsed.gaps > 0,
+    itemCount,
+    candidateCount: 0,
+    disagreement: null,
+  });
+}
+
+// How many tapes' track lists are compared when it comes to track titles.
+// The first is always read; the rest only inside the deadline, and an item
+// already read for steps 2–4 costs nothing.
+const TRACK_LIST_ITEMS = 3;
+
+/**
+ * pickTrackList(docs, { metadata, optional, aliases, ignoreOf }) -> { doc, parsed } | null
+ *
+ * The tape whose track titles become the setlist, of the first
+ * TRACK_LIST_ITEMS in `docs` (complete tapes by downloads): one that isn't
+ * much shorter than the fullest, then soundboard before matrix before
+ * audience, then the most songs, then downloads, then identifier.
+ */
+async function pickTrackList(docs, { metadata, optional, aliases, ignoreOf = () => [] }) {
+  const read = [];
+  for (const [i, doc] of docs.slice(0, TRACK_LIST_ITEMS).entries()) {
+    if (i > 0 && !optional()) break;
+    const meta = await metadata(doc.identifier);
+    if (!meta) continue;
+    const parsed = tracksFromMetadata(meta, { aliases, ignore: ignoreOf(doc) });
+    if (parsed.songCount > 0) read.push({ doc, parsed, sourceType: sourceTypeOf(doc) });
   }
-  return null;
+  if (read.length === 0) return null;
+  const maxSongs = Math.max(...read.map((c) => c.parsed.songCount));
+  const short = (c) => c.parsed.songCount < maxSongs * 0.8;
+  read.sort((a, b) => (short(a) - short(b))
+    || (SOURCE_TYPE_RANK[a.sourceType] - SOURCE_TYPE_RANK[b.sourceType])
+    || (b.parsed.songCount - a.parsed.songCount)
+    || ((Number(b.doc.downloads) || 0) - (Number(a.doc.downloads) || 0))
+    || String(a.doc.identifier).localeCompare(String(b.doc.identifier)));
+  return read[0];
 }
 
 module.exports = {
   COLLECTION,
+  DEFAULT_ARTIST_ID,
+  artistFor,
+  isBandItem,
   isEnabled,
   setRequestGap,
   getRequestGap,
@@ -1303,7 +1518,9 @@ module.exports = {
   permalinkFor,
   rankCandidates,
   searchPath,
+  searchQuery,
   splitChunk,
   splitHeaderless,
   tracksFromMetadata,
+  trackLines,
 };

@@ -1,0 +1,19 @@
+{
+ "capturedAt": "2026-10-29",
+ "artistId": "moe",
+ "date": "1999-08-05",
+ "responses": {
+  "/advancedsearch.php?q=collection%3Aetree+AND+%28creator%3A%22moe.%22%29+AND+date%3A1999-08-05&fl%5B%5D=identifier&fl%5B%5D=title&fl%5B%5D=creator&fl%5B%5D=venue&fl%5B%5D=coverage&fl%5B%5D=downloads&fl%5B%5D=description&fl%5B%5D=source&fl%5B%5D=licenseurl&sort%5B%5D=downloads+desc&rows=50&output=json": {
+   "status": 200,
+   "body": "{\"response\":{\"numFound\":1,\"start\":0,\"docs\":[{\"identifier\":\"moe1999-08-05.shnf\",\"title\":\"moe. Live at Nautica Stage on 1999-08-05\",\"creator\":\"moe.\",\"venue\":\"Nautica Stage\",\"coverage\":\"Cleveland, OH\",\"downloads\":1928,\"description\":\"== One Set only == Stranger Than Fiction Head Happy Hour Hero* Dr. Graffenburg > Jazz Wank > Spaz Medicine\",\"source\":\"Schoeps CMC64 > Sonosax SX-M2 > Apogee A/D 1000 > DAT > CD\"}]}}"
+  },
+  "/metadata/moe1999-08-05.shnf": {
+   "status": 200,
+   "body": "{\"metadata\":{\"identifier\":\"moe1999-08-05.shnf\",\"creator\":\"moe.\",\"title\":\"moe. Live at Nautica Stage on 1999-08-05\",\"venue\":\"Nautica Stage\",\"coverage\":\"Cleveland, OH\",\"description\":\"== One Set only ==\\n\\nStranger Than Fiction\\t\\nHead\\t\\t\\t\\nHappy Hour Hero*\\t\\t\\t\\t\\nDr. Graffenburg >\\t\\t\\t\\nJazz Wank >\\t\\t\\t\\nSpaz Medicine\"},\"files\":[{\"name\":\"moe1999-08-05.txt\",\"format\":\"Text\"},{\"name\":\"moe1999-08-05t01.mp3\",\"format\":\"VBR MP3\",\"title\":\"Intro\",\"track\":\"1\"},{\"name\":\"moe1999-08-05t01.ogg\",\"format\":\"Ogg Vorbis\"},{\"name\":\"moe1999-08-05t01.shn\",\"format\":\"Shorten\",\"title\":\"Intro\",\"track\":\"1\"},{\"name\":\"moe1999-08-05t02.mp3\",\"format\":\"VBR MP3\",\"title\":\"Stranger Than Fiction\",\"track\":\"2\"},{\"name\":\"moe1999-08-05t02.ogg\",\"format\":\"Ogg Vorbis\"},{\"name\":\"moe1999-08-05t02.shn\",\"format\":\"Shorten\",\"title\":\"Stranger Than Fiction\",\"track\":\"2\"},{\"name\":\"moe1999-08-05t03.mp3\",\"format\":\"VBR MP3\",\"title\":\"Head\",\"track\":\"3\"},{\"name\":\"moe1999-08-05t03.ogg\",\"format\":\"Ogg Vorbis\"},{\"name\":\"moe1999-08-05t03.shn\",\"format\":\"Shorten\",\"title\":\"Head\",\"track\":\"3\"},{\"name\":\"moe1999-08-05t04.mp3\",\"format\":\"VBR MP3\",\"title\":\"Happy Hour Hero*\",\"track\":\"4\"},{\"name\":\"moe1999-08-05t04.ogg\",\"format\":\"Ogg Vorbis\"},{\"name\":\"moe1999-08-05t04.shn\",\"format\":\"Shorten\",\"title\":\"Happy Hour Hero*\",\"track\":\"4\"},{\"name\":\"moe1999-08-05t05.mp3\",\"format\":\"VBR MP3\",\"title\":\"Dr. Graffenburg >\",\"track\":\"5\"},{\"name\":\"moe1999-08-05t05.ogg\",\"format\":\"Ogg Vorbis\"},{\"name\":\"moe1999-08-05t05.shn\",\"format\":\"Shorten\",\"title\":\"Dr. Graffenburg >\",\"track\":\"5\"},{\"name\":\"moe1999-08-05t06.mp3\",\"format\":\"VBR MP3\",\"title\":\"Jazz Wank >\",\"track\":\"6\"},{\"name\":\"moe1999-08-05t06.ogg\",\"format\":\"Ogg Vorbis\"},{\"name\":\"moe1999-08-05t06.shn\",\"format\":\"Shorten\",\"title\":\"Jazz Wank >\",\"track\":\"6\"},{\"name\":\"moe1999-08-05t07.mp3\",\"format\":\"VBR MP3\",\"title\":\"Spaz Medicine\",\"track\":\"7\"},{\"name\":\"moe1999-08-05t07.ogg\",\"format\":\"Ogg Vorbis\"},{\"name\":\"moe1999-08-05t07.shn\",\"format\":\"Shorten\",\"title\":\"Spaz Medicine\",\"track\":\"7\"}]}"
+  },
+  "/download/moe1999-08-05.shnf/moe1999-08-05.txt": {
+   "status": 200,
+   "body": "moe.\nAugust 5th, 1999\nSummer Sessions @ Nautica Stage\nCleveland, OH\n\nSource: Schoeps CMC64 > Sonosax SX-M2 > Apogee A/D 1000 > DAT > CD\nTransfer: CD > optical > Delta DiO 2496 > Sound Forge 7.0 > CDWav > mkwACT\n\nTaped by Jordan Braunstein, patch & transfer by K.C. Cadwallader\n\n== One Set only\n\n01. Intro\t\t\t[00:37]\t\t\t\t\n02. Stranger Than Fiction\t[05:09]\n03. Head\t\t\t[13:56]\t\n04. Happy Hour Hero*\t\t[08:39]\t\t\n05. Dr. Graffenburg >\t\t[12:09]\t\n06. Jazz Wank >\t\t\t[08:11]\t\n07. Spaz Medicine\t\t[06:04]\n\n* w/Gibb Droll"
+  }
+ }
+}
