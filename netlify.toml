@@ -51,6 +51,16 @@
   external_node_modules = ["@resvg/resvg-js"]
   included_files = ["netlify/functions/fonts/*.ttf"]
 
+# The personal posters (lib/myPosters.js) draw with the same renderer
+# (lib/posterImage.js), so they need the same two lines.
+[functions."public-poster"]
+  external_node_modules = ["@resvg/resvg-js"]
+  included_files = ["netlify/functions/fonts/*.ttf"]
+
+[functions."my-poster"]
+  external_node_modules = ["@resvg/resvg-js"]
+  included_files = ["netlify/functions/fonts/*.ttf"]
+
 # Firebase Auth handler, proxied onto our own domain.
 #
 # Google's sign-in screen shows the app name only for brand-verified OAuth
@@ -541,6 +551,58 @@
 [[redirects]]
   from = "/api/heard-share"
   to = "/.netlify/functions/heard-share"
+  status = 200
+  force = true
+
+# Personal posters (lib/myPosters.js): a signed-in user's "Songs I've
+# heard" poster for any band, made in the app at /my-poster/ (a real
+# pre-rendered route) from their own shows. Shared ones are stored under a
+# random code and served here, noindex. Codes travel in the function PATH,
+# as with /heard/.
+#
+#   /p/<code>/                    the shared record
+#   /p/<code>/og.png              its link preview, 1200x630
+#   /p/<code>/poster-feed.png and poster-story.png
+#   /api/my-poster                draw a poster, or store one to share
+[[redirects]]
+  from = "/p/:code/og.png"
+  to = "/.netlify/functions/public-poster/:code/og"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/p/:code/poster-feed.png"
+  to = "/.netlify/functions/public-poster/:code/poster-feed"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/p/:code/poster-story.png"
+  to = "/.netlify/functions/public-poster/:code/poster-story"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/p/:code"
+  to = "/.netlify/functions/public-poster/:code"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/p/:code/"
+  to = "/.netlify/functions/public-poster/:code"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/p/*"
+  to = "/404.html"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/api/my-poster"
+  to = "/.netlify/functions/my-poster"
   status = 200
   force = true
 

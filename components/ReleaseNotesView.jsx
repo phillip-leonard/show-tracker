@@ -13,6 +13,16 @@ const STREAMING_MENTION = /spotify|apple\s*music/i;
 function ReleaseNotesView() {
   const releases = [
     {
+      version: '5.48.0',
+      date: 'October 28, 2026',
+      title: 'A Poster for Every Band',
+      changes: [
+        'Make a Songs I’ve heard poster for any band you’ve logged, from your own shows and setlists',
+        'See your top songs, every song you’ve heard with your first and last time, and the shows still missing a setlist',
+        'Download the poster, share it, or send a link to your record',
+      ]
+    },
+    {
       version: '5.47.19',
       date: 'October 27, 2026',
       title: 'Bug Fixes and Performance',
