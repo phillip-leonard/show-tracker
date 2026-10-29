@@ -21,6 +21,7 @@
 const { escapeHtml, page, notFoundPage, CACHE_HEADERS, USER_PAGE_ROBOTS, SITE_URL, isoDate, formatShowDate } = require('./lib/publicPageHtml');
 const { routeParams } = require('./lib/publicRouteParams');
 const { isSetlistfmShow, setlistfmUrlFor, attributionHtml } = require('./lib/setlistfmSetlist');
+const { archiveCreditHtml } = require('./lib/archiveAttribution');
 
 function getDb() {
   const privateKey = (process.env.FIREBASE_PRIVATE_KEY || '').replace(/\\n/g, '\n');
@@ -140,10 +141,11 @@ exports.handler = async function (event) {
     `).join('') : '<p class="sub">No setlist logged.</p>';
 
     // setlist.fm's credit, which its API terms require wherever its data is
-    // shown (lib/setlistfmSetlist.js).
+    // shown (lib/setlistfmSetlist.js), or the archive.org item an Internet
+    // Archive setlist was read from (lib/archiveAttribution.js).
     const sourceHtml = isSetlistfmShow(show)
       ? attributionHtml(await setlistfmUrlFor(db, show), show.artist)
-      : '';
+      : archiveCreditHtml(show);
 
     const title = `${show.artist} at ${show.venue} — ${formatDate(show.date)} — MySetlists`;
     const description = `Setlist for ${show.artist} at ${show.venue}${show.city ? `, ${show.city}` : ''} on ${formatDate(show.date)}, logged by ${displayName} on MySetlists.`;

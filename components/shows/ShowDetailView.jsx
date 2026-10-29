@@ -9,9 +9,10 @@ import { buildRunIndex, buildTourIndex, tourKeyFor, tourHref } from '@/lib/runIn
 import { festivalHref } from '@/lib/festivalGrouping';
 import { venueKeyFor } from '@/lib/venues';
 import { bandHref } from '@/lib/showRouting';
-import { sourceLabel, sourceHomeUrl, resolveSource, SETLIST_SOURCES } from '@/lib/setlistSources';
+import { sourceLabel, resolveSource, SETLIST_SOURCES } from '@/lib/setlistSources';
 import SetlistView from './SetlistView';
 import SetlistfmAttribution from './SetlistfmAttribution';
+import BandSourceAttribution from './BandSourceAttribution';
 import { Avatar, Button } from '@/components/ui';
 import EntityInfoPanel from '@/components/EntityInfoPanel';
 import StreamingLinks from '@/components/StreamingLinks';
@@ -806,22 +807,7 @@ export default function ShowDetailView({
               app owes them. Rendered off the stored `setlistSource` rather
               than by sniffing for band-source fields, and only for a band
               source — setlist.fm's credit is the line above. */}
-          {!editMode && sets.length > 0 && isBandSourced && (
-            <p className="mt-3 text-[11px] text-muted">
-              Setlist via{' '}
-              <a
-                href={show.sourcePermalink || sourceHomeUrl(show.setlistSource)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-muted underline decoration-dotted hover:text-brand transition-colors"
-              >
-                {show.setlistSource === 'archive' ? 'the ' : ''}{sourceLabel(show.setlistSource)}
-              </a>
-              {/* The Archive holds many tapes of a night; name the one the
-                  setlist was read from, so it can be checked. */}
-              {show.setlistSource === 'archive' && show.sourceShowId ? `, recording ${show.sourceShowId}` : ''}
-            </p>
-          )}
+          {!editMode && sets.length > 0 && <BandSourceAttribution show={show} />}
 
           {/* Switched from setlist.fm by the Archive backfill with no song
               changed (admin-resync-setlists, applySourceOnly). Said once,
