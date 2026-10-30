@@ -58,7 +58,7 @@ export default function UpcomingShowsSection({ upcomingShows = [], onAdd }) {
         <button
           type="button"
           onClick={onAdd}
-          className="inline-flex items-center gap-1.5 text-sm font-semibold text-brand hover:underline min-h-touch md:min-h-0 px-1"
+          className="inline-flex items-center gap-1.5 text-sm font-semibold text-brand hover:underline min-h-touch md:fine:min-h-0 px-1"
         >
           <CalendarPlus className="w-4 h-4" />
           Add
@@ -97,7 +97,7 @@ export default function UpcomingShowsSection({ upcomingShows = [], onAdd }) {
         <button
           type="button"
           onClick={() => setExpanded(e => !e)}
-          className="mt-1.5 text-sm text-secondary hover:text-primary min-h-touch md:min-h-0"
+          className="mt-1.5 text-sm text-secondary hover:text-primary min-h-touch md:fine:min-h-0"
         >
           {expanded ? 'Show fewer' : `Show all ${upcomingShows.length}`}
         </button>

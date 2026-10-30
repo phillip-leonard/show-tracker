@@ -36,7 +36,7 @@ const ALERT_PREFS = [
 
 function ChannelToggle({ label, checked, onChange }) {
   return (
-    <label className="flex items-center gap-2 cursor-pointer text-sm text-primary min-h-touch md:min-h-0">
+    <label className="flex items-center gap-2 cursor-pointer text-sm text-primary min-h-touch md:fine:min-h-0">
       <input
         type="checkbox"
         checked={checked}

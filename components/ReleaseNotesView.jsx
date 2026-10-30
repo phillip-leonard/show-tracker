@@ -13,6 +13,16 @@ const STREAMING_MENTION = /spotify|apple\s*music/i;
 function ReleaseNotesView() {
   const releases = [
     {
+      version: '5.51.0',
+      date: 'October 30, 2026',
+      title: 'MySetlists on iPad',
+      changes: [
+        'The iPhone app now runs natively on iPad, in portrait and landscape, with the menu always on screen when there\u2019s room for it',
+        'My Shows, Tours and Festivals keep the list beside whatever you opened, so you can move between them without going back',
+        'Tours and Festivals use the extra width in landscape, with buttons sized for your finger',
+      ]
+    },
+    {
       version: '5.50.0',
       date: 'October 29, 2026',
       title: 'Bring Your History, and More Tape Setlists',

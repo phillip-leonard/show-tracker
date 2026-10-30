@@ -20,11 +20,16 @@ import { useApp } from '@/context/AppContext';
 import FestivalListView from '@/components/festivals/FestivalListView';
 import FestivalDetailView from '@/components/festivals/FestivalDetailView';
 import { Button, PageHeader, EmptyState } from '@/components/ui';
+import SplitView from '@/components/layout/SplitView';
+import useSplitView from '@/hooks/useSplitView';
+import { formatDate } from '@/lib/utils';
+import { festivalHref } from '@/lib/festivalGrouping';
 
 export default function FestivalsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, guestMode, openAuthModal, festivals, festivalsLoading } = useApp();
+  const splitView = useSplitView();
 
   const festivalId = searchParams.get('festival') || '';
   const festival = useMemo(
@@ -68,7 +73,29 @@ export default function FestivalsPage() {
         </div>
       );
     }
-    return <FestivalDetailView festival={festival} />;
+    // Keyed, so switching festivals in the split view can't carry one's
+    // notes draft over to the next.
+    const detail = <FestivalDetailView key={festival.id} festival={festival} />;
+    if (!splitView) return detail;
+    return (
+      <SplitView
+        label="Your festivals"
+        items={festivals.slice().sort((a, b) => (a.startDate < b.startDate ? 1 : -1)).map(f => ({
+          id: f.id,
+          title: f.name,
+          subtitle: `${formatDate(f.startDate)}${f.location ? ` · ${f.location}` : ''}`,
+        }))}
+        selectedId={festival.id}
+        onSelect={(id) => {
+          // Replace, not push, as on My Shows: back still leaves the detail
+          // in one step.
+          router.replace(festivalHref(id));
+          window.scrollTo({ top: 0 });
+        }}
+      >
+        {detail}
+      </SplitView>
+    );
   }
 
   return <FestivalListView />;

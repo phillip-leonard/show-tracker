@@ -18,6 +18,9 @@ import TourDetailView from '@/components/runs/TourDetailView';
 import TourFavoriteButton from '@/components/runs/TourFavoriteButton';
 import TourBrowseModal from '@/components/tours/TourBrowseModal';
 import { Button, PageHeader, EmptyState, Card } from '@/components/ui';
+import SplitView from '@/components/layout/SplitView';
+import useContentColumnWidth from '@/hooks/useContentColumnWidth';
+import { SPLIT_VIEW_MIN_WIDTH, WIDE_LIST_MIN_WIDTH } from '@/lib/platform';
 import ShowFilters from '@/components/shows/ShowFilters';
 import useShowFilters from '@/hooks/useShowFilters';
 import { formatDate } from '@/lib/utils';
@@ -41,7 +44,7 @@ const SORTS = {
 // appear and the stops counted on each. `hasAnyTours` says whether the user
 // has tours at all, so a filter that matches nothing shows "no match"
 // rather than the first-run empty state.
-function ToursLandingView({ tours, hasAnyTours, favorites, showFilters, availableYears }) {
+function ToursLandingView({ tours, hasAnyTours, favorites, showFilters, availableYears, wide }) {
   const [browseOpen, setBrowseOpen] = useState(false);
   const [filterArtist, setFilterArtist] = useState('');
   const [favoritesOnly, setFavoritesOnly] = useState(false);
@@ -68,7 +71,7 @@ function ToursLandingView({ tours, hasAnyTours, favorites, showFilters, availabl
   };
 
   return (
-    <div className="max-w-3xl mx-auto">
+    <div className={wide ? '' : 'max-w-3xl mx-auto'}>
       <PageHeader
         eyebrow="Tours"
         title="Your tours"
@@ -159,7 +162,7 @@ function ToursLandingView({ tours, hasAnyTours, favorites, showFilters, availabl
               action={<Button variant="secondary" onClick={clearFilters}>Clear filters</Button>}
             />
           ) : (
-            <div className="space-y-3">
+            <div className={wide ? 'grid grid-cols-2 gap-3' : 'space-y-3'}>
               {visible.map(tour => (
                 <Link
                   key={tour.key}
@@ -213,6 +216,7 @@ export default function TourPage() {
   const tourIndex = useTourIndex();
   const favorites = useFavoriteTours();
   const showFilters = useShowFilters(shows);
+  const columnWidth = useContentColumnWidth();
 
   const tourKey = searchParams.get('tour') || '';
   const tour = useMemo(() => tourIndex[tourKey] || null, [tourIndex, tourKey]);
@@ -251,7 +255,28 @@ export default function TourPage() {
         </div>
       );
     }
-    return <TourDetailView tour={tour} favorites={favorites} />;
+    // Keyed, so switching tours in the split view starts each one fresh.
+    const detail = <TourDetailView key={tour.key} tour={tour} favorites={favorites} />;
+    if (columnWidth < SPLIT_VIEW_MIN_WIDTH) return detail;
+    return (
+      <SplitView
+        label="Your tours"
+        items={allTours.slice().sort(SORTS.stops.compare).map(t => ({
+          id: t.key,
+          title: t.tourName,
+          subtitle: `${t.artistName} · ${t.stopCount} stop${t.stopCount !== 1 ? 's' : ''}`,
+        }))}
+        selectedId={tour.key}
+        onSelect={(key) => {
+          // Replace, not push, as on My Shows: back still leaves the detail
+          // in one step.
+          router.replace(tourHref(key));
+          window.scrollTo({ top: 0 });
+        }}
+      >
+        {detail}
+      </SplitView>
+    );
   }
 
   return (
@@ -261,6 +286,7 @@ export default function TourPage() {
       favorites={favorites}
       showFilters={showFilters}
       availableYears={availableYears}
+      wide={columnWidth >= WIDE_LIST_MIN_WIDTH}
     />
   );
 }

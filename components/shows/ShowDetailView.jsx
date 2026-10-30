@@ -262,6 +262,7 @@ function StatRow({ label, value, tone }) {
 
 export default function ShowDetailView({
   show,
+  sideColumn,
   friends = [],
   onClose,
   backLabel = 'All shows',
@@ -480,6 +481,13 @@ export default function ShowDetailView({
     onAddSong?.(show.id, { name: newSongName.trim(), set });
     setNewSongName('');
   };
+
+  // In the split view the page decides, from the pane's width: `lg:` measures
+  // the screen, and a 1024px iPad gives this view a 430px pane. Everywhere
+  // else (`sideColumn` undefined) the screen width is the column's width.
+  let sideColumnClass = 'grid-cols-1 lg:grid-cols-[1fr_300px]';
+  if (sideColumn === true) sideColumnClass = 'grid-cols-[1fr_300px]';
+  if (sideColumn === false) sideColumnClass = 'grid-cols-1';
 
   return (
     <div className="max-w-5xl mx-auto">
@@ -717,7 +725,7 @@ export default function ShowDetailView({
       </div>
 
       {/* ── Two-column: setlist + sidebar ──────────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-10 items-start">
+      <div className={`grid gap-10 items-start ${sideColumnClass}`}>
 
         <section>
           <div className="flex items-center justify-between mb-5 gap-2 flex-wrap">
@@ -726,7 +734,7 @@ export default function ShowDetailView({
               {onReorderSetlist && totalSongs > 0 && (
                 <button
                   onClick={() => setEditMode(v => !v)}
-                  className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 min-h-touch md:min-h-0 rounded-lg pressable transition-colors ${
+                  className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 min-h-touch md:fine:min-h-0 rounded-lg pressable transition-colors ${
                     editMode ? 'bg-brand text-[#2a2a4e]' : 'bg-hover text-primary'
                   }`}
                 >
@@ -737,7 +745,7 @@ export default function ShowDetailView({
               {totalSongs > 0 && !editMode && (
                 <button
                   onClick={() => setShowPlayCounts(v => !v)}
-                  className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 min-h-touch md:min-h-0 rounded-lg pressable transition-colors ${
+                  className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 min-h-touch md:fine:min-h-0 rounded-lg pressable transition-colors ${
                     showPlayCounts ? 'bg-elevated text-primary' : 'bg-hover text-primary'
                   }`}
                 >
@@ -876,7 +884,7 @@ export default function ShowDetailView({
               <button
                 onClick={handleResync}
                 disabled={resyncState?.loading}
-                className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 min-h-touch md:min-h-0 rounded-lg pressable bg-hover text-primary hover:bg-elevated transition-colors disabled:opacity-50"
+                className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 min-h-touch md:fine:min-h-0 rounded-lg pressable bg-hover text-primary hover:bg-elevated transition-colors disabled:opacity-50"
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${resyncState?.loading ? 'animate-spin' : ''}`} />
                 {resyncState?.loading
@@ -950,7 +958,9 @@ export default function ShowDetailView({
           <ArchivalAudioSection show={show} />
         </section>
 
-        <aside className="space-y-3 lg:sticky lg:top-6">
+        {/* Below the status bar, on an iPad, as it sticks. safe-top is 0 on
+            the web. */}
+        <aside className={`space-y-3 ${sideColumn !== false ? 'lg:sticky lg:top-[calc(1.5rem+var(--safe-top))]' : ''}`}>
           {totalSongs > 0 && (
             <SidebarCard>
               <SidebarLabel>Show Stats</SidebarLabel>

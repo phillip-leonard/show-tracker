@@ -42,8 +42,8 @@ const VARIANTS = {
 // while the padding — and therefore the desktop height — is untouched.
 // `sm` was ~32px and `md` ~42px on a phone; both are now 44.
 const SIZES = {
-  sm: 'text-sm font-semibold px-3 py-1.5 rounded-lg gap-1.5 min-h-touch md:min-h-0',
-  md: 'text-[15px] font-bold px-[18px] py-2.5 rounded-full gap-2 min-h-touch md:min-h-0',
+  sm: 'text-sm font-semibold px-3 py-1.5 rounded-lg gap-1.5 min-h-touch md:fine:min-h-0',
+  md: 'text-[15px] font-bold px-[18px] py-2.5 rounded-full gap-2 min-h-touch md:fine:min-h-0',
   lg: 'text-base font-extrabold px-[26px] py-[14px] rounded-full gap-2',
 };
 

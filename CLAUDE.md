@@ -21,6 +21,15 @@ Venue pages, venue dashboards and Year in Review were the same bug until 5.46.0 
 
 This pattern has now cost three attempts to get right. The next session should not have to rediscover it.
 
+## iPad and wide layouts
+
+The iOS target is universal. Don't add an iPad check: iPadOS can resize the window to any width, so layout follows measured width.
+
+- `md:` (768px) means wide, not "has a mouse". Anything that shrinks for a mouse, such as a 44pt tap target, also needs the `fine:` variant (`md:fine:min-h-0`), defined in `tailwind.config.js`.
+- `md:` and `lg:` measure the screen, not the pane. Inside `components/layout/SplitView.jsx` a view can be 430px wide on a 1024px screen, so it needs the pane's width passed in (see `sideColumn` on `ShowDetailView`).
+- Native-only wide layouts read `hooks/useContentColumnWidth.js`, which is 0 on the web, and compare it with the constants in `lib/platform.js`.
+- Below `md` an iPad gets the phone shell, including an iPad mini in portrait (744pt) and narrow Split View or Slide Over windows.
+
 ## Netlify Blobs and background functions
 
 The public band pages (`/artist/...`) read a snapshot from Netlify Blobs, written by `public-artist-snapshot-background.mjs`. Two things that cost three deploy-preview rounds to find:

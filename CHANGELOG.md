@@ -4,6 +4,49 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.51.0] — 2026-10-30
+
+Ships in iOS 3.12.1 (`MARKETING_VERSION` 3.12 → 3.12.1, the default patch bump;
+the build number is left to Xcode Cloud).
+
+**MySetlists on iPad.** The iOS target is universal again
+(`TARGETED_DEVICE_FAMILY` `1` → `1,2`), undoing the iPhone-only decision made
+for v1.0 in #293. The first submission needs a 13" screenshot set.
+
+- **Most of the layout was already there.** The sidebar is persistent from
+  `md` up on every platform and there has never been a tab bar, so navigation
+  and its order are unchanged. An iPad mini in portrait (744pt) and narrow
+  Split View or Slide Over windows are under `md`, so they get the header and
+  drawer, as a phone does.
+- **Crushed setlists in the split view.** `ShowDetailView` chose its 300px
+  side column with `lg:`, which measures the screen rather than the pane. In a
+  split on a 12.9" iPad in portrait that left the setlist about 92px. In a
+  split the page now decides from the pane's width
+  (`splitPaneHasSideColumn`, `lib/platform.js`), and the two columns stack
+  below 640px.
+- **The split view is now shared.** `components/layout/SplitView.jsx` replaces
+  `ShowsSplitList`, and Tours and Festivals use it as well as My Shows. An
+  11" iPad in portrait has a 514px column, below the 600px minimum, so it stays
+  one screen at a time.
+- **Two-column Tours and Festivals lists** from an 800px content column
+  (`WIDE_LIST_MIN_WIDTH`), so on iPads in landscape. Wishlist keeps its stacked
+  sections, which are deliberate and already use the full width.
+- **44pt tap targets on touch screens at every width.** `min-h-touch
+  md:min-h-0` assumed wide meant a mouse. The shrink now also needs the new
+  `fine:` variant, which also hides the sidebar's `⌘K` hint on touch screens.
+- **The show filter's date box is no longer blank on touch screens.** iOS draws
+  an empty date input with no placeholder, so the filter on My Shows, Stats,
+  Tours and Festivals looked like an empty box, on iPhone as well as iPad. It
+  now reads "Any date" until a date is picked.
+
+**Web:** the split view and wide lists are native only
+(`hooks/useContentColumnWidth.js`), and with a mouse nothing changes at any
+width. A touch screen in a browser at 768px or wider, such as an iPad in
+Safari, gets the 44pt targets, loses the `⌘K` hint and gets the "Any date"
+label.
+
+---
+
 ## [5.50.0] — 2026-10-29
 
 Ships in iOS 3.12 (`MARKETING_VERSION` 3.11.3 → 3.12, a minor bump as asked;

@@ -188,7 +188,7 @@ export default function Sidebar({
           >
             <Search size={16} strokeWidth={2.2} />
             <span className="font-medium flex-1">Search for a show</span>
-            <kbd className="hidden md:inline-flex items-center text-[10px] font-bold px-1.5 py-0.5 rounded bg-white/[0.06] border border-white/10 text-on-dark-muted">
+            <kbd className="hidden md:fine:inline-flex items-center text-[10px] font-bold px-1.5 py-0.5 rounded bg-white/[0.06] border border-white/10 text-on-dark-muted">
               ⌘K
             </kbd>
           </Link>

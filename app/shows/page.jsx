@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 import { useDismissStack } from '@/context/DismissStackContext';
-import { formatDate } from '@/lib/utils';
+import { formatDate, artistColor } from '@/lib/utils';
 import ShowForm from '@/components/ShowForm';
 import TagFriendsModal from '@/components/TagFriendsModal';
 import PlaylistCreatorModal from '@/components/PlaylistCreatorModal';
@@ -23,8 +23,9 @@ import YearInReviewCard from '@/components/yearInReview/YearInReviewCard';
 import ReliveThisNightCard from '@/components/shows/ReliveThisNightCard';
 import { reliveShowFor } from '@/lib/reliveThisNight';
 import ShowDetailView from '@/components/shows/ShowDetailView';
-import ShowsSplitList from '@/components/shows/ShowsSplitList';
-import useSplitView from '@/hooks/useSplitView';
+import SplitView from '@/components/layout/SplitView';
+import useContentColumnWidth from '@/hooks/useContentColumnWidth';
+import { SPLIT_VIEW_MIN_WIDTH, splitPaneHasSideColumn } from '@/lib/platform';
 import ArchiveBackfillCard from '@/components/shows/ArchiveBackfillCard';
 import ArchiveProposalReview from '@/components/shows/ArchiveProposalReview';
 import VenueShowsView from '@/components/shows/VenueShowsView';
@@ -137,9 +138,10 @@ export default function ShowsPage() {
     [shows, detailShowId]
   );
 
-  // Native app with a wide content column (iPhone Duo open): the open show
+  // Native app with a wide content column (iPad, iPhone Duo open): the open show
   // sits beside a list of the others. See hooks/useSplitView.js.
-  const splitView = useSplitView();
+  const columnWidth = useContentColumnWidth();
+  const splitView = columnWidth >= SPLIT_VIEW_MIN_WIDTH;
 
   // Arriving from BucketListView's "Mark Attended" — open the manual add
   // form pre-filled with the saved show, and clear the prefill so it
@@ -308,6 +310,7 @@ export default function ShowsPage() {
     const detailView = (
       <ShowDetailView
         show={detailShow}
+        sideColumn={splitView ? splitPaneHasSideColumn(columnWidth) : undefined}
         friends={friends}
         onClose={closeDetail}
         backLabel={canGoBack ? 'Back' : 'All shows'}
@@ -338,21 +341,26 @@ export default function ShowsPage() {
     return (
       <>
         {splitView ? (
-          <div className="flex items-start gap-4">
-            <ShowsSplitList
-              shows={displayedShows}
-              selectedId={detailShow.id}
-              onSelect={(s) => {
-                // Replace, not push: switching shows in the pane is one
-                // place in history, so back still leaves the detail in a
-                // single step. The page itself is what scrolls, so start
-                // the new show at its top.
-                router.replace(showHref(s.id));
-                window.scrollTo({ top: 0 });
-              }}
-            />
-            <div className="flex-1 min-w-0">{detailView}</div>
-          </div>
+          <SplitView
+            label="Your shows"
+            items={displayedShows.map((s) => ({
+              id: s.id,
+              title: s.artist,
+              titleColor: artistColor(s.artist),
+              subtitle: `${formatDate(s.date)}${s.venue ? ` · ${s.venue}` : ''}`,
+            }))}
+            selectedId={detailShow.id}
+            onSelect={(id) => {
+              // Replace, not push: switching shows in the pane is one
+              // place in history, so back still leaves the detail in a
+              // single step. The page itself is what scrolls, so start
+              // the new show at its top.
+              router.replace(showHref(id));
+              window.scrollTo({ top: 0 });
+            }}
+          >
+            {detailView}
+          </SplitView>
         ) : detailView}
         {tagFriendsShow && (
           <TagFriendsModal
@@ -507,7 +515,7 @@ export default function ShowsPage() {
           {filterLabel && (
             <Link
               href={filterLabel.type === 'artist' ? '/stats/top-artists' : '/stats/top-venues'}
-              className="inline-flex items-center gap-1.5 text-sm font-medium text-secondary hover:text-primary mb-3 min-h-touch md:min-h-0"
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-secondary hover:text-primary mb-3 min-h-touch md:fine:min-h-0"
             >
               <ChevronLeft className="w-4 h-4" />
               Back to {filterLabel.type === 'artist' ? 'Top Artists' : 'Top Venues'}

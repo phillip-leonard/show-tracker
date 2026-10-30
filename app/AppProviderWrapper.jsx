@@ -489,7 +489,7 @@ function AppShell({ children }) {
             <Link
               href={toast.href}
               onClick={() => setToast(null)}
-              className="flex-shrink-0 inline-flex items-center min-h-touch md:min-h-0 font-bold underline underline-offset-2 whitespace-nowrap"
+              className="flex-shrink-0 inline-flex items-center min-h-touch md:fine:min-h-0 font-bold underline underline-offset-2 whitespace-nowrap"
             >
               {toast.actionLabel || 'View'}
             </Link>

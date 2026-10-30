@@ -28,7 +28,7 @@ import { myPosterHref } from '@/lib/showRouting';
 import { artistNameKeyLoose } from '@/lib/setlistSources';
 import { externalLinkClick } from '@/lib/publicProfile';
 
-const CLASSES = 'inline-flex items-center gap-1.5 min-h-touch md:min-h-0 px-3 py-1.5 rounded-full text-sm font-semibold border border-subtle text-secondary hover:text-amber hover:border-amber/50 transition-colors';
+const CLASSES = 'inline-flex items-center gap-1.5 min-h-touch md:fine:min-h-0 px-3 py-1.5 rounded-full text-sm font-semibold border border-subtle text-secondary hover:text-amber hover:border-amber/50 transition-colors';
 
 export default function MakePosterButton({ artist, className = '' }) {
   const { user, guestMode, shows } = useApp();

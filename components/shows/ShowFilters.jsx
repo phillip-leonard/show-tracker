@@ -96,6 +96,17 @@ export default function ShowFilters({
               aria-label="Filter by date"
               className="px-3 py-2.5 bg-surface border border-subtle rounded-xl text-sm font-medium text-secondary focus:outline-none focus:ring-2 focus:ring-brand/50"
             />
+            {/* iOS draws an empty date input as a blank box, with no
+                placeholder of its own. With a mouse the browser shows its
+                mm/dd/yyyy, so this is touch only. */}
+            {!filterDate && (
+              <span
+                aria-hidden="true"
+                className="fine:hidden pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium text-secondary"
+              >
+                Any date
+              </span>
+            )}
           </div>
 
           {activeCount > 0 && (

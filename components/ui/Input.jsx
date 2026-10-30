@@ -100,7 +100,7 @@ const Input = forwardRef(function Input(
             // where the zoom rule does not apply.
             'flex-1 bg-transparent text-[16px] md:text-[15px] text-primary placeholder:text-muted',
             // min-h-touch takes the field to the 44pt minimum on touch.
-            'outline-none py-2.5 min-h-touch md:min-h-0',
+            'outline-none py-2.5 min-h-touch md:fine:min-h-0',
             Icon ? 'pl-2.5 pr-3.5' : 'px-3.5',
             rightElement ? 'pr-2' : '',
             className,
