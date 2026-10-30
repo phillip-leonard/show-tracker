@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import ComparePage, { CompareTable, Section, Bullets, ExternalLink, compareMetadata } from '@/components/compare/ComparePage';
 
 const PATH = '/compare/concert-archives/';
@@ -12,7 +13,7 @@ const FAQ = [
   { q: 'Is MySetlists free?', a: 'Yes. MySetlists is free on the web and iPhone.' },
   {
     q: 'Can I move my history from Concert Archives?',
-    a: 'Not automatically yet. You can add past shows by searching the band and date, by scanning ticket stubs, or by importing a CSV or Excel file of your shows.',
+    a: 'Yes, with a spreadsheet: put your concerts in a CSV or Excel file and import it. MySetlists matches each show, adds setlists and skips duplicates. The guide at mysetlists.net/switch/concert-archives/ walks through it.',
   },
   {
     q: "Does MySetlists work for bands that aren't jam bands?",
@@ -68,6 +69,14 @@ export default function ConcertArchivesComparison() {
             ['Going with friends.', 'Tag the people you went with; they get an email and can add the show to their own history in one tap.'],
           ]}
         />
+      </Section>
+
+      <Section title="Moving your history">
+        <p>
+          You can bring the shows you&apos;ve logged with you in a spreadsheet. See{' '}
+          <Link href="/switch/concert-archives/" className="text-brand hover:underline">Switching from Concert Archives</Link>{' '}
+          for what carries over and how to import it.
+        </p>
       </Section>
 
       <Section title="Which should you use?">

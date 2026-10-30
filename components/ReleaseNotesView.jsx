@@ -13,6 +13,17 @@ const STREAMING_MENTION = /spotify|apple\s*music/i;
 function ReleaseNotesView() {
   const releases = [
     {
+      version: '5.50.0',
+      date: 'October 29, 2026',
+      title: 'Bring Your History, and More Tape Setlists',
+      changes: [
+        'Import a spreadsheet of your shows, including one from Concert Archives: match its columns, check every row and its setlist before anything is saved, and split festival rows into one show per band',
+        'Dates like 03/04/2019 are flagged so you can say which way your file writes them, and shows you already have are skipped, never doubled',
+        'Stop an import at any point and keep what\u2019s saved, then download the rows that didn\u2019t match to fix them',
+        'Setlists from fan tapes on the Internet Archive for Keller Williams, Karl Denson\u2019s Tiny Universe, Tea Leaf Green, Galactic and moe., each linked to its recording, to review before they\u2019re saved',
+      ]
+    },
+    {
       version: '5.49.2',
       date: 'October 29, 2026',
       title: 'Anniversary Reminders on Your iPhone',

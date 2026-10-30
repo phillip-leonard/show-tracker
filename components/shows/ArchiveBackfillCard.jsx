@@ -2,7 +2,8 @@
 
 // components/shows/ArchiveBackfillCard.jsx
 //
-// The backfill for Grateful Dead shows with no setlist: a card on My Shows
+// The backfill for Internet Archive bands' shows with no setlist (Grateful
+// Dead and the Live Music Archive bands in config/internet-archive.json): a card on My Shows
 // that opens ArchiveSetlistReview over every such show. Only shows with an
 // EMPTY setlist are offered, and saving re-checks that (onlyIfEmpty), so it
 // can never replace a setlist someone already has.
@@ -71,6 +72,9 @@ export default function ArchiveBackfillCard({ shows = [], onPropose, onApply }) 
   };
 
   const n = candidates.length;
+  // "3 Keller Williams shows" when they're one band's, "5 shows" otherwise.
+  const bands = [...new Set(candidates.map((s) => s.artist))];
+  const who = bands.length === 1 ? `${bands[0]} ` : '';
 
   return (
     <>
@@ -78,7 +82,7 @@ export default function ArchiveBackfillCard({ shows = [], onPropose, onApply }) 
         <div className="w-full mb-4 flex items-center gap-3 px-4 py-3 bg-hover border border-subtle rounded-xl">
           <ListMusic className="w-5 h-5 text-brand flex-shrink-0" />
           <p className="flex-1 text-sm text-primary">
-            {n} Grateful Dead show{n === 1 ? '' : 's'} with no setlist. The Internet Archive may have {n === 1 ? 'it' : 'them'}.
+            {n} {who}show{n === 1 ? '' : 's'} with no setlist. The Internet Archive may have {n === 1 ? 'it' : 'them'}.
           </p>
           <Button size="sm" variant="secondary" onClick={start}>
             Look them up

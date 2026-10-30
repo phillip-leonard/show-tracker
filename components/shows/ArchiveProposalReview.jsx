@@ -2,7 +2,7 @@
 
 // components/shows/ArchiveProposalReview.jsx
 //
-// "Review N shows": the Grateful Dead shows the Internet Archive backfill
+// "Review N shows": the shows the Internet Archive backfill
 // has a proposal for (`setlistProposal`, written by admin-resync-setlists),
 // as a card on My Shows that opens the list. Each one can be accepted or
 // kept as it is. Accept all is there for an account with dozens of Dead
@@ -37,6 +37,8 @@ export default function ArchiveProposalReview({ shows = [], onAccept, onDecline 
   const [confirmAll, setConfirmAll] = useState(false);
 
   const n = shows.length;
+  const bands = [...new Set(shows.map((s) => s.artist))];
+  const who = bands.length === 1 ? `${bands[0]} ` : '';
   const remaining = reviewing.filter((s) => !outcomes[s.id]);
   const totalChanges = useMemo(() => remaining.reduce((sum, s) => sum + proposalChangeCount(s.setlistProposal), 0), [remaining]);
 
@@ -79,7 +81,7 @@ export default function ArchiveProposalReview({ shows = [], onAccept, onDecline 
         <div className="w-full mb-4 flex items-center gap-3 px-4 py-3 bg-hover border border-subtle rounded-xl">
           <ListChecks className="w-5 h-5 text-brand flex-shrink-0" />
           <p className="flex-1 text-sm text-primary">
-            Update {n} Grateful Dead setlist{n === 1 ? '' : 's'} from the Internet Archive? Your ratings and notes are kept.
+            Update {n} {who}setlist{n === 1 ? '' : 's'} from the Internet Archive? Your ratings and notes are kept.
           </p>
           <Button size="sm" variant="secondary" onClick={start}>
             Review {n} show{n === 1 ? '' : 's'}

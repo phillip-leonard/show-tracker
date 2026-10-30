@@ -16,6 +16,7 @@ export default function ScanImportPage() {
       />
       <ScanImportView
         onImport={addShow}
+        guestMode={guestMode}
         onUpdateShow={updateShowData}
         existingShows={shows}
         importedIds={importedIds}

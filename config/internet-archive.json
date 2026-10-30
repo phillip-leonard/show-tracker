@@ -1,27 +1,81 @@
 {
-  "_comment": "The Internet Archive setlist source (Grateful Dead). `enabled` is the one switch: set it to false and the app stops resolving Grateful Dead to the Archive (lib/setlistSources.js), /api/band-setlist refuses source=archive without a request (netlify/functions/band-setlist.js, which also covers app builds already installed), the adapter makes no request whoever calls it (netlify/functions/lib/archiveAdapter.js), and admin-resync-setlists skips Grateful Dead. New adds then keep setlist.fm's setlist. Setlists already saved from the Archive stay as they are and keep their attribution. Read by lib/__tests__/archiveSwitch.test.js. `protectedGroup` is passed to the merge rule for Archive setlists: titles whose absence from a tape is not believed (see protectGroup in lib/bandSetlistMerge.js). `excludedDates` are dates the Archive is not asked about at all, so new adds and the backfill keep setlist.fm's setlist; each value says why.",
+  "_comment": "The Internet Archive setlist source. `enabled` is the one switch for every band below: set it to false and the app stops resolving them to the Archive (lib/setlistSources.js), /api/band-setlist refuses source=archive without a request (netlify/functions/band-setlist.js, which also covers app builds already installed), the adapter makes no request whoever calls it (netlify/functions/lib/archiveAdapter.js), and admin-resync-setlists skips them. New adds then keep setlist.fm's setlist. Setlists already saved from the Archive stay as they are and keep their attribution. Read by lib/__tests__/archiveSwitch.test.js. Each entry in `artists` is one band, opt-in, never inferred: `artistId` is what the app sends as /api/band-setlist's artistId; `collection` is the Archive collection searched, and `creators` (Live Music Archive bands only) the exact creator values kept from it, so a tribute act or side project whose creator merely contains the name is never read; `aliases` are other spellings of the band's name in show documents. Optional per band: `protectedGroup` is passed to the merge rule (titles whose absence from a tape is not believed; see protectGroup in lib/bandSetlistMerge.js); `excludedDates` are dates the Archive is not asked about at all, so new adds and the backfill keep setlist.fm's setlist, each value saying why; `titleAliases` maps a taper spelling (lowercase) to the title the song index uses. How each band was chosen: docs/setlist-sources/internet-archive.md.",
   "enabled": true,
   "id": "archive",
   "label": "Internet Archive",
   "homeUrl": "https://archive.org/details/GratefulDead",
-  "collection": "GratefulDead",
   "artists": [
     {
       "name": "Grateful Dead",
-      "nameKey": "grateful-dead",
+      "artistId": "GratefulDead",
+      "collection": "GratefulDead",
+      "homeUrl": "https://archive.org/details/GratefulDead",
       "mbids": [
         "6faa7ca7-0d99-4a5e-bfa6-1fd5037520c6"
-      ]
+      ],
+      "protectedGroup": [
+        "Drums",
+        "Space",
+        "Jam"
+      ],
+      "excludedDates": {
+        "1987-07-04": "Dylan & the Dead: the Archive's tapes include Bob Dylan's set, which setlist.fm files under Bob Dylan",
+        "1987-07-10": "Dylan & the Dead: the Archive's tapes include Bob Dylan's set, which setlist.fm files under Bob Dylan",
+        "1987-07-12": "Dylan & the Dead: the Archive's tapes include Bob Dylan's set, which setlist.fm files under Bob Dylan"
+      },
+      "titleAliases": {
+        "drumz": "Drums",
+        "saturday night": "One More Saturday Night",
+        "playin": "Playin' in the Band",
+        "greatest story": "Greatest Story Ever Told",
+        "touch of gray": "Touch of Grey",
+        "other one": "The Other One"
+      }
+    },
+    {
+      "name": "Keller Williams",
+      "artistId": "keller-williams",
+      "collection": "etree",
+      "creators": [
+        "Keller Williams"
+      ],
+      "homeUrl": "https://archive.org/details/KellerWilliams"
+    },
+    {
+      "name": "Karl Denson's Tiny Universe",
+      "artistId": "karl-densons-tiny-universe",
+      "collection": "etree",
+      "creators": [
+        "Karl Denson's Tiny Universe"
+      ],
+      "homeUrl": "https://archive.org/details/KarlDensonsTinyUniverse"
+    },
+    {
+      "name": "Tea Leaf Green",
+      "artistId": "tea-leaf-green",
+      "collection": "etree",
+      "creators": [
+        "Tea Leaf Green"
+      ],
+      "homeUrl": "https://archive.org/details/TeaLeafGreen"
+    },
+    {
+      "name": "Galactic",
+      "artistId": "galactic",
+      "collection": "etree",
+      "creators": [
+        "Galactic"
+      ],
+      "homeUrl": "https://archive.org/details/Galactic"
+    },
+    {
+      "name": "moe.",
+      "artistId": "moe",
+      "collection": "etree",
+      "creators": [
+        "moe."
+      ],
+      "homeUrl": "https://archive.org/details/moe"
     }
-  ],
-  "protectedGroup": [
-    "Drums",
-    "Space",
-    "Jam"
-  ],
-  "excludedDates": {
-    "1987-07-04": "Dylan & the Dead: the Archive's tapes include Bob Dylan's set, which setlist.fm files under Bob Dylan",
-    "1987-07-10": "Dylan & the Dead: the Archive's tapes include Bob Dylan's set, which setlist.fm files under Bob Dylan",
-    "1987-07-12": "Dylan & the Dead: the Archive's tapes include Bob Dylan's set, which setlist.fm files under Bob Dylan"
-  }
+  ]
 }

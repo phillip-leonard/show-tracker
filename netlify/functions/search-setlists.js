@@ -27,13 +27,16 @@ function getDb() {
 
 // --- Cache helpers ---
 
-function buildCacheKey(artistName, artistMbid, year, venueName, cityName, page) {
+// `date` is added to the key only when given, so every key written before
+// it existed still names the same query.
+function buildCacheKey(artistName, artistMbid, year, venueName, cityName, page, date) {
   const normalized = JSON.stringify({
     a: artistMbid ? `mbid:${artistMbid}` : (artistName || '').toLowerCase().trim(),
     y: (year || '').trim(),
     v: (venueName || '').toLowerCase().trim(),
     c: (cityName || '').toLowerCase().trim(),
     p: String(page || '1'),
+    ...(date ? { d: date } : {}),
   });
   return crypto.createHash('md5').update(normalized).digest('hex');
 }
@@ -102,6 +105,14 @@ exports.handler = async function(event) {
   }
 
   const { artistName, artistMbid, year, venueName, cityName, p } = event.queryStringParameters || {};
+  // One day, YYYY-MM-DD (the spreadsheet import matches a row with it).
+  // setlist.fm takes dd-MM-yyyy.
+  const rawDate = (event.queryStringParameters || {}).date;
+  const dateMatch = rawDate ? String(rawDate).match(/^(\d{4})-(\d{2})-(\d{2})$/) : null;
+  if (rawDate && !dateMatch) {
+    return { statusCode: 400, headers: CORS_HEADERS, body: JSON.stringify({ error: 'date must be YYYY-MM-DD' }) };
+  }
+  const date = dateMatch ? rawDate : '';
 
   // An artist is optional: a venue or a city on its own is a real search
   // ("every show at Red Rocks in 2024"). A year on its own is not — that
@@ -120,11 +131,12 @@ exports.handler = async function(event) {
   if (year) params.set('year', year);
   if (venueName) params.set('venueName', venueName);
   if (cityName) params.set('cityName', cityName);
+  if (dateMatch) params.set('date', `${dateMatch[3]}-${dateMatch[2]}-${dateMatch[1]}`);
 
   const artistLabel = artistMbid
     ? `mbid:${artistMbid}`
     : (artistName || `venue:${venueName || ''} city:${cityName || ''}`);
-  const cacheKey = buildCacheKey(artistName, artistMbid, year, venueName, cityName, p);
+  const cacheKey = buildCacheKey(artistName, artistMbid, year, venueName, cityName, p, date);
   const db = getDb();
 
   // 1. Check cache. An expired entry is a miss, never a fallback: see
@@ -153,6 +165,7 @@ exports.handler = async function(event) {
           venueName: venueName || '',
           cityName: cityName || '',
           page: p || '1',
+          date,
         },
       }).then(() => console.log(`[CACHE WRITE] ${artistLabel} p${p || 1} → TTL: ${ttlHours}h`));
     }

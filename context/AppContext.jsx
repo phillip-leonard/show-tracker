@@ -331,6 +331,12 @@ export function AppProvider({ children }) {
 
   // ── Core state ──────────────────────────────────────────────────────
   const [shows, setShows] = useState([]);
+  // The shows as of the last add, for addShow called in a loop (the file
+  // import, a ticket scan): each call's `shows` is the render it was
+  // created in, so building on it made every add in the loop replace the
+  // one before. A guest's import kept only its last show.
+  const latestShows = useRef(shows);
+  latestShows.current = shows;
   // Progress of an in-flight bulk tour add (see addShowsFromTour). Lives
   // here rather than in the modal so the run survives the modal closing.
   // null when nothing is running.
@@ -1507,7 +1513,7 @@ export function AppProvider({ children }) {
   // ── Duplicate detection helper ─────────────────────────────────────
   const findDuplicateShow = (showData) => {
     if (!showData.artist || !showData.date) return null;
-    return shows.find(s =>
+    return latestShows.current.find(s =>
       s.artist?.toLowerCase().trim() === showData.artist?.toLowerCase().trim() &&
       s.venue?.toLowerCase().trim() === (showData.venue || '').toLowerCase().trim() &&
       s.date === showData.date
@@ -1575,10 +1581,11 @@ export function AppProvider({ children }) {
     const showId = mintShowId();
     const newShow = buildShowDoc(enriched, showId);
 
-    const isFirstShow = shows.length === 0;
+    const isFirstShow = latestShows.current.length === 0;
 
     if (guestMode) {
-      const updatedShows = [...shows, newShow];
+      const updatedShows = [...latestShows.current, newShow];
+      latestShows.current = updatedShows;
       setShows(updatedShows);
       saveGuestShows(updatedShows);
       setShowForm(false);
@@ -1619,7 +1626,8 @@ export function AppProvider({ children }) {
     try {
       const showRef = doc(db, 'users', user.uid, 'shows', showId);
       await writeShowDoc(user.uid, newShow);
-      const updatedShows = [...shows, newShow];
+      const updatedShows = [...latestShows.current, newShow];
+      latestShows.current = updatedShows;
       setShows(updatedShows);
       setShowForm(false);
 

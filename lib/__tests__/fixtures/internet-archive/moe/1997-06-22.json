@@ -1,0 +1,19 @@
+{
+ "capturedAt": "2026-10-29",
+ "artistId": "moe",
+ "date": "1997-06-22",
+ "responses": {
+  "/advancedsearch.php?q=collection%3Aetree+AND+%28creator%3A%22moe.%22%29+AND+date%3A1997-06-22&fl%5B%5D=identifier&fl%5B%5D=title&fl%5B%5D=creator&fl%5B%5D=venue&fl%5B%5D=coverage&fl%5B%5D=downloads&fl%5B%5D=description&fl%5B%5D=source&fl%5B%5D=licenseurl&sort%5B%5D=downloads+desc&rows=50&output=json": {
+   "status": 200,
+   "body": "{\"response\":{\"numFound\":1,\"start\":0,\"docs\":[{\"identifier\":\"moe.1997-06-22\",\"title\":\"moe. Live at Lakewood Amphitheater on 1997-06-22\",\"creator\":\"moe.\",\"venue\":\"Lakewood Amphitheater\",\"coverage\":\"Atlanta, GA\",\"downloads\":465,\"description\":\"moe. 6/22/97 Lakewood Amphitheater - Atlanta, GA Source: Shure BG 4.0 > D7 > CD Transfer: CD > EAC > Audacity > WAV > FLAC Taped by Christian Richart Extracted/Seeded by Bill Graves Furthur Festival 1. Timmy Tucker 2. She Sends Me 3. Brent Black 4. 32 Things 5. Spine of A Dog This show is part of The Furthur Project - http://thefurthurproject.wordpress.com/\",\"source\":\"Shure BG 4.0 > D7 > CD\"}]}}"
+  },
+  "/metadata/moe.1997-06-22": {
+   "status": 200,
+   "body": "{\"metadata\":{\"identifier\":\"moe.1997-06-22\",\"creator\":\"moe.\",\"title\":\"moe. Live at Lakewood Amphitheater on 1997-06-22\",\"venue\":\"Lakewood Amphitheater\",\"coverage\":\"Atlanta, GA\",\"description\":\"moe.\\n6/22/97\\nLakewood Amphitheater - Atlanta, GA\\n\\nSource: Shure BG 4.0 > D7 > CD\\nTransfer: CD > EAC > Audacity > WAV > FLAC\\nTaped by Christian Richart\\nExtracted/Seeded by Bill Graves\\n\\nFurthur Festival\\n\\n1. Timmy Tucker\\n2. She Sends Me\\n3. Brent Black\\n4. 32 Things\\n5. Spine of A Dog\\n\\nThis show is part of The Furthur Project -\\nhttp://thefurthurproject.wordpress.com/\"},\"files\":[{\"name\":\"Moe.-1997-06-22.ffp.txt\",\"format\":\"Text\",\"title\":\"moe. - 1997-06-22.ffp\"},{\"name\":\"Moe.-1997-06-22.txt\",\"format\":\"Text\",\"title\":\"moe. - 1997-06-22\"},{\"name\":\"moe._1997-06-22_D1T01.flac\",\"format\":\"Flac\",\"title\":\"Timmy Tucker\",\"track\":\"01\"},{\"name\":\"moe._1997-06-22_D1T01.mp3\",\"format\":\"VBR MP3\",\"title\":\"Timmy Tucker\",\"track\":\"01\"},{\"name\":\"moe._1997-06-22_D1T01.ogg\",\"format\":\"Ogg Vorbis\"},{\"name\":\"moe._1997-06-22_D1T02.flac\",\"format\":\"Flac\",\"title\":\"She Sends Me\",\"track\":\"02\"},{\"name\":\"moe._1997-06-22_D1T02.mp3\",\"format\":\"VBR MP3\",\"title\":\"She Sends Me\",\"track\":\"02\"},{\"name\":\"moe._1997-06-22_D1T02.ogg\",\"format\":\"Ogg Vorbis\"},{\"name\":\"moe._1997-06-22_D1T03.flac\",\"format\":\"Flac\",\"title\":\"Brent Black\",\"track\":\"03\"},{\"name\":\"moe._1997-06-22_D1T03.mp3\",\"format\":\"VBR MP3\",\"title\":\"Brent Black\",\"track\":\"03\"},{\"name\":\"moe._1997-06-22_D1T03.ogg\",\"format\":\"Ogg Vorbis\"},{\"name\":\"moe._1997-06-22_D1T04.flac\",\"format\":\"Flac\",\"title\":\"32 Things\",\"track\":\"04\"},{\"name\":\"moe._1997-06-22_D1T04.mp3\",\"format\":\"VBR MP3\",\"title\":\"32 Things\",\"track\":\"04\"},{\"name\":\"moe._1997-06-22_D1T04.ogg\",\"format\":\"Ogg Vorbis\"},{\"name\":\"moe._1997-06-22_D1T05.flac\",\"format\":\"Flac\",\"title\":\"Spine of A Dog\",\"track\":\"05\"},{\"name\":\"moe._1997-06-22_D1T05.mp3\",\"format\":\"VBR MP3\",\"title\":\"Spine of A Dog\",\"track\":\"05\"},{\"name\":\"moe._1997-06-22_D1T05.ogg\",\"format\":\"Ogg Vorbis\"}]}"
+  },
+  "/download/moe.1997-06-22/Moe.-1997-06-22.txt": {
+   "status": 200,
+   "body": "moe.\n6/22/97\nLakewood Amphitheater - Atlanta, GA\n\nSource: Shure BG 4.0 > D7 > CD\nTransfer: CD > EAC > Audacity > WAV > FLAC\nTaped by Christian Richart\nExtracted/Seeded by Bill Graves\n\nFurthur Festival\n\n1. Timmy Tucker\n2. She Sends Me\n3. Brent Black\n4. 32 Things\n5. Spine of A Dog\n\nThis show is part of The Furthur Project -\nhttp://thefurthurproject.wordpress.com/"
+  }
+ }
+}

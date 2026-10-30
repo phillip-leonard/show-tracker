@@ -7,7 +7,9 @@
 // Rendered off the stored `setlistSource` rather than by sniffing for
 // band-source fields, and only when the show has songs to credit. The
 // Archive holds many tapes of a night, so its line names the one the
-// setlist was read from (docs/setlist-sources/internet-archive.md).
+// setlist was read from, and says what a tape setlist is: what one fan
+// recording captured, which can be incomplete
+// (docs/setlist-sources/internet-archive.md).
 
 import React from 'react';
 import { sourceLabel, sourceHomeUrl } from '@/lib/setlistSources';
@@ -26,14 +28,23 @@ export function bandSourceHref(show) {
 export default function BandSourceAttribution({ show, className = 'mt-3 text-[11px] text-muted' }) {
   if (!show?.setlistSource || show.setlistSource === 'setlistfm') return null;
   if (!Array.isArray(show.setlist) || show.setlist.length === 0) return null;
-  const isArchive = show.setlistSource === 'archive';
+  if (show.setlistSource === 'archive') {
+    return (
+      <p className={className}>
+        Setlist from a tape on{' '}
+        <a href={bandSourceHref(show)} target="_blank" rel="noopener noreferrer" className={LINK_CLASS}>
+          the {sourceLabel(show.setlistSource)}
+        </a>
+        {show.sourceShowId ? `, recording ${show.sourceShowId}` : ''}. Tape setlists can be incomplete.
+      </p>
+    );
+  }
   return (
     <p className={className}>
       Setlist via{' '}
       <a href={bandSourceHref(show)} target="_blank" rel="noopener noreferrer" className={LINK_CLASS}>
-        {isArchive ? 'the ' : ''}{sourceLabel(show.setlistSource)}
+        {sourceLabel(show.setlistSource)}
       </a>
-      {isArchive && show.sourceShowId ? `, recording ${show.sourceShowId}` : ''}
     </p>
   );
 }

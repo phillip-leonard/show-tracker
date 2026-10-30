@@ -30,7 +30,7 @@ export function ArchiveAttribution({ identifier, permalink, className = '' }) {
       rel="noopener"
       className={`inline-flex items-center gap-1 text-[11px] text-muted underline decoration-dotted hover:text-brand transition-colors ${className}`}
     >
-      Setlist via the Internet Archive{identifier ? ` · ${identifier}` : ''}
+      Setlist from a tape on the Internet Archive{identifier ? ` · ${identifier}` : ''}
       <ExternalLink className="w-3 h-3" />
     </a>
   );

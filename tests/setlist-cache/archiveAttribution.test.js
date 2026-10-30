@@ -50,7 +50,21 @@ test('credit HTML links the archive.org item and names the recording', () => {
   assert.ok(html.includes(`href="https://archive.org/details/${ITEM}"`), html);
   assert.ok(html.includes('the Internet Archive'), html);
   assert.ok(html.includes(`recording ${ITEM}`), html);
+  assert.ok(html.includes('Setlist from a tape on'), html);
+  assert.ok(html.includes('Tape setlists can be incomplete.'), html);
   assert.ok(!/nofollow/i.test(html));
+});
+
+test('a Live Music Archive band links its own tape, or its own Archive page', () => {
+  const kw = { artist: 'Keller Williams', setlistSource: 'archive', sourceShowId: 'kw2003-07-04.shnf', setlist: [{ name: 'Freekshow' }] };
+  assert.strictEqual(archiveItemUrl(kw), 'https://archive.org/details/kw2003-07-04.shnf');
+  assert.strictEqual(archiveItemUrl({ artist: 'Keller Williams', setlistSource: 'archive' }), 'https://archive.org/details/KellerWilliams');
+});
+
+test('the app credit names a tape and says tape setlists can be incomplete', () => {
+  const src = read('components/shows/BandSourceAttribution.jsx');
+  assert.ok(/Setlist from a tape on/.test(src));
+  assert.ok(/Tape setlists can be incomplete\./.test(src));
 });
 
 test('item url: stored permalink, then the item id, then the collection', () => {
