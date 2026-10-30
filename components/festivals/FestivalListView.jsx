@@ -25,6 +25,8 @@ import FestivalFormModal from './FestivalFormModal';
 import ShowFilters from '@/components/shows/ShowFilters';
 import useShowFilters from '@/hooks/useShowFilters';
 import { countActiveShowFilters } from '@/lib/showFilters';
+import useContentColumnWidth from '@/hooks/useContentColumnWidth';
+import { WIDE_LIST_MIN_WIDTH } from '@/lib/platform';
 
 export default function FestivalListView() {
   const router = useRouter();
@@ -34,6 +36,7 @@ export default function FestivalListView() {
     filters, setSearchTerm, setFilterYear, setFilterDate, clearFilters, filteredShows,
   } = useShowFilters(shows);
   const filtering = countActiveShowFilters(filters) > 0;
+  const wide = useContentColumnWidth() >= WIDE_LIST_MIN_WIDTH;
 
   // Creating drops the user straight onto the new festival's page, which is
   // where shows get attached (both from their own history and from a
@@ -76,7 +79,7 @@ export default function FestivalListView() {
   );
 
   return (
-    <div className="max-w-3xl mx-auto">
+    <div className={wide ? '' : 'max-w-3xl mx-auto'}>
       <PageHeader
         eyebrow="Festivals"
         title="Your festivals"
@@ -114,7 +117,7 @@ export default function FestivalListView() {
               action={<Button variant="secondary" onClick={clearFilters}>Clear filters</Button>}
             />
           ) : (
-            <div className="space-y-3">
+            <div className={wide ? 'grid grid-cols-2 gap-3' : 'space-y-3'}>
               {visible.map(festival => {
                 const count = showCountByFestival.get(festival.id) || 0;
                 return (

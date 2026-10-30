@@ -31,7 +31,7 @@ const Select = forwardRef(function Select(
           ref={ref}
           // 16px below md: (iOS zooms a focused control under 16px), and
           // min-h-touch for the 44pt target.
-          className={`flex-1 bg-transparent text-[16px] md:text-[15px] text-primary outline-none py-2.5 min-h-touch md:min-h-0 pl-3.5 pr-10 appearance-none cursor-pointer ${className}`}
+          className={`flex-1 bg-transparent text-[16px] md:text-[15px] text-primary outline-none py-2.5 min-h-touch md:fine:min-h-0 pl-3.5 pr-10 appearance-none cursor-pointer ${className}`}
           {...rest}
         >
           {options.map((opt) =>

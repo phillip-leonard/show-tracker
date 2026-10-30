@@ -239,7 +239,7 @@ function SetlistEditor({ show, allShows, onAddSong, onRateSong, onCommentSong, o
                         <p className="text-primary text-xs leading-relaxed mb-2">
                           Create a Spotify or Apple Music playlist from this setlist with one tap!
                         </p>
-                        <button onClick={dismissPlaylistTip} className="text-brand hover:text-primary text-xs font-medium min-h-touch md:min-h-0 inline-flex items-center transition-colors">Got it ✓</button>
+                        <button onClick={dismissPlaylistTip} className="text-brand hover:text-primary text-xs font-medium min-h-touch md:fine:min-h-0 inline-flex items-center transition-colors">Got it ✓</button>
                       </div>
                     </div>
                     {/* Mobile: tooltip below the button */}
@@ -249,7 +249,7 @@ function SetlistEditor({ show, allShows, onAddSong, onRateSong, onCommentSong, o
                         <p className="text-primary text-xs leading-relaxed mb-2">
                           Create a Spotify or Apple Music playlist from this setlist!
                         </p>
-                        <button onClick={dismissPlaylistTip} className="text-brand hover:text-primary text-xs font-medium min-h-touch md:min-h-0 inline-flex items-center transition-colors">Got it ✓</button>
+                        <button onClick={dismissPlaylistTip} className="text-brand hover:text-primary text-xs font-medium min-h-touch md:fine:min-h-0 inline-flex items-center transition-colors">Got it ✓</button>
                       </div>
                     </div>
                   </>

@@ -37,7 +37,7 @@ export default function Tag({
         // they were ~26px tall. Taller padding below md: rather than a
         // bigger pill, so the desktop chip is unchanged.
         'py-2.5 md:py-1',
-        interactive && 'min-h-touch md:min-h-0 pressable',
+        interactive && 'min-h-touch md:fine:min-h-0 pressable',
         selected
           ? 'bg-brand-subtle border-brand text-brand'
           : 'bg-surface border-subtle text-secondary hover:border-active hover:text-primary',

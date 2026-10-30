@@ -115,14 +115,14 @@ export default function StatsSongsPage() {
               <button
                 type="button"
                 onClick={() => toggleSort('timesSeen')}
-                className="flex items-center gap-1 whitespace-nowrap hover:text-primary transition-colors w-16 sm:w-24 flex-shrink-0 justify-end text-right min-h-touch md:min-h-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 rounded"
+                className="flex items-center gap-1 whitespace-nowrap hover:text-primary transition-colors w-16 sm:w-24 flex-shrink-0 justify-end text-right min-h-touch md:fine:min-h-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 rounded"
               >
                 Times Seen {sortKey === 'timesSeen' && <SortIcon className="w-3 h-3" />}
               </button>
               <button
                 type="button"
                 onClick={() => toggleSort('gap')}
-                className="flex items-center gap-1 whitespace-nowrap hover:text-primary transition-colors w-16 sm:w-24 flex-shrink-0 justify-end min-h-touch md:min-h-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 rounded"
+                className="flex items-center gap-1 whitespace-nowrap hover:text-primary transition-colors w-16 sm:w-24 flex-shrink-0 justify-end min-h-touch md:fine:min-h-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 rounded"
               >
                 Gap {sortKey === 'gap' && <SortIcon className="w-3 h-3" />}
               </button>

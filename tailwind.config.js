@@ -84,5 +84,13 @@ module.exports = {
       },
     },
   },
-  plugins: [],
+  plugins: [
+    // `fine:` — the primary pointer is a mouse or trackpad. `md:` means wide,
+    // not "has a mouse": an iPad is wide and touch, so anything that shrinks
+    // for a mouse (44pt tap targets, keyboard-shortcut hints) gates on this
+    // as well as on the width.
+    ({ addVariant }) => {
+      addVariant('fine', '@media (hover: hover) and (pointer: fine)');
+    },
+  ],
 }

@@ -21,7 +21,7 @@ export default function BandStatsLink({ artist, className = '' }) {
       href={bandHref(band.slug)}
       onClick={(e) => e.stopPropagation()}
       aria-label={`${band.name} band stats`}
-      className={`inline-flex items-center gap-1.5 min-h-touch md:min-h-0 px-3 py-1.5 rounded-full text-sm font-semibold border border-subtle text-secondary hover:text-brand hover:border-brand/50 transition-colors ${className}`}
+      className={`inline-flex items-center gap-1.5 min-h-touch md:fine:min-h-0 px-3 py-1.5 rounded-full text-sm font-semibold border border-subtle text-secondary hover:text-brand hover:border-brand/50 transition-colors ${className}`}
     >
       <BarChart3 className="w-4 h-4" />
       Band stats

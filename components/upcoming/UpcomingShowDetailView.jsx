@@ -147,7 +147,7 @@ export default function UpcomingShowDetailView({
               href={show.ticketUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-brand hover:underline min-h-touch md:min-h-0"
+              className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-brand hover:underline min-h-touch md:fine:min-h-0"
             >
               <Ticket className="w-4 h-4" />
               Tickets

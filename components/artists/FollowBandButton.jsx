@@ -53,7 +53,7 @@ export default function FollowBandButton({ artist, compact = false, className = 
       onClick={onClick}
       aria-pressed={following}
       aria-label={label}
-      className={`inline-flex items-center gap-1.5 min-h-touch md:min-h-0 px-3 py-1.5 rounded-full text-sm font-semibold border transition-colors ${
+      className={`inline-flex items-center gap-1.5 min-h-touch md:fine:min-h-0 px-3 py-1.5 rounded-full text-sm font-semibold border transition-colors ${
         following
           ? 'bg-brand/10 text-brand border-brand/40'
           : 'bg-transparent text-secondary border-subtle hover:text-primary hover:border-active'

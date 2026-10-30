@@ -580,7 +580,7 @@ function SearchView({ onImport, onImportMany, bulkAddProgress, existingShows = [
                               {songCount > 0 && (
                                 <button
                                   onClick={() => setExpandedSetlist(isExpanded ? null : setlist.id)}
-                                  className="flex items-center gap-1 text-xs text-secondary hover:text-primary mt-2 min-h-touch md:min-h-0 transition-colors pressable"
+                                  className="flex items-center gap-1 text-xs text-secondary hover:text-primary mt-2 min-h-touch md:fine:min-h-0 transition-colors pressable"
                                 >
                                   <ChevronDown className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
                                   {songCount} songs
@@ -683,7 +683,7 @@ function SearchView({ onImport, onImportMany, bulkAddProgress, existingShows = [
                       {songCount > 0 && (
                         <button
                           onClick={() => setExpandedSetlist(isExpanded ? null : setlist.id)}
-                          className="flex items-center gap-1 text-xs text-secondary hover:text-primary mt-2 min-h-touch md:min-h-0 transition-colors pressable"
+                          className="flex items-center gap-1 text-xs text-secondary hover:text-primary mt-2 min-h-touch md:fine:min-h-0 transition-colors pressable"
                         >
                           <ChevronDown className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
                           {songCount} songs
