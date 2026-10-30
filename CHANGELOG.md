@@ -34,11 +34,16 @@ for v1.0 in #293. The first submission needs a 13" screenshot set.
 - **44pt tap targets on touch screens at every width.** `min-h-touch
   md:min-h-0` assumed wide meant a mouse. The shrink now also needs the new
   `fine:` variant, which also hides the sidebar's `⌘K` hint on touch screens.
+- **The show filter's date box is no longer blank on touch screens.** iOS draws
+  an empty date input with no placeholder, so the filter on My Shows, Stats,
+  Tours and Festivals looked like an empty box, on iPhone as well as iPad. It
+  now reads "Any date" until a date is picked.
 
 **Web:** the split view and wide lists are native only
 (`hooks/useContentColumnWidth.js`), and with a mouse nothing changes at any
 width. A touch screen in a browser at 768px or wider, such as an iPad in
-Safari, gets the 44pt targets and loses the `⌘K` hint.
+Safari, gets the 44pt targets, loses the `⌘K` hint and gets the "Any date"
+label.
 
 ---
 
