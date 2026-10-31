@@ -721,6 +721,51 @@ service cloud.firestore {
     // One doc per user per year (docId `${uid}_${year}`). Owner always
     // reads/writes their own; anyone can read a doc the owner has marked
     // public (for the shareable link), enforced by the `privacy` field.
+    // ── On-sale alerts (v5.52.0) ──────────────────────────────────────────────
+    // Home location, radius and time zone. Not on userProfiles, which every
+    // signed-in user can read: Profile promises home location is never public.
+    match /alertSettings/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow create, update: if request.auth != null
+                    && request.auth.uid == uid
+                    && request.resource.data.uid == uid
+                    && request.resource.data.keys().hasOnly(
+                         ['uid', 'homeLocation', 'alertRadiusMiles', 'timezone', 'updatedAt'])
+                    && (!('alertRadiusMiles' in request.resource.data)
+                        || request.resource.data.alertRadiusMiles in [25, 50, 100, 250])
+                    && (!('timezone' in request.resource.data)
+                        || (request.resource.data.timezone is string
+                            && request.resource.data.timezone.size() <= 64))
+                    && (!('homeLocation' in request.resource.data)
+                        || request.resource.data.homeLocation == null
+                        || (request.resource.data.homeLocation.keys().hasOnly(['label', 'lat', 'lng'])
+                            && request.resource.data.homeLocation.label is string
+                            && request.resource.data.homeLocation.lat is number
+                            && request.resource.data.homeLocation.lng is number));
+      allow delete: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // Written only by the scan and reminder jobs, through the Admin SDK.
+    match /onsaleAlerts/{alertId} {
+      allow read: if request.auth != null && resource.data.uid == request.auth.uid;
+      allow write: if false;
+    }
+
+    // Parsed emails, raw emails and the shared band record (its sender
+    // allowlist and sign-up links): server writes, admin reads.
+    match /presaleIntel/{id} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+    match /inboundEmails/{id} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+    match /artists/{id} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
     match /yearInReviews/{docId} {
       allow read:   if request.auth != null
                     && (resource.data.userId == request.auth.uid
