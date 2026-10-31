@@ -77,8 +77,13 @@ Important rules:
 - Dates must always be YYYY-MM-DD format regardless of how they appear in the screenshot`;
 
   const requestBody = JSON.stringify({
-    model: 'claude-sonnet-4-20250514',
-    max_tokens: 4096,
+    model: 'claude-sonnet-5-5',
+    // Thinking counts toward max_tokens, and this model thinks by default.
+    max_tokens: 16000,
+    // Plain extraction, and this function has to answer inside Netlify's
+    // synchronous limit. The model's default effort is high.
+    output_config: { effort: 'low' },
+    fallbacks: 'default',
     messages: [
       {
         role: 'user',
@@ -109,6 +114,7 @@ Important rules:
         'Content-Type': 'application/json',
         'x-api-key': apiKey,
         'anthropic-version': '2023-06-01',
+        'anthropic-beta': 'server-side-fallback-2026-07-01',
         'Content-Length': Buffer.byteLength(requestBody)
       }
     };
@@ -125,10 +131,11 @@ Important rules:
           const parsed = JSON.parse(data);
 
           if (res.statusCode !== 200) {
+            console.error('Anthropic API error', res.statusCode, data);
             resolve({
               statusCode: res.statusCode,
               headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
-              body: JSON.stringify({ error: 'Anthropic API error', details: parsed })
+              body: JSON.stringify({ error: 'Couldn\'t read that screenshot right now. Please try again in a few minutes.', details: parsed })
             });
             return;
           }
@@ -181,10 +188,11 @@ Important rules:
     });
 
     req.on('error', (error) => {
+      console.error('Request to Anthropic failed', error.message);
       resolve({
         statusCode: 500,
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
-        body: JSON.stringify({ error: 'Request to Anthropic failed', details: error.message })
+        body: JSON.stringify({ error: 'Couldn\'t read that screenshot right now. Please try again in a few minutes.', details: error.message })
       });
     });
 
