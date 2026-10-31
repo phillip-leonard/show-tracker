@@ -6,8 +6,8 @@ All notable changes to mysetlists.net are documented here.
 
 ## [5.52.0] — 2026-10-31
 
-Ships in iOS 3.12.3 (`MARKETING_VERSION` 3.12.1 → 3.12.3, because open PR #383
-took 3.12.2; the build number is left to Xcode Cloud).
+Ships in iOS 3.12.3 (`MARKETING_VERSION` 3.12.2 → 3.12.3; the build number is
+left to Xcode Cloud).
 
 **On-sale alerts for followed bands.** Followers with a home city hear when a
 band has a show going on sale within their radius: venue, date, presale windows
@@ -56,6 +56,24 @@ for the existing tour alerts, which do nothing without it) and
 `inbound.mysetlists.net`; and the sender allowlists filled in.
 
 ---
+## [5.51.1] — 2026-10-31
+
+Ships in iOS 3.12.2 (`MARKETING_VERSION` 3.12.1 → 3.12.2, the default patch bump;
+the build number is left to Xcode Cloud).
+
+**Scanning tickets and importing screenshots work again.** Both functions asked
+for `claude-sonnet-4-20250514`, which Anthropic retired on June 15, 2026, so
+every scan since then has failed with a 404. They now use `claude-sonnet-5-5`.
+
+- **Request changes for the new model.** It thinks by default and its default
+  effort is `high`, so `analyze-tickets` and `analyze-screenshot` now send
+  `output_config.effort: 'low'`, which suits plain extraction and keeps them
+  inside Netlify's synchronous function limit. `max_tokens` goes from 4096 to
+  16000 because thinking counts toward it. Both also opt in to
+  `fallbacks: 'default'`.
+- **A readable error.** A failed call showed the user "Anthropic API error". It
+  now says the scan couldn't be read and to try again, and the upstream failure
+  goes to the function log, where an outage like this one can be seen.
 
 ## [5.51.0] — 2026-10-30
 
