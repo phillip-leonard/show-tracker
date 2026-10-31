@@ -83,6 +83,10 @@ const OWNED_DOCUMENTS = [
 
   // One doc per device that takes push alerts, id = the FCM token (5.49.0).
   { collection: 'pushTokens', fields: ['userId'] },
+
+  // On-sale alerts (5.52.0): home location and radius, and the alerts sent.
+  { collection: 'alertSettings', fields: ['uid'] },
+  { collection: 'onsaleAlerts', fields: ['uid'] },
 ];
 
 /**

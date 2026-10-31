@@ -13,6 +13,17 @@ const STREAMING_MENTION = /spotify|apple\s*music/i;
 function ReleaseNotesView() {
   const releases = [
     {
+      version: '5.52.0',
+      date: 'October 31, 2026',
+      title: 'On-sale alerts',
+      changes: [
+        'When a band you follow has a show going on sale near you, you\u2019ll hear about it, with presale times and the public on-sale in your time zone',
+        'Alerts include a presale code when the band\u2019s own email shares one, and otherwise a link to sign up for the presale',
+        'A reminder goes out about an hour before the sale opens',
+        'Add your city and choose how far you\u2019d travel in Profile, under Notifications. Only you can see your city',
+      ]
+    },
+    {
       version: '5.51.0',
       date: 'October 30, 2026',
       title: 'MySetlists on iPad',

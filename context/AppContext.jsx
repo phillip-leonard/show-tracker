@@ -16,6 +16,7 @@ import { ADMIN_EMAILS } from '@/lib/constants';
 import { storage, STORAGE_KEYS } from '@/lib/storage';
 import { setSignedInHint, clearSignedInHint } from '@/lib/signedInHint';
 import { apiUrl } from '@/lib/api';
+import { loadAlertSettings } from '@/lib/alertSettings';
 import { showHref, upcomingShowHref } from '@/lib/showRouting';
 import { setlistToShowData } from '@/lib/setlistSearch';
 import {
@@ -3774,15 +3775,27 @@ export function AppProvider({ children }) {
         const updated = [...favoriteArtists, newFav];
         setFavoriteArtists(updated);
         await updateDoc(profileRef, { favoriteArtists: updated });
+        // Finds the band on Ticketmaster for on-sale alerts. Not waited for,
+        // and the scan backfills anything this misses.
+        user.getIdToken()
+          .then((idToken) => fetch(apiUrl('/.netlify/functions/resolve-artist'), {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${idToken}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ artistName: artistName.trim() }),
+          }))
+          .catch(() => {});
+        const noCity = await loadAlertSettings(user.uid).then((s) => !s?.homeLocation).catch(() => false);
+        const cityNudge = noCity ? { href: '/profile/', actionLabel: 'Add city' } : {};
+        const cityLine = noCity ? ' Add your city to get on-sale alerts.' : '';
         // The first follow on an iPhone that has never been asked offers
         // push, with an explainer before iOS's own prompt.
         if (await shouldOfferPush()) {
           markPushOffered();
           setPushOffer(artistName.trim());
         } else if ((await pushPermission()) === 'granted') {
-          setToast(`Following ${artistName.trim()}. We'll let you know when they announce a tour.`);
+          setToast({ message: `Following ${artistName.trim()}. We'll let you know when they announce a tour.${cityLine}`, ...cityNudge });
         } else {
-          setToast(`Following ${artistName.trim()}. We'll email you when they announce a tour.`);
+          setToast({ message: `Following ${artistName.trim()}. We'll email you when they announce a tour.${cityLine}`, ...cityNudge });
         }
       }
     } catch (err) {

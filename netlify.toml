@@ -26,6 +26,21 @@
 [functions."followed-band-notifications"]
   schedule = "30 13 * * *"
 
+# On-sale alerts (5.52.0): shows going on sale near a follower of the band.
+# Every 6 hours, offset from the band-page snapshot. The scheduled function only
+# starts onsale-scan-background.js, which does the work. See
+# netlify/functions/lib/onsaleAlerts.js.
+[functions."onsale-scan"]
+  schedule = "40 */6 * * *"
+
+# The reminder about an hour before a sale opens.
+[functions."onsale-reminder"]
+  schedule = "*/15 * * * *"
+
+# Raw presale emails are deleted after 90 days.
+[functions."inbound-email-cleanup"]
+  schedule = "50 3 * * *"
+
 # Moderation SLA reminder (Guideline 1.2) — re-sends the admin email for
 # any report open more than 12 hours, so the 24-hour review commitment in
 # the Community Guidelines cannot be missed silently. Every four hours
