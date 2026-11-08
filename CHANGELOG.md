@@ -4,6 +4,75 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.54.0] — 2026-11-07
+
+Ships in iOS 3.12.6 (`MARKETING_VERSION` 3.12.2 → 3.12.6, the default patch
+bump; 3.12.4 went to the community leaderboard, #385, at 5.52.1, and the open
+on-sale alerts PR, #384, has taken 5.53.0 and 3.12.5. The build number is left
+to Xcode Cloud).
+
+**Discover bands, and festival picks.** Both use one scoring engine,
+`lib/recommendations.js`, shared by a nightly job and the app.
+
+- **The rule.** A user's seeds are the bands they follow (weight 2.0) and
+  the bands they've seen (1.0), plus 0.1 per extra time seen, capped at +0.5.
+  For each band A, the job counts `fans(A)`, the users who follow A or saw A
+  twice or more. It also counts `co(A,B)`, those of them who saw B twice or
+  more, and `seen2(B)`, everyone who saw B twice or more. The score is
+  `affinity × lift^0.7`, where `affinity = co / (fans + 2)` and lift compares
+  it with `seen2 / active users`. That ranks a band 6 of 10 Goose fans see,
+  and few others do, above Phish, which 8 of the 10 see along with everyone
+  else. Every count is of distinct users, so someone who saw a band 40 times
+  counts once. Tunable constants are at the top of the module.
+- **Band keys.** One key, the band screens' `artistNameKeyLoose`: "Goose
+  (US)", "The Goose" and "goose " merge before counting. Re-implemented in
+  the CommonJS module, and a test asserts the two agree.
+- **Nightly job.** `netlify/functions/band-affinity.js` runs at 14:00 UTC.
+  It's a plain scheduled function, because a full recompute takes seconds at
+  today's size (37 accounts, about 1,500 shows). It writes
+  `bandAffinity/{bandKey}` (top 50 candidates per band) and
+  `bandPopularity/all`, and deletes documents for bands that no longer
+  qualify. Test accounts are left out. The log line reports how many
+  accounts would see at least one suggestion (`withSuggestions` out of
+  `withShows`). At this size that may be few. Lowering `SEEN_THRESHOLD` is
+  the lever if it's too few.
+- **Privacy.** The shared collections hold counts only, never a user id,
+  name or show, and no pair seen by fewer than three people (`MIN_CO_FANS`)
+  is stored. Account deletion doesn't touch them: the next run rebuilds
+  without the account. Discover scores on the device, so a user's own shows
+  and follows never leave it.
+- **Discover** (new left-nav item, signed in only) shows up to 20 bands the
+  user hasn't seen. Each has the reason ("Because you like Goose and
+  Umphrey's McGee"), how many fans of that seed see it often, Follow, and
+  "Not interested". Dismissals are stored in `users/{uid}/discover/prefs`
+  and can be brought back. It reads the heaviest 25 seeds at most. A user
+  with no shows is asked to add or import some. If nothing qualifies, it
+  says so instead of padding the list with popular bands.
+- **Fans of X also see…** appears on band screens and, for every other band,
+  at `/discover/?band=<name>` (a "Fans also see" link in each My Shows
+  artist row). It isn't personalized, and bands the viewer has seen are left
+  out. It's signed in only and not on the public `/artist/` pages.
+- **Festival picks.** An upcoming festival's detail page asks the new
+  `festival-lineup` function for the lineup. The function looks it up on
+  Ticketmaster (the attractions on the festival's own events), refetches at
+  most once a day and only when someone opens the festival, and stores it on
+  the shared festival with a link back to Ticketmaster. The lineup shows in
+  three groups: recommended for you, bands you love (followed, or seen
+  twice+), and everyone else (alphabetical, "Seen once" badged). With no
+  Ticketmaster lineup, the user can type one in. It's saved on their own
+  attendance record and only they see it, so no typed text reaches anyone
+  else (no new UGC on iOS). SeatGeek isn't used: its API terms couldn't be
+  read.
+- **Rules.** `bandAffinity` and `bandPopularity` are signed-in read and
+  client write never. `users/{uid}/discover` is owner-only. The festival
+  update rule now allows the four lineup fields but forbids any client from
+  changing them.
+- **Privacy policy** names the anonymous counts and the Ticketmaster lookup.
+
+**After merging:** deploy `firestore.rules`, then trigger `band-affinity`
+once with "Run now" in the Netlify UI. Otherwise Discover is empty until
+14:00 UTC.
+
 ## [5.51.1] — 2026-10-31
 
 Ships in iOS 3.12.2 (`MARKETING_VERSION` 3.12.1 → 3.12.2, the default patch bump;

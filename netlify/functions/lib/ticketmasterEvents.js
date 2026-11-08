@@ -73,4 +73,4 @@ async function fetchArtistEvents(name, { apiKey, affiliateId, attractionId = nul
   }
 }
 
-module.exports = { fetchArtistEvents };
+module.exports = { fetchArtistEvents, httpsGetJson };

@@ -33,7 +33,7 @@ export default function PrivacyPolicy() {
       <div className="max-w-4xl mx-auto px-4 py-12">
         <div className="bg-hover backdrop-blur-xl border border-subtle rounded-3xl p-8 sm:p-12">
           <h1 className="text-3xl font-bold mb-2">Privacy Policy</h1>
-          <p className="text-secondary mb-8">Last Updated: February 7, 2026</p>
+          <p className="text-secondary mb-8">Last Updated: November 7, 2026</p>
 
           <div className="prose-legal space-y-8 text-secondary leading-relaxed">
             <p>
@@ -70,6 +70,7 @@ export default function PrivacyPolicy() {
                 <li>Authenticate your identity when you sign in</li>
                 <li>Respond to your inquiries and provide support</li>
                 <li>Monitor usage patterns and improve user experience</li>
+                <li>Suggest bands you might like and rank festival lineups for you, using anonymous counts of which bands people follow and see often across all users. These counts never include names or account identifiers, and a band seen by fewer than three people is never counted</li>
                 <li>Protect against unauthorized access, fraud, and abuse</li>
               </ul>
             </section>
@@ -79,6 +80,7 @@ export default function PrivacyPolicy() {
               <p className="mb-3">We use the following third-party services to operate the Service:</p>
               <ul className="list-disc list-inside space-y-2 ml-2">
                 <li><strong className="text-primary">Firebase (Google):</strong> We use Firebase for authentication, data storage, and hosting. Firebase may collect certain technical data as described in <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer" className="text-brand hover:text-brand underline">Google's Privacy Policy</a>.</li>
+                <li><strong className="text-primary">Ticketmaster Discovery API:</strong> When you open an upcoming festival, we look up its lineup on Ticketmaster. Only the festival's name and dates are sent, never anything about you.</li>
                 <li><strong className="text-primary">Setlist.fm API:</strong> We retrieve setlist data from the Setlist.fm API. When you search for or view setlists, queries are made to their service. Please refer to <a href="https://www.setlist.fm/help/privacy" target="_blank" rel="noopener noreferrer" className="text-brand hover:text-brand underline">Setlist.fm's Privacy Policy</a> for information about their data practices.</li>
               </ul>
               <p className="mt-3">We do not sell your personal information to third parties.</p>

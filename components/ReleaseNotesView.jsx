@@ -13,6 +13,18 @@ const STREAMING_MENTION = /spotify|apple\s*music/i;
 function ReleaseNotesView() {
   const releases = [
     {
+      version: '5.54.0',
+      date: 'November 7, 2026',
+      title: 'Discover Bands, and Picks for Your Festival',
+      changes: [
+        'Discover, in the menu, suggests bands you haven\u2019t seen live, based on what fans of your bands go to see again and again, with the reason for each',
+        'Smaller bands that fans of yours love rise above the ones everyone sees, and "Not interested" keeps a band off the list',
+        'Every band screen, and every band in My Shows, shows which bands its fans also see',
+        'Open an upcoming festival to see its lineup from Ticketmaster in three groups: recommended for you, bands you love, and everyone else. You can type in a lineup Ticketmaster doesn\u2019t have, and only you will see it',
+        'Suggestions come from anonymous counts that never include names',
+      ]
+    },
+    {
       version: '5.51.0',
       date: 'October 30, 2026',
       title: 'MySetlists on iPad',

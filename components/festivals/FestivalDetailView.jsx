@@ -29,6 +29,7 @@ import FestivalFormModal from './FestivalFormModal';
 import LeaveFestivalModal from './LeaveFestivalModal';
 import AttachShowsModal from './AttachShowsModal';
 import FestivalLineupModal from './FestivalLineupModal';
+import FestivalPicks from './FestivalPicks';
 import { showHref } from '@/lib/showRouting';
 
 export default function FestivalDetailView({ festival }) {
@@ -165,6 +166,11 @@ export default function FestivalDetailView({ festival }) {
           </div>
         )}
       </div>
+
+      <FestivalPicks
+        festival={festival}
+        onSaveMyLineup={(names) => updateFestivalData(festival.id, { myLineup: names })}
+      />
 
       <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
         <p className="text-[10px] font-extrabold tracking-[0.14em] uppercase text-muted">Shows</p>

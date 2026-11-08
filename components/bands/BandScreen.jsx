@@ -13,6 +13,7 @@ import { ArrowLeft } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { Card, StatFigure } from '@/components/ui';
 import FollowBandButton from '@/components/artists/FollowBandButton';
+import FansAlsoSee from '@/components/discover/FansAlsoSee';
 import MakePosterButton from '@/components/heard/MakePosterButton';
 import { useBandData, useBandPersonal } from '@/hooks/useBandScreens';
 import { songSlugIndex, songSlugFor } from '@/lib/bandScreens';
@@ -155,6 +156,8 @@ export default function BandScreen({ band }) {
       </div>
 
       {personal && <YouAndBand band={band} personal={personal} songSlugForTitle={songSlugForTitle} />}
+
+      <FansAlsoSee name={band.name} limit={8} showEmpty={false} className="mb-6" />
 
       {stats.mostPlayed?.length > 0 && (
         <Section title={`Most played ${artist.name} songs`}>
