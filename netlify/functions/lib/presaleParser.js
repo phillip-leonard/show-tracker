@@ -213,7 +213,7 @@ function validateParsed(parsed, { text, links, senderKind }) {
   if (codeIsPersonal) code = null;
   if (code && !CODE_SHAPE.test(code)) { code = null; reviewReasons.push('code has an unexpected shape'); }
   if (code && !text.toLowerCase().includes(code.toLowerCase())) { code = null; reviewReasons.push('code is not in the email'); }
-  // Decided with Phillip for 5.52.0: Seated's emails bring links and dates, never a code.
+  // Decided with Phillip for 5.53.0: Seated's emails bring links and dates, never a code.
   if (senderKind !== 'band') code = null;
 
   const startsAt = utcIso(parsed.startsAt);

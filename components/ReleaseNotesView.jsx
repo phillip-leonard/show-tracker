@@ -13,8 +13,8 @@ const STREAMING_MENTION = /spotify|apple\s*music/i;
 function ReleaseNotesView() {
   const releases = [
     {
-      version: '5.52.0',
-      date: 'October 31, 2026',
+      version: '5.53.0',
+      date: 'November 7, 2026',
       title: 'On-sale alerts',
       changes: [
         'When a band you follow has a show going on sale near you, you\u2019ll hear about it, with presale times and the public on-sale in your time zone',

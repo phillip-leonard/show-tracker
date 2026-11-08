@@ -26,7 +26,7 @@
 [functions."followed-band-notifications"]
   schedule = "30 13 * * *"
 
-# On-sale alerts (5.52.0): shows going on sale near a follower of the band.
+# On-sale alerts (5.53.0): shows going on sale near a follower of the band.
 # Every 6 hours, offset from the band-page snapshot. The scheduled function only
 # starts onsale-scan-background.js, which does the work. See
 # netlify/functions/lib/onsaleAlerts.js.
@@ -58,6 +58,12 @@
 # (scheduled functions get 30 seconds). See netlify/functions/lib/publicArtistSnapshot.js.
 [functions."public-artist-snapshot"]
   schedule = "20 */6 * * *"
+
+# Community leaderboard (communityStats/global) — every 6 hours. Clients
+# used to rebuild it themselves and could write it; now only this job does
+# (5.52.1). See netlify/functions/lib/communityStats.js.
+[functions."community-stats"]
+  schedule = "50 */6 * * *"
 
 # The "Songs I've heard" poster and preview images: resvg-js is a native
 # module, so it is installed as is rather than bundled, and the poster font

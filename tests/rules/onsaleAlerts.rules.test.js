@@ -1,5 +1,5 @@
 /**
- * Firestore rules tests for on-sale alerts (v5.52.0). The jobs write through
+ * Firestore rules tests for on-sale alerts (v5.53.0). The jobs write through
  * the Admin SDK, which these rules don't apply to.
  *
  * Run with:
