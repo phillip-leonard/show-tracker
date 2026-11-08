@@ -17,7 +17,11 @@ const sources = require('../../netlify/functions/lib/publicArtistSources');
 const snap = require('../../netlify/functions/lib/publicArtistSnapshot');
 const pages = require('../../netlify/functions/lib/publicArtistPages');
 const { routeParams } = require('../../netlify/functions/lib/publicRouteParams');
-const { artistUrls, whichDocument } = require('../../netlify/functions/sitemap');
+const sitemap = require('../../netlify/functions/sitemap');
+const { artistUrls, whichDocument } = sitemap;
+const statsLib = require('../../netlify/functions/lib/artistSnapshotStats');
+const fs = require('node:fs');
+const path = require('node:path');
 const elgoose = require('../../netlify/functions/lib/songfishAdapter');
 const phishnet = require('../../netlify/functions/lib/phishnetAdapter');
 
@@ -139,6 +143,24 @@ test('the sitemap function serves the index, pages and artists documents', () =>
   assert.strictEqual(whichDocument({ path: '/sitemap.xml' }), 'index');
   assert.strictEqual(whichDocument({ path: '/.netlify/functions/sitemap/pages' }), 'pages');
   assert.strictEqual(whichDocument({ path: '/sitemap-artists.xml' }), 'artists');
+  assert.strictEqual(whichDocument({ path: '/sitemap-artist-goose.xml' }), 'band');
+  assert.strictEqual(whichDocument({ path: '/.netlify/functions/sitemap/artist/umphreys-mcgee' }), 'band');
+  assert.strictEqual(sitemap.bandSitemapSlug({ path: '/sitemap-artist-king-gizzard-and-the-lizard-wizard.xml' }), 'king-gizzard-and-the-lizard-wizard');
+  assert.strictEqual(sitemap.bandSitemapSlug({ path: '/.netlify/functions/sitemap/artist/goose' }), 'goose');
+  assert.strictEqual(sitemap.bandSitemapSlug({ path: '/sitemap-artists.xml' }), '');
+});
+
+test('song index URLs route to the song index function, and every band with song pages has a sitemap redirect', () => {
+  assert.deepStrictEqual(routeParams({ path: '/artist/goose/songs/' }, 'songs'), { slug: 'goose' });
+  assert.deepStrictEqual(routeParams({ path: '/.netlify/functions/public-artist-songs/goose' }, 'songs'), { slug: 'goose' });
+  assert.deepStrictEqual(routeParams({ path: '/artist/goose/songs/' }, 'artist'), { slug: '' });
+  assert.deepStrictEqual(routeParams({ path: '/artist/goose/song/songs/' }, 'songs'), { slug: '' });
+  const toml = fs.readFileSync(path.join(__dirname, '../../netlify.toml'), 'utf8');
+  for (const a of snap.publicArtists().filter((x) => x.songPages)) {
+    assert.ok(toml.includes(`from = "/sitemap-artist-${a.slug}.xml"\n  to = "/.netlify/functions/sitemap/artist/${a.slug}"`), `sitemap redirect for ${a.slug}`);
+  }
+  // The song index rules sit above the /artist/* 404.
+  assert.ok(toml.indexOf('from = "/artist/:slug/songs/"') < toml.indexOf('from = "/artist/*"'));
 });
 
 // ── Config ───────────────────────────────────────────────────────────────
@@ -155,6 +177,11 @@ test('config slugs are unique, lowercase and hyphenated, and every source has wh
     else assert.fail(`unknown source ${a.source}`);
   }
   assert.strictEqual(artists.filter((a) => a.featured).length, 8);
+  // Fans also track: 4-6 other configured bands each.
+  for (const a of artists) {
+    assert.ok(Array.isArray(a.alsoTrack) && a.alsoTrack.length >= 4 && a.alsoTrack.length <= 6, a.slug);
+    for (const other of a.alsoTrack) assert.ok(other !== a.slug && slugs.includes(other), `${a.slug} -> ${other}`);
+  }
 });
 
 // ── Source normalization ─────────────────────────────────────────────────
@@ -384,6 +411,13 @@ test('setlist.fm: a window of recent setlists, the total from the API, upcoming 
   assert.strictEqual(snapshot.songs.length, 0, 'no song pages for setlist.fm bands');
   assert.ok(snapshot.band.mostPlayed.every((s) => s.hasPage === false));
   assert.strictEqual(snapshot.attribution.url, 'https://www.setlist.fm/setlists/widespread-panic-bd6bd12.html');
+  // setlist.fm's terms: every setlist shown links to it, followable.
+  const body = pages.renderBand(await snap.loadArtist(store, 'widespread-panic'), NOW).body;
+  const recent = body.slice(body.indexOf('<h2>Recent Widespread Panic shows</h2>'));
+  assert.ok((recent.match(/href="https:\/\/elgoose.net\/setlists\/f\d+.html"/g) || []).length >= 10);
+  assert.ok(!/nofollow[^>]*elgoose|elgoose[^>]*nofollow/.test(body));
+  assert.ok(!body.includes('/artist/widespread-panic/songs/'), 'no song index without song pages');
+  assert.match(body, /"sameAs":\["https:\/\/musicbrainz.org\/artist\/3797a6d0-7700-44bf-96fb-f44386bc9ab2"\]/);
 });
 
 // ── Originals, covers and all-time gaps ──────────────────────────────────
@@ -642,7 +676,8 @@ test('song page: original or cover (by whom), and the longest gap ever with its 
   assert.ok(cover.includes('Cover (by The Band)'));
   const rockdale = pages.renderSong(loaded, 'rockdale', NOW).body;
   assert.ok(rockdale.includes('>Original</div>'));
-  assert.match(rockdale, /Longest gap ever: 94 shows \(<a href="https:\/\/elgoose.net\/setlists\/s6.html">Jan 7, 2025<\/a> to <a href="https:\/\/elgoose.net\/setlists\/s100.html">Apr 11, 2025<\/a>\)/);
+  // An archive band's show dates are plain text (one link to the archive per table).
+  assert.match(rockdale, /Longest gap ever: 94 shows \(Jan 7, 2025 to Apr 11, 2025\)/);
   const mystery = pages.renderSong(loaded, 'mystery', NOW).body;
   assert.ok(!mystery.includes('Original') && !mystery.includes('Cover'));
 });
@@ -739,17 +774,271 @@ test('JSON carries the original/cover flag and the longest gap, matching the HTM
 
 // ── Sitemap ──────────────────────────────────────────────────────────────
 
-test('artist sitemap lists /artists, every band page and every song page, with lastmod', async () => {
+// A band with thin songs: Arcadia and Hot Tea every show, a pair that
+// always turn up together, songs played once and twice.
+function thinFixture() {
+  const shows = [];
+  for (let i = 1; i <= 40; i++) {
+    const day = new Date(Date.UTC(2025, 0, 1) + i * 86400000).toISOString().slice(0, 10);
+    const songs = [['Arcadia', true], ['Hot Tea', true]];
+    if (i % 4 === 0) songs.push(['Butter Rum', true], ['Pancakes', true]); // always together
+    if (i % 5 === 0) songs.push(['Madhuvan', true]);
+    if (i % 3 === 0) songs.push(['Tumble', true]);
+    if (i % 6 === 0) songs.push(['Rockdale', true]);
+    if (i % 7 === 0) songs.push(['So Ready', true]);
+    if (i % 8 === 0) songs.push(['Jive I', true]);
+    if (i % 9 === 0) songs.push(['Turned Clouds', true]);
+    if (i === 20) songs.push(['Once Off', true]);
+    if (i === 8 || i === 32) songs.push(['Twice Seen', false, 'The Band']);
+    if (i % 10 === 0) songs.push(['Jam', true]);
+    shows.push(mixedShow(`t${i}`, day, songs));
+  }
+  return shows;
+}
+
+async function seededThin(store) {
+  const shows = thinFixture();
+  const restore = stubSources({ songfish: (_a, y) => shows.filter((s) => s.date.startsWith(String(y))) });
+  try {
+    return await snap.runSnapshot({ store, only: ['goose'], force: 'full', now: () => NOW, log: quiet });
+  } finally { restore(); }
+}
+
+const linksOf = (html, re) => [...html.matchAll(re)].map((m) => m[1]);
+
+// ── Related songs, thin pages, song index ────────────────────────────────
+
+test('related songs: played at the same shows, indexable songs only, never the song itself or a non-song', async () => {
+  const store = memoryStore();
+  await seededThin(store);
+  const { snapshot } = await snap.loadArtist(store, 'goose');
+  const bySlug = new Map(snapshot.songs.map((s) => [s.slug, s]));
+  const butter = bySlug.get('butter-rum');
+  assert.strictEqual(butter.related[0], 'pancakes', 'the song it always comes with leads');
+  for (const s of snapshot.songs) {
+    assert.ok(s.related.length <= statsLib.RELATED_SONGS);
+    assert.ok(!s.related.includes(s.slug), s.slug);
+    for (const r of s.related) {
+      assert.ok(bySlug.get(r).timesPlayed >= statsLib.SEO_MIN_PLAYS_FOR_INDEX, `${s.slug} -> ${r}`);
+      assert.ok(r !== 'jam', `${s.slug} -> jam`);
+    }
+  }
+  // A once-played song still gets related songs, from its one show.
+  assert.ok(bySlug.get('once-off').related.length > 0);
+  assert.strictEqual(statsLib.SEO_MIN_PLAYS_FOR_INDEX, 3);
+});
+
+test('song page: fewer than 3 plays is noindex, follow (meta and header); 3 or more carries no robots rule', async () => {
+  const store = memoryStore();
+  await seededThin(store);
+  const loaded = await snap.loadArtist(store, 'goose');
+  for (const slug of ['once-off', 'twice-seen']) {
+    const res = pages.renderSong(loaded, slug, NOW);
+    assert.strictEqual(res.statusCode, 200, 'thin pages still build');
+    assert.match(res.body, /<meta name="robots" content="noindex, follow">/);
+    assert.strictEqual(res.headers['X-Robots-Tag'], 'noindex, follow');
+  }
+  const res = pages.renderSong(loaded, 'arcadia', NOW);
+  assert.ok(!res.body.includes('name="robots"'));
+  assert.strictEqual(res.headers['X-Robots-Tag'], undefined);
+});
+
+test('song page: 6 related songs, all indexable, plus the song index; thin songs never linked', async () => {
+  const store = memoryStore();
+  await seededThin(store);
+  const loaded = await snap.loadArtist(store, 'goose');
+  const thin = new Set(loaded.snapshot.songs.filter((s) => s.timesPlayed < 3).map((s) => s.slug));
+  for (const s of loaded.snapshot.songs) {
+    const body = pages.renderSong(loaded, s.slug, NOW).body;
+    const related = body.slice(body.indexOf('<h2>Related Goose songs</h2>'));
+    assert.ok(body.includes('<h2>Related Goose songs</h2>'), s.slug);
+    const links = linksOf(related, /href="https:\/\/mysetlists.net\/artist\/goose\/song\/([^/]+)\/"/g);
+    assert.strictEqual(links.length, statsLib.RELATED_SONGS, s.slug);
+    assert.ok(links.every((l) => !thin.has(l) && l !== s.slug && l !== 'jam'), `${s.slug}: ${links}`);
+    assert.match(body, /<a href="https:\/\/mysetlists.net\/artist\/goose\/songs\/">All 13 Goose songs &rarr;<\/a>/);
+  }
+});
+
+test('song page from a snapshot without related songs falls back to the A–Z neighbours', async () => {
+  const store = memoryStore();
+  await seededThin(store);
+  const loaded = await snap.loadArtist(store, 'goose');
+  const old = { ...loaded, snapshot: { ...loaded.snapshot, songs: loaded.snapshot.songs.map(({ related, ...s }) => s) } };
+  const { songs, fromShows } = pages.relatedFor(old.snapshot, old.snapshot.songs.find((s) => s.slug === 'madhuvan'));
+  assert.strictEqual(fromShows, 0);
+  // Indexable non-songs-excluded A–Z: Arcadia, Butter Rum, Hot Tea, Jive I, [Madhuvan], Pancakes, Rockdale, So Ready, Tumble, Turned Clouds
+  assert.deepStrictEqual(songs.map((s) => s.name).sort(), ['Butter Rum', 'Hot Tea', 'Jive I', 'Pancakes', 'Rockdale', 'So Ready'].sort());
+  assert.match(pages.renderSong(old, 'madhuvan', NOW).body, /Next to Madhuvan in the A&ndash;Z list/);
+});
+
+test('song page JSON-LD: MusicComposition by the band for an original; breadcrumbs only for a cover', async () => {
+  const store = memoryStore();
+  await seededThin(store);
+  const loaded = await snap.loadArtist(store, 'goose');
+  const ld = (body) => JSON.parse(body.match(/<script type="application\/ld\+json">(.*?)<\/script>/)[1]);
+  const original = ld(pages.renderSong(loaded, 'arcadia', NOW).body);
+  const comp = original['@graph'].find((n) => n['@type'] === 'MusicComposition');
+  assert.deepStrictEqual(comp.composer, { '@type': 'MusicGroup', name: 'Goose', url: 'https://mysetlists.net/artist/goose/' });
+  assert.ok(original['@graph'].some((n) => n['@type'] === 'BreadcrumbList'));
+  const cover = ld(pages.renderSong(loaded, 'twice-seen', NOW).body);
+  assert.strictEqual(cover['@type'], 'BreadcrumbList');
+  assert.strictEqual(JSON.stringify(cover).includes('MusicComposition'), false);
+});
+
+test('song page: show dates and venues are plain text for an archive band; source links kept', async () => {
+  const store = memoryStore();
+  await seededThin(store);
+  const body = pages.renderSong(await snap.loadArtist(store, 'goose'), 'arcadia', NOW).body;
+  assert.strictEqual((body.match(/href="https:\/\/elgoose.net\/setlists\//g) || []).length, 0);
+  assert.match(body, /Setlist data from elgoose.net: <a href="https:\/\/elgoose.net\/">elgoose.net<\/a>/);
+  assert.match(body, /Every Goose setlist is on <a href="https:\/\/elgoose.net\/">elgoose.net<\/a>/);
+});
+
+test('song index: every song A–Z (thin ones too) in the HTML, grouped by letter, with title, H1 and breadcrumbs', async () => {
+  const store = memoryStore();
+  await seededThin(store);
+  const loaded = await snap.loadArtist(store, 'goose');
+  const res = pages.renderSongIndex(loaded, NOW);
+  assert.strictEqual(res.statusCode, 200);
+  const { body } = res;
+  assert.match(body, /<title>All Goose Songs – Times Played &amp; Last Played \| MySetlists<\/title>/);
+  assert.match(body, /<h1>All 13 Goose songs<\/h1>/);
+  assert.match(body, /<link rel="canonical" href="https:\/\/mysetlists.net\/artist\/goose\/songs\/">/);
+  assert.match(body, /<meta name="description" content="All 13 songs Goose has played live, A to Z, with how many times each was played and when it was last played. Updated through the February 10, 2025 show.">/);
+  assert.match(body, /Home<\/a> &rsaquo; <a href="https:\/\/mysetlists.net\/artists\/">Artists<\/a> &rsaquo; <a href="https:\/\/mysetlists.net\/artist\/goose\/">Goose<\/a> &rsaquo; Songs<\/nav>/);
+  assert.ok(!body.includes('name="robots"'));
+  const links = linksOf(body, /href="https:\/\/mysetlists.net\/artist\/goose\/song\/([^/]+)\/"/g);
+  assert.deepStrictEqual(links.slice().sort(), loaded.snapshot.songs.map((s) => s.slug).sort(), 'every song, once');
+  const names = linksOf(body, /\/song\/[^/]+\/">([^<]+)<\/a>/g);
+  assert.deepStrictEqual(names, names.slice().sort((a, b) => a.localeCompare(b, 'en', { sensitivity: 'base', numeric: true })));
+  assert.match(body, /<a href="#letter-a">A<\/a>/);
+  assert.match(body, /<h2 class="letter" id="letter-t">T<\/h2>/);
+  assert.match(body, /Twice Seen<\/a><span class="tag">Cover<\/span><\/td><td class="num">2<\/td><td class="num">Feb 2, 2025<\/td>/);
+  const ld = JSON.parse(body.match(/<script type="application\/ld\+json">(.*?)<\/script>/)[1]);
+  assert.deepStrictEqual(ld.itemListElement.map((i) => i.name), ['Home', 'Artists', 'Goose', 'Songs']);
+});
+
+test('song index: 404 for a band without song pages; 503 for stale Phish', async () => {
+  const store = memoryStore();
+  await seededGoose(store);
+  const loaded = await snap.loadArtist(store, 'goose');
+  const noSongs = { ...loaded, snapshot: { ...loaded.snapshot, songPages: false, songs: [] } };
+  assert.strictEqual(pages.renderSongIndex(noSongs, NOW).statusCode, 404);
+  const years = yearsFixture();
+  const restore = stubSources({ phishnet: (_a, y) => years[y] || [] });
+  try {
+    await snap.runSnapshot({ store, only: ['phish'], env: { PHISHNET_API_KEY: 'test' }, force: 'full', now: () => NOW, log: quiet });
+  } finally { restore(); }
+  assert.strictEqual(pages.renderSongIndex(await snap.loadArtist(store, 'phish'), NOW + 25 * HOUR).statusCode, 503);
+});
+
+test('band page: links to the song index near the top and after most played, and to 4-6 other bands', async () => {
+  const store = memoryStore();
+  await seededThin(store);
+  const body = pages.renderBand(await snap.loadArtist(store, 'goose'), NOW).body;
+  const all = '<a href="https://mysetlists.net/artist/goose/songs/">All 13 Goose songs &rarr;</a>';
+  const first = body.indexOf(all);
+  const second = body.indexOf(all, first + 1);
+  assert.ok(first > 0 && first < body.indexOf('<h2>Most played Goose songs</h2>'));
+  assert.ok(second > body.indexOf('<h2>Most played Goose songs</h2>'));
+  const fans = body.slice(body.indexOf('<h2>Fans of Goose also track</h2>'));
+  const bands = linksOf(fans, /href="https:\/\/mysetlists.net\/artist\/([^/]+)\/"/g);
+  // Only Goose is published in this store: no other band page to link to.
+  assert.deepStrictEqual(bands, []);
+  // With every band published, the curated list.
+  const loaded = await snap.loadArtist(store, 'goose');
+  const everyone = { ...loaded, index: { artists: snap.publicArtists().map((a) => ({ slug: a.slug })) } };
+  const body2 = pages.renderBand(everyone, NOW).body;
+  const bands2 = linksOf(body2.slice(body2.indexOf('<h2>Fans of Goose also track</h2>')), /href="https:\/\/mysetlists.net\/artist\/([^/]+)\/"/g);
+  assert.deepStrictEqual(bands2, snap.findArtist('goose').alsoTrack);
+});
+
+test('fans also track: curated bands that are published, topped up from featured bands to at least 4', () => {
+  const index = (slugs) => ({ artists: slugs.map((slug) => ({ slug })) });
+  const all = snap.publicArtists().map((a) => a.slug);
+  for (const slug of all) {
+    const picks = pages.alsoTrack(slug, index(all));
+    assert.ok(picks.length >= 4 && picks.length <= 6, slug);
+    assert.ok(!picks.some((a) => a.slug === slug));
+  }
+  // Two of Goose's curated bands published: the featured bands fill in.
+  const picks = pages.alsoTrack('goose', index(['goose', 'phish', 'eggy', 'grateful-dead', 'billy-strings', 'dead-and-company', 'widespread-panic'])).map((a) => a.slug);
+  assert.deepStrictEqual(picks, ['phish', 'billy-strings', 'eggy', 'widespread-panic']);
+});
+
+test('band page: archive show rows are plain text with one archive link; MusicGroup sameAs is MusicBrainz', async () => {
+  const store = memoryStore();
+  await seededMixed(store);
+  const body = pages.renderBand(await snap.loadArtist(store, 'goose'), NOW).body;
+  assert.strictEqual((body.match(/href="https:\/\/elgoose.net\/setlists\//g) || []).length, 0);
+  assert.match(body, /Every Goose setlist, with notes, is on <a href="https:\/\/elgoose.net\/">elgoose.net<\/a>/);
+  assert.match(body, /Setlist data from elgoose.net: <a href="https:\/\/elgoose.net\/">elgoose.net<\/a>/);
+  assert.match(body, /"sameAs":\["https:\/\/musicbrainz.org\/artist\/b925a474-d245-4217-bc13-2e153d82bebb"\]/);
+  assert.ok(!body.includes('"sameAs":["https://elgoose.net/"]'));
+});
+
+// ── Sitemap ──────────────────────────────────────────────────────────────
+
+test('artist sitemap: /artists/ and every band page, lastmod the latest show; no song pages', async () => {
   const store = memoryStore();
   await seededGoose(store);
   const index = await snap.loadIndex(store);
   const urls = artistUrls(index);
-  const locs = urls.map((u) => u.loc);
-  assert.strictEqual(locs[0], '/artists/');
-  assert.ok(locs.includes('/artist/goose/'));
+  assert.deepStrictEqual(urls.map((u) => u.loc), ['/artists/', '/artist/goose/']);
   const entry = index.artists.find((e) => e.slug === 'goose');
-  for (const s of entry.songSlugs) assert.ok(locs.includes(`/artist/goose/song/${s}/`));
+  assert.strictEqual(urls[1].lastmod, entry.lastShowDate);
+  assert.strictEqual(urls[0].lastmod, entry.lastShowDate);
   assert.ok(urls.every((u) => /^\d{4}-\d{2}-\d{2}$/.test(u.lastmod)));
+});
+
+test('band sitemap: the song index and every song with 3+ plays, lastmod the date last played', async () => {
+  const store = memoryStore();
+  await seededThin(store);
+  const { snapshot } = await snap.loadArtist(store, 'goose');
+  const urls = sitemap.bandSongUrls(snapshot);
+  assert.deepStrictEqual(urls[0], { loc: '/artist/goose/songs/', lastmod: snapshot.band.lastShow.date });
+  const songs = urls.slice(1);
+  const indexable = snapshot.songs.filter((s) => s.timesPlayed >= 3);
+  assert.deepStrictEqual(songs.map((u) => u.loc), indexable.map((s) => `/artist/goose/song/${s.slug}/`));
+  for (const s of indexable) assert.strictEqual(songs.find((u) => u.loc.endsWith(`/${s.slug}/`)).lastmod, s.lastPlayed.date);
+  assert.ok(!songs.some((u) => /once-off|twice-seen/.test(u.loc)));
+  assert.deepStrictEqual(sitemap.bandSongUrls({ ...snapshot, songPages: false, songs: [] }), []);
+});
+
+test('sitemap index: pages, artists and one per song-page band, each lastmod the newest inside', async () => {
+  const store = memoryStore();
+  await seededThin(store);
+  const index = await snap.loadIndex(store);
+  const entries = sitemap.indexEntries(index);
+  assert.deepStrictEqual(entries.map((e) => e.loc), ['/sitemap-pages.xml', '/sitemap-artists.xml', '/sitemap-artist-goose.xml']);
+  const { snapshot } = await snap.loadArtist(store, 'goose');
+  const newest = (urls) => urls.map((u) => u.lastmod).filter(Boolean).sort().pop();
+  assert.strictEqual(entries[1].lastmod, newest(artistUrls(index)));
+  assert.strictEqual(entries[2].lastmod, newest(sitemap.bandSongUrls(snapshot)));
+  assert.strictEqual(entries[0].lastmod, newest([...sitemap.STATIC_URLS, ...sitemap.heardUrls(index)]));
+});
+
+test('sitemap XML: the 0.9 namespace, absolute locs, W3C dates, no priority or changefreq', async () => {
+  const store = memoryStore();
+  await seededThin(store);
+  const index = await snap.loadIndex(store);
+  const { snapshot } = await snap.loadArtist(store, 'goose');
+  const docs = [
+    sitemap.urlset(artistUrls(index).map(sitemap.url)),
+    sitemap.urlset(sitemap.bandSongUrls(snapshot).map(sitemap.url)),
+    sitemap.urlset([...sitemap.STATIC_URLS, ...sitemap.heardUrls(index)].map(sitemap.url)),
+    sitemap.sitemapIndex(sitemap.indexEntries(index)),
+  ];
+  for (const xml of docs) {
+    assert.ok(xml.startsWith('<?xml version="1.0" encoding="UTF-8"?>\n'));
+    assert.match(xml, /xmlns="http:\/\/www.sitemaps.org\/schemas\/sitemap\/0.9"/);
+    assert.ok(!/priority|changefreq/.test(xml));
+    for (const loc of linksOf(xml, /<loc>([^<]+)<\/loc>/g)) assert.match(loc, /^https:\/\/mysetlists\.net\/[^\s<>"]*$/);
+    for (const d of linksOf(xml, /<lastmod>([^<]+)<\/lastmod>/g)) assert.match(d, /^\d{4}-\d{2}-\d{2}$/);
+    // Only the elements the schema allows.
+    const tags = new Set(linksOf(xml, /<([a-z]+)[\s>]/g));
+    for (const t of tags) assert.ok(['urlset', 'url', 'loc', 'lastmod', 'sitemapindex', 'sitemap'].includes(t), t);
+  }
 });
 
 (async () => {

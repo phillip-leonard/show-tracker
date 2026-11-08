@@ -1,39 +1,55 @@
 // netlify/functions/sitemap.js
 //
-// Three documents, one function:
+// One function, every sitemap:
 //
-//   /sitemap.xml          a sitemap index pointing at the two below
-//   /sitemap-pages.xml    home, the legal and comparison pages, the Songs
-//                         I've heard tool (/heard/ and each band's page),
-//                         and every opted-in public profile (/u/<handle>/)
-//   /sitemap-artists.xml  /artists/, every public band page and every song
-//                         page, from the band-page snapshot index
-//                         (lib/publicArtistSnapshot.js)
+//   /sitemap.xml                  a sitemap index of the ones below
+//   /sitemap-pages.xml            home, the legal and comparison pages, the
+//                                 Songs I've heard tool (/heard/ and each
+//                                 band's page), and every opted-in public
+//                                 profile (/u/<handle>/)
+//   /sitemap-artists.xml          /artists/ and every public band page
+//   /sitemap-artist-<slug>.xml    one per band with song pages: its song
+//                                 index (/artist/<slug>/songs/) and every
+//                                 indexable song page
 //
 // robots.txt points at /sitemap.xml. Public show pages are deliberately not
 // enumerated — "keep the surface small" — since a per-user show list would
 // risk the 50,000-URL/50MB sitemap limits at scale for no real SEO gain
-// over the profile page itself. The artist sitemap is well inside the
-// limit: about 2,000 URLs with every configured artist.
+// over the profile page itself.
+//
+// lastmod is the date the page's content last changed for a reason a
+// reader would notice, or left out when there's no honest one:
+//
+//   song page                    the date the song was last played
+//   band page, song index        the band's latest show
+//   /artists/                    the latest show of any band
+//   a child sitemap (in the      the newest lastmod inside it
+//   index)
+//
+// No priority or changefreq: Google ignores both. Thin song pages (fewer
+// than SEO_MIN_PLAYS_FOR_INDEX plays, artistSnapshotStats.js) are noindex
+// and left out.
 
-const { openBlobStore, loadIndex, heardArtists } = require('./lib/publicArtistSnapshot');
+const { openBlobStore, loadIndex, loadArtist, heardArtists } = require('./lib/publicArtistSnapshot');
+const { isIndexable } = require('./lib/artistSnapshotStats');
 
 const SITE_URL = 'https://mysetlists.net';
 
 const STATIC_URLS = [
-  { loc: '/', changefreq: 'weekly', priority: '1.0' },
+  { loc: '/' },
   // No /roadmap: its items come from Firestore and only render for a
   // signed-in user, so a crawler gets "Loading..." there. Put it back (and
   // its index rule in public/_headers) if the page ever renders signed out.
-  { loc: '/privacy', changefreq: 'monthly', priority: '0.3' },
-  { loc: '/terms', changefreq: 'monthly', priority: '0.3' },
-  { loc: '/cookies', changefreq: 'monthly', priority: '0.2' },
+  { loc: '/privacy' },
+  { loc: '/terms' },
+  { loc: '/cookies' },
   // The comparison pages (lib/comparePages.js), with the trailing slash the
-  // static export serves them at, matching each page's canonical.
-  { loc: '/compare/concert-archives/', lastmod: '2026-10-21', changefreq: 'monthly', priority: '0.6' },
-  { loc: '/compare/setlist-fm/', lastmod: '2026-10-21', changefreq: 'monthly', priority: '0.6' },
-  { loc: '/switch/concert-archives/', lastmod: '2026-10-29', changefreq: 'monthly', priority: '0.6' },
-  { loc: '/best-concert-tracker-apps-jam-bands/', lastmod: '2026-10-21', changefreq: 'monthly', priority: '0.6' },
+  // static export serves them at, matching each page's canonical. lastmod
+  // is when each page's copy last changed.
+  { loc: '/compare/concert-archives/', lastmod: '2026-10-21' },
+  { loc: '/compare/setlist-fm/', lastmod: '2026-10-21' },
+  { loc: '/switch/concert-archives/', lastmod: '2026-10-29' },
+  { loc: '/best-concert-tracker-apps-jam-bands/', lastmod: '2026-10-21' },
 ];
 
 const XML_HEADERS = { 'Content-Type': 'application/xml; charset=utf-8', 'Cache-Control': 'public, max-age=3600' };
@@ -66,16 +82,15 @@ function uniqueHandles(handles) {
 
 const escapeXml = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-function url({ loc, lastmod, changefreq, priority }) {
-  return `  <url><loc>${escapeXml(`${SITE_URL}${loc}`)}</loc>${lastmod ? `<lastmod>${lastmod}</lastmod>` : ''}${changefreq ? `<changefreq>${changefreq}</changefreq>` : ''}${priority ? `<priority>${priority}</priority>` : ''}</url>`;
+function url({ loc, lastmod }) {
+  return `  <url><loc>${escapeXml(`${SITE_URL}${loc}`)}</loc>${lastmod ? `<lastmod>${lastmod}</lastmod>` : ''}</url>`;
 }
 
 const urlset = (urls) => `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.join('\n')}\n</urlset>`;
 
-// lastmod is when the page's data last changed (dataUpdatedAt), not merely
-// when it was last fetched: a fetch that found nothing new hasn't changed
-// the page, and Google discounts a lastmod that moves on every crawl.
 const day = (iso) => (iso ? String(iso).slice(0, 10) : '');
+// The newest of a list of YYYY-MM-DD lastmods, '' if none has one.
+const newest = (urls) => urls.map((u) => u.lastmod || '').filter(Boolean).sort().pop() || '';
 
 /**
  * The Songs I've heard pages: /heard/ and each band whose show list is
@@ -87,33 +102,71 @@ function heardUrls(index) {
     .map((a) => index.artists.find((e) => e.slug === a.slug && e.showsHash))
     .filter(Boolean);
   if (!published.length) return [];
-  const newest = published.map((e) => day(e.showsUpdatedAt || e.fetchedAt)).sort().pop();
+  const urls = published.map((e) => ({ loc: `/heard/${e.slug}/`, lastmod: day(e.showsUpdatedAt || e.fetchedAt) }));
+  return [{ loc: '/heard/', lastmod: newest(urls) }, ...urls];
+}
+
+/** /sitemap-artists.xml: /artists/ and every band page. */
+function artistUrls(index) {
+  const bands = index.artists.map((e) => ({ loc: `/artist/${e.slug}/`, lastmod: day(e.lastShowDate) }));
+  return [{ loc: '/artists/', lastmod: newest(bands) }, ...bands];
+}
+
+/** The bands that get a /sitemap-artist-<slug>.xml. */
+const songSitemapBands = (index) => index.artists.filter((e) => e.songPages && e.songCount > 0);
+
+/**
+ * /sitemap-artist-<slug>.xml: the band's song index and each song page
+ * with at least SEO_MIN_PLAYS_FOR_INDEX plays. `snapshot` is the band's
+ * published artists/<slug>.json.
+ */
+function bandSongUrls(snapshot) {
+  if (!snapshot?.songPages || !snapshot.songs?.length) return [];
   return [
-    { loc: '/heard/', lastmod: newest, changefreq: 'weekly', priority: '0.7' },
-    ...published.map((e) => ({ loc: `/heard/${e.slug}/`, lastmod: day(e.showsUpdatedAt || e.fetchedAt), changefreq: 'weekly', priority: '0.7' })),
+    { loc: `/artist/${snapshot.slug}/songs/`, lastmod: day(snapshot.band?.lastShow?.date) },
+    ...snapshot.songs.filter(isIndexable).map((s) => ({ loc: `/artist/${snapshot.slug}/song/${s.slug}/`, lastmod: day(s.lastPlayed?.date) })),
   ];
 }
 
-/** The artist sitemap's <url> entries, from the snapshot index. */
-function artistUrls(index) {
-  const urls = [{ loc: '/artists/', lastmod: day(index.updatedAt), changefreq: 'daily', priority: '0.7' }];
-  for (const e of index.artists) {
-    const lastmod = day(e.dataUpdatedAt || e.fetchedAt);
-    urls.push({ loc: `/artist/${e.slug}/`, lastmod, changefreq: 'daily', priority: '0.8' });
-    if (e.songPages) {
-      for (const song of e.songSlugs || []) urls.push({ loc: `/artist/${e.slug}/song/${song}/`, lastmod, changefreq: 'weekly', priority: '0.5' });
-    }
-  }
-  return urls;
+function eventPaths(event) {
+  const paths = [event?.path || ''];
+  try { if (event?.rawUrl) paths.push(new URL(event.rawUrl).pathname); } catch { /* path is enough */ }
+  return paths;
 }
 
 function whichDocument(event) {
-  const paths = [event?.path || ''];
-  try { if (event?.rawUrl) paths.push(new URL(event.rawUrl).pathname); } catch { /* path is enough */ }
+  const paths = eventPaths(event);
   if (paths.some((p) => /sitemap-pages(\.xml)?\/?$|\/sitemap\/pages\/?$/.test(p))) return 'pages';
   if (paths.some((p) => /sitemap-artists(\.xml)?\/?$|\/sitemap\/artists\/?$/.test(p))) return 'artists';
+  if (bandSitemapSlug(event)) return 'band';
   return 'index';
 }
+
+/** The slug of a /sitemap-artist-<slug>.xml request, else ''. */
+function bandSitemapSlug(event) {
+  for (const p of eventPaths(event)) {
+    const m = p.match(/sitemap-artist-([a-z0-9-]+?)(?:\.xml)?\/?$/) || p.match(/\/sitemap\/artist\/([a-z0-9-]+)\/?$/);
+    if (m) return m[1];
+  }
+  return '';
+}
+
+/** The sitemap index's <sitemap> entries. */
+function indexEntries(index) {
+  const pagesLastmod = newest([...STATIC_URLS, ...heardUrls(index)]);
+  return [
+    { loc: '/sitemap-pages.xml', lastmod: pagesLastmod },
+    { loc: '/sitemap-artists.xml', lastmod: newest(artistUrls(index)) },
+    // A band's songs are last played no later than its latest show, which
+    // is also its song index's lastmod: the newest inside.
+    ...songSitemapBands(index).map((e) => ({ loc: `/sitemap-artist-${e.slug}.xml`, lastmod: day(e.lastShowDate) })),
+  ];
+}
+
+const sitemapIndex = (entries) => `<?xml version="1.0" encoding="UTF-8"?>
+<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${entries.map((e) => `  <sitemap><loc>${escapeXml(`${SITE_URL}${e.loc}`)}</loc>${e.lastmod ? `<lastmod>${e.lastmod}</lastmod>` : ''}</sitemap>`).join('\n')}
+</sitemapindex>`;
 
 async function pagesSitemap(index) {
   const db = getDb();
@@ -130,21 +183,29 @@ async function pagesSitemap(index) {
   return urlset([
     ...STATIC_URLS.map(url),
     ...heardUrls(index).map(url),
-    ...publicHandles.map(h => url({ loc: `/u/${h}/`, changefreq: 'weekly', priority: '0.5' })),
+    ...publicHandles.map(h => url({ loc: `/u/${h}/` })),
   ]);
 }
 
 exports.uniqueHandles = uniqueHandles;
 exports.artistUrls = artistUrls;
+exports.bandSongUrls = bandSongUrls;
 exports.heardUrls = heardUrls;
+exports.indexEntries = indexEntries;
 exports.whichDocument = whichDocument;
+exports.bandSitemapSlug = bandSitemapSlug;
+exports.urlset = urlset;
+exports.url = url;
+exports.sitemapIndex = sitemapIndex;
+exports.STATIC_URLS = STATIC_URLS;
 
 exports.handler = async function (event) {
   const doc = whichDocument(event);
-
+  let store = null;
   let index = { artists: [] };
   try {
-    index = await loadIndex(openBlobStore(event));
+    store = openBlobStore(event);
+    index = await loadIndex(store);
   } catch (err) {
     console.error('sitemap: failed to read the artist snapshot index:', err);
   }
@@ -157,11 +218,18 @@ exports.handler = async function (event) {
     return { statusCode: 200, headers: XML_HEADERS, body: urlset(artistUrls(index).map(url)) };
   }
 
-  const artistsLastmod = day(index.updatedAt);
-  const body = `<?xml version="1.0" encoding="UTF-8"?>
-<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <sitemap><loc>${SITE_URL}/sitemap-pages.xml</loc></sitemap>
-  <sitemap><loc>${SITE_URL}/sitemap-artists.xml</loc>${artistsLastmod ? `<lastmod>${artistsLastmod}</lastmod>` : ''}</sitemap>
-</sitemapindex>`;
-  return { statusCode: 200, headers: XML_HEADERS, body };
+  if (doc === 'band') {
+    const slug = bandSitemapSlug(event);
+    let loaded = null;
+    try {
+      if (store && songSitemapBands(index).some((e) => e.slug === slug)) loaded = await loadArtist(store, slug);
+    } catch (err) {
+      console.error(`sitemap: failed to read the ${slug} snapshot:`, err);
+    }
+    const urls = loaded ? bandSongUrls(loaded.snapshot) : [];
+    if (!urls.length) return { statusCode: 404, headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'public, max-age=300' }, body: 'No sitemap at this address.' };
+    return { statusCode: 200, headers: XML_HEADERS, body: urlset(urls.map(url)) };
+  }
+
+  return { statusCode: 200, headers: XML_HEADERS, body: sitemapIndex(indexEntries(index)) };
 };

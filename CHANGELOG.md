@@ -4,6 +4,74 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.55.0] — 2026-11-08
+
+Ships in iOS 3.12.7 (`MARKETING_VERSION` 3.12.6 → 3.12.7, the default patch
+bump; no app change. The build number is left to Xcode Cloud).
+
+**Search indexing, phase 1: links between band and song pages, thin pages
+out of the index, a sitemap per band.** Search Console listed about 2,690
+song URLs as "Discovered – currently not indexed": each band page linked to
+about 50 of its songs, and song pages linked to no other song. Everything
+here is in the public band and song pages, which Netlify functions render
+from the band-page snapshot. Nothing in the static export changes.
+
+- **Song index**, `/artist/<slug>/songs/`, for the four bands with song
+  pages (Goose, Phish, Umphrey's McGee, King Gizzard). Every song, A to Z,
+  grouped by letter with a jump bar. Each row has the song (linked to its
+  page), times played and the date last played. Thin songs are listed too.
+  New function `public-artist-songs.js`, with `renderSongIndex` in
+  `lib/publicArtistPages.js`. The band page links to it twice: under the
+  stats, and after the most-played table ("All 368 Goose songs →").
+- **Related songs** on every song page: 6 links to the indexable songs
+  played most often at the same shows. They're scored by cosine similarity,
+  so each song doesn't just list the same few staples. The snapshot job
+  computes them (`related` on each song, `artistSnapshotStats.js`: 70 ms for
+  Umphrey's 2,975 shows). The list is topped up from the songs next to it
+  A–Z when it has fewer than 6. A snapshot written before this release gets
+  the A–Z neighbours alone until the next forced run. Each song page also
+  links to the song index.
+- **Thin pages.** A song played fewer than 3 times (`SEO_MIN_PLAYS_FOR_INDEX`
+  in `artistSnapshotStats.js`, the only place the threshold lives) sends
+  `noindex, follow` as a meta tag and an `X-Robots-Tag` header. It's left
+  out of the sitemaps and out of every related-songs list. The page itself
+  is unchanged, and the song index still links to it. Today that's 1,095 of
+  2,691 song pages.
+- **Fans also track**: 4–6 links on every band page to other band pages. The
+  lists are hand-curated as `alsoTrack` in `config/public-artists.json`,
+  only published bands are linked, and the featured bands fill a list below
+  4.
+- **Fewer links out.** For archive bands (Songfish sites and phish.net),
+  show dates and venues are now plain text. That covers recent shows,
+  recent performances, bust-out dates, a song's first and last play, and its
+  longest gap. Each table gets one followable link to the archive instead,
+  and the source line and the song's "every performance" link stay. setlist.fm
+  bands keep a link on every show row: setlist.fm's terms want each setlist
+  shown linked, never `nofollow` (`docs/setlistfm-compliance.md`). Goose's
+  band page goes from 31 links to elgoose.net to 2.
+- **Sitemaps.** `/sitemap.xml` is an index of `sitemap-pages.xml`,
+  `sitemap-artists.xml` (`/artists/` and the 20 band pages, no longer the
+  songs) and one `sitemap-artist-<slug>.xml` per song-page band (its song
+  index and each indexable song). `lastmod` changes:
+  - a song page: the date the song was last played
+  - a band page or song index: the band's latest show
+  - each child sitemap in the index: the newest `lastmod` inside it
+  - pages with no honest date: none at all
+  - `priority` and `changefreq` are gone everywhere
+  - Netlify can't match a slug inside a file name, so `netlify.toml` lists
+    each band's sitemap; a test fails if a song-page band is missing one
+- **Structured data.**
+  - Band pages: `MusicGroup.sameAs` now points to the band's MusicBrainz
+    page (from the config's mbid), not to the setlist archive.
+  - Song pages for originals: `MusicComposition`, with the band as composer.
+  - Covers and the song index: breadcrumbs only.
+
+After deploy, run `node scripts/run-artist-snapshot.js --force` so every
+snapshot gets its related songs. A plain run reports every artist "fresh"
+and writes nothing. No `SCHEMA_VERSION` bump: nothing has to be refetched.
+
+---
+
 ## [5.54.0] — 2026-11-07
 
 Ships in iOS 3.12.6 (`MARKETING_VERSION` 3.12.2 → 3.12.6, the default patch
