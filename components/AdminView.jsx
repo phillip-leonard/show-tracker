@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { collection, doc, getDocs, query, where, updateDoc } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
-import { ChevronLeft, ChevronRight, User, Users, Search, Mail, Sparkles, Send, Eye, Plus, Upload, Download, Check, RefreshCw, AlertTriangle, Trash2, Calendar, MapPin, Music, MessageSquare, X, Trophy, Database, Wrench, ShieldCheck, Flag, MailX, BarChart3 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, User, Users, Search, Mail, Sparkles, Send, Eye, Plus, Upload, Download, Check, RefreshCw, AlertTriangle, Trash2, Calendar, MapPin, Music, MessageSquare, X, Trophy, Database, Wrench, ShieldCheck, Flag, MailX, BarChart3, Ticket } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import SetlistEditor from '@/components/SetlistEditor';
 import Tip from '@/components/ui/Tip';
@@ -14,6 +14,7 @@ import { apiUrl } from '@/lib/api';
 import ModerationQueue from '@/components/admin/ModerationQueue';
 import AnnouncementsTab from '@/components/admin/AnnouncementsTab';
 import UnsubscribesTab from '@/components/admin/UnsubscribesTab';
+import OnsaleTab from '@/components/admin/OnsaleTab';
 import UsersTab from '@/components/admin/UsersTab';
 import StatsTab from '@/components/admin/StatsTab';
 import ArchiveDryRunCard from '@/components/admin/ArchiveDryRunCard';
@@ -25,7 +26,7 @@ import { useDismissable } from '@/context/DismissStackContext';
 export default
 function AdminView() {
   const { shows, scanForMissingSetlists, setlistScanning, setlistScanProgress } = useApp();
-  const [adminTab, setAdminTab] = useState('users'); // 'users' | 'stats' | 'guestTrials' | 'conversions' | 'referrals' | 'bulkImport' | 'tools' | 'moderation' | 'announcements' | 'unsubscribes'
+  const [adminTab, setAdminTab] = useState('users'); // 'users' | 'stats' | 'guestTrials' | 'conversions' | 'referrals' | 'bulkImport' | 'tools' | 'moderation' | 'announcements' | 'unsubscribes' | 'onsale'
   // Set when an announcement's unsubscribe count is clicked, so the
   // Unsubscribes tab opens filtered to that announcement.
   const [unsubscribeSourceFilter, setUnsubscribeSourceFilter] = useState('');
@@ -1571,6 +1572,17 @@ function AdminView() {
               Unsubscribes
             </button>
             <button
+              onClick={() => setAdminTab('onsale')}
+              className={`shrink-0 whitespace-nowrap flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                adminTab === 'onsale'
+                  ? 'bg-brand-subtle text-brand border border-brand/30'
+                  : 'bg-hover text-secondary hover:bg-hover border border-subtle'
+              }`}
+            >
+              <Ticket className="w-4 h-4" />
+              On-sale alerts
+            </button>
+            <button
               onClick={() => setAdminTab('guestTrials')}
               className={`shrink-0 whitespace-nowrap flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
                 adminTab === 'guestTrials'
@@ -1647,6 +1659,7 @@ function AdminView() {
           {adminTab === 'announcements' && (
             <AnnouncementsTab onViewUnsubscribes={(announcementId) => { setUnsubscribeSourceFilter(`announcement:${announcementId}`); setAdminTab('unsubscribes'); }} />
           )}
+          {adminTab === 'onsale' && <OnsaleTab />}
           {adminTab === 'unsubscribes' && (
             <UnsubscribesTab initialSource={unsubscribeSourceFilter} />
           )}

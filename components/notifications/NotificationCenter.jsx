@@ -11,7 +11,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { doc, updateDoc } from 'firebase/firestore';
-import { MessageSquare, Heart, Image as ImageIcon, Megaphone, Bell, AtSign, PartyPopper, Users, MapPin, CalendarPlus } from 'lucide-react';
+import { MessageSquare, Heart, Image as ImageIcon, Megaphone, Bell, AtSign, PartyPopper, Users, MapPin, CalendarPlus, Ticket } from 'lucide-react';
 import { Card, EmptyState, Spinner, Button, Tabs } from '@/components/ui';
 import { db } from '@/lib/firebase';
 import { useApp } from '@/context/AppContext';
@@ -31,11 +31,13 @@ const ICONS = {
   meetup_join: Users,
   venue_bucket_list_match: MapPin,
   followed_band_tour: CalendarPlus,
+  onsale_alert: Ticket,
 };
 
 // What the daily followed-band job writes (netlify/functions/lib/
-// followedBandAlerts.js): the "Band alerts" tab is just these.
-const BAND_ALERT_TYPES = new Set(['followed_band_tour', 'venue_bucket_list_match']);
+// followedBandAlerts.js) and the on-sale scan (onsaleAlerts.js): the "Band
+// alerts" tab is just these.
+const BAND_ALERT_TYPES = new Set(['followed_band_tour', 'venue_bucket_list_match', 'onsale_alert']);
 
 // A tour alert lists its dates, each linking out to its tickets. The row
 // itself has no single destination, so it isn't a link (no nested <a>).
@@ -68,6 +70,48 @@ function TourDates({ notification }) {
   );
 }
 
+function OutLink({ href, children }) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={(e) => { e.stopPropagation(); externalLinkClick(e, href); }}
+      className="inline-flex items-center min-h-touch md:fine:min-h-0 text-xs font-semibold text-brand underline-offset-2 hover:underline"
+    >
+      {children}
+    </a>
+  );
+}
+
+// An on-sale alert: its windows, already in the user's time zone, then a code,
+// or the band's ticket portal, or a sign-up link. The scan keeps these current,
+// so a code that arrives later shows up here too.
+function OnsaleDetails({ notification: n }) {
+  return (
+    <div className="mt-2 space-y-1">
+      {(n.windows || []).map((w, i) => (
+        <p key={i} className="text-xs text-secondary">
+          <span className="text-muted">{w.label}:</span> {w.when}
+        </p>
+      ))}
+      {n.presaleCode && (
+        <p className="text-xs text-secondary">
+          Presale code: <span className="font-mono font-semibold text-primary select-all">{n.presaleCode}</span>
+          {n.codeSource ? <span className="text-muted"> ({n.codeSource})</span> : null}
+        </p>
+      )}
+      <div className="flex flex-wrap gap-x-4">
+        {n.portalUrl && <OutLink href={n.portalUrl}>{n.artist}&rsquo;s ticket portal</OutLink>}
+        {!n.presaleCode && !n.portalUrl && n.signupUrl && (
+          <OutLink href={n.signupUrl}>Sign up for {n.artist}&rsquo;s presale to get the code</OutLink>
+        )}
+        {n.url && !n.portalUrl && <OutLink href={n.url}>See the event</OutLink>}
+      </div>
+    </div>
+  );
+}
+
 function NotificationRow({ notification, showHref, onClick }) {
   const Icon = ICONS[notification.type] || Bell;
   const RowTag = showHref ? 'a' : 'div';
@@ -91,6 +135,7 @@ function NotificationRow({ notification, showHref, onClick }) {
           {notification.message}
         </p>
         {notification.type === 'followed_band_tour' && <TourDates notification={notification} />}
+        {notification.type === 'onsale_alert' && <OnsaleDetails notification={notification} />}
         <p className="text-xs text-muted mt-0.5">{timeAgo(notification.createdAt)}</p>
       </div>
       {!notification.read && <span className="w-2 h-2 rounded-full bg-brand flex-shrink-0 mt-2" />}
@@ -181,7 +226,7 @@ export default function NotificationCenter() {
             icon={CalendarPlus}
             tone="brand"
             title="No band alerts yet"
-            body="Follow a band and you'll see it here when they announce a tour, or a date at a venue on your bucket list."
+            body="Follow a band and you'll see it here when they announce a tour, a date at a venue on your bucket list, or a show going on sale near you."
           />
         </Card>
       ) : (

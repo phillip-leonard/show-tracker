@@ -7,9 +7,8 @@ All notable changes to mysetlists.net are documented here.
 ## [5.54.0] — 2026-11-07
 
 Ships in iOS 3.12.6 (`MARKETING_VERSION` 3.12.2 → 3.12.6, the default patch
-bump; 3.12.4 went to the community leaderboard, #385, at 5.52.1, and the open
-on-sale alerts PR, #384, has taken 5.53.0 and 3.12.5. The build number is left
-to Xcode Cloud).
+bump; 3.12.4 went to the community leaderboard, #385, at 5.52.1, and 3.12.5
+to on-sale alerts, #384, at 5.53.0. The build number is left to Xcode Cloud).
 
 **Discover bands, and festival picks.** Both use one scoring engine,
 `lib/recommendations.js`, shared by a nightly job and the app.
@@ -72,6 +71,88 @@ to Xcode Cloud).
 **After merging:** deploy `firestore.rules`, then trigger `band-affinity`
 once with "Run now" in the Netlify UI. Otherwise Discover is empty until
 14:00 UTC.
+
+## [5.53.0] — 2026-11-07
+
+Ships in iOS 3.12.5 (`MARKETING_VERSION` 3.12.4 → 3.12.5; the build number is
+left to Xcode Cloud).
+
+**On-sale alerts for followed bands.** Followers with a home city hear when a
+band has a show going on sale within their radius: venue, date, presale windows
+and public on-sale in their time zone, plus a code, ticket portal or sign-up
+link. A second notice goes out about an hour before the sale opens. Email, push
+and in-app are switched separately (`notificationPrefs.onsaleAlerts`). No new
+iOS permission and no new paid service.
+
+- **Scan** (`onsale-scan`, every 6 hours, `lib/onsaleAlerts.js`). Ticketmaster
+  dates merged with shows from band emails by `eventKey` (band + date + city),
+  so one show is one alert. `onsaleAlerts/{uid}_{eventKey}` is written with
+  `create()`, so nobody is told twice; later changes update it silently. One
+  digest email per user per run. Stops at 12 minutes or 900 bands; the next run
+  starts with the bands not reached.
+- **Reminder** (`onsale-reminder`, every 15 minutes). Re-reads `presaleIntel`,
+  so a code that arrived after the announcement is included. A sale whose public
+  time is TBA, with no dated presale, gets no reminder.
+- **Presale inbox** (`inbound-email`, `lib/inboundEmail.js`). Resend's
+  `email.received` webhook, Svix signature checked. Only allowlisted senders are
+  read. DKIM, SPF or DMARC failure is a reject. Any DMARC result but pass is held
+  for the admin, because a DKIM pass alone doesn't prove who sent it. Raw email
+  is deleted after 90 days.
+- **Parser** (`lib/presaleParser.js`). Claude Opus 5.5, no tools, strict JSON
+  schema, the email delimited as untrusted data. The server then re-checks: a code
+  must appear verbatim in the email, a link must be one the email contains,
+  personal codes are never stored, and below 0.8 confidence waits for review.
+- **Codes come only from a band's own emails.** Seated's emails supply sign-up
+  links and dates, because of Seated's terms on using its content for third
+  parties. This also leaves out Part 3e of the brief: codes found in Ticketmaster
+  listing text are not shown.
+- **Home location is not on `userProfiles`.** Every signed-in user can read that
+  collection, and Profile promises home location is never public. It lives in
+  owner-only `alertSettings/{uid}`, in the purge map with `onsaleAlerts`.
+- **City search** is a static list (`public/data/cities.json`, GeoNames, CC BY
+  4.0), built by `scripts/build-city-list.js`.
+- **Ticketmaster.** `fetchArtistEvents` now returns sale fields and pages past
+  200 events. When several attractions share a band's exact name, the one with
+  the most upcoming events wins and is flagged for the admin. On-sale links carry
+  no affiliate parameter.
+- **Admin → On-sale alerts** (`admin-onsale`). Inbox health, review list, sender
+  allowlists, recent alerts, low-confidence attractions and "Run scan now".
+
+**Needed before this works in production:** `TICKETMASTER_API_KEY` (also missing
+for the existing tour alerts, which do nothing without it) and
+`RESEND_WEBHOOK_SECRET` in Netlify; receiving enabled on
+`inbound.mysetlists.net`; and the sender allowlists filled in.
+
+---
+
+## [5.52.1] — 2026-11-07
+
+Ships in iOS 3.12.4 (`MARKETING_VERSION` 3.12.2 → 3.12.4; 3.12.3 and 5.52.0 are
+taken by the open on-sale alerts PR. The build number is left to Xcode Cloud).
+
+**The community leaderboard is built on the server, and only the server can
+write it.** `communityStats/global` was rebuilt in the browser of whoever loaded
+the app, added a show or deleted one while the stored copy was over an hour old,
+so `firestore.rules` let any signed-in user write it. Anyone could have replaced
+the leaderboard and the landing page's user and show counts.
+
+- **New scheduled function `community-stats`** (every 6 hours, at :50). It reads
+  every profile and every `users/{uid}/shows` doc with the Admin SDK, using one
+  collection-group query instead of a read per user, and writes the same fields
+  as before, so `CommunityStatsView` and the landing page are unchanged. The
+  logic is in `netlify/functions/lib/communityStats.js`.
+- **Rule:** `communityStats/{docId}` is now `allow write: if false`. Reads stay
+  public.
+- **Client:** `updateCommunityStats()` and its five call sites are gone from
+  `context/AppContext.jsx`. Page load, adding a show and deleting one no longer
+  read every user's shows.
+- **Test users are left out**, with their shows, the same way the admin Stats
+  tab leaves them out by default (`computeTotals` in `lib/adminUsers.js`). The
+  public totals can drop by however many test accounts there are.
+- A song with no name no longer drops that user's whole show list from the
+  rebuild; only the song is skipped.
+- Tests: `tests/community/communityStats.test.js` (in `test:unit`) and a
+  `communityStats` case in the rules tests.
 
 ## [5.51.1] — 2026-10-31
 

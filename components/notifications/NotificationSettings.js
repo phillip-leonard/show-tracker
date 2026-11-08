@@ -7,11 +7,12 @@ import { isNativePlatform } from '@/lib/native-auth';
 import { alertChannels, withChannel } from '@/lib/alertChannels';
 import { pushPermission, requestPushPermission } from '@/lib/pushAlerts';
 import { openAppSettings } from '@/lib/nativePermissions';
+import OnsaleAlertSettings from '@/components/notifications/OnsaleAlertSettings';
 import Button from '@/components/ui/Button';
 
 // The daily jobs' alerts (netlify/functions/lib/anniversaryAlerts.js and
 // followedBandAlerts.js read these prefs). Every alert is also in
-// Notifications in the app; these
+// Notifications in the app (on-sale alerts can switch that off too); these
 // choose whether it is pushed and emailed too, each on its own
 // (lib/alertChannels.js). Push needs permission on this device first: on
 // iOS from PushAlertsCard below (or the first follow), on the web from
@@ -32,6 +33,12 @@ const ALERT_PREFS = [
     title: 'Venue bucket list matches',
     description: 'Tell me when a band I follow is playing at a venue on my bucket list',
   },
+  {
+    key: 'onsaleAlerts',
+    title: 'On-sale alerts',
+    description: 'Tell me when a band I follow has a show going on sale near me, with presale times and any code the band shares',
+    inApp: true,
+  },
 ];
 
 function ChannelToggle({ label, checked, onChange }) {
@@ -48,8 +55,8 @@ function ChannelToggle({ label, checked, onChange }) {
   );
 }
 
-function AlertPrefs({ preferences, onChange, pushReady }) {
-  return ALERT_PREFS.map(({ key, title, description }) => {
+function AlertPrefs({ preferences, onChange, pushReady, userId }) {
+  return ALERT_PREFS.map(({ key, title, description, inApp }) => {
     const pref = preferences[key] || {};
     const enabled = pref.enabled !== false;
     const channels = alertChannels(pref);
@@ -74,8 +81,12 @@ function AlertPrefs({ preferences, onChange, pushReady }) {
               <ChannelToggle label="Push" checked={channels.push} onChange={(on) => onChange(key, withChannel(pref, 'push', on))} />
             )}
             <ChannelToggle label="Email" checked={channels.email} onChange={(on) => onChange(key, withChannel(pref, 'email', on))} />
+            {inApp && (
+              <ChannelToggle label="In the app" checked={pref.inApp !== false} onChange={(on) => onChange(key, { ...pref, inApp: on })} />
+            )}
           </div>
         )}
+        {enabled && key === 'onsaleAlerts' && <OnsaleAlertSettings userId={userId} />}
       </div>
     );
   });
@@ -114,7 +125,7 @@ function PushAlertsCard({ userId, state, onState }) {
           {state === 'prompt' && (
             <>
               <p className="text-secondary text-xs mt-1">
-                Get a push when a band you follow announces a tour or plays a venue on your bucket list, and on the anniversary of a show you saw. Nothing else.
+                Get a push when a band you follow announces a tour, plays a venue on your bucket list or has a show going on sale near you, and on the anniversary of a show you saw. Nothing else.
               </p>
               <div className="mt-3">
                 <Button size="sm" icon={Bell} onClick={turnOn} loading={busy}>Turn on push alerts</Button>
@@ -158,6 +169,7 @@ export default function NotificationSettings({ userId }) {
     anniversaries: { enabled: true, method: 'both' }, // method: 'push' | 'email' | 'both'
     venueBucketList: { enabled: true, method: 'both' }, // method: 'push' | 'email' | 'both'
     followedBands: { enabled: true, method: 'both' }, // method: 'push' | 'email' | 'both'
+    onsaleAlerts: { enabled: true, method: 'both', inApp: true },
   });
 
   useEffect(() => {
@@ -175,6 +187,7 @@ export default function NotificationSettings({ userId }) {
               anniversaries: { ...prev.anniversaries, ...profile.data().notificationPrefs.anniversaries },
               venueBucketList: { ...prev.venueBucketList, ...profile.data().notificationPrefs.venueBucketList },
               followedBands: { ...prev.followedBands, ...profile.data().notificationPrefs.followedBands },
+              onsaleAlerts: { ...prev.onsaleAlerts, ...profile.data().notificationPrefs.onsaleAlerts },
             }));
           }
           if (profile.data().fcmToken) {
@@ -286,7 +299,7 @@ export default function NotificationSettings({ userId }) {
         )}
 
         <PushAlertsCard userId={userId} state={pushState} onState={setPushState} />
-        <AlertPrefs preferences={preferences} onChange={handlePreferenceChange} pushReady={pushState === 'granted'} />
+        <AlertPrefs preferences={preferences} onChange={handlePreferenceChange} pushReady={pushState === 'granted'} userId={userId} />
       </div>
     );
   }
@@ -402,7 +415,7 @@ export default function NotificationSettings({ userId }) {
         )}
       </div>
 
-      <AlertPrefs preferences={preferences} onChange={handlePreferenceChange} pushReady={permission === 'granted'} />
+      <AlertPrefs preferences={preferences} onChange={handlePreferenceChange} pushReady={permission === 'granted'} userId={userId} />
     </div>
   );
 }

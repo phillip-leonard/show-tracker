@@ -43,8 +43,8 @@ export default function PushOfferModal({ artist, uid, onDone }) {
       )}
     >
       <p className="text-secondary text-sm">
-        We&rsquo;ll send a push when a band you follow announces a tour or plays a venue on your
-        bucket list, and on the anniversary of a show you saw. Nothing else. You can switch push and email separately in Notifications settings.
+        We&rsquo;ll send a push when a band you follow announces a tour, plays a venue on your
+        bucket list or has a show going on sale near you, and on the anniversary of a show you saw. Nothing else. You can switch push and email separately in Notifications settings.
       </p>
     </Modal>
   );
