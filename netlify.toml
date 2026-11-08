@@ -276,7 +276,7 @@
   status = 200
 
 # Generated sitemaps (netlify/functions/sitemap.js): /sitemap.xml is an
-# index of the two below. robots.txt points at the index.
+# index of the ones below. robots.txt points at the index.
 [[redirects]]
   from = "/sitemap.xml"
   to = "/.netlify/functions/sitemap"
@@ -292,6 +292,34 @@
 [[redirects]]
   from = "/sitemap-artists.xml"
   to = "/.netlify/functions/sitemap/artists"
+  status = 200
+  force = true
+
+# One sitemap per band with song pages: its song index and every indexable
+# song page. Netlify can't match a slug inside a file name, so each band is
+# listed; tests/public-pages/artistPages.test.js fails if a songPages band
+# in config/public-artists.json has no entry here.
+[[redirects]]
+  from = "/sitemap-artist-goose.xml"
+  to = "/.netlify/functions/sitemap/artist/goose"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/sitemap-artist-phish.xml"
+  to = "/.netlify/functions/sitemap/artist/phish"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/sitemap-artist-umphreys-mcgee.xml"
+  to = "/.netlify/functions/sitemap/artist/umphreys-mcgee"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/sitemap-artist-king-gizzard-and-the-lizard-wizard.xml"
+  to = "/.netlify/functions/sitemap/artist/king-gizzard-and-the-lizard-wizard"
   status = 200
   force = true
 
@@ -383,6 +411,7 @@
 #
 #   /artists/                      every public band
 #   /artist/<slug>/                a band page (404 for an unknown slug)
+#   /artist/<slug>/songs/          every song, A-Z (song-page bands only)
 #   /artist/<slug>/song/<song>/    a song page (404 for an unknown song)
 #   /artist/<anything else>        a real 404, not the app shell
 [[redirects]]
@@ -407,6 +436,18 @@
   from = "/artist/"
   to = "/artists/"
   status = 301
+  force = true
+
+[[redirects]]
+  from = "/artist/:slug/songs"
+  to = "/.netlify/functions/public-artist-songs/:slug"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/artist/:slug/songs/"
+  to = "/.netlify/functions/public-artist-songs/:slug"
+  status = 200
   force = true
 
 [[redirects]]

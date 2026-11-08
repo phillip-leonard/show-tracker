@@ -11,7 +11,8 @@
 // publicPageHtml.page(), same shell as the /u/ pages.
 
 const { escapeHtml, page, notFoundPage, formatShowDate, SITE_URL } = require('./publicPageHtml');
-const { availability, cacheHeaders, UNAVAILABLE_CACHE_HEADERS, findArtist, hasShowList } = require('./publicArtistSnapshot');
+const { availability, cacheHeaders, UNAVAILABLE_CACHE_HEADERS, findArtist, hasShowList, publicArtists } = require('./publicArtistSnapshot');
+const { isIndexable, isSong, RELATED_SONGS } = require('./artistSnapshotStats');
 
 const HTML = { 'Content-Type': 'text/html; charset=utf-8' };
 
@@ -30,6 +31,12 @@ const EXTRA_STYLE = `
   .cta a.btn-secondary { margin-left: 8px; background: transparent; color: #f5f5f5; border: 1px solid rgba(255,255,255,0.35); }
   .artists { list-style: none; padding: 0; margin: 0; }
   .artists li { margin-bottom: 8px; }
+  .more { margin: 14px 0 0; font-size: 15px; font-weight: 700; }
+  .letters { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 8px; }
+  .letters a { display: inline-block; min-width: 28px; padding: 4px 6px; border-radius: 8px; background: rgba(255,255,255,0.06); text-align: center; font-weight: 700; font-size: 13px; }
+  h2.letter { margin-top: 24px; }
+  .links { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; }
+  .links li a { display: block; padding: 10px 12px; border-radius: 10px; background: rgba(255,255,255,0.04); }
   .tag { display: inline-block; margin-left: 6px; padding: 0 6px; border: 1px solid rgba(255,255,255,0.25); border-radius: 999px; font-size: 11px; line-height: 16px; color: #b7b6c9; white-space: nowrap; vertical-align: 1px; }
 `;
 
@@ -39,6 +46,20 @@ const longDate = (d) => (d ? formatShowDate(d, 'long') : '');
 
 const bandPath = (slug) => `/artist/${slug}/`;
 const songPath = (slug, songSlug) => `/artist/${slug}/song/${songSlug}/`;
+const songsPath = (slug) => `/artist/${slug}/songs/`;
+// Bands with a full-history archive behind them (Songfish, phish.net) show
+// show dates and venues as plain text, with one followable link to the
+// archive per table, so a page isn't 30 links out to it. setlist.fm keeps a
+// link on every row: its terms want an attribution link to each setlist
+// shown, never nofollow (docs/setlistfm-compliance.md).
+const linksEveryShow = (snapshot) => snapshot.source === 'setlistfm';
+// The band on MusicBrainz, the one identifier for the band itself in the
+// config (setlist.fm's mbid, or setlistfmMbid for archive bands).
+const musicBrainzUrl = (slug) => {
+  const artist = findArtist(slug);
+  const mbid = artist && (artist.mbid || artist.setlistfmMbid);
+  return mbid ? `https://musicbrainz.org/artist/${mbid}` : '';
+};
 // The Songs I've heard tool (heardPages.js), for bands that have it.
 const heardHref = (slug) => {
   const artist = findArtist(slug);
@@ -74,24 +95,35 @@ function sourceLine(snapshot, updated) {
   return `<p class="source">${escapeHtml(a.text)}: <a href="${escapeHtml(a.url)}">${escapeHtml(a.url.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, ''))}</a>. Updated ${escapeHtml(longDate(updated.slice(0, 10)))}.</p>`;
 }
 
-function showLink(show) {
+function showLink(show, linked = true) {
   const text = `${escapeHtml(show.venue)}${show.city ? `, ${escapeHtml(show.city)}` : ''}`;
-  return show.url ? `<a href="${escapeHtml(show.url)}">${text}</a>` : text;
+  return linked && show.url ? `<a href="${escapeHtml(show.url)}">${text}</a>` : text;
 }
 
-function showRows(shows) {
+function showRows(shows, linked = true) {
   return `<table><thead><tr><th>Date</th><th>Venue</th></tr></thead><tbody>${shows
-    .map((s) => `<tr><td style="white-space:nowrap">${escapeHtml(date(s.date))}</td><td>${showLink(s)}</td></tr>`)
+    .map((s) => `<tr><td style="white-space:nowrap">${escapeHtml(date(s.date))}</td><td>${showLink(s, linked)}</td></tr>`)
     .join('')}</tbody></table>`;
+}
+
+// "Every setlist on elgoose.net", under a table whose rows aren't linked.
+function archiveLink(snapshot, text) {
+  const { url } = snapshot.attribution;
+  return `<p class="note">${escapeHtml(text)} <a href="${escapeHtml(url)}">${escapeHtml(snapshot.sourceName)}</a>.</p>`;
+}
+
+function allSongsLink(snapshot) {
+  if (!snapshot.songPages || !snapshot.songs.length) return '';
+  return `<p class="more"><a href="${SITE_URL}${songsPath(snapshot.slug)}">All ${plural(snapshot.songs.length, `${escapeHtml(snapshot.name)} song`)} &rarr;</a></p>`;
 }
 
 function songName(artistSlug, s) {
   return s.hasPage ? `<a href="${SITE_URL}${songPath(artistSlug, s.slug)}">${escapeHtml(s.name)}</a>` : escapeHtml(s.name);
 }
 
-function datedLink(show) {
+function datedLink(show, linked = true) {
   const text = escapeHtml(date(show.date));
-  return show.url ? `<a href="${escapeHtml(show.url)}">${text}</a>` : text;
+  return linked && show.url ? `<a href="${escapeHtml(show.url)}">${text}</a>` : text;
 }
 
 // "Original", "Cover (by The Band)", "Cover", or '' when the source doesn't say.
@@ -144,9 +176,39 @@ function bandIntro(snapshot) {
   return `Every ${escapeHtml(name)} show on ${escapeHtml(sourceName)}${escapeHtml(span)}: ${plural(band.totalShows, 'show')}${unknown > 0 ? ` (${plural(unknown, 'show')} with no known setlist)` : ''} and ${plural(band.songCount, 'song')}, with how often each song is played and how long since it last was.`;
 }
 
-function renderBand({ entry, snapshot }, now = Date.now()) {
+// ── Fans also track ───────────────────────────────────────────────────
+
+const MIN_ALSO_TRACK = 4;
+const MAX_ALSO_TRACK = 6;
+
+/**
+ * 4-6 other bands with a published page: the band's hand-curated
+ * alsoTrack list (config/public-artists.json), topped up from the featured
+ * bands. `index` is the snapshot index; without one every configured band
+ * counts as published.
+ */
+function alsoTrack(slug, index) {
+  const published = index ? new Set(index.artists.map((e) => e.slug)) : null;
+  const ok = (s) => s !== slug && findArtist(s) && (!published || published.has(s));
+  const picks = [];
+  const add = (s) => { if (ok(s) && !picks.includes(s) && picks.length < MAX_ALSO_TRACK) picks.push(s); };
+  (findArtist(slug)?.alsoTrack || []).forEach(add);
+  if (picks.length < MIN_ALSO_TRACK) publicArtists().filter((a) => a.featured).forEach((a) => { if (picks.length < MIN_ALSO_TRACK) add(a.slug); });
+  return picks.map(findArtist);
+}
+
+function alsoTrackBlock(name, slug, index) {
+  const bands = alsoTrack(slug, index);
+  if (!bands.length) return '';
+  return `
+    <h2>Fans of ${escapeHtml(name)} also track</h2>
+    <ul class="links">${bands.map((a) => `<li><a href="${SITE_URL}${bandPath(a.slug)}">${escapeHtml(a.name)}</a></li>`).join('')}</ul>`;
+}
+
+function renderBand({ entry, snapshot, index }, now = Date.now()) {
   if (!availability(entry, now).available) return unavailablePage(snapshot);
   const { band, name, slug, coverage } = snapshot;
+  const linked = linksEveryShow(snapshot);
   const trail = [{ name: 'Home', path: '/' }, { name: 'Artists', path: '/artists/' }, { name, path: bandPath(slug) }];
 
   const top = band.mostPlayed[0];
@@ -218,7 +280,7 @@ function renderBand({ entry, snapshot }, now = Date.now()) {
     <h2>Biggest ${escapeHtml(name)} bust-outs</h2>
     <p class="note">${escapeHtml(name)} originals that went the most shows without being played. The gap counts every ${escapeHtml(name)} show from the one after it was last played through the bust-out, as ${escapeHtml(snapshot.sourceName)} does.</p>
     <table><thead><tr><th>Song</th><th class="num">Gap</th><th class="num">Last played</th><th class="num">Bust-out</th></tr></thead><tbody>${bustOuts
-      .map((s) => `<tr><td>${songName(slug, s)}</td><td class="num">${s.longestGap.toLocaleString('en-US')}</td><td class="num">${datedLink(s.gapStart)}</td><td class="num">${datedLink(s.gapEnd)}</td></tr>`)
+      .map((s) => `<tr><td>${songName(slug, s)}</td><td class="num">${s.longestGap.toLocaleString('en-US')}</td><td class="num">${datedLink(s.gapStart, linked)}</td><td class="num">${datedLink(s.gapEnd, linked)}</td></tr>`)
       .join('')}</tbody></table>` : '';
 
   const bodyHtml = `
@@ -226,7 +288,9 @@ function renderBand({ entry, snapshot }, now = Date.now()) {
     <h1>${escapeHtml(name)} setlists, song stats &amp; show tracker</h1>
     <p class="sub">${bandIntro(snapshot)}</p>
     ${stats}
+    ${allSongsLink(snapshot)}
     ${mostPlayed}
+    ${mostPlayed ? allSongsLink(snapshot) : ''}
     ${originalGapLeaders}
     ${coverGapLeaders}
     ${notPlayedSince}
@@ -238,7 +302,9 @@ function renderBand({ entry, snapshot }, now = Date.now()) {
       <a class="btn" id="heard-cta" href="${heardHref(slug)}">Count your songs</a>
     </div>` : ''}
     <h2>Recent ${escapeHtml(name)} shows</h2>
-    ${showRows(band.recentShows)}
+    ${showRows(band.recentShows, linked)}
+    ${linked ? '' : archiveLink(snapshot, `Every ${name} setlist, with notes, is on`)}
+    ${alsoTrackBlock(name, slug, index)}
     <div class="cta">
       <p style="margin:0 0 4px;font-weight:700;">Track your ${escapeHtml(name)} shows</p>
       <p class="note" style="margin:0 0 8px;">Log the shows you've been to and see every song you've heard live, your own gaps and your stats. Follow ${escapeHtml(name)} and we'll email you when they announce a tour.</p>
@@ -255,7 +321,7 @@ function renderBand({ entry, snapshot }, now = Date.now()) {
         '@type': 'MusicGroup',
         name,
         url: `${SITE_URL}${bandPath(slug)}`,
-        sameAs: [snapshot.attribution.url],
+        ...(musicBrainzUrl(slug) ? { sameAs: [musicBrainzUrl(slug)] } : {}),
       },
       breadcrumbLd(trail),
     ],
@@ -275,6 +341,46 @@ function findSong(snapshot, songSlug) {
   return snapshot.songs.find((s) => s.slug === songSlug) || null;
 }
 
+// A–Z by title, ignoring case and accents, numbers in numeric order.
+const byTitle = (a, b) => a.name.localeCompare(b.name, 'en', { sensitivity: 'base', numeric: true }) || a.slug.localeCompare(b.slug);
+const relatable = (s) => isIndexable(s) && isSong(s);
+
+/**
+ * Up to RELATED_SONGS indexable songs for a song page: the snapshot's
+ * related list (played at the same shows), topped up from the songs either
+ * side of this one in the A–Z list. A snapshot from before related songs
+ * existed gets the A–Z neighbours alone. `fromShows` is how many came
+ * from shared shows.
+ */
+function relatedFor(snapshot, song) {
+  const bySlug = new Map(snapshot.songs.map((s) => [s.slug, s]));
+  const picks = [];
+  const add = (s) => { if (s && s.slug !== song.slug && relatable(s) && !picks.includes(s) && picks.length < RELATED_SONGS) picks.push(s); };
+  (song.related || []).forEach((slug) => add(bySlug.get(slug)));
+  const fromShows = picks.length;
+  const others = snapshot.songs.filter((s) => s.slug !== song.slug && relatable(s)).sort(byTitle);
+  const pos = others.filter((s) => byTitle(s, song) < 0).length;
+  const n = others.length;
+  for (let d = 1; picks.length < RELATED_SONGS && d <= n; d++) {
+    add(others[(((pos - d) % n) + n) % n]);
+    add(others[(pos + d - 1) % n]);
+  }
+  return { songs: picks, fromShows };
+}
+
+function relatedBlock(snapshot, song) {
+  const { songs, fromShows } = relatedFor(snapshot, song);
+  if (!songs.length) return '';
+  const band = escapeHtml(snapshot.name);
+  const note = fromShows
+    ? `The ${band} songs played most often at the same shows as ${escapeHtml(song.name)}${fromShows < songs.length ? ', then the songs next to it A&ndash;Z' : ''}.`
+    : `Next to ${escapeHtml(song.name)} in the A&ndash;Z list of ${band} songs.`;
+  return `
+    <h2>Related ${band} songs</h2>
+    <p class="note">${note}</p>
+    <ul class="links">${songs.map((s) => `<li><a href="${SITE_URL}${songPath(snapshot.slug, s.slug)}">${escapeHtml(s.name)}</a></li>`).join('')}</ul>`;
+}
+
 function renderSong({ entry, snapshot }, songSlug, now = Date.now()) {
   const song = findSong(snapshot, songSlug);
   if (!song) return notFound('No song at this address.');
@@ -288,6 +394,9 @@ function renderSong({ entry, snapshot }, songSlug, now = Date.now()) {
     { name: song.name, path: songPath(slug, song.slug) },
   ];
   const isPhish = snapshot.source === 'phishnet';
+  const linked = linksEveryShow(snapshot);
+  // Thin pages stay reachable and followable, out of the index.
+  const robots = isIndexable(song) ? '' : 'noindex, follow';
 
   const title = `${song.name} – ${band} Song Stats, Gap & Last Played | MySetlists`;
   const description = `${band} has played ${song.name} ${plural(song.timesPlayed, 'time')}, last on ${longDate(song.lastPlayed.date)} at ${song.lastPlayed.venue}${song.currentGap ? `, ${plural(song.currentGap, 'show')} ago` : ''}. First played ${longDate(song.firstPlayed.date)}. Gaps, recent performances and more on MySetlists.`;
@@ -304,7 +413,7 @@ function renderSong({ entry, snapshot }, songSlug, now = Date.now()) {
       <div class="stat"><div class="n sm">${escapeHtml(date(song.lastPlayed.date))}</div><div class="l">Last played</div></div>
       ${kind ? `<div class="stat"><div class="n sm">${kind}</div><div class="l">Song</div></div>` : ''}
     </div>
-    ${song.gapStart && song.gapEnd ? `<p class="note">Longest gap ever: ${plural(song.longestGap, 'show')} (${datedLink(song.gapStart)} to ${datedLink(song.gapEnd)}).</p>` : ''}`;
+    ${song.gapStart && song.gapEnd ? `<p class="note">Longest gap ever: ${plural(song.longestGap, 'show')} (${datedLink(song.gapStart, linked)} to ${datedLink(song.gapEnd, linked)}).</p>` : ''}`;
 
   const sourceLink = song.sourceUrl
     ? `<p class="source">${escapeHtml(song.name)} on ${isPhish ? 'Phish.net' : escapeHtml(snapshot.sourceName)}: <a href="${escapeHtml(song.sourceUrl)}">every performance, jam notes and more</a>.${isPhish ? ' Data courtesy of Phish.net.' : ''}</p>`
@@ -313,27 +422,107 @@ function renderSong({ entry, snapshot }, songSlug, now = Date.now()) {
   const bodyHtml = `
     ${crumbs(trail)}
     <h1>${escapeHtml(song.name)} by ${escapeHtml(band)}: times played, last played &amp; gap</h1>
-    <p class="sub">${escapeHtml(band)} has played ${escapeHtml(song.name)} ${plural(song.timesPlayed, 'time')}. It was first played on ${escapeHtml(longDate(song.firstPlayed.date))} at ${showLink(song.firstPlayed)}, and last on ${escapeHtml(longDate(song.lastPlayed.date))} at ${showLink(song.lastPlayed)} (${escapeHtml(gapText(song.currentGap))}).</p>
+    <p class="sub">${escapeHtml(band)} has played ${escapeHtml(song.name)} ${plural(song.timesPlayed, 'time')}. It was first played on ${escapeHtml(longDate(song.firstPlayed.date))} at ${showLink(song.firstPlayed, linked)}, and last on ${escapeHtml(longDate(song.lastPlayed.date))} at ${showLink(song.lastPlayed, linked)} (${escapeHtml(gapText(song.currentGap))}).</p>
     ${stats}
     <h2>Recent performances</h2>
-    ${showRows(song.recentPerformances)}
+    ${showRows(song.recentPerformances, linked)}
+    ${linked || song.sourceUrl ? '' : archiveLink(snapshot, `Every ${band} setlist is on`)}
     <div class="cta">
       <p style="margin:0 0 4px;font-weight:700;">How many times have you heard ${escapeHtml(song.name)}?</p>
       ${heardHref(slug) ? `<p class="note" style="margin:0 0 8px;">Tick the ${escapeHtml(band)} shows you were at and count every song you've heard live, ${escapeHtml(song.name)} included. Free, no account needed.</p>
       <a class="btn" href="${heardHref(slug)}">Count your ${escapeHtml(band)} songs</a>` : `<p class="note" style="margin:0 0 8px;">Track your shows on MySetlists and see every song you've caught live.</p>
       <a class="btn" href="${SITE_URL}/">Track your shows</a>`}
     </div>
+    ${relatedBlock(snapshot, song)}
+    ${allSongsLink(snapshot)}
     <p style="margin-top:24px;"><a href="${SITE_URL}${bandPath(slug)}">&larr; All ${escapeHtml(band)} song stats</a></p>
     ${sourceLink}
     ${sourceLine(snapshot, entry.fetchedAt)}
   `;
 
-  const jsonLd = { '@context': 'https://schema.org', ...breadcrumbLd(trail) };
+  // A MusicComposition only where the source says the song is the band's
+  // own: a cover's original artist isn't necessarily its composer.
+  const jsonLd = song.isOriginal === true
+    ? {
+      '@context': 'https://schema.org',
+      '@graph': [
+        {
+          '@type': 'MusicComposition',
+          name: song.name,
+          url: `${SITE_URL}${songPath(slug, song.slug)}`,
+          composer: { '@type': 'MusicGroup', name: band, url: `${SITE_URL}${bandPath(slug)}` },
+        },
+        breadcrumbLd(trail),
+      ],
+    }
+    : { '@context': 'https://schema.org', ...breadcrumbLd(trail) };
+
+  return {
+    statusCode: 200,
+    headers: { ...HTML, ...cacheHeaders(entry, now), ...(robots ? { 'X-Robots-Tag': robots } : {}) },
+    body: page({ title, description, canonicalPath: songPath(slug, song.slug), jsonLd, bodyHtml, extraStyle: EXTRA_STYLE, robots }),
+  };
+}
+
+// ── Song index ────────────────────────────────────────────────────────
+
+// '#' for a title that doesn't start with a letter, else its letter.
+function letterOf(name) {
+  const c = String(name).normalize('NFKD').replace(/[\u0300-\u036f]/g, '').trim().charAt(0).toUpperCase();
+  return /[A-Z]/.test(c) ? c : '#';
+}
+const letterId = (l) => (l === '#' ? 'letter-0-9' : `letter-${l.toLowerCase()}`);
+
+/** /artist/<slug>/songs/: every song, A–Z, each linked to its page. */
+function renderSongIndex({ entry, snapshot }, now = Date.now()) {
+  if (!snapshot.songPages || !snapshot.songs.length) return notFound('No song list at this address.');
+  if (!availability(entry, now).available) return unavailablePage(snapshot);
+
+  const { name: band, slug } = snapshot;
+  const songs = snapshot.songs.slice().sort(byTitle);
+  const count = songs.length;
+  const latest = snapshot.band.lastShow?.date;
+  const trail = [
+    { name: 'Home', path: '/' },
+    { name: 'Artists', path: '/artists/' },
+    { name: band, path: bandPath(slug) },
+    { name: 'Songs', path: songsPath(slug) },
+  ];
+
+  const groups = new Map();
+  for (const s of songs) {
+    const l = letterOf(s.name);
+    if (!groups.has(l)) groups.set(l, []);
+    groups.get(l).push(s);
+  }
+  const letters = [...groups.keys()].sort((a, b) => (a === '#' ? -1 : b === '#' ? 1 : a.localeCompare(b)));
+
+  const title = `All ${band} Songs – Times Played & Last Played | MySetlists`;
+  const description = `All ${count.toLocaleString('en-US')} songs ${band} has played live, A to Z, with how many times each was played and when it was last played${latest ? `. Updated through the ${longDate(latest)} show` : ''}.`;
+
+  const jump = `<nav class="letters" aria-label="Jump to letter">${letters
+    .map((l) => `<a href="#${letterId(l)}">${l === '#' ? '0&ndash;9' : l}</a>`).join('')}</nav>`;
+
+  const tables = letters.map((l) => `
+    <h2 class="letter" id="${letterId(l)}">${l === '#' ? '0&ndash;9' : l}</h2>
+    <table><thead><tr><th>Song</th><th class="num">Times played</th><th class="num">Last played</th></tr></thead><tbody>${groups.get(l)
+      .map((s) => `<tr><td><a href="${SITE_URL}${songPath(slug, s.slug)}">${escapeHtml(s.name)}</a>${s.isOriginal === false ? '<span class="tag">Cover</span>' : ''}</td><td class="num">${s.timesPlayed.toLocaleString('en-US')}</td><td class="num">${escapeHtml(date(s.lastPlayed.date))}</td></tr>`)
+      .join('')}</tbody></table>`).join('');
+
+  const bodyHtml = `
+    ${crumbs(trail)}
+    <h1>All ${count.toLocaleString('en-US')} ${escapeHtml(band)} songs</h1>
+    <p class="sub">Every song ${escapeHtml(band)} has played live, from ${escapeHtml(snapshot.sourceName)}: ${plural(snapshot.band.totalShows, 'show')}${latest ? ` through ${escapeHtml(longDate(latest))}` : ''}. Each song links to its times played, gaps and recent performances.</p>
+    ${jump}
+    ${tables}
+    <p style="margin-top:24px;"><a href="${SITE_URL}${bandPath(slug)}">&larr; ${escapeHtml(band)} setlists and song stats</a></p>
+    ${sourceLine(snapshot, entry.fetchedAt)}
+  `;
 
   return {
     statusCode: 200,
     headers: { ...HTML, ...cacheHeaders(entry, now) },
-    body: page({ title, description, canonicalPath: songPath(slug, song.slug), jsonLd, bodyHtml, extraStyle: EXTRA_STYLE }),
+    body: page({ title, description, canonicalPath: songsPath(slug), jsonLd: { '@context': 'https://schema.org', ...breadcrumbLd(trail) }, bodyHtml, extraStyle: EXTRA_STYLE }),
   };
 }
 
@@ -487,8 +676,12 @@ function artistShowsJson(loaded, now = Date.now()) {
 module.exports = {
   bandPath,
   songPath,
+  songsPath,
   renderBand,
   renderSong,
+  renderSongIndex,
+  relatedFor,
+  alsoTrack,
   renderIndex,
   notFound,
   unavailablePage,

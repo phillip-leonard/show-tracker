@@ -75,6 +75,55 @@ const NON_SONG = /^(jam|drums|space|unknown|dueling drums|(bass|drum|drums|guita
 const isSong = (s) => !NON_SONG.test(s.name.trim());
 const RECENT_PERFORMANCES = 10;
 
+// A song page for a song played fewer times than this is thin: it still
+// exists and is linked from the band's song index, but it carries
+// `noindex, follow`, stays out of the sitemaps and out of every song's
+// related songs (publicArtistPages.js, sitemap.js). The one place this
+// threshold lives.
+const SEO_MIN_PLAYS_FOR_INDEX = 3;
+// Related songs per song page: the indexable songs most often played at
+// the same shows (relatedSongs below).
+const RELATED_SONGS = 6;
+const isIndexable = (s) => s.timesPlayed >= SEO_MIN_PLAYS_FOR_INDEX;
+
+/**
+ * Each song's related songs, as slugs: the indexable songs (not itself,
+ * not a non-song like Jam) played at the most of the same shows, scored by
+ * cosine similarity, shared shows / sqrt(plays of each). A raw count would
+ * give every song the same handful of staples; this favors songs that turn
+ * up with this one in particular. Ties go to more shared shows, then name.
+ * Fewer than RELATED_SONGS when the song shared shows with fewer
+ * candidates; the page tops the list up from the A–Z list.
+ *
+ * @param {string[][]} showKeys  each show's distinct song keys
+ * @param {object[]} songs       built songs (key, slug, name, timesPlayed)
+ */
+function relatedSongs(showKeys, songs) {
+  const byKey = new Map(songs.map((s) => [s.key, s]));
+  const candidate = (key) => { const s = byKey.get(key); return !!s && isIndexable(s) && isSong(s); };
+  const shared = new Map(); // key -> Map(other key -> shows together)
+  for (const keys of showKeys) {
+    const targets = keys.filter(candidate);
+    if (!targets.length) continue;
+    for (const a of keys) {
+      if (!byKey.has(a)) continue;
+      let row = shared.get(a);
+      if (!row) { row = new Map(); shared.set(a, row); }
+      for (const b of targets) if (b !== a) row.set(b, (row.get(b) || 0) + 1);
+    }
+  }
+  const out = new Map();
+  for (const song of songs) {
+    const row = shared.get(song.key) || new Map();
+    const ranked = [...row].map(([key, together]) => {
+      const other = byKey.get(key);
+      return { other, together, score: together / Math.sqrt(song.timesPlayed * other.timesPlayed) };
+    }).sort((x, y) => y.score - x.score || y.together - x.together || x.other.name.localeCompare(y.other.name) || x.other.slug.localeCompare(y.other.slug));
+    out.set(song.key, ranked.slice(0, RELATED_SONGS).map((r) => r.other.slug));
+  }
+  return out;
+}
+
 function chronological(shows) {
   return shows.slice().sort((a, b) =>
     a.date.localeCompare(b.date)
@@ -131,8 +180,10 @@ function buildArtistStats(shows) {
 
   // ── Every song, the distinct shows it was played at, in order ─────────
   const byKey = new Map();
+  const showKeys = [];
   timeline.forEach((show, index) => {
     const seenThisShow = new Set();
+    showKeys.push(seenThisShow);
     for (const song of show.songs || []) {
       if (!song || !song.key || !song.name) continue;
       if (seenThisShow.has(song.key)) continue; // a sandwich is one show played
@@ -192,6 +243,8 @@ function buildArtistStats(shows) {
 
   assignSlugs(songs);
   songs.forEach((s) => { delete s.firstIndex; delete s.sourceSlug; });
+  const related = relatedSongs(showKeys.map((set) => [...set]), songs);
+  songs.forEach((s) => { s.related = related.get(s.key) || []; });
 
   const byPlays = (a, b) => b.timesPlayed - a.timesPlayed || a.name.localeCompare(b.name);
   const summary = (s) => ({ slug: s.slug, name: s.name, isOriginal: s.isOriginal, timesPlayed: s.timesPlayed, currentGap: s.currentGap, lastPlayed: s.lastPlayed.date });
@@ -330,4 +383,4 @@ function commonPrefix(values) {
   return prefix;
 }
 
-module.exports = { buildArtistStats, buildShowList, slugify, isSong, GAP_LEADER_MIN_PLAYS, BUST_OUT_MIN_GAP, RETIRED_YEARS };
+module.exports = { buildArtistStats, buildShowList, slugify, isSong, isIndexable, GAP_LEADER_MIN_PLAYS, BUST_OUT_MIN_GAP, RETIRED_YEARS, SEO_MIN_PLAYS_FOR_INDEX, RELATED_SONGS };

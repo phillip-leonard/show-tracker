@@ -13,6 +13,16 @@ const STREAMING_MENTION = /spotify|apple\s*music/i;
 function ReleaseNotesView() {
   const releases = [
     {
+      version: '5.56.0',
+      date: 'November 8, 2026',
+      title: 'Every Song, One Page',
+      changes: [
+        'Goose, Phish, Umphrey\u2019s McGee and King Gizzard each have a page listing every song they\u2019ve played, A to Z, with times played and the date last played',
+        'Every song page now suggests six songs that often turn up at the same shows',
+        'Band pages link to bands their fans also follow',
+      ]
+    },
+    {
       version: '5.55.0',
       date: 'November 8, 2026',
       title: 'A Welcome After Your First Show',

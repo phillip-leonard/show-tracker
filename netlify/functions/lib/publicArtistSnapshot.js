@@ -570,13 +570,14 @@ async function loadIndex(store) {
   return index && Array.isArray(index.artists) ? index : { schemaVersion: SCHEMA_VERSION, artists: [] };
 }
 
-/** { entry, snapshot } for a configured, published artist, else null. */
+/** { entry, snapshot, index } for a configured, published artist, else null. */
 async function loadArtist(store, slug) {
   if (!findArtist(slug)) return null;
   const [index, snapshot] = await Promise.all([loadIndex(store), store.get(artistKey(slug))]);
   const entry = index.artists.find((e) => e.slug === slug);
   if (!entry || !snapshot) return null;
-  return { entry, snapshot };
+  // The index rides along for the band page's links to other bands.
+  return { entry, snapshot, index };
 }
 
 /**
