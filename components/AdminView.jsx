@@ -18,6 +18,7 @@ import OnsaleTab from '@/components/admin/OnsaleTab';
 import UsersTab from '@/components/admin/UsersTab';
 import StatsTab from '@/components/admin/StatsTab';
 import ArchiveDryRunCard from '@/components/admin/ArchiveDryRunCard';
+import WelcomeEmailCard from '@/components/admin/WelcomeEmailCard';
 import { buildUserRows } from '@/lib/adminUsers';
 import { sendEmailIfAllowed } from '@/lib/email';
 import { PageHeader, Button } from '@/components/ui';
@@ -1006,6 +1007,8 @@ function AdminView() {
               </div>
             ))}
           </div>
+
+          <WelcomeEmailCard profile={selectedUser} />
 
           {/* Find Missing Setlists for this user */}
           <div className="bg-hover backdrop-blur-xl border border-subtle rounded-2xl p-4">

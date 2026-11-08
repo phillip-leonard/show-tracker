@@ -4,10 +4,11 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
-## [5.55.0] — 2026-11-08
+## [5.56.0] — 2026-11-08
 
-Ships in iOS 3.12.7 (`MARKETING_VERSION` 3.12.6 → 3.12.7, the default patch
-bump; no app change. The build number is left to Xcode Cloud).
+Ships in iOS 3.12.8 (`MARKETING_VERSION` 3.12.7 → 3.12.8, the default patch
+bump; 3.12.7 went to the welcome email, #387, at 5.55.0. No app change. The
+build number is left to Xcode Cloud).
 
 **Search indexing, phase 1: links between band and song pages, thin pages
 out of the index, a sitemap per band.** Search Console listed about 2,690
@@ -69,6 +70,62 @@ from the band-page snapshot. Nothing in the static export changes.
 After deploy, run `node scripts/run-artist-snapshot.js --force` so every
 snapshot gets its related songs. A plain run reports every artist "fresh"
 and writes nothing. No `SCHEMA_VERSION` bump: nothing has to be refetched.
+
+---
+
+## [5.55.0] — 2026-11-08
+
+Ships in iOS 3.12.7 (`MARKETING_VERSION` 3.12.6 → 3.12.7, the default patch
+bump. The build number is left to Xcode Cloud).
+
+**A welcome email after a new user's first show.** One email, once per
+account, with short how-tos for five features: scanning a ticket stub,
+importing ticket history from a screenshot, adding photos, tagging friends,
+and Tours and Festivals.
+
+- **Trigger.** The four functions in `context/AppContext.jsx` that write
+  shows (`addShow`, `addShowsFromTour`, `importShowsToFestival`,
+  `handleMigrateData`) call one helper, `noteShowsAdded(prevCount, added)`,
+  after the write succeeds. Every add path reaches one of the four: manual,
+  search, ticket scan, file and screenshot import, accepting a tag, upcoming
+  → past, festival lineup, tour browse, Heard, and guest migration. When the
+  account went from 0 shows to some, the helper POSTs to
+  `send-welcome-email` without awaiting it (`lib/welcomeEmailTrigger.js`),
+  so a save never waits on it. A guest has no account; their shows reach the
+  helper through the migration prompt once they sign up.
+- **The server decides** (`netlify/functions/lib/welcomeEmail.js`). The
+  browser's "0 shows" is its in-memory list, also 0 before shows load, so
+  the server doesn't trust it. The account must have been created on or
+  after `WELCOME_EMAIL_START` (2026-11-08), which keeps every existing user
+  out with no backfill. It must have at least one show. The send is claimed
+  in a transaction on `userProfiles/{uid}.welcomeEmail`, so concurrent calls
+  (a 200-show import, bulk tag accepts) send once. Outcomes are recorded
+  there: `sent` (with the Resend id), `failed` (retried on the next save, up
+  to 3 attempts), `skipped_opt_out`, `skipped_no_email`, `skipped_existing`.
+  An opted-out user is never sent it later, even after opting back in. The
+  category is `notification`, so the Profile "all emails" switch and
+  address suppressions block it; the announcements switch doesn't.
+- **The email** (`netlify/functions/lib/welcomeEmailTemplate.js`,
+  re-exported by `lib/emailTemplates.js`). From Phillip, reply-to
+  `ANNOUNCEMENT_REPLY_TO` (falling back to the admin address), with the
+  signed unsubscribe footer and `List-Unsubscribe` headers from
+  `buildEmail()`. Copy uses the app's real labels; a test checks each one
+  against the component that renders it. Links go to real routes that are
+  also universal links: `/scan-import/`, `/scan-import/?import=1`, the new
+  show's `/shows/?show=<id>`, `/tours/`, `/festivals/`.
+- **Dark mode.** `wrapEmail()` takes `{ darkMode, preheader }`. Dark mode
+  adds `color-scheme` metas and `prefers-color-scheme` overrides keyed on
+  classes the wrapper now always carries. Other emails render as before.
+- **Firestore rules.** `welcomeEmail` is server-only: an owner can't create a
+  profile with it or change or clear it (`tests/rules/welcomeEmail.rules.test.js`).
+- **Admin.** A user's detail shows their welcome email status, with a
+  preview and "Send test to me" (sample data, admin only, writes nothing).
+- **Screenshot import** is site-agnostic in its wording: the extraction
+  prompt names SeatGeek, DICE and others, reads order histories, and skips
+  parking passes and add-ons. The My Shows empty state says the same.
+- `sendOne()` now returns Resend's message id. The test fake's
+  `runTransaction()` now buffers writes and retries on conflict, as
+  Firestore does.
 
 ---
 

@@ -139,13 +139,18 @@ service cloud.firestore {
                     && request.auth.uid == userId
                     && request.resource.data.get('banned', false) == false
                     && !request.resource.data.keys().hasAny(
-                         ['displayName', 'firstName', 'handle', 'handleLower', 'isTestUser']);
+                         ['displayName', 'firstName', 'handle', 'handleLower', 'isTestUser', 'welcomeEmail']);
+      // `welcomeEmail` (5.55.0) is the server's record of the one welcome
+      // email (netlify/functions/lib/welcomeEmail.js). Server-only: an
+      // owner who could clear it could have it sent again.
       allow update: if request.auth != null
                     && request.auth.uid == userId
                     && request.resource.data.get('banned', false)
                        == resource.data.get('banned', false)
                     && request.resource.data.get('isTestUser', false)
                        == resource.data.get('isTestUser', false)
+                    && !request.resource.data.diff(resource.data).affectedKeys()
+                         .hasAny(['welcomeEmail'])
                     && textFieldsUnchanged();
       // The admin may flip isTestUser on anyone's profile, and nothing
       // else: the admin's client is no more trusted with the rest of a

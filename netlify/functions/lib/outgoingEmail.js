@@ -76,7 +76,13 @@ function resendRequest(path, payload, { idempotencyKey } = {}) {
 
 async function sendOne(payload) {
   const r = await resendRequest('/emails', payload);
-  if (r.status >= 200 && r.status < 300) return { ok: true };
+  if (r.status >= 200 && r.status < 300) {
+    // Resend answers { id }. Kept when it's there (the welcome email
+    // records it); a body that isn't JSON is still a successful send.
+    let id = null;
+    try { id = JSON.parse(r.body || '{}').id || null; } catch { /* not JSON */ }
+    return { ok: true, id };
+  }
   return { ok: false, status: r.status, error: String(r.body || '').slice(0, 500) };
 }
 

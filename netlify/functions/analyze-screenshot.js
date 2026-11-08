@@ -53,7 +53,7 @@ exports.handler = async function(event, context) {
     };
   }
 
-  const prompt = `You are analyzing a screenshot of a ticket platform (Ticketmaster, AXS, StubHub, Live Nation, Eventbrite, or similar) showing a user's past concert/event history.
+  const prompt = `You are analyzing a screenshot of a ticket site or app (Ticketmaster, AXS, SeatGeek, StubHub, Live Nation, Eventbrite, DICE, Vivid Seats, See Tickets, a venue's own box office, or similar) showing a user's past events or order history.
 
 Extract every concert/show/event visible in the screenshot. For each show, provide:
 - artist: The performing artist or band name (the headliner, not the opener)
@@ -71,7 +71,8 @@ Important rules:
 - If a date is partially visible or ambiguous, make your best guess and include it
 - If you cannot determine a field, use an empty string "" for that field
 - Do NOT include non-concert events (sports, comedy specials, theater, etc.) unless they are clearly musical performances
-- If the screenshot shows no events or is not a ticket platform screenshot, return an empty array []
+- Order histories can list parking passes, upgrades, merch bundles and add-ons alongside tickets: skip those, and list each show once even if it has several orders
+- If the screenshot shows no events or is not a ticket site screenshot, return an empty array []
 - For festivals, use the festival name as the artist (e.g., "Bonnaroo 2023")
 - Normalize artist names to their common/official form (e.g., "The Rolling Stones" not "ROLLING STONES")
 - Dates must always be YYYY-MM-DD format regardless of how they appear in the screenshot`;
