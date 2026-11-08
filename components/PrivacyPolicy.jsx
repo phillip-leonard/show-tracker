@@ -50,6 +50,7 @@ export default function PrivacyPolicy() {
               <ul className="list-disc list-inside space-y-2 ml-2">
                 <li><strong className="text-primary">Account Information:</strong> When you create an account, we collect your email address and password, or authentication credentials through Google sign-in.</li>
                 <li><strong className="text-primary">User Content:</strong> Setlists you create, shows you mark as attended, personal notes, ratings, and any content you choose to share publicly through the Service.</li>
+                <li><strong className="text-primary">On-Sale Alert Settings:</strong> If you turn on on-sale alerts, the home city, radius and time zone you choose. We use them only to work out which shows are near you. They are visible only to you, and we never ask for your device's location.</li>
                 <li><strong className="text-primary">Communications:</strong> If you contact us directly, we may receive additional information about you, such as your name and the contents of your message.</li>
               </ul>
 
@@ -79,6 +80,7 @@ export default function PrivacyPolicy() {
               <p className="mb-3">We use the following third-party services to operate the Service:</p>
               <ul className="list-disc list-inside space-y-2 ml-2">
                 <li><strong className="text-primary">Firebase (Google):</strong> We use Firebase for authentication, data storage, and hosting. Firebase may collect certain technical data as described in <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer" className="text-brand hover:text-brand underline">Google's Privacy Policy</a>.</li>
+                <li><strong className="text-primary">Ticketmaster and Anthropic:</strong> To find shows going on sale, we ask Ticketmaster about the bands people follow, and we use Anthropic's Claude to read presale emails that bands send to a MySetlists inbox. Neither receives your name, email address or location for this.</li>
                 <li><strong className="text-primary">Setlist.fm API:</strong> We retrieve setlist data from the Setlist.fm API. When you search for or view setlists, queries are made to their service. Please refer to <a href="https://www.setlist.fm/help/privacy" target="_blank" rel="noopener noreferrer" className="text-brand hover:text-brand underline">Setlist.fm's Privacy Policy</a> for information about their data practices.</li>
               </ul>
               <p className="mt-3">We do not sell your personal information to third parties.</p>

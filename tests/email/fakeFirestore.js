@@ -4,7 +4,7 @@
  * handlers with no credentials and no network.
  *
  * Supports: doc get/set(merge)/create/update/delete, collection add/doc/where
- * ('==', 'in')/orderBy/limit/select/get, subcollections, batch(),
+ * ('==', 'in', '>=', '<=', '<')/orderBy/limit/select/get, subcollections, batch(),
  * runTransaction(). Not a general Firestore emulator.
  */
 
@@ -83,6 +83,9 @@ function createFakeDb() {
             const v = f.field === '__name__' ? d.id : d.data()[f.field];
             if (f.op === '==') return v === f.value;
             if (f.op === 'in') return f.value.includes(v);
+            if (f.op === '>=') return v != null && v >= f.value;
+            if (f.op === '<=') return v != null && v <= f.value;
+            if (f.op === '<') return v != null && v < f.value;
             throw new Error(`fake: unsupported op ${f.op}`);
           });
         }
