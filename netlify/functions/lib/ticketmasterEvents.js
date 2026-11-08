@@ -131,4 +131,4 @@ async function findVenueLocation({ venue, city, state }, { apiKey, get = httpsGe
   }
 }
 
-module.exports = { fetchArtistEvents, resolveAttraction, findVenueLocation };
+module.exports = { fetchArtistEvents, resolveAttraction, findVenueLocation, httpsGetJson };

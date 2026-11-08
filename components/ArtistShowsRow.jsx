@@ -8,6 +8,7 @@ import UpcomingShows from '@/components/UpcomingShows';
 import FollowBandButton from '@/components/artists/FollowBandButton';
 import MakePosterButton from '@/components/heard/MakePosterButton';
 import BandStatsLink from '@/components/bands/BandStatsLink';
+import FansAlsoSeeLink from '@/components/discover/FansAlsoSeeLink';
 
 function ArtistShowsRow({ artist, shows, expanded, onToggle, onSelectShow, onDeleteShow, onRateShow }) {
   const avgRating = (() => {
@@ -101,6 +102,7 @@ function ArtistShowsRow({ artist, shows, expanded, onToggle, onSelectShow, onDel
                 <div className="flex flex-wrap gap-2 mb-3">
                   <FollowBandButton artist={artist} />
                   <BandStatsLink artist={artist} />
+                  <FansAlsoSeeLink artist={artist} />
                   <MakePosterButton artist={artist} />
                 </div>
                 <UpcomingShows artistName={artist} />

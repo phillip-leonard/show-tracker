@@ -129,7 +129,7 @@ const TOMBSTONES = [
 ];
 
 /** Subcollections under users/{uid}. recursiveDelete covers any we forget. */
-const USER_SUBTREE = ['shows', 'friends', 'festivals'];
+const USER_SUBTREE = ['shows', 'friends', 'festivals', 'discover'];
 
 // ── helpers ──────────────────────────────────────────────────────────────
 

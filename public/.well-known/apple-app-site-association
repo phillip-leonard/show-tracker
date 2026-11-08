@@ -49,6 +49,12 @@
             "/": "/tours/*"
           },
           {
+            "/": "/discover"
+          },
+          {
+            "/": "/discover/*"
+          },
+          {
             "/": "/festivals"
           },
           {

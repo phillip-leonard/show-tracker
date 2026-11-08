@@ -917,6 +917,12 @@ export function AppProvider({ children }) {
             edition: canonical.edition || '',
             createdBy: canonical.createdBy,
             isCreator: canonical.createdBy === userId,
+            // Lineup from Ticketmaster (5.54.0), written only by
+            // netlify/functions/festival-lineup.js. A hand-typed lineup is
+            // the attendance record's own `myLineup`, spread in above.
+            lineup: Array.isArray(canonical.lineup) ? canonical.lineup : [],
+            lineupSource: canonical.lineupSource || null,
+            lineupUrl: canonical.lineupUrl || null,
           };
         } catch (e) {
           console.warn('Failed to read canonical festival:', attendance.festivalId, e.message);

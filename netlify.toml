@@ -41,6 +41,13 @@
 [functions."inbound-email-cleanup"]
   schedule = "50 3 * * *"
 
+# Nightly band affinity (5.54.0): rebuilds bandAffinity/* and
+# bandPopularity/all, the count-only data behind Discover and festival
+# picks. 14:00 UTC, after the two daily jobs above. See
+# netlify/functions/band-affinity.js.
+[functions."band-affinity"]
+  schedule = "0 14 * * *"
+
 # Moderation SLA reminder (Guideline 1.2) — re-sends the admin email for
 # any report open more than 12 hours, so the 24-hour review commitment in
 # the Community Guidelines cannot be missed silently. Every four hours

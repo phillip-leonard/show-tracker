@@ -18,7 +18,7 @@ import { usePathname } from 'next/navigation';
 import {
   Search, List, BarChart3, Shield, Coffee,
   LogOut, User, X, Heart, HelpCircle, ScrollText,
-  Bookmark, GalleryVertical, Tent, Map, MessageSquare,
+  Bookmark, GalleryVertical, Tent, Map, MessageSquare, Compass,
 } from 'lucide-react';
 import Pick from '../brand/Pick';
 import Wordmark, { BRAND_LOCKUP } from '../brand/Wordmark';
@@ -72,6 +72,7 @@ export default function Sidebar({
   const primary = [
     { id: 'shows', label: 'My Shows', icon: List, href: '/' },
     { id: 'stats', label: 'Stats', icon: BarChart3, href: '/stats' },
+    !isGuest && { id: 'discover', label: 'Discover', icon: Compass, href: '/discover' },
     !isGuest && { id: 'tours', label: 'Tours', icon: Map, href: '/tours' },
     !isGuest && { id: 'festivals', label: 'Festivals', icon: Tent, href: '/festivals' },
     !isGuest && { id: 'wishlist', label: 'Wishlist', icon: Heart, href: '/wishlist' },
