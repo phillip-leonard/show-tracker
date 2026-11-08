@@ -47,6 +47,7 @@ import { saveDisplayName } from '@/lib/handles';
 import { buildSongStats } from '@/lib/songCounts';
 import { applyShowFilters, availableYearsFor } from '@/lib/showFilters';
 import { sendEmailIfAllowed } from '@/lib/email';
+import { isFirstShowTransition, requestWelcomeEmail } from '@/lib/welcomeEmailTrigger';
 import { sweepExpiredSetlistfmCaches } from '@/lib/setlistfmLocalCache';
 import { signInLeavesRoute } from '@/lib/deepLinks';
 import {
@@ -1283,6 +1284,12 @@ export function AppProvider({ children }) {
   const handleMigrateData = async () => {
     if (!user || localShowsToMigrate.length === 0) return;
 
+    // Shows the account already had, not counting the ones being migrated:
+    // right after a guest signs up, `shows` can still hold their guest
+    // shows until loadShows() replaces them.
+    const migratingIds = new Set(localShowsToMigrate.map(s => s.id));
+    const prevCount = latestShows.current.filter(s => !migratingIds.has(s.id)).length;
+
     try {
       for (const show of localShowsToMigrate) {
         const showRef = doc(db, 'users', user.uid, 'shows', show.id);
@@ -1292,6 +1299,7 @@ export function AppProvider({ children }) {
           migratedFromLocal: true,
         });
       }
+      noteShowsAdded(prevCount, localShowsToMigrate);
       storage.remove(STORAGE_KEYS.LEGACY_SHOWS);
       storage.remove(STORAGE_KEYS.GUEST_SHOWS);
       setShowMigrationPrompt(false);
@@ -1456,6 +1464,23 @@ export function AppProvider({ children }) {
     });
   };
 
+  // ── Welcome email (5.55.0) ────────────────────────────────────────
+  // The one place a show write asks for the welcome email. Each of the
+  // four functions that write shows (addShow, addShowsFromTour,
+  // importShowsToFestival, handleMigrateData) calls this after its write
+  // succeeds, with how many shows the account had before it. A guest has
+  // no account and no address; their shows reach this through
+  // handleMigrateData once they sign up. Fire-and-forget: the save never
+  // waits on it. See lib/welcomeEmailTrigger.js and
+  // netlify/functions/lib/welcomeEmail.js, which decides for itself.
+  const noteShowsAdded = (prevCount, addedShows = []) => {
+    if (!user || guestMode) return;
+    if (!isFirstShowTransition(prevCount, addedShows.length)) return;
+    requestWelcomeEmail(user, addedShows[0]?.id, {
+      url: apiUrl('/.netlify/functions/send-welcome-email'),
+    });
+  };
+
   const addShow = async (showData, { silent = false } = {}) => {
     // Check for duplicate before adding
     const existing = findDuplicateShow(showData);
@@ -1482,7 +1507,8 @@ export function AppProvider({ children }) {
     const showId = mintShowId();
     const newShow = buildShowDoc(enriched, showId);
 
-    const isFirstShow = latestShows.current.length === 0;
+    const prevCount = latestShows.current.length;
+    const isFirstShow = prevCount === 0;
 
     if (guestMode) {
       const updatedShows = [...latestShows.current, newShow];
@@ -1531,6 +1557,7 @@ export function AppProvider({ children }) {
       latestShows.current = updatedShows;
       setShows(updatedShows);
       setShowForm(false);
+      noteShowsAdded(prevCount, [newShow]);
 
       if (isFirstShow) {
         setShowCelebration(true);
@@ -1600,6 +1627,7 @@ export function AppProvider({ children }) {
     // run are tracked separately — two nights of the same tour can't
     // collide, but a candidate list containing the same show twice can.
     const index = buildExistingShowIndex(shows);
+    const prevCount = latestShows.current.length;
     const createdThisRun = [];
     const skipped = [];
     const failed = [];
@@ -1644,6 +1672,7 @@ export function AppProvider({ children }) {
 
     if (createdThisRun.length > 0) {
       setShows(prev => [...prev, ...createdThisRun]);
+      noteShowsAdded(prevCount, createdThisRun);
 
       // Aggregates once, off the post-run list rather than the stale
       // render-time `shows`.
@@ -2497,6 +2526,7 @@ export function AppProvider({ children }) {
     // created shows stranded outside the festival.
     const existingIds = [];
     const toCreate = [];
+    const prevCount = latestShows.current.length;
     let idSeed = Date.now();
 
     candidates.forEach(candidate => {
@@ -2535,6 +2565,7 @@ export function AppProvider({ children }) {
         });
         await batch.commit();
         setShows(prev => [...prev, ...toCreate]);
+        noteShowsAdded(prevCount, toCreate);
       }
     } catch (error) {
       console.error('Failed to import festival shows:', error);
