@@ -436,6 +436,19 @@ async function main() {
     }));
   });
 
+  console.log('\ncommunity leaderboard is server-written only (v5.52.1)');
+
+  // netlify/functions/community-stats.js rebuilds it with the Admin SDK.
+  // Before 5.52.1 any signed-in user could overwrite the leaderboard.
+
+  await test('anyone can read communityStats, nobody can write it', async () => {
+    await assertSucceeds(anon().doc('communityStats/global').get());
+    await assertSucceeds(alice().doc('communityStats/global').get());
+    await assertFails(alice().doc('communityStats/global').set({ totalUsers: 9999 }));
+    await assertFails(admin().doc('communityStats/global').set({ totalUsers: 9999 }));
+    await assertFails(anon().doc('communityStats/global').set({ totalUsers: 9999 }));
+  });
+
   await testEnv.cleanup();
 
   console.log(`\n${passed} passed, ${failed} failed\n`);

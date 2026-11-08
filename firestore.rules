@@ -241,10 +241,12 @@ service cloud.firestore {
       allow write: if false;
     }
 
-    // Community leaderboard stats
+    // Community leaderboard stats. Rebuilt only by the scheduled
+    // netlify/functions/community-stats.js (Admin SDK, bypasses rules).
+    // Until 5.52.1 any signed-in client could overwrite it.
     match /communityStats/{docId} {
       allow read: if true;
-      allow write: if request.auth != null;
+      allow write: if false;
     }
 
     // Friend requests
