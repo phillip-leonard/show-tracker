@@ -44,6 +44,12 @@
 [functions."public-artist-snapshot"]
   schedule = "20 */6 * * *"
 
+# Community leaderboard (communityStats/global) — every 6 hours. Clients
+# used to rebuild it themselves and could write it; now only this job does
+# (5.52.1). See netlify/functions/lib/communityStats.js.
+[functions."community-stats"]
+  schedule = "50 */6 * * *"
+
 # The "Songs I've heard" poster and preview images: resvg-js is a native
 # module, so it is installed as is rather than bundled, and the poster font
 # (Plus Jakarta Sans, SIL OFL) ships alongside. See public-heard-image.js.

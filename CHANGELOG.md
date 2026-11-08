@@ -4,6 +4,35 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.52.1] — 2026-11-07
+
+Ships in iOS 3.12.4 (`MARKETING_VERSION` 3.12.2 → 3.12.4; 3.12.3 and 5.52.0 are
+taken by the open on-sale alerts PR. The build number is left to Xcode Cloud).
+
+**The community leaderboard is built on the server, and only the server can
+write it.** `communityStats/global` was rebuilt in the browser of whoever loaded
+the app, added a show or deleted one while the stored copy was over an hour old,
+so `firestore.rules` let any signed-in user write it. Anyone could have replaced
+the leaderboard and the landing page's user and show counts.
+
+- **New scheduled function `community-stats`** (every 6 hours, at :50). It reads
+  every profile and every `users/{uid}/shows` doc with the Admin SDK, using one
+  collection-group query instead of a read per user, and writes the same fields
+  as before, so `CommunityStatsView` and the landing page are unchanged. The
+  logic is in `netlify/functions/lib/communityStats.js`.
+- **Rule:** `communityStats/{docId}` is now `allow write: if false`. Reads stay
+  public.
+- **Client:** `updateCommunityStats()` and its five call sites are gone from
+  `context/AppContext.jsx`. Page load, adding a show and deleting one no longer
+  read every user's shows.
+- **Test users are left out**, with their shows, the same way the admin Stats
+  tab leaves them out by default (`computeTotals` in `lib/adminUsers.js`). The
+  public totals can drop by however many test accounts there are.
+- A song with no name no longer drops that user's whole show list from the
+  rebuild; only the song is skipped.
+- Tests: `tests/community/communityStats.test.js` (in `test:unit`) and a
+  `communityStats` case in the rules tests.
+
 ## [5.51.1] — 2026-10-31
 
 Ships in iOS 3.12.2 (`MARKETING_VERSION` 3.12.1 → 3.12.2, the default patch bump;

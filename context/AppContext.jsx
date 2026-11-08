@@ -11,7 +11,7 @@ import {
   arrayUnion, arrayRemove, Timestamp,
 } from 'firebase/firestore';
 import { auth, db, googleProvider, browserPopupRedirectResolver } from '@/lib/firebase';
-import { formatDate, parseDate, normalizeSongTitle } from '@/lib/utils';
+import { formatDate, parseDate } from '@/lib/utils';
 import { ADMIN_EMAILS } from '@/lib/constants';
 import { storage, STORAGE_KEYS } from '@/lib/storage';
 import { setSignedInHint, clearSignedInHint } from '@/lib/signedInHint';
@@ -207,114 +207,9 @@ async function ensureProfileCreatedAt(user) {
   }, { merge: true });
 }
 
-// ── Helper: rebuild community-wide leaderboard stats ────────────────────
-// This scans every user profile and, per profile, reads that user's entire
-// shows subcollection — an N+1 read pattern that gets more expensive as the
-// user base grows. It's triggered on every page load plus every add/delete
-// show, for every user, but the leaderboard it produces only needs to be
-// roughly fresh — so skip the rebuild unless the cached stats are stale.
-const COMMUNITY_STATS_MAX_AGE_MS = 60 * 60 * 1000;
-
-async function updateCommunityStats() {
-  try {
-    const statsRef = doc(db, 'communityStats', 'global');
-    const existingStats = await getDoc(statsRef);
-    if (existingStats.exists()) {
-      const updatedAtMs = existingStats.data().updatedAt?.toMillis?.();
-      if (updatedAtMs && Date.now() - updatedAtMs < COMMUNITY_STATS_MAX_AGE_MS) {
-        return;
-      }
-    }
-
-    const profilesSnapshot = await getDocs(collection(db, 'userProfiles'));
-    const profiles = profilesSnapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-
-    const allSongs = {};
-    const allVenues = {};
-    let totalShows = profiles.reduce((acc, p) => acc + (p.showCount || 0), 0);
-    let totalSongs = profiles.reduce((acc, p) => acc + (p.songCount || 0), 0);
-
-    for (const profile of profiles) {
-      try {
-        const showsSnapshot = await getDocs(collection(db, 'users', profile.id, 'shows'));
-        const userShows = showsSnapshot.docs.map(d => d.data());
-
-        for (const show of userShows) {
-          const venueName = show.venue + (show.city ? `, ${show.city}` : '');
-          if (!allVenues[venueName]) {
-            allVenues[venueName] = { count: 0, artists: new Set() };
-          }
-          allVenues[venueName].count++;
-          allVenues[venueName].artists.add(show.artist);
-
-          const setlist = show.setlist || [];
-          for (const song of setlist) {
-            const songKey = normalizeSongTitle(song.name) || song.name.toLowerCase().trim();
-            if (!allSongs[songKey]) {
-              allSongs[songKey] = { songName: song.name, users: new Set(), artists: new Set(), ratings: [] };
-            }
-            allSongs[songKey].users.add(profile.id);
-            allSongs[songKey].artists.add(show.artist);
-            if (song.rating) allSongs[songKey].ratings.push(song.rating);
-          }
-        }
-      } catch (_) {
-        // Permission denied for other users' shows — skip gracefully
-      }
-    }
-
-    const topShowsAttended = [...profiles]
-      .sort((a, b) => (b.showCount || 0) - (a.showCount || 0))
-      .slice(0, 5)
-      .map(p => ({ odubleserId: p.id, firstName: p.firstName, photoURL: p.photoURL, count: p.showCount || 0 }));
-
-    const topSongsRated = [...profiles]
-      .sort((a, b) => (b.ratedSongCount || 0) - (a.ratedSongCount || 0))
-      .slice(0, 5)
-      .map(p => ({ odubleserId: p.id, firstName: p.firstName, photoURL: p.photoURL, count: p.ratedSongCount || 0 }));
-
-    const topVenuesVisited = [...profiles]
-      .sort((a, b) => (b.venueCount || 0) - (a.venueCount || 0))
-      .slice(0, 5)
-      .map(p => ({ odubleserId: p.id, firstName: p.firstName, photoURL: p.photoURL, count: p.venueCount || 0 }));
-
-    const topSongsBySightings = Object.values(allSongs)
-      .map(s => ({ songName: s.songName, userCount: s.users.size, artists: [...s.artists].slice(0, 3) }))
-      .sort((a, b) => b.userCount - a.userCount)
-      .slice(0, 5);
-
-    const topSongsByRating = Object.values(allSongs)
-      .filter(s => s.ratings.length >= 2)
-      .map(s => ({
-        songName: s.songName,
-        avgRating: (s.ratings.reduce((a, b) => a + b, 0) / s.ratings.length).toFixed(1),
-        ratingCount: s.ratings.length,
-        artists: [...s.artists].slice(0, 3),
-      }))
-      .sort((a, b) => parseFloat(b.avgRating) - parseFloat(a.avgRating))
-      .slice(0, 5);
-
-    const topVenues = Object.entries(allVenues)
-      .map(([name, data]) => ({ venueName: name, showCount: data.count, artistCount: data.artists.size }))
-      .sort((a, b) => b.showCount - a.showCount)
-      .slice(0, 5);
-
-    await setDoc(statsRef, {
-      updatedAt: serverTimestamp(),
-      totalUsers: profiles.length,
-      totalShows,
-      totalSongs,
-      topShowsAttended,
-      topSongsRated,
-      topVenuesVisited,
-      topSongsBySightings,
-      topSongsByRating,
-      topVenues,
-    });
-  } catch (error) {
-    console.error('Failed to update community stats:', error);
-  }
-}
+// The community leaderboard (communityStats/global) is rebuilt on a schedule
+// by netlify/functions/community-stats.js (5.52.1). Clients only read it;
+// firestore.rules denies every client write.
 
 // ── Context ─────────────────────────────────────────────────────────────
 const AppContext = createContext(null);
@@ -966,8 +861,7 @@ export function AppProvider({ children }) {
 
       if (auth.currentUser) {
         await updateUserProfile(auth.currentUser, loadedShows);
-        updateCommunityStats();
-        calculateUserRank(userId);
+          calculateUserRank(userId);
         runRetroactiveSuggestionScan().catch(() => {});
       }
     } catch (error) {
@@ -1637,7 +1531,6 @@ export function AppProvider({ children }) {
       }
 
       await updateUserProfile(user, updatedShows);
-      updateCommunityStats();
       calculateUserRank(user.uid, updatedShows.length);
 
       // Background suggestion check — non-blocking
@@ -1749,7 +1642,6 @@ export function AppProvider({ children }) {
       // render-time `shows`.
       const updatedShows = [...shows, ...createdThisRun];
       updateUserProfile(user, updatedShows).catch(() => {});
-      updateCommunityStats();
       calculateUserRank(user.uid, updatedShows.length);
 
       // One image fetch per distinct artist — a tour is almost always one
@@ -2184,7 +2076,6 @@ export function AppProvider({ children }) {
       if (selectedShow?.id === showId) setSelectedShow(null);
 
       await updateUserProfile(user, updatedShows);
-      updateCommunityStats();
       calculateUserRank(user.uid, updatedShows.length);
       setToast('Show deleted.');
     } catch (error) {
@@ -2653,7 +2544,6 @@ export function AppProvider({ children }) {
     if (toCreate.length > 0) {
       const updatedShows = [...shows, ...toCreate];
       await updateUserProfile(user, updatedShows);
-      updateCommunityStats();
       calculateUserRank(user.uid, updatedShows.length);
     }
 
