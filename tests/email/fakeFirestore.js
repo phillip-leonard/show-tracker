@@ -5,7 +5,9 @@
  *
  * Supports: doc get/set(merge)/create/update/delete, collection add/doc/where
  * ('==', 'in', '>=', '<=', '<')/orderBy/limit/select/get, subcollections, batch(),
- * runTransaction(). Not a general Firestore emulator.
+ * runTransaction() (optimistic, like the real one: writes are buffered
+ * until the callback returns, and the callback is run again if a document
+ * it read changed meanwhile). Not a general Firestore emulator.
  */
 
 const crypto = require('crypto');
@@ -24,6 +26,8 @@ function clone(v) {
 function createFakeDb() {
   const store = new Map(); // path → data
   const writes = []; // [op, path] — for asserting nothing was written
+  const versions = new Map(); // path → write count, for transaction conflicts
+  const bump = (path) => versions.set(path, (versions.get(path) || 0) + 1);
 
   function docSnap(path) {
     const data = store.get(path);
@@ -42,6 +46,7 @@ function createFakeDb() {
       async get() { return docSnap(path); },
       async set(data, opts = {}) {
         writes.push(['set', path]);
+        bump(path);
         const prev = store.get(path);
         store.set(path, opts.merge && prev ? { ...prev, ...clone(data) } : clone(data));
       },
@@ -55,14 +60,16 @@ function createFakeDb() {
           throw err;
         }
         writes.push(['create', path]);
+        bump(path);
         store.set(path, clone(data));
       },
       async update(data) {
         if (!store.has(path)) throw new Error(`No document to update: ${path}`);
         writes.push(['update', path]);
+        bump(path);
         store.set(path, { ...store.get(path), ...clone(data) });
       },
-      async delete() { writes.push(['delete', path]); store.delete(path); },
+      async delete() { writes.push(['delete', path]); bump(path); store.delete(path); },
       collection(name) { return collectionRef(`${path}/${name}`); },
     };
   }
@@ -126,10 +133,26 @@ function createFakeDb() {
       };
     },
     async runTransaction(fn) {
-      return fn({
-        get: (ref) => ref.get(),
-        set: (ref, data, opts) => { ref.set(data, opts); },
-      });
+      for (let attempt = 0; attempt < 5; attempt++) {
+        const reads = new Map(); // path → version seen
+        const ops = [];
+        const result = await fn({
+          get: async (ref) => {
+            reads.set(ref.path, versions.get(ref.path) || 0);
+            return ref.get();
+          },
+          set: (ref, data, opts) => { ops.push(() => ref.set(data, opts)); },
+          update: (ref, data) => { ops.push(() => ref.update(data)); },
+          delete: (ref) => { ops.push(() => ref.delete()); },
+        });
+        // Commit only if nothing read has changed since; otherwise run the
+        // callback again, as Firestore does.
+        const stale = [...reads].some(([path, v]) => (versions.get(path) || 0) !== v);
+        if (stale) continue;
+        for (const op of ops) await op();
+        return result;
+      }
+      throw new Error('fake: transaction kept conflicting');
     },
     // Test helpers
     _store: store,

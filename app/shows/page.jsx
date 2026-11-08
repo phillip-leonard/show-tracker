@@ -767,7 +767,7 @@ export default function ShowsPage() {
                     </div>
                     <div>
                       <p className="text-primary font-medium text-sm">Screenshot Import</p>
-                      <p className="text-secondary text-xs">Take a screenshot of your Ticketmaster, AXS, or StubHub past events and our AI will extract your shows</p>
+                      <p className="text-secondary text-xs">Screenshot your past events or order history on any ticket site (Ticketmaster, AXS, SeatGeek, Eventbrite, DICE and more) and our AI will pull out your shows</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-3">

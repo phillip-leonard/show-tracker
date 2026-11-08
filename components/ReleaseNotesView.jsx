@@ -13,6 +13,16 @@ const STREAMING_MENTION = /spotify|apple\s*music/i;
 function ReleaseNotesView() {
   const releases = [
     {
+      version: '5.55.0',
+      date: 'November 8, 2026',
+      title: 'A Welcome After Your First Show',
+      changes: [
+        'After you save your first show, you’ll get one email with quick tips: scanning ticket stubs, importing your ticket history, adding photos, tagging friends, and Tours and Festivals',
+        'It’s sent once and only if your emails are on in Profile. Reply to it and it comes straight to Phillip',
+        'Screenshot import reads past events and order history from any ticket site or app, including SeatGeek and DICE, and skips parking passes and add-ons',
+      ]
+    },
+    {
       version: '5.54.0',
       date: 'November 7, 2026',
       title: 'Discover Bands, and Picks for Your Festival',
