@@ -32,6 +32,7 @@ import { resolveSource, SETLIST_SOURCES } from '@/lib/setlistSources';
 import { removeSongFromSetlist, insertSongAt } from '@/lib/setlistGrouping';
 import { buildExistingShowIndex, existingShowStatus } from '@/lib/tourBrowse';
 import { normalizeFestivalName, findFestivalMatches as matchFestivals } from '@/lib/festivalMatch';
+import { catalogFields } from '@/lib/festivalCatalog';
 import { logActivity } from '@/lib/activityFeed';
 import { rememberHeardShows } from '@/lib/heardLinks';
 import { syncPushToken, forgetPushToken, shouldOfferPush, markPushOffered, pushPermission } from '@/lib/pushAlerts';
@@ -918,6 +919,7 @@ export function AppProvider({ children }) {
             edition: canonical.edition || '',
             createdBy: canonical.createdBy,
             isCreator: canonical.createdBy === userId,
+            ...catalogFields(canonical),
             // Lineup from Ticketmaster (5.54.0), written only by
             // netlify/functions/festival-lineup.js. A hand-typed lineup is
             // the attendance record's own `myLineup`, spread in above.
@@ -2142,6 +2144,13 @@ export function AppProvider({ children }) {
   //       createdAt       Timestamp
   //       updatedAt       Timestamp
   //
+  //   Two kinds of document add to those, both written only with the Admin
+  //   SDK: lineup fields from netlify/functions/festival-lineup.js, and
+  //   catalog festivals from netlify/functions/admin-seed-festivals.js
+  //   (createdBy "system:seed", plus source/seedKey/seedConfidence/genre/
+  //   status/notes — see lib/festivalCatalog.js for the two that are shown).
+  //   The client never writes either kind of field.
+  //
   //   users/{uid}/festivals/{attendanceId} — the per-user ATTENDANCE
   //   record, in the same private subcollection festivals have always
   //   lived in. Fields:
@@ -2286,6 +2295,7 @@ export function AppProvider({ children }) {
         edition: canonicalFestival.edition || '',
         createdBy: canonicalFestival.createdBy,
         isCreator: canonicalFestival.createdBy === user.uid,
+        ...catalogFields(canonicalFestival),
       };
       setFestivals(prev => [...prev, joined]);
       setToast(`Joined ${canonicalFestival.name}.`);
@@ -2405,7 +2415,12 @@ export function AppProvider({ children }) {
     }
 
     if (Object.keys(canonicalPatch).length > 0 && !festival.isCreator) {
-      setToast({ message: 'Only the person who created this festival can change its details.', type: 'error' });
+      setToast({
+        message: festival.isSeeded
+          ? 'Festivals from the MySetlists catalog can’t be edited here.'
+          : 'Only the person who created this festival can change its details.',
+        type: 'error',
+      });
       return;
     }
 

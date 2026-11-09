@@ -18,13 +18,16 @@
 //
 // EDIT MODE distinguishes the creator from everyone else. Shared details
 // belong to the creator, so a non-creator gets a plain explanation and
-// their own notes field rather than a form full of disabled inputs.
+// their own notes field rather than a form full of disabled inputs. A
+// festival from the catalog (lib/festivalCatalog.js) has no creator at all,
+// so its explanation says that instead of "someone else created it".
 
 'use client';
 
 import { useEffect, useState } from 'react';
 import { Users, Info } from 'lucide-react';
 import { festivalNameProblem } from '@/lib/festivalMatch';
+import { isSeededFestival } from '@/lib/festivalCatalog';
 import { Modal, Button, Input, Textarea, Card, Spinner } from '@/components/ui';
 import { useApp } from '@/context/AppContext';
 import { formatDate } from '@/lib/utils';
@@ -176,11 +179,19 @@ export default function FestivalFormModal({ open, onClose, onSubmit, onJoin, fes
         {isEdit && !canEditDetails && (
           <div className="flex items-start gap-2 bg-hover border border-subtle rounded-xl p-3 text-sm text-secondary">
             <Info className="w-4 h-4 flex-shrink-0 mt-0.5" aria-hidden="true" />
-            <span>
-              Someone else created <span className="font-semibold text-primary">{festival.name}</span>,
-              so its name, dates and location are theirs to change — and any change they make shows up
-              here for everyone. Your notes and the shows you attach are yours alone.
-            </span>
+            {isSeededFestival(festival) ? (
+              <span>
+                <span className="font-semibold text-primary">{festival.name}</span> comes from the
+                MySetlists festival catalog, so its name, dates and location can’t be edited here.
+                Your notes and the shows you attach are yours alone.
+              </span>
+            ) : (
+              <span>
+                Someone else created <span className="font-semibold text-primary">{festival.name}</span>,
+                so its name, dates and location are theirs to change — and any change they make shows up
+                here for everyone. Your notes and the shows you attach are yours alone.
+              </span>
+            )}
           </div>
         )}
 
@@ -226,9 +237,11 @@ export default function FestivalFormModal({ open, onClose, onSubmit, onJoin, fes
           <Card padding="sm" className="border-brand/30">
             <p className="text-sm font-semibold text-primary mb-2 flex items-center gap-1.5">
               <Users className="w-4 h-4 text-brand" aria-hidden="true" />
-              {matches.length === 1
-                ? 'Someone already added this festival'
-                : `${matches.length} festivals look like this one`}
+              {matches.length > 1
+                ? `${matches.length} festivals look like this one`
+                : isSeededFestival(matches[0].festival)
+                  ? 'This festival is already listed'
+                  : 'Someone already added this festival'}
             </p>
             <ul className="list-none p-0 m-0 flex flex-col gap-2">
               {matches.map(({ festival: candidate }) => (
@@ -238,7 +251,7 @@ export default function FestivalFormModal({ open, onClose, onSubmit, onJoin, fes
                     <div className="text-xs text-secondary truncate">
                       {dateLabel(candidate)}
                       {candidate.location ? ` · ${candidate.location}` : ''}
-                      {' · created by another user'}
+                      {isSeededFestival(candidate) ? ' · from the festival catalog' : ' · created by another user'}
                     </div>
                   </div>
                   <Button
