@@ -4,12 +4,17 @@
  * 2021–2027), so most users find their festival already there and join it
  * instead of creating it.
  *
- * POST body:   { commit?: boolean }   DRY RUN unless commit is exactly true.
+ * POST body:   { commit?: boolean, confidence?: string[] }
+ *   commit      DRY RUN unless this is exactly true.
+ *   confidence  which seedConfidence levels may be created, e.g.
+ *               ["verified", "high"]. Omitted = all. The rest are reported
+ *               as `excluded`, and a later run that includes them creates
+ *               only those. An unknown level is a 400, never ignored.
  * Auth header: Authorization: Bearer {idToken}   (admin account only)
  *
- * Response:    { success, dryRun, seedCount, catalogCount, counts, plan,
- *                report, written? }
- *   counts  { create, matched_existing, conflict, skip, failed }
+ * Response:    { success, dryRun, seedCount, catalogCount, confidence,
+ *                counts, plan, report, written? }
+ *   counts  { create, matched_existing, conflict, skip, excluded, failed }
  *   plan    the entries behind each count, sorted by start date
  *   report  the same plan as plain-text tables (what AdminView and
  *           scripts/festival-seed-dryrun.js print)
@@ -41,7 +46,7 @@
  */
 
 const SEED = require('../../data/festival-seed.json');
-const { planSeed, formatPlanReport } = require('./lib/festivalSeed');
+const { planSeed, formatPlanReport, normalizeConfidence } = require('./lib/festivalSeed');
 
 const ADMIN_EMAILS = ['phillip.leonard@gmail.com'];
 const CORS_HEADERS = {
@@ -147,17 +152,27 @@ exports.handler = async function (event) {
   // Writing needs the literal boolean. "true", 1 or a typo'd key all dry-run.
   const commit = body.commit === true;
 
+  // Which seedConfidence levels may be created this run. Omitted means all.
+  // An unknown level is refused rather than ignored, so a typo can't widen
+  // or empty the run.
+  let confidence;
+  try {
+    confidence = normalizeConfidence(body.confidence);
+  } catch (e) {
+    return { statusCode: 400, headers: CORS_HEADERS, body: JSON.stringify({ error: e.message }) };
+  }
+
   const { getFirestore, FieldValue } = require('firebase-admin/firestore');
   const db = getFirestore();
 
   try {
     const records = Array.isArray(SEED.festivals) ? SEED.festivals : [];
     const catalog = await loadCatalog(db);
-    const plan = planSeed(records, catalog);
+    const plan = planSeed(records, catalog, { confidence });
     const report = formatPlanReport(plan, { catalogCount: catalog.length });
 
     console.log(
-      `Festival seed ${commit ? 'COMMIT' : 'dry run'}: catalog ${catalog.length}, ` +
+      `Festival seed ${commit ? 'COMMIT' : 'dry run'} [${confidence.join(',')}]: catalog ${catalog.length}, ` +
       Object.entries(plan.counts).map(([k, v]) => `${k} ${v}`).join(', ')
     );
 
@@ -166,6 +181,7 @@ exports.handler = async function (event) {
       dryRun: !commit,
       seedCount: records.length,
       catalogCount: catalog.length,
+      confidence,
       counts: plan.counts,
       plan,
       report,

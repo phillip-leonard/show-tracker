@@ -8,22 +8,30 @@
 //
 // Dry run first, always: the write button stays disabled until a dry run
 // has been loaded in this visit, and its confirm names the number of
-// festivals that dry run said it would create. The function itself also
-// refuses to write unless the body says { commit: true }. Running it again
-// is safe — every seeded festival has a fixed id, so a second run creates
-// nothing.
+// festivals that dry run said it would create. The write sends the same
+// confidence levels the dry run used, and changing the levels throws the
+// dry run away, so what gets written is always what was just previewed.
+// The function itself also refuses to write unless the body says
+// { commit: true }. Running it again is safe — every seeded festival has a
+// fixed id, so a second run creates only what earlier runs left out.
 
 import React, { useState } from 'react';
 import { Search, Database } from 'lucide-react';
 import { auth } from '@/lib/firebase';
 import { apiUrl } from '@/lib/api';
 
-async function callSeeder(commit) {
+const LEVELS = [
+  ['verified', 'Verified'],
+  ['high', 'High'],
+  ['medium', 'Medium'],
+];
+
+async function callSeeder(commit, confidence) {
   const token = await auth.currentUser.getIdToken();
   const res = await fetch(apiUrl('/.netlify/functions/admin-seed-festivals'), {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ commit }),
+    body: JSON.stringify({ commit, confidence }),
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
@@ -35,28 +43,42 @@ const COUNT_LABELS = [
   ['matched_existing', 'already in catalog'],
   ['conflict', 'conflicts'],
   ['skip', 'already seeded'],
+  ['excluded', 'excluded by confidence'],
   ['failed', 'failed'],
 ];
 
 export default function FestivalSeedCard() {
+  const [levels, setLevels] = useState(() => new Set(LEVELS.map(([k]) => k)));
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [dryRun, setDryRun] = useState(null); // the last dry run this visit
   const [error, setError] = useState('');
 
+  const toggleLevel = (key) => {
+    setLevels(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+    // The preview no longer describes what a write would do.
+    setDryRun(null);
+  };
+
   const run = async (commit) => {
+    // A write always repeats the previewed run's levels, not the checkboxes.
+    const confidence = commit ? dryRun.confidence : LEVELS.map(([k]) => k).filter(k => levels.has(k));
     if (commit) {
       const n = dryRun?.counts?.create ?? 0;
       if (!confirm(
-        `This writes ${n} new festival${n === 1 ? '' : 's'} to the shared catalog in production. ` +
-        'Existing festivals are never changed. Continue?'
+        `This writes ${n} new festival${n === 1 ? '' : 's'} (${confidence.join(' + ')}) to the shared ` +
+        'catalog in production. Existing festivals are never changed. Continue?'
       )) return;
     }
     setLoading(true);
     setError('');
     setResult(null);
     try {
-      const data = await callSeeder(commit);
+      const data = await callSeeder(commit, confidence);
       setResult(data);
       setDryRun(data.dryRun ? data : null);
     } catch (e) {
@@ -73,10 +95,27 @@ export default function FestivalSeedCard() {
         so users can join them instead of creating them. A festival that already exists is never
         changed: matches and conflicts are listed for you to decide. Safe to run twice.
       </p>
+      <fieldset className="mb-4">
+        <legend className="text-xs text-muted mb-2">Create festivals with confidence</legend>
+        <div className="flex flex-wrap gap-x-5 gap-y-2">
+          {LEVELS.map(([key, label]) => (
+            <label key={key} className="flex items-center gap-2 text-sm text-secondary min-h-[44px] md:fine:min-h-0 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={levels.has(key)}
+                onChange={() => toggleLevel(key)}
+                disabled={loading}
+                className="w-4 h-4"
+              />
+              {label}
+            </label>
+          ))}
+        </div>
+      </fieldset>
       <div className="flex flex-wrap gap-3">
         <button
           onClick={() => run(false)}
-          disabled={loading}
+          disabled={loading || levels.size === 0}
           className="flex items-center gap-2 px-4 py-2.5 bg-amber-subtle hover:bg-amber/30 text-amber border border-amber/30 rounded-xl font-medium transition-colors text-sm disabled:opacity-50"
         >
           <Search className="w-4 h-4" />
@@ -98,13 +137,13 @@ export default function FestivalSeedCard() {
       {result && (
         <div className="mt-4 bg-surface border border-subtle rounded-xl p-4 text-sm">
           <p className="text-primary font-medium mb-2">
-            {result.dryRun ? 'Dry run' : 'Written'} — {result.seedCount} seed records, catalog had{' '}
-            {result.catalogCount} festivals
+            {result.dryRun ? 'Dry run' : 'Written'} ({(result.confidence || []).join(' + ')}) —{' '}
+            {result.seedCount} seed records, catalog had {result.catalogCount} festivals
           </p>
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-secondary mb-3">
             {COUNT_LABELS.map(([key, label]) => (
               <span key={key} className={key === 'conflict' && result.counts[key] ? 'text-danger' : undefined}>
-                {result.counts[key]} {label}
+                {result.counts[key] ?? 0} {label}
               </span>
             ))}
           </div>

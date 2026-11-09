@@ -14,6 +14,7 @@
  *   node scripts/festival-seed-dryrun.js                 # reads ./.env
  *   node scripts/festival-seed-dryrun.js --env ../.env.local
  *   node scripts/festival-seed-dryrun.js --json          # raw plan
+ *   node scripts/festival-seed-dryrun.js --confidence verified,high
  *
  * Credentials come from FIREBASE_PROJECT_ID / FIREBASE_CLIENT_EMAIL /
  * FIREBASE_PRIVATE_KEY, as for the Netlify functions.
@@ -60,8 +61,11 @@ const SEED = require('../data/festival-seed.json');
   }
   initializeApp({ credential: cert({ privateKey, clientEmail, projectId }), projectId });
 
+  const confArg = args.indexOf('--confidence');
+  const confidence = confArg >= 0 ? args[confArg + 1] : undefined;
+
   const catalog = await loadCatalog(getFirestore());
-  const plan = planSeed(SEED.festivals, catalog);
+  const plan = planSeed(SEED.festivals, catalog, { confidence });
   if (args.includes('--json')) {
     console.log(JSON.stringify({ catalogCount: catalog.length, ...plan }, null, 2));
   } else {

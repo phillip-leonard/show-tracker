@@ -25,6 +25,14 @@ offers them and a user joins in one tap.
   or `failed`. It never writes to a festival that exists, user-created or
   not, and never touches an attendance record or a show. Matches and
   conflicts are reported for a human to decide.
+- **Confidence filter.** `{ "confidence": ["verified", "high"] }` creates
+  only those levels (omitted = all). The rest are reported as `excluded`,
+  and a later run that includes them creates exactly those. It gates
+  creation only: an excluded-level record that matches an existing
+  festival is still reported as a match. An unknown level is a 400. The
+  admin card has a checkbox per level; a write always repeats the levels
+  of the dry run it follows. Against production today, verified + high is
+  242 creates, 3 matches and 48 medium records excluded.
 - **Idempotent.** Document ids are `seed_<seedKey>` (e.g.
   `seed_bonnaroo-2025`) written with `create()`, so a second run creates
   nothing and two racing runs can't write one festival twice. Batches of

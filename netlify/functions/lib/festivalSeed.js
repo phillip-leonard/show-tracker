@@ -46,6 +46,9 @@
  *   conflict          matched, but the dates differ or the cities disagree.
  *                     Nothing is created either; it is listed for a human.
  *   create            no match: a new canonical festival.
+ *   excluded          no match, but the run was limited to other
+ *                     seedConfidence levels (e.g. verified + high only).
+ *                     Created by a later run that includes its level.
  *   failed            the record itself is malformed. Reported, skipped,
  *                     and the rest of the run carries on.
  *
@@ -77,7 +80,31 @@ const CREATE_FLOW_FIELDS = [
 // What a seeded festival carries beyond the create-flow fields.
 const SEED_FIELDS = ['source', 'seedKey', 'seedConfidence', 'genre', 'status', 'notes'];
 
-const ACTIONS = ['create', 'matched_existing', 'conflict', 'skip', 'failed'];
+const ACTIONS = ['create', 'matched_existing', 'conflict', 'skip', 'excluded', 'failed'];
+
+// Every seedConfidence the seed file uses, strongest first. A run can be
+// limited to some of them (e.g. verified + high); see normalizeConfidence.
+const CONFIDENCE_LEVELS = ['verified', 'high', 'medium'];
+
+/**
+ * The confidence filter for a run, from whatever the caller passed:
+ * undefined/null means every level; otherwise an array (or comma-separated
+ * string) of levels from CONFIDENCE_LEVELS. Throws on an unknown level or an
+ * empty list, so a typo can never silently turn into "create nothing" or
+ * "create everything".
+ */
+function normalizeConfidence(input) {
+  if (input == null) return [...CONFIDENCE_LEVELS];
+  const list = (Array.isArray(input) ? input : String(input).split(','))
+    .map(s => String(s).trim().toLowerCase())
+    .filter(Boolean);
+  const unknown = list.filter(l => !CONFIDENCE_LEVELS.includes(l));
+  if (unknown.length) {
+    throw new Error(`Unknown confidence level ${unknown.join(', ')} (use ${CONFIDENCE_LEVELS.join(', ')})`);
+  }
+  if (list.length === 0) throw new Error('Confidence filter is empty');
+  return CONFIDENCE_LEVELS.filter(l => list.includes(l));
+}
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 // Firestore document ids may not contain "/", and seedKeys become ids.
@@ -156,10 +183,19 @@ function differencesBetween(seedDoc, existing) {
  * What a run would do with every record, given `catalog` (every document
  * currently in the `festivals` collection, each with its `id`). Pure.
  *
- * Returns { create, matched_existing, conflict, skip, failed } — each an
- * array of entries sorted by start date — and `counts`.
+ * `options.confidence` limits which records may be CREATED (default: every
+ * level). It only gates creation: a record outside the filter is still
+ * reported as skip, matched_existing or conflict when that applies, since a
+ * match is worth knowing about whatever its confidence, and lands in
+ * `excluded` only where it would otherwise have been created. A later run
+ * with a wider filter creates exactly those.
+ *
+ * Returns { create, matched_existing, conflict, skip, excluded, failed } —
+ * each an array of entries sorted by start date — plus `counts` and the
+ * `confidence` levels the plan used.
  */
-function planSeed(records, catalog = []) {
+function planSeed(records, catalog = [], options = {}) {
+  const confidence = normalizeConfidence(options.confidence);
   const plan = Object.fromEntries(ACTIONS.map(a => [a, []]));
   const byId = new Map(catalog.map(c => [c.id, c]));
   const bySeedKey = new Map(catalog.filter(c => c.seedKey).map(c => [c.seedKey, c]));
@@ -219,7 +255,11 @@ function planSeed(records, catalog = []) {
       .sort((a, b) => a.differences.length - b.differences.length || b.similarity - a.similarity);
 
     if (matches.length === 0) {
-      plan.create.push({ ...entry, doc });
+      if (confidence.includes(doc.seedConfidence)) {
+        plan.create.push({ ...entry, doc });
+      } else {
+        plan.excluded.push({ ...entry, reason: `seedConfidence ${doc.seedConfidence || 'missing'} not selected` });
+      }
       return;
     }
 
@@ -242,6 +282,7 @@ function planSeed(records, catalog = []) {
 
   return {
     ...plan,
+    confidence,
     counts: Object.fromEntries(ACTIONS.map(a => [a, plan[a].length])),
   };
 }
@@ -272,9 +313,10 @@ function formatPlanReport(plan, { catalogCount = null } = {}) {
   const out = [];
   out.push(
     `Festival seed plan — create ${c.create}, matched_existing ${c.matched_existing}, ` +
-    `conflict ${c.conflict}, skip ${c.skip}, failed ${c.failed}` +
+    `conflict ${c.conflict}, skip ${c.skip}, excluded ${c.excluded}, failed ${c.failed}` +
     (catalogCount == null ? '' : ` (catalog has ${catalogCount} festivals now)`)
   );
+  if (plan.confidence) out.push(`Creating seedConfidence: ${plan.confidence.join(', ')}`);
   const mediumCreates = plan.create.filter(r => r.seedConfidence === 'medium').length;
   if (mediumCreates) out.push(`${mediumCreates} of the creates are seedConfidence=medium.`);
   out.push('');
@@ -323,6 +365,17 @@ function formatPlanReport(plan, { catalogCount = null } = {}) {
     ['doc id', r => r.existingId],
   ]));
 
+  if (c.excluded) {
+    out.push(`EXCLUDED (${c.excluded}) — no match, but its confidence level wasn't selected. A later run that includes it creates these.`);
+    out.push(table(plan.excluded, [
+      ['conf', r => r.seedConfidence],
+      ['dates', dates],
+      ['name', r => r.name],
+      ['location', r => r.location],
+      ['doc id', r => r.docId],
+    ]));
+  }
+
   if (c.failed) {
     out.push(`FAILED (${c.failed})`);
     out.push(table(plan.failed, [
@@ -341,6 +394,8 @@ module.exports = {
   CREATE_FLOW_FIELDS,
   SEED_FIELDS,
   ACTIONS,
+  CONFIDENCE_LEVELS,
+  normalizeConfidence,
   seedDocId,
   seedLocation,
   seedRecordProblem,
