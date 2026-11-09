@@ -19,6 +19,7 @@ import UsersTab from '@/components/admin/UsersTab';
 import StatsTab from '@/components/admin/StatsTab';
 import ArchiveDryRunCard from '@/components/admin/ArchiveDryRunCard';
 import WelcomeEmailCard from '@/components/admin/WelcomeEmailCard';
+import FestivalSeedCard from '@/components/admin/FestivalSeedCard';
 import { buildUserRows } from '@/lib/adminUsers';
 import { sendEmailIfAllowed } from '@/lib/email';
 import { PageHeader, Button } from '@/components/ui';
@@ -3114,6 +3115,9 @@ function AdminView() {
           </div>
         )}
       </div>
+
+      {/* Festival catalog seed (5.57.0) — netlify/functions/admin-seed-festivals.js */}
+      <FestivalSeedCard />
 
       {/* Cache Management */}
       <div className="space-y-4">

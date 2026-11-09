@@ -1,0 +1,5880 @@
+{
+  "meta": {
+    "generatedOn": "2026-11-09",
+    "scope": "US music festivals, 2021 through 2027. Excludes festivals specific to country, rap/hip-hop, and electronic/techno/house. 2027 entries only where dates are officially announced.",
+    "confidenceLegend": {
+      "verified": "Dates confirmed against a published source during research (Nov 2026).",
+      "high": "Well-documented edition; dates from prior knowledge.",
+      "medium": "Dates from prior knowledge; check in the dry-run review before seeding."
+    },
+    "counts": {
+      "high": 114,
+      "medium": 48,
+      "verified": 131
+    },
+    "totalFestivals": 293,
+    "brands": 78
+  },
+  "festivals": [
+    {
+      "seedKey": "telluride-bluegrass-festival-2021",
+      "name": "Telluride Bluegrass Festival 2021",
+      "normalizedName": "telluride bluegrass festival",
+      "brand": "Telluride Bluegrass Festival",
+      "edition": 2021,
+      "startDate": "2021-06-17",
+      "endDate": "2021-06-20",
+      "location": {
+        "city": "Telluride",
+        "state": "CO",
+        "venue": "Telluride Town Park",
+        "country": "US"
+      },
+      "genre": "bluegrass",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "floydfest-2021",
+      "name": "FloydFest 2021",
+      "normalizedName": "floydfest",
+      "brand": "FloydFest",
+      "edition": 2021,
+      "startDate": "2021-07-21",
+      "endDate": "2021-07-25",
+      "location": {
+        "city": "Floyd",
+        "state": "VA",
+        "venue": "Floyd Festival Grounds",
+        "country": "US"
+      },
+      "genre": "jam/americana",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "medium",
+      "notes": null
+    },
+    {
+      "seedKey": "newport-folk-festival-2021",
+      "name": "Newport Folk Festival 2021",
+      "normalizedName": "newport folk festival",
+      "brand": "Newport Folk Festival",
+      "edition": 2021,
+      "startDate": "2021-07-23",
+      "endDate": "2021-07-28",
+      "location": {
+        "city": "Newport",
+        "state": "RI",
+        "venue": "Fort Adams State Park",
+        "country": "US"
+      },
+      "genre": "folk/americana",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "medium",
+      "notes": "2021 ran as two back-to-back three-day events."
+    },
+    {
+      "seedKey": "lollapalooza-2021",
+      "name": "Lollapalooza 2021",
+      "normalizedName": "lollapalooza",
+      "brand": "Lollapalooza",
+      "edition": 2021,
+      "startDate": "2021-07-29",
+      "endDate": "2021-08-01",
+      "location": {
+        "city": "Chicago",
+        "state": "IL",
+        "venue": "Grant Park",
+        "country": "US"
+      },
+      "genre": "multi-genre",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "newport-jazz-festival-2021",
+      "name": "Newport Jazz Festival 2021",
+      "normalizedName": "newport jazz festival",
+      "brand": "Newport Jazz Festival",
+      "edition": 2021,
+      "startDate": "2021-07-30",
+      "endDate": "2021-08-01",
+      "location": {
+        "city": "Newport",
+        "state": "RI",
+        "venue": "Fort Adams State Park",
+        "country": "US"
+      },
+      "genre": "jazz",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "lockn-2021-weekend-1",
+      "name": "LOCKN' 2021 – Weekend 1",
+      "normalizedName": "lockn 2021 weekend 1",
+      "brand": "LOCKN'",
+      "edition": 2021,
+      "startDate": "2021-08-13",
+      "endDate": "2021-08-15",
+      "location": {
+        "city": "Arrington",
+        "state": "VA",
+        "venue": "Infinity Downs Farm",
+        "country": "US"
+      },
+      "genre": "jam",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "lockn-2021-weekend-2",
+      "name": "LOCKN' 2021 – Weekend 2",
+      "normalizedName": "lockn 2021 weekend 2",
+      "brand": "LOCKN'",
+      "edition": 2021,
+      "startDate": "2021-08-20",
+      "endDate": "2021-08-22",
+      "location": {
+        "city": "Arrington",
+        "state": "VA",
+        "venue": "Infinity Downs Farm",
+        "country": "US"
+      },
+      "genre": "jam",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "summer-camp-music-festival-2021",
+      "name": "Summer Camp Music Festival 2021",
+      "normalizedName": "summer camp music festival",
+      "brand": "Summer Camp Music Festival",
+      "edition": 2021,
+      "startDate": "2021-08-20",
+      "endDate": "2021-08-22",
+      "location": {
+        "city": "Chillicothe",
+        "state": "IL",
+        "venue": "Three Sisters Park",
+        "country": "US"
+      },
+      "genre": "jam",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "lockn-2021-weekend-3",
+      "name": "LOCKN' 2021 – Weekend 3",
+      "normalizedName": "lockn 2021 weekend 3",
+      "brand": "LOCKN'",
+      "edition": 2021,
+      "startDate": "2021-08-27",
+      "endDate": "2021-08-29",
+      "location": {
+        "city": "Arrington",
+        "state": "VA",
+        "venue": "Infinity Downs Farm",
+        "country": "US"
+      },
+      "genre": "jam",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "summerfest-2021",
+      "name": "Summerfest 2021",
+      "normalizedName": "summerfest",
+      "brand": "Summerfest",
+      "edition": 2021,
+      "startDate": "2021-09-02",
+      "endDate": "2021-09-18",
+      "location": {
+        "city": "Milwaukee",
+        "state": "WI",
+        "venue": "Henry Maier Festival Park",
+        "country": "US"
+      },
+      "genre": "multi-genre",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "medium",
+      "notes": "Three weekends: Sep 2-4, 9-11, 16-18."
+    },
+    {
+      "seedKey": "bottlerock-napa-valley-2021",
+      "name": "BottleRock Napa Valley 2021",
+      "normalizedName": "bottlerock napa valley",
+      "brand": "BottleRock Napa Valley",
+      "edition": 2021,
+      "startDate": "2021-09-03",
+      "endDate": "2021-09-05",
+      "location": {
+        "city": "Napa",
+        "state": "CA",
+        "venue": "Napa Valley Expo",
+        "country": "US"
+      },
+      "genre": "multi-genre",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "pitchfork-music-festival-2021",
+      "name": "Pitchfork Music Festival 2021",
+      "normalizedName": "pitchfork music festival",
+      "brand": "Pitchfork Music Festival",
+      "edition": 2021,
+      "startDate": "2021-09-10",
+      "endDate": "2021-09-12",
+      "location": {
+        "city": "Chicago",
+        "state": "IL",
+        "venue": "Union Park",
+        "country": "US"
+      },
+      "genre": "indie",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "bourbon-beyond-2021",
+      "name": "Bourbon & Beyond 2021",
+      "normalizedName": "bourbon beyond",
+      "brand": "Bourbon & Beyond",
+      "edition": 2021,
+      "startDate": "2021-09-16",
+      "endDate": "2021-09-19",
+      "location": {
+        "city": "Louisville",
+        "state": "KY",
+        "venue": "Highland Festival Grounds at Kentucky Expo Center",
+        "country": "US"
+      },
+      "genre": "rock/americana",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "merlefest-2021",
+      "name": "MerleFest 2021",
+      "normalizedName": "merlefest",
+      "brand": "MerleFest",
+      "edition": 2021,
+      "startDate": "2021-09-16",
+      "endDate": "2021-09-19",
+      "location": {
+        "city": "Wilkesboro",
+        "state": "NC",
+        "venue": "Wilkes Community College",
+        "country": "US"
+      },
+      "genre": "bluegrass/americana",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "life-is-beautiful-2021",
+      "name": "Life Is Beautiful 2021",
+      "normalizedName": "life is beautiful",
+      "brand": "Life Is Beautiful",
+      "edition": 2021,
+      "startDate": "2021-09-17",
+      "endDate": "2021-09-19",
+      "location": {
+        "city": "Las Vegas",
+        "state": "NV",
+        "venue": "Downtown Las Vegas",
+        "country": "US"
+      },
+      "genre": "multi-genre",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "riot-fest-2021",
+      "name": "Riot Fest 2021",
+      "normalizedName": "riot fest",
+      "brand": "Riot Fest",
+      "edition": 2021,
+      "startDate": "2021-09-17",
+      "endDate": "2021-09-19",
+      "location": {
+        "city": "Chicago",
+        "state": "IL",
+        "venue": "Douglass Park",
+        "country": "US"
+      },
+      "genre": "rock/punk",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "sea-hear-now-2021",
+      "name": "Sea.Hear.Now 2021",
+      "normalizedName": "sea hear now",
+      "brand": "Sea.Hear.Now",
+      "edition": 2021,
+      "startDate": "2021-09-18",
+      "endDate": "2021-09-19",
+      "location": {
+        "city": "Asbury Park",
+        "state": "NJ",
+        "venue": "North Beach Asbury Park",
+        "country": "US"
+      },
+      "genre": "rock/indie",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "medium",
+      "notes": null
+    },
+    {
+      "seedKey": "treefort-music-fest-2021",
+      "name": "Treefort Music Fest 2021",
+      "normalizedName": "treefort music fest",
+      "brand": "Treefort Music Fest",
+      "edition": 2021,
+      "startDate": "2021-09-22",
+      "endDate": "2021-09-26",
+      "location": {
+        "city": "Boise",
+        "state": "ID",
+        "venue": null,
+        "country": "US"
+      },
+      "genre": "indie",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "medium",
+      "notes": null
+    },
+    {
+      "seedKey": "delfest-2021",
+      "name": "DelFest 2021",
+      "normalizedName": "delfest",
+      "brand": "DelFest",
+      "edition": 2021,
+      "startDate": "2021-09-23",
+      "endDate": "2021-09-26",
+      "location": {
+        "city": "Cumberland",
+        "state": "MD",
+        "venue": "Allegany County Fairgrounds",
+        "country": "US"
+      },
+      "genre": "bluegrass",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "medium",
+      "notes": null
+    },
+    {
+      "seedKey": "firefly-music-festival-2021",
+      "name": "Firefly Music Festival 2021",
+      "normalizedName": "firefly music festival",
+      "brand": "Firefly Music Festival",
+      "edition": 2021,
+      "startDate": "2021-09-23",
+      "endDate": "2021-09-26",
+      "location": {
+        "city": "Dover",
+        "state": "DE",
+        "venue": "The Woodlands of Dover Motor Speedway",
+        "country": "US"
+      },
+      "genre": "multi-genre",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "louder-than-life-2021",
+      "name": "Louder Than Life 2021",
+      "normalizedName": "louder than life",
+      "brand": "Louder Than Life",
+      "edition": 2021,
+      "startDate": "2021-09-23",
+      "endDate": "2021-09-26",
+      "location": {
+        "city": "Louisville",
+        "state": "KY",
+        "venue": "Highland Festival Grounds at Kentucky Expo Center",
+        "country": "US"
+      },
+      "genre": "rock/metal",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "governors-ball-2021",
+      "name": "Governors Ball 2021",
+      "normalizedName": "governors ball",
+      "brand": "Governors Ball",
+      "edition": 2021,
+      "startDate": "2021-09-24",
+      "endDate": "2021-09-26",
+      "location": {
+        "city": "New York",
+        "state": "NY",
+        "venue": "Citi Field",
+        "country": "US"
+      },
+      "genre": "multi-genre",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "ohana-festival-2021",
+      "name": "Ohana Festival 2021",
+      "normalizedName": "ohana festival",
+      "brand": "Ohana Festival",
+      "edition": 2021,
+      "startDate": "2021-09-24",
+      "endDate": "2021-09-26",
+      "location": {
+        "city": "Dana Point",
+        "state": "CA",
+        "venue": "Doheny State Beach",
+        "country": "US"
+      },
+      "genre": "rock/indie",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "medium",
+      "notes": null
+    },
+    {
+      "seedKey": "pilgrimage-music-cultural-festival-2021",
+      "name": "Pilgrimage Music & Cultural Festival 2021",
+      "normalizedName": "pilgrimage music cultural festival",
+      "brand": "Pilgrimage Music & Cultural Festival",
+      "edition": 2021,
+      "startDate": "2021-09-25",
+      "endDate": "2021-09-26",
+      "location": {
+        "city": "Franklin",
+        "state": "TN",
+        "venue": "The Park at Harlinsdale",
+        "country": "US"
+      },
+      "genre": "americana/rock",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "medium",
+      "notes": null
+    },
+    {
+      "seedKey": "austin-city-limits-2021-weekend-1",
+      "name": "Austin City Limits 2021 – Weekend 1",
+      "normalizedName": "austin city limits 2021 weekend 1",
+      "brand": "Austin City Limits Music Festival",
+      "edition": 2021,
+      "startDate": "2021-10-01",
+      "endDate": "2021-10-03",
+      "location": {
+        "city": "Austin",
+        "state": "TX",
+        "venue": "Zilker Park",
+        "country": "US"
+      },
+      "genre": "multi-genre",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "hardly-strictly-bluegrass-2021",
+      "name": "Hardly Strictly Bluegrass 2021",
+      "normalizedName": "hardly strictly bluegrass",
+      "brand": "Hardly Strictly Bluegrass",
+      "edition": 2021,
+      "startDate": "2021-10-01",
+      "endDate": "2021-10-03",
+      "location": {
+        "city": "San Francisco",
+        "state": "CA",
+        "venue": "Golden Gate Park (Hellman Hollow)",
+        "country": "US"
+      },
+      "genre": "bluegrass/americana",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "kilby-block-party-2021",
+      "name": "Kilby Block Party 2021",
+      "normalizedName": "kilby block party",
+      "brand": "Kilby Block Party",
+      "edition": 2021,
+      "startDate": "2021-10-02",
+      "endDate": "2021-10-02",
+      "location": {
+        "city": "Salt Lake City",
+        "state": "UT",
+        "venue": "Granary District",
+        "country": "US"
+      },
+      "genre": "indie",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "aftershock-2021",
+      "name": "Aftershock 2021",
+      "normalizedName": "aftershock",
+      "brand": "Aftershock",
+      "edition": 2021,
+      "startDate": "2021-10-07",
+      "endDate": "2021-10-10",
+      "location": {
+        "city": "Sacramento",
+        "state": "CA",
+        "venue": "Discovery Park",
+        "country": "US"
+      },
+      "genre": "rock/metal",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "medium",
+      "notes": null
+    },
+    {
+      "seedKey": "austin-city-limits-2021-weekend-2",
+      "name": "Austin City Limits 2021 – Weekend 2",
+      "normalizedName": "austin city limits 2021 weekend 2",
+      "brand": "Austin City Limits Music Festival",
+      "edition": 2021,
+      "startDate": "2021-10-08",
+      "endDate": "2021-10-10",
+      "location": {
+        "city": "Austin",
+        "state": "TX",
+        "venue": "Zilker Park",
+        "country": "US"
+      },
+      "genre": "multi-genre",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "shaky-knees-2021",
+      "name": "Shaky Knees 2021",
+      "normalizedName": "shaky knees",
+      "brand": "Shaky Knees",
+      "edition": 2021,
+      "startDate": "2021-10-22",
+      "endDate": "2021-10-24",
+      "location": {
+        "city": "Atlanta",
+        "state": "GA",
+        "venue": "Central Park",
+        "country": "US"
+      },
+      "genre": "rock/indie",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "medium",
+      "notes": null
+    },
+    {
+      "seedKey": "suwannee-hulaween-2021",
+      "name": "Suwannee Hulaween 2021",
+      "normalizedName": "suwannee hulaween",
+      "brand": "Suwannee Hulaween",
+      "edition": 2021,
+      "startDate": "2021-10-28",
+      "endDate": "2021-10-31",
+      "location": {
+        "city": "Live Oak",
+        "state": "FL",
+        "venue": "Spirit of the Suwannee Music Park",
+        "country": "US"
+      },
+      "genre": "jam",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "outside-lands-2021",
+      "name": "Outside Lands 2021",
+      "normalizedName": "outside lands",
+      "brand": "Outside Lands",
+      "edition": 2021,
+      "startDate": "2021-10-29",
+      "endDate": "2021-10-31",
+      "location": {
+        "city": "San Francisco",
+        "state": "CA",
+        "venue": "Golden Gate Park",
+        "country": "US"
+      },
+      "genre": "multi-genre",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "welcome-to-rockville-2021",
+      "name": "Welcome to Rockville 2021",
+      "normalizedName": "welcome to rockville",
+      "brand": "Welcome to Rockville",
+      "edition": 2021,
+      "startDate": "2021-11-11",
+      "endDate": "2021-11-14",
+      "location": {
+        "city": "Daytona Beach",
+        "state": "FL",
+        "venue": "Daytona International Speedway",
+        "country": "US"
+      },
+      "genre": "rock/metal",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "treefort-music-fest-2022",
+      "name": "Treefort Music Fest 2022",
+      "normalizedName": "treefort music fest",
+      "brand": "Treefort Music Fest",
+      "edition": 2022,
+      "startDate": "2022-03-23",
+      "endDate": "2022-03-27",
+      "location": {
+        "city": "Boise",
+        "state": "ID",
+        "venue": null,
+        "country": "US"
+      },
+      "genre": "indie",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "big-ears-festival-2022",
+      "name": "Big Ears Festival 2022",
+      "normalizedName": "big ears festival",
+      "brand": "Big Ears Festival",
+      "edition": 2022,
+      "startDate": "2022-03-24",
+      "endDate": "2022-03-27",
+      "location": {
+        "city": "Knoxville",
+        "state": "TN",
+        "venue": null,
+        "country": "US"
+      },
+      "genre": "experimental/jazz",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "coachella-2022-weekend-1",
+      "name": "Coachella 2022 – Weekend 1",
+      "normalizedName": "coachella 2022 weekend 1",
+      "brand": "Coachella",
+      "edition": 2022,
+      "startDate": "2022-04-15",
+      "endDate": "2022-04-17",
+      "location": {
+        "city": "Indio",
+        "state": "CA",
+        "venue": "Empire Polo Club",
+        "country": "US"
+      },
+      "genre": "multi-genre",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "coachella-2022-weekend-2",
+      "name": "Coachella 2022 – Weekend 2",
+      "normalizedName": "coachella 2022 weekend 2",
+      "brand": "Coachella",
+      "edition": 2022,
+      "startDate": "2022-04-22",
+      "endDate": "2022-04-24",
+      "location": {
+        "city": "Indio",
+        "state": "CA",
+        "venue": "Empire Polo Club",
+        "country": "US"
+      },
+      "genre": "multi-genre",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "merlefest-2022",
+      "name": "MerleFest 2022",
+      "normalizedName": "merlefest",
+      "brand": "MerleFest",
+      "edition": 2022,
+      "startDate": "2022-04-28",
+      "endDate": "2022-05-01",
+      "location": {
+        "city": "Wilkesboro",
+        "state": "NC",
+        "venue": "Wilkes Community College",
+        "country": "US"
+      },
+      "genre": "bluegrass/americana",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "new-orleans-jazz-heritage-festival-2022",
+      "name": "New Orleans Jazz & Heritage Festival 2022",
+      "normalizedName": "new orleans jazz heritage festival",
+      "brand": "New Orleans Jazz & Heritage Festival",
+      "edition": 2022,
+      "startDate": "2022-04-29",
+      "endDate": "2022-05-08",
+      "location": {
+        "city": "New Orleans",
+        "state": "LA",
+        "venue": "Fair Grounds Race Course",
+        "country": "US"
+      },
+      "genre": "jazz/roots",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": "Runs across two weekends."
+    },
+    {
+      "seedKey": "shaky-knees-2022",
+      "name": "Shaky Knees 2022",
+      "normalizedName": "shaky knees",
+      "brand": "Shaky Knees",
+      "edition": 2022,
+      "startDate": "2022-04-29",
+      "endDate": "2022-05-01",
+      "location": {
+        "city": "Atlanta",
+        "state": "GA",
+        "venue": "Central Park",
+        "country": "US"
+      },
+      "genre": "rock/indie",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "kilby-block-party-2022",
+      "name": "Kilby Block Party 2022",
+      "normalizedName": "kilby block party",
+      "brand": "Kilby Block Party",
+      "edition": 2022,
+      "startDate": "2022-05-13",
+      "endDate": "2022-05-14",
+      "location": {
+        "city": "Salt Lake City",
+        "state": "UT",
+        "venue": "Library Square",
+        "country": "US"
+      },
+      "genre": "indie",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "welcome-to-rockville-2022",
+      "name": "Welcome to Rockville 2022",
+      "normalizedName": "welcome to rockville",
+      "brand": "Welcome to Rockville",
+      "edition": 2022,
+      "startDate": "2022-05-19",
+      "endDate": "2022-05-22",
+      "location": {
+        "city": "Daytona Beach",
+        "state": "FL",
+        "venue": "Daytona International Speedway",
+        "country": "US"
+      },
+      "genre": "rock/metal",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "hangout-music-festival-2022",
+      "name": "Hangout Music Festival 2022",
+      "normalizedName": "hangout music festival",
+      "brand": "Hangout Music Festival",
+      "edition": 2022,
+      "startDate": "2022-05-20",
+      "endDate": "2022-05-22",
+      "location": {
+        "city": "Gulf Shores",
+        "state": "AL",
+        "venue": "Gulf Shores Public Beach",
+        "country": "US"
+      },
+      "genre": "multi-genre",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "medium",
+      "notes": null
+    },
+    {
+      "seedKey": "delfest-2022",
+      "name": "DelFest 2022",
+      "normalizedName": "delfest",
+      "brand": "DelFest",
+      "edition": 2022,
+      "startDate": "2022-05-26",
+      "endDate": "2022-05-29",
+      "location": {
+        "city": "Cumberland",
+        "state": "MD",
+        "venue": "Allegany County Fairgrounds",
+        "country": "US"
+      },
+      "genre": "bluegrass",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "boston-calling-2022",
+      "name": "Boston Calling 2022",
+      "normalizedName": "boston calling",
+      "brand": "Boston Calling",
+      "edition": 2022,
+      "startDate": "2022-05-27",
+      "endDate": "2022-05-29",
+      "location": {
+        "city": "Boston",
+        "state": "MA",
+        "venue": "Harvard Athletic Complex",
+        "country": "US"
+      },
+      "genre": "rock/indie",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "bottlerock-napa-valley-2022",
+      "name": "BottleRock Napa Valley 2022",
+      "normalizedName": "bottlerock napa valley",
+      "brand": "BottleRock Napa Valley",
+      "edition": 2022,
+      "startDate": "2022-05-27",
+      "endDate": "2022-05-29",
+      "location": {
+        "city": "Napa",
+        "state": "CA",
+        "venue": "Napa Valley Expo",
+        "country": "US"
+      },
+      "genre": "multi-genre",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "california-roots-music-arts-festival-2022",
+      "name": "California Roots Music & Arts Festival 2022",
+      "normalizedName": "california roots music arts festival",
+      "brand": "California Roots Music & Arts Festival",
+      "edition": 2022,
+      "startDate": "2022-05-27",
+      "endDate": "2022-05-29",
+      "location": {
+        "city": "Monterey",
+        "state": "CA",
+        "venue": "Monterey County Fair & Event Center",
+        "country": "US"
+      },
+      "genre": "reggae/rock",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "medium",
+      "notes": null
+    },
+    {
+      "seedKey": "summer-camp-music-festival-2022",
+      "name": "Summer Camp Music Festival 2022",
+      "normalizedName": "summer camp music festival",
+      "brand": "Summer Camp Music Festival",
+      "edition": 2022,
+      "startDate": "2022-05-27",
+      "endDate": "2022-05-29",
+      "location": {
+        "city": "Chillicothe",
+        "state": "IL",
+        "venue": "Three Sisters Park",
+        "country": "US"
+      },
+      "genre": "jam",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "governors-ball-2022",
+      "name": "Governors Ball 2022",
+      "normalizedName": "governors ball",
+      "brand": "Governors Ball",
+      "edition": 2022,
+      "startDate": "2022-06-10",
+      "endDate": "2022-06-12",
+      "location": {
+        "city": "New York",
+        "state": "NY",
+        "venue": "Citi Field",
+        "country": "US"
+      },
+      "genre": "multi-genre",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "bonnaroo-2022",
+      "name": "Bonnaroo 2022",
+      "normalizedName": "bonnaroo",
+      "brand": "Bonnaroo",
+      "edition": 2022,
+      "startDate": "2022-06-16",
+      "endDate": "2022-06-19",
+      "location": {
+        "city": "Manchester",
+        "state": "TN",
+        "venue": "Great Stage Park",
+        "country": "US"
+      },
+      "genre": "multi-genre",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "firefly-music-festival-2022",
+      "name": "Firefly Music Festival 2022",
+      "normalizedName": "firefly music festival",
+      "brand": "Firefly Music Festival",
+      "edition": 2022,
+      "startDate": "2022-06-16",
+      "endDate": "2022-06-19",
+      "location": {
+        "city": "Dover",
+        "state": "DE",
+        "venue": "The Woodlands of Dover Motor Speedway",
+        "country": "US"
+      },
+      "genre": "multi-genre",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "telluride-bluegrass-festival-2022",
+      "name": "Telluride Bluegrass Festival 2022",
+      "normalizedName": "telluride bluegrass festival",
+      "brand": "Telluride Bluegrass Festival",
+      "edition": 2022,
+      "startDate": "2022-06-16",
+      "endDate": "2022-06-19",
+      "location": {
+        "city": "Telluride",
+        "state": "CO",
+        "venue": "Telluride Town Park",
+        "country": "US"
+      },
+      "genre": "bluegrass",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "summerfest-2022",
+      "name": "Summerfest 2022",
+      "normalizedName": "summerfest",
+      "brand": "Summerfest",
+      "edition": 2022,
+      "startDate": "2022-06-23",
+      "endDate": "2022-07-09",
+      "location": {
+        "city": "Milwaukee",
+        "state": "WI",
+        "venue": "Henry Maier Festival Park",
+        "country": "US"
+      },
+      "genre": "multi-genre",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "medium",
+      "notes": "Three weekends."
+    },
+    {
+      "seedKey": "high-sierra-music-festival-2022",
+      "name": "High Sierra Music Festival 2022",
+      "normalizedName": "high sierra music festival",
+      "brand": "High Sierra Music Festival",
+      "edition": 2022,
+      "startDate": "2022-06-30",
+      "endDate": "2022-07-03",
+      "location": {
+        "city": "Quincy",
+        "state": "CA",
+        "venue": "Plumas County Fairgrounds",
+        "country": "US"
+      },
+      "genre": "jam",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "the-peach-music-festival-2022",
+      "name": "The Peach Music Festival 2022",
+      "normalizedName": "peach music festival",
+      "brand": "The Peach Music Festival",
+      "edition": 2022,
+      "startDate": "2022-06-30",
+      "endDate": "2022-07-03",
+      "location": {
+        "city": "Scranton",
+        "state": "PA",
+        "venue": "Montage Mountain",
+        "country": "US"
+      },
+      "genre": "jam",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "medium",
+      "notes": null
+    },
+    {
+      "seedKey": "pitchfork-music-festival-2022",
+      "name": "Pitchfork Music Festival 2022",
+      "normalizedName": "pitchfork music festival",
+      "brand": "Pitchfork Music Festival",
+      "edition": 2022,
+      "startDate": "2022-07-15",
+      "endDate": "2022-07-17",
+      "location": {
+        "city": "Chicago",
+        "state": "IL",
+        "venue": "Union Park",
+        "country": "US"
+      },
+      "genre": "indie",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "floydfest-2022",
+      "name": "FloydFest 2022",
+      "normalizedName": "floydfest",
+      "brand": "FloydFest",
+      "edition": 2022,
+      "startDate": "2022-07-20",
+      "endDate": "2022-07-24",
+      "location": {
+        "city": "Floyd",
+        "state": "VA",
+        "venue": "Floyd Festival Grounds",
+        "country": "US"
+      },
+      "genre": "jam/americana",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "medium",
+      "notes": null
+    },
+    {
+      "seedKey": "newport-folk-festival-2022",
+      "name": "Newport Folk Festival 2022",
+      "normalizedName": "newport folk festival",
+      "brand": "Newport Folk Festival",
+      "edition": 2022,
+      "startDate": "2022-07-22",
+      "endDate": "2022-07-24",
+      "location": {
+        "city": "Newport",
+        "state": "RI",
+        "venue": "Fort Adams State Park",
+        "country": "US"
+      },
+      "genre": "folk/americana",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "lollapalooza-2022",
+      "name": "Lollapalooza 2022",
+      "normalizedName": "lollapalooza",
+      "brand": "Lollapalooza",
+      "edition": 2022,
+      "startDate": "2022-07-28",
+      "endDate": "2022-07-31",
+      "location": {
+        "city": "Chicago",
+        "state": "IL",
+        "venue": "Grant Park",
+        "country": "US"
+      },
+      "genre": "multi-genre",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "newport-jazz-festival-2022",
+      "name": "Newport Jazz Festival 2022",
+      "normalizedName": "newport jazz festival",
+      "brand": "Newport Jazz Festival",
+      "edition": 2022,
+      "startDate": "2022-07-29",
+      "endDate": "2022-07-31",
+      "location": {
+        "city": "Newport",
+        "state": "RI",
+        "venue": "Fort Adams State Park",
+        "country": "US"
+      },
+      "genre": "jazz",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "rockygrass-2022",
+      "name": "RockyGrass 2022",
+      "normalizedName": "rockygrass",
+      "brand": "RockyGrass",
+      "edition": 2022,
+      "startDate": "2022-07-29",
+      "endDate": "2022-07-31",
+      "location": {
+        "city": "Lyons",
+        "state": "CO",
+        "venue": "Planet Bluegrass Ranch",
+        "country": "US"
+      },
+      "genre": "bluegrass",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "medium",
+      "notes": null
+    },
+    {
+      "seedKey": "pickathon-2022",
+      "name": "Pickathon 2022",
+      "normalizedName": "pickathon",
+      "brand": "Pickathon",
+      "edition": 2022,
+      "startDate": "2022-08-04",
+      "endDate": "2022-08-07",
+      "location": {
+        "city": "Happy Valley",
+        "state": "OR",
+        "venue": "Pendarvis Farm",
+        "country": "US"
+      },
+      "genre": "indie/roots",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "medium",
+      "notes": null
+    },
+    {
+      "seedKey": "outside-lands-2022",
+      "name": "Outside Lands 2022",
+      "normalizedName": "outside lands",
+      "brand": "Outside Lands",
+      "edition": 2022,
+      "startDate": "2022-08-05",
+      "endDate": "2022-08-07",
+      "location": {
+        "city": "San Francisco",
+        "state": "CA",
+        "venue": "Golden Gate Park",
+        "country": "US"
+      },
+      "genre": "multi-genre",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "bourbon-beyond-2022",
+      "name": "Bourbon & Beyond 2022",
+      "normalizedName": "bourbon beyond",
+      "brand": "Bourbon & Beyond",
+      "edition": 2022,
+      "startDate": "2022-09-15",
+      "endDate": "2022-09-18",
+      "location": {
+        "city": "Louisville",
+        "state": "KY",
+        "venue": "Highland Festival Grounds at Kentucky Expo Center",
+        "country": "US"
+      },
+      "genre": "rock/americana",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "life-is-beautiful-2022",
+      "name": "Life Is Beautiful 2022",
+      "normalizedName": "life is beautiful",
+      "brand": "Life Is Beautiful",
+      "edition": 2022,
+      "startDate": "2022-09-16",
+      "endDate": "2022-09-18",
+      "location": {
+        "city": "Las Vegas",
+        "state": "NV",
+        "venue": "Downtown Las Vegas",
+        "country": "US"
+      },
+      "genre": "multi-genre",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "primavera-sound-los-angeles-2022",
+      "name": "Primavera Sound Los Angeles 2022",
+      "normalizedName": "primavera sound los angeles",
+      "brand": "Primavera Sound Los Angeles",
+      "edition": 2022,
+      "startDate": "2022-09-16",
+      "endDate": "2022-09-18",
+      "location": {
+        "city": "Los Angeles",
+        "state": "CA",
+        "venue": "Los Angeles State Historic Park",
+        "country": "US"
+      },
+      "genre": "indie",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "riot-fest-2022",
+      "name": "Riot Fest 2022",
+      "normalizedName": "riot fest",
+      "brand": "Riot Fest",
+      "edition": 2022,
+      "startDate": "2022-09-16",
+      "endDate": "2022-09-18",
+      "location": {
+        "city": "Chicago",
+        "state": "IL",
+        "venue": "Douglass Park",
+        "country": "US"
+      },
+      "genre": "rock/punk",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "sea-hear-now-2022",
+      "name": "Sea.Hear.Now 2022",
+      "normalizedName": "sea hear now",
+      "brand": "Sea.Hear.Now",
+      "edition": 2022,
+      "startDate": "2022-09-17",
+      "endDate": "2022-09-18",
+      "location": {
+        "city": "Asbury Park",
+        "state": "NJ",
+        "venue": "North Beach Asbury Park",
+        "country": "US"
+      },
+      "genre": "rock/indie",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "medium",
+      "notes": null
+    },
+    {
+      "seedKey": "louder-than-life-2022",
+      "name": "Louder Than Life 2022",
+      "normalizedName": "louder than life",
+      "brand": "Louder Than Life",
+      "edition": 2022,
+      "startDate": "2022-09-22",
+      "endDate": "2022-09-25",
+      "location": {
+        "city": "Louisville",
+        "state": "KY",
+        "venue": "Highland Festival Grounds at Kentucky Expo Center",
+        "country": "US"
+      },
+      "genre": "rock/metal",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "pilgrimage-music-cultural-festival-2022",
+      "name": "Pilgrimage Music & Cultural Festival 2022",
+      "normalizedName": "pilgrimage music cultural festival",
+      "brand": "Pilgrimage Music & Cultural Festival",
+      "edition": 2022,
+      "startDate": "2022-09-24",
+      "endDate": "2022-09-25",
+      "location": {
+        "city": "Franklin",
+        "state": "TN",
+        "venue": "The Park at Harlinsdale",
+        "country": "US"
+      },
+      "genre": "americana/rock",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "medium",
+      "notes": null
+    },
+    {
+      "seedKey": "hardly-strictly-bluegrass-2022",
+      "name": "Hardly Strictly Bluegrass 2022",
+      "normalizedName": "hardly strictly bluegrass",
+      "brand": "Hardly Strictly Bluegrass",
+      "edition": 2022,
+      "startDate": "2022-09-30",
+      "endDate": "2022-10-02",
+      "location": {
+        "city": "San Francisco",
+        "state": "CA",
+        "venue": "Golden Gate Park (Hellman Hollow)",
+        "country": "US"
+      },
+      "genre": "bluegrass/americana",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "ohana-festival-2022",
+      "name": "Ohana Festival 2022",
+      "normalizedName": "ohana festival",
+      "brand": "Ohana Festival",
+      "edition": 2022,
+      "startDate": "2022-09-30",
+      "endDate": "2022-10-02",
+      "location": {
+        "city": "Dana Point",
+        "state": "CA",
+        "venue": "Doheny State Beach",
+        "country": "US"
+      },
+      "genre": "rock/indie",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "medium",
+      "notes": null
+    },
+    {
+      "seedKey": "aftershock-2022",
+      "name": "Aftershock 2022",
+      "normalizedName": "aftershock",
+      "brand": "Aftershock",
+      "edition": 2022,
+      "startDate": "2022-10-06",
+      "endDate": "2022-10-09",
+      "location": {
+        "city": "Sacramento",
+        "state": "CA",
+        "venue": "Discovery Park",
+        "country": "US"
+      },
+      "genre": "rock/metal",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "medium",
+      "notes": null
+    },
+    {
+      "seedKey": "austin-city-limits-2022-weekend-1",
+      "name": "Austin City Limits 2022 – Weekend 1",
+      "normalizedName": "austin city limits 2022 weekend 1",
+      "brand": "Austin City Limits Music Festival",
+      "edition": 2022,
+      "startDate": "2022-10-07",
+      "endDate": "2022-10-09",
+      "location": {
+        "city": "Austin",
+        "state": "TX",
+        "venue": "Zilker Park",
+        "country": "US"
+      },
+      "genre": "multi-genre",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "austin-city-limits-2022-weekend-2",
+      "name": "Austin City Limits 2022 – Weekend 2",
+      "normalizedName": "austin city limits 2022 weekend 2",
+      "brand": "Austin City Limits Music Festival",
+      "edition": 2022,
+      "startDate": "2022-10-14",
+      "endDate": "2022-10-16",
+      "location": {
+        "city": "Austin",
+        "state": "TX",
+        "venue": "Zilker Park",
+        "country": "US"
+      },
+      "genre": "multi-genre",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "when-we-were-young-2022",
+      "name": "When We Were Young 2022",
+      "normalizedName": "when we were young",
+      "brand": "When We Were Young",
+      "edition": 2022,
+      "startDate": "2022-10-22",
+      "endDate": "2022-10-29",
+      "location": {
+        "city": "Las Vegas",
+        "state": "NV",
+        "venue": "Las Vegas Festival Grounds",
+        "country": "US"
+      },
+      "genre": "emo/pop-punk",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": "Three dates: Oct 22 (cancelled for weather), Oct 23 and Oct 29."
+    },
+    {
+      "seedKey": "suwannee-hulaween-2022",
+      "name": "Suwannee Hulaween 2022",
+      "normalizedName": "suwannee hulaween",
+      "brand": "Suwannee Hulaween",
+      "edition": 2022,
+      "startDate": "2022-10-27",
+      "endDate": "2022-10-30",
+      "location": {
+        "city": "Live Oak",
+        "state": "FL",
+        "venue": "Spirit of the Suwannee Music Park",
+        "country": "US"
+      },
+      "genre": "jam",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "treefort-music-fest-2023",
+      "name": "Treefort Music Fest 2023",
+      "normalizedName": "treefort music fest",
+      "brand": "Treefort Music Fest",
+      "edition": 2023,
+      "startDate": "2023-03-22",
+      "endDate": "2023-03-26",
+      "location": {
+        "city": "Boise",
+        "state": "ID",
+        "venue": null,
+        "country": "US"
+      },
+      "genre": "indie",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "big-ears-festival-2023",
+      "name": "Big Ears Festival 2023",
+      "normalizedName": "big ears festival",
+      "brand": "Big Ears Festival",
+      "edition": 2023,
+      "startDate": "2023-03-23",
+      "endDate": "2023-03-26",
+      "location": {
+        "city": "Knoxville",
+        "state": "TN",
+        "venue": null,
+        "country": "US"
+      },
+      "genre": "experimental/jazz",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "coachella-2023-weekend-1",
+      "name": "Coachella 2023 – Weekend 1",
+      "normalizedName": "coachella 2023 weekend 1",
+      "brand": "Coachella",
+      "edition": 2023,
+      "startDate": "2023-04-14",
+      "endDate": "2023-04-16",
+      "location": {
+        "city": "Indio",
+        "state": "CA",
+        "venue": "Empire Polo Club",
+        "country": "US"
+      },
+      "genre": "multi-genre",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "coachella-2023-weekend-2",
+      "name": "Coachella 2023 – Weekend 2",
+      "normalizedName": "coachella 2023 weekend 2",
+      "brand": "Coachella",
+      "edition": 2023,
+      "startDate": "2023-04-21",
+      "endDate": "2023-04-23",
+      "location": {
+        "city": "Indio",
+        "state": "CA",
+        "venue": "Empire Polo Club",
+        "country": "US"
+      },
+      "genre": "multi-genre",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "merlefest-2023",
+      "name": "MerleFest 2023",
+      "normalizedName": "merlefest",
+      "brand": "MerleFest",
+      "edition": 2023,
+      "startDate": "2023-04-27",
+      "endDate": "2023-04-30",
+      "location": {
+        "city": "Wilkesboro",
+        "state": "NC",
+        "venue": "Wilkes Community College",
+        "country": "US"
+      },
+      "genre": "bluegrass/americana",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "new-orleans-jazz-heritage-festival-2023",
+      "name": "New Orleans Jazz & Heritage Festival 2023",
+      "normalizedName": "new orleans jazz heritage festival",
+      "brand": "New Orleans Jazz & Heritage Festival",
+      "edition": 2023,
+      "startDate": "2023-04-28",
+      "endDate": "2023-05-07",
+      "location": {
+        "city": "New Orleans",
+        "state": "LA",
+        "venue": "Fair Grounds Race Course",
+        "country": "US"
+      },
+      "genre": "jazz/roots",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": "Runs across two weekends."
+    },
+    {
+      "seedKey": "shaky-knees-2023",
+      "name": "Shaky Knees 2023",
+      "normalizedName": "shaky knees",
+      "brand": "Shaky Knees",
+      "edition": 2023,
+      "startDate": "2023-05-05",
+      "endDate": "2023-05-07",
+      "location": {
+        "city": "Atlanta",
+        "state": "GA",
+        "venue": "Central Park",
+        "country": "US"
+      },
+      "genre": "rock/indie",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "medium",
+      "notes": null
+    },
+    {
+      "seedKey": "kilby-block-party-2023",
+      "name": "Kilby Block Party 2023",
+      "normalizedName": "kilby block party",
+      "brand": "Kilby Block Party",
+      "edition": 2023,
+      "startDate": "2023-05-12",
+      "endDate": "2023-05-14",
+      "location": {
+        "city": "Salt Lake City",
+        "state": "UT",
+        "venue": "Utah State Fairpark",
+        "country": "US"
+      },
+      "genre": "indie",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "welcome-to-rockville-2023",
+      "name": "Welcome to Rockville 2023",
+      "normalizedName": "welcome to rockville",
+      "brand": "Welcome to Rockville",
+      "edition": 2023,
+      "startDate": "2023-05-18",
+      "endDate": "2023-05-21",
+      "location": {
+        "city": "Daytona Beach",
+        "state": "FL",
+        "venue": "Daytona International Speedway",
+        "country": "US"
+      },
+      "genre": "rock/metal",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "hangout-music-festival-2023",
+      "name": "Hangout Music Festival 2023",
+      "normalizedName": "hangout music festival",
+      "brand": "Hangout Music Festival",
+      "edition": 2023,
+      "startDate": "2023-05-19",
+      "endDate": "2023-05-21",
+      "location": {
+        "city": "Gulf Shores",
+        "state": "AL",
+        "venue": "Gulf Shores Public Beach",
+        "country": "US"
+      },
+      "genre": "multi-genre",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "medium",
+      "notes": null
+    },
+    {
+      "seedKey": "delfest-2023",
+      "name": "DelFest 2023",
+      "normalizedName": "delfest",
+      "brand": "DelFest",
+      "edition": 2023,
+      "startDate": "2023-05-25",
+      "endDate": "2023-05-28",
+      "location": {
+        "city": "Cumberland",
+        "state": "MD",
+        "venue": "Allegany County Fairgrounds",
+        "country": "US"
+      },
+      "genre": "bluegrass",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "summer-camp-music-festival-2023",
+      "name": "Summer Camp Music Festival 2023",
+      "normalizedName": "summer camp music festival",
+      "brand": "Summer Camp Music Festival",
+      "edition": 2023,
+      "startDate": "2023-05-25",
+      "endDate": "2023-05-28",
+      "location": {
+        "city": "Chillicothe",
+        "state": "IL",
+        "venue": "Three Sisters Park",
+        "country": "US"
+      },
+      "genre": "jam",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "boston-calling-2023",
+      "name": "Boston Calling 2023",
+      "normalizedName": "boston calling",
+      "brand": "Boston Calling",
+      "edition": 2023,
+      "startDate": "2023-05-26",
+      "endDate": "2023-05-28",
+      "location": {
+        "city": "Boston",
+        "state": "MA",
+        "venue": "Harvard Athletic Complex",
+        "country": "US"
+      },
+      "genre": "rock/indie",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "bottlerock-napa-valley-2023",
+      "name": "BottleRock Napa Valley 2023",
+      "normalizedName": "bottlerock napa valley",
+      "brand": "BottleRock Napa Valley",
+      "edition": 2023,
+      "startDate": "2023-05-26",
+      "endDate": "2023-05-28",
+      "location": {
+        "city": "Napa",
+        "state": "CA",
+        "venue": "Napa Valley Expo",
+        "country": "US"
+      },
+      "genre": "multi-genre",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "california-roots-music-arts-festival-2023",
+      "name": "California Roots Music & Arts Festival 2023",
+      "normalizedName": "california roots music arts festival",
+      "brand": "California Roots Music & Arts Festival",
+      "edition": 2023,
+      "startDate": "2023-05-26",
+      "endDate": "2023-05-28",
+      "location": {
+        "city": "Monterey",
+        "state": "CA",
+        "venue": "Monterey County Fair & Event Center",
+        "country": "US"
+      },
+      "genre": "reggae/rock",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "medium",
+      "notes": null
+    },
+    {
+      "seedKey": "governors-ball-2023",
+      "name": "Governors Ball 2023",
+      "normalizedName": "governors ball",
+      "brand": "Governors Ball",
+      "edition": 2023,
+      "startDate": "2023-06-09",
+      "endDate": "2023-06-11",
+      "location": {
+        "city": "New York",
+        "state": "NY",
+        "venue": "Flushing Meadows Corona Park",
+        "country": "US"
+      },
+      "genre": "multi-genre",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "bonnaroo-2023",
+      "name": "Bonnaroo 2023",
+      "normalizedName": "bonnaroo",
+      "brand": "Bonnaroo",
+      "edition": 2023,
+      "startDate": "2023-06-15",
+      "endDate": "2023-06-18",
+      "location": {
+        "city": "Manchester",
+        "state": "TN",
+        "venue": "Great Stage Park",
+        "country": "US"
+      },
+      "genre": "multi-genre",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "telluride-bluegrass-festival-2023",
+      "name": "Telluride Bluegrass Festival 2023",
+      "normalizedName": "telluride bluegrass festival",
+      "brand": "Telluride Bluegrass Festival",
+      "edition": 2023,
+      "startDate": "2023-06-15",
+      "endDate": "2023-06-18",
+      "location": {
+        "city": "Telluride",
+        "state": "CO",
+        "venue": "Telluride Town Park",
+        "country": "US"
+      },
+      "genre": "bluegrass",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "summerfest-2023",
+      "name": "Summerfest 2023",
+      "normalizedName": "summerfest",
+      "brand": "Summerfest",
+      "edition": 2023,
+      "startDate": "2023-06-22",
+      "endDate": "2023-07-08",
+      "location": {
+        "city": "Milwaukee",
+        "state": "WI",
+        "venue": "Henry Maier Festival Park",
+        "country": "US"
+      },
+      "genre": "multi-genre",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "medium",
+      "notes": "Three weekends."
+    },
+    {
+      "seedKey": "high-sierra-music-festival-2023",
+      "name": "High Sierra Music Festival 2023",
+      "normalizedName": "high sierra music festival",
+      "brand": "High Sierra Music Festival",
+      "edition": 2023,
+      "startDate": "2023-06-29",
+      "endDate": "2023-07-02",
+      "location": {
+        "city": "Quincy",
+        "state": "CA",
+        "venue": "Plumas County Fairgrounds",
+        "country": "US"
+      },
+      "genre": "jam",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "the-peach-music-festival-2023",
+      "name": "The Peach Music Festival 2023",
+      "normalizedName": "peach music festival",
+      "brand": "The Peach Music Festival",
+      "edition": 2023,
+      "startDate": "2023-06-29",
+      "endDate": "2023-07-02",
+      "location": {
+        "city": "Scranton",
+        "state": "PA",
+        "venue": "Montage Mountain",
+        "country": "US"
+      },
+      "genre": "jam",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "newport-folk-festival-2023",
+      "name": "Newport Folk Festival 2023",
+      "normalizedName": "newport folk festival",
+      "brand": "Newport Folk Festival",
+      "edition": 2023,
+      "startDate": "2023-07-21",
+      "endDate": "2023-07-23",
+      "location": {
+        "city": "Newport",
+        "state": "RI",
+        "venue": "Fort Adams State Park",
+        "country": "US"
+      },
+      "genre": "folk/americana",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "pitchfork-music-festival-2023",
+      "name": "Pitchfork Music Festival 2023",
+      "normalizedName": "pitchfork music festival",
+      "brand": "Pitchfork Music Festival",
+      "edition": 2023,
+      "startDate": "2023-07-21",
+      "endDate": "2023-07-23",
+      "location": {
+        "city": "Chicago",
+        "state": "IL",
+        "venue": "Union Park",
+        "country": "US"
+      },
+      "genre": "indie",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "rockygrass-2023",
+      "name": "RockyGrass 2023",
+      "normalizedName": "rockygrass",
+      "brand": "RockyGrass",
+      "edition": 2023,
+      "startDate": "2023-07-28",
+      "endDate": "2023-07-30",
+      "location": {
+        "city": "Lyons",
+        "state": "CO",
+        "venue": "Planet Bluegrass Ranch",
+        "country": "US"
+      },
+      "genre": "bluegrass",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "medium",
+      "notes": null
+    },
+    {
+      "seedKey": "lollapalooza-2023",
+      "name": "Lollapalooza 2023",
+      "normalizedName": "lollapalooza",
+      "brand": "Lollapalooza",
+      "edition": 2023,
+      "startDate": "2023-08-03",
+      "endDate": "2023-08-06",
+      "location": {
+        "city": "Chicago",
+        "state": "IL",
+        "venue": "Grant Park",
+        "country": "US"
+      },
+      "genre": "multi-genre",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "pickathon-2023",
+      "name": "Pickathon 2023",
+      "normalizedName": "pickathon",
+      "brand": "Pickathon",
+      "edition": 2023,
+      "startDate": "2023-08-03",
+      "endDate": "2023-08-06",
+      "location": {
+        "city": "Happy Valley",
+        "state": "OR",
+        "venue": "Pendarvis Farm",
+        "country": "US"
+      },
+      "genre": "indie/roots",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "medium",
+      "notes": null
+    },
+    {
+      "seedKey": "newport-jazz-festival-2023",
+      "name": "Newport Jazz Festival 2023",
+      "normalizedName": "newport jazz festival",
+      "brand": "Newport Jazz Festival",
+      "edition": 2023,
+      "startDate": "2023-08-04",
+      "endDate": "2023-08-06",
+      "location": {
+        "city": "Newport",
+        "state": "RI",
+        "venue": "Fort Adams State Park",
+        "country": "US"
+      },
+      "genre": "jazz",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "outside-lands-2023",
+      "name": "Outside Lands 2023",
+      "normalizedName": "outside lands",
+      "brand": "Outside Lands",
+      "edition": 2023,
+      "startDate": "2023-08-11",
+      "endDate": "2023-08-13",
+      "location": {
+        "city": "San Francisco",
+        "state": "CA",
+        "venue": "Golden Gate Park",
+        "country": "US"
+      },
+      "genre": "multi-genre",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "bourbon-beyond-2023",
+      "name": "Bourbon & Beyond 2023",
+      "normalizedName": "bourbon beyond",
+      "brand": "Bourbon & Beyond",
+      "edition": 2023,
+      "startDate": "2023-09-14",
+      "endDate": "2023-09-17",
+      "location": {
+        "city": "Louisville",
+        "state": "KY",
+        "venue": "Highland Festival Grounds at Kentucky Expo Center",
+        "country": "US"
+      },
+      "genre": "rock/americana",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "riot-fest-2023",
+      "name": "Riot Fest 2023",
+      "normalizedName": "riot fest",
+      "brand": "Riot Fest",
+      "edition": 2023,
+      "startDate": "2023-09-15",
+      "endDate": "2023-09-17",
+      "location": {
+        "city": "Chicago",
+        "state": "IL",
+        "venue": "Douglass Park",
+        "country": "US"
+      },
+      "genre": "rock/punk",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "sea-hear-now-2023",
+      "name": "Sea.Hear.Now 2023",
+      "normalizedName": "sea hear now",
+      "brand": "Sea.Hear.Now",
+      "edition": 2023,
+      "startDate": "2023-09-16",
+      "endDate": "2023-09-17",
+      "location": {
+        "city": "Asbury Park",
+        "state": "NJ",
+        "venue": "North Beach Asbury Park",
+        "country": "US"
+      },
+      "genre": "rock/indie",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "medium",
+      "notes": null
+    },
+    {
+      "seedKey": "louder-than-life-2023",
+      "name": "Louder Than Life 2023",
+      "normalizedName": "louder than life",
+      "brand": "Louder Than Life",
+      "edition": 2023,
+      "startDate": "2023-09-21",
+      "endDate": "2023-09-24",
+      "location": {
+        "city": "Louisville",
+        "state": "KY",
+        "venue": "Highland Festival Grounds at Kentucky Expo Center",
+        "country": "US"
+      },
+      "genre": "rock/metal",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "life-is-beautiful-2023",
+      "name": "Life Is Beautiful 2023",
+      "normalizedName": "life is beautiful",
+      "brand": "Life Is Beautiful",
+      "edition": 2023,
+      "startDate": "2023-09-22",
+      "endDate": "2023-09-24",
+      "location": {
+        "city": "Las Vegas",
+        "state": "NV",
+        "venue": "Downtown Las Vegas",
+        "country": "US"
+      },
+      "genre": "multi-genre",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "hardly-strictly-bluegrass-2023",
+      "name": "Hardly Strictly Bluegrass 2023",
+      "normalizedName": "hardly strictly bluegrass",
+      "brand": "Hardly Strictly Bluegrass",
+      "edition": 2023,
+      "startDate": "2023-09-29",
+      "endDate": "2023-10-01",
+      "location": {
+        "city": "San Francisco",
+        "state": "CA",
+        "venue": "Golden Gate Park (Hellman Hollow)",
+        "country": "US"
+      },
+      "genre": "bluegrass/americana",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "mempho-music-festival-2023",
+      "name": "Mempho Music Festival 2023",
+      "normalizedName": "mempho music festival",
+      "brand": "Mempho Music Festival",
+      "edition": 2023,
+      "startDate": "2023-09-29",
+      "endDate": "2023-10-01",
+      "location": {
+        "city": "Memphis",
+        "state": "TN",
+        "venue": "Radians Amphitheater at Memphis Botanic Garden",
+        "country": "US"
+      },
+      "genre": "jam/americana",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "oceans-calling-2023",
+      "name": "Oceans Calling 2023",
+      "normalizedName": "oceans calling",
+      "brand": "Oceans Calling",
+      "edition": 2023,
+      "startDate": "2023-09-29",
+      "endDate": "2023-10-01",
+      "location": {
+        "city": "Ocean City",
+        "state": "MD",
+        "venue": "Ocean City Inlet",
+        "country": "US"
+      },
+      "genre": "rock/pop",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "medium",
+      "notes": null
+    },
+    {
+      "seedKey": "ohana-festival-2023",
+      "name": "Ohana Festival 2023",
+      "normalizedName": "ohana festival",
+      "brand": "Ohana Festival",
+      "edition": 2023,
+      "startDate": "2023-09-29",
+      "endDate": "2023-10-01",
+      "location": {
+        "city": "Dana Point",
+        "state": "CA",
+        "venue": "Doheny State Beach",
+        "country": "US"
+      },
+      "genre": "rock/indie",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "medium",
+      "notes": null
+    },
+    {
+      "seedKey": "aftershock-2023",
+      "name": "Aftershock 2023",
+      "normalizedName": "aftershock",
+      "brand": "Aftershock",
+      "edition": 2023,
+      "startDate": "2023-10-05",
+      "endDate": "2023-10-08",
+      "location": {
+        "city": "Sacramento",
+        "state": "CA",
+        "venue": "Discovery Park",
+        "country": "US"
+      },
+      "genre": "rock/metal",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "medium",
+      "notes": null
+    },
+    {
+      "seedKey": "austin-city-limits-2023-weekend-1",
+      "name": "Austin City Limits 2023 – Weekend 1",
+      "normalizedName": "austin city limits 2023 weekend 1",
+      "brand": "Austin City Limits Music Festival",
+      "edition": 2023,
+      "startDate": "2023-10-06",
+      "endDate": "2023-10-08",
+      "location": {
+        "city": "Austin",
+        "state": "TX",
+        "venue": "Zilker Park",
+        "country": "US"
+      },
+      "genre": "multi-genre",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "austin-city-limits-2023-weekend-2",
+      "name": "Austin City Limits 2023 – Weekend 2",
+      "normalizedName": "austin city limits 2023 weekend 2",
+      "brand": "Austin City Limits Music Festival",
+      "edition": 2023,
+      "startDate": "2023-10-13",
+      "endDate": "2023-10-15",
+      "location": {
+        "city": "Austin",
+        "state": "TX",
+        "venue": "Zilker Park",
+        "country": "US"
+      },
+      "genre": "multi-genre",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "when-we-were-young-2023",
+      "name": "When We Were Young 2023",
+      "normalizedName": "when we were young",
+      "brand": "When We Were Young",
+      "edition": 2023,
+      "startDate": "2023-10-21",
+      "endDate": "2023-10-22",
+      "location": {
+        "city": "Las Vegas",
+        "state": "NV",
+        "venue": "Las Vegas Festival Grounds",
+        "country": "US"
+      },
+      "genre": "emo/pop-punk",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "suwannee-hulaween-2023",
+      "name": "Suwannee Hulaween 2023",
+      "normalizedName": "suwannee hulaween",
+      "brand": "Suwannee Hulaween",
+      "edition": 2023,
+      "startDate": "2023-10-26",
+      "endDate": "2023-10-29",
+      "location": {
+        "city": "Live Oak",
+        "state": "FL",
+        "venue": "Spirit of the Suwannee Music Park",
+        "country": "US"
+      },
+      "genre": "jam",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "treefort-music-fest-2024",
+      "name": "Treefort Music Fest 2024",
+      "normalizedName": "treefort music fest",
+      "brand": "Treefort Music Fest",
+      "edition": 2024,
+      "startDate": "2024-03-20",
+      "endDate": "2024-03-24",
+      "location": {
+        "city": "Boise",
+        "state": "ID",
+        "venue": null,
+        "country": "US"
+      },
+      "genre": "indie",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "big-ears-festival-2024",
+      "name": "Big Ears Festival 2024",
+      "normalizedName": "big ears festival",
+      "brand": "Big Ears Festival",
+      "edition": 2024,
+      "startDate": "2024-03-21",
+      "endDate": "2024-03-24",
+      "location": {
+        "city": "Knoxville",
+        "state": "TN",
+        "venue": null,
+        "country": "US"
+      },
+      "genre": "experimental/jazz",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "coachella-2024-weekend-1",
+      "name": "Coachella 2024 – Weekend 1",
+      "normalizedName": "coachella 2024 weekend 1",
+      "brand": "Coachella",
+      "edition": 2024,
+      "startDate": "2024-04-12",
+      "endDate": "2024-04-14",
+      "location": {
+        "city": "Indio",
+        "state": "CA",
+        "venue": "Empire Polo Club",
+        "country": "US"
+      },
+      "genre": "multi-genre",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "coachella-2024-weekend-2",
+      "name": "Coachella 2024 – Weekend 2",
+      "normalizedName": "coachella 2024 weekend 2",
+      "brand": "Coachella",
+      "edition": 2024,
+      "startDate": "2024-04-19",
+      "endDate": "2024-04-21",
+      "location": {
+        "city": "Indio",
+        "state": "CA",
+        "venue": "Empire Polo Club",
+        "country": "US"
+      },
+      "genre": "multi-genre",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "merlefest-2024",
+      "name": "MerleFest 2024",
+      "normalizedName": "merlefest",
+      "brand": "MerleFest",
+      "edition": 2024,
+      "startDate": "2024-04-25",
+      "endDate": "2024-04-28",
+      "location": {
+        "city": "Wilkesboro",
+        "state": "NC",
+        "venue": "Wilkes Community College",
+        "country": "US"
+      },
+      "genre": "bluegrass/americana",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "new-orleans-jazz-heritage-festival-2024",
+      "name": "New Orleans Jazz & Heritage Festival 2024",
+      "normalizedName": "new orleans jazz heritage festival",
+      "brand": "New Orleans Jazz & Heritage Festival",
+      "edition": 2024,
+      "startDate": "2024-04-25",
+      "endDate": "2024-05-05",
+      "location": {
+        "city": "New Orleans",
+        "state": "LA",
+        "venue": "Fair Grounds Race Course",
+        "country": "US"
+      },
+      "genre": "jazz/roots",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": "Runs across two weekends."
+    },
+    {
+      "seedKey": "shaky-knees-2024",
+      "name": "Shaky Knees 2024",
+      "normalizedName": "shaky knees",
+      "brand": "Shaky Knees",
+      "edition": 2024,
+      "startDate": "2024-05-03",
+      "endDate": "2024-05-05",
+      "location": {
+        "city": "Atlanta",
+        "state": "GA",
+        "venue": "Central Park",
+        "country": "US"
+      },
+      "genre": "rock/indie",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "welcome-to-rockville-2024",
+      "name": "Welcome to Rockville 2024",
+      "normalizedName": "welcome to rockville",
+      "brand": "Welcome to Rockville",
+      "edition": 2024,
+      "startDate": "2024-05-09",
+      "endDate": "2024-05-12",
+      "location": {
+        "city": "Daytona Beach",
+        "state": "FL",
+        "venue": "Daytona International Speedway",
+        "country": "US"
+      },
+      "genre": "rock/metal",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "kilby-block-party-2024",
+      "name": "Kilby Block Party 2024",
+      "normalizedName": "kilby block party",
+      "brand": "Kilby Block Party",
+      "edition": 2024,
+      "startDate": "2024-05-10",
+      "endDate": "2024-05-12",
+      "location": {
+        "city": "Salt Lake City",
+        "state": "UT",
+        "venue": "Utah State Fairpark",
+        "country": "US"
+      },
+      "genre": "indie",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "hangout-music-festival-2024",
+      "name": "Hangout Music Festival 2024",
+      "normalizedName": "hangout music festival",
+      "brand": "Hangout Music Festival",
+      "edition": 2024,
+      "startDate": "2024-05-17",
+      "endDate": "2024-05-19",
+      "location": {
+        "city": "Gulf Shores",
+        "state": "AL",
+        "venue": "Gulf Shores Public Beach",
+        "country": "US"
+      },
+      "genre": "multi-genre",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "medium",
+      "notes": null
+    },
+    {
+      "seedKey": "delfest-2024",
+      "name": "DelFest 2024",
+      "normalizedName": "delfest",
+      "brand": "DelFest",
+      "edition": 2024,
+      "startDate": "2024-05-23",
+      "endDate": "2024-05-26",
+      "location": {
+        "city": "Cumberland",
+        "state": "MD",
+        "venue": "Allegany County Fairgrounds",
+        "country": "US"
+      },
+      "genre": "bluegrass",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "boston-calling-2024",
+      "name": "Boston Calling 2024",
+      "normalizedName": "boston calling",
+      "brand": "Boston Calling",
+      "edition": 2024,
+      "startDate": "2024-05-24",
+      "endDate": "2024-05-26",
+      "location": {
+        "city": "Boston",
+        "state": "MA",
+        "venue": "Harvard Athletic Complex",
+        "country": "US"
+      },
+      "genre": "rock/indie",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "bottlerock-napa-valley-2024",
+      "name": "BottleRock Napa Valley 2024",
+      "normalizedName": "bottlerock napa valley",
+      "brand": "BottleRock Napa Valley",
+      "edition": 2024,
+      "startDate": "2024-05-24",
+      "endDate": "2024-05-26",
+      "location": {
+        "city": "Napa",
+        "state": "CA",
+        "venue": "Napa Valley Expo",
+        "country": "US"
+      },
+      "genre": "multi-genre",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "california-roots-music-arts-festival-2024",
+      "name": "California Roots Music & Arts Festival 2024",
+      "normalizedName": "california roots music arts festival",
+      "brand": "California Roots Music & Arts Festival",
+      "edition": 2024,
+      "startDate": "2024-05-24",
+      "endDate": "2024-05-26",
+      "location": {
+        "city": "Monterey",
+        "state": "CA",
+        "venue": "Monterey County Fair & Event Center",
+        "country": "US"
+      },
+      "genre": "reggae/rock",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "medium",
+      "notes": null
+    },
+    {
+      "seedKey": "governors-ball-2024",
+      "name": "Governors Ball 2024",
+      "normalizedName": "governors ball",
+      "brand": "Governors Ball",
+      "edition": 2024,
+      "startDate": "2024-06-07",
+      "endDate": "2024-06-09",
+      "location": {
+        "city": "New York",
+        "state": "NY",
+        "venue": "Flushing Meadows Corona Park",
+        "country": "US"
+      },
+      "genre": "multi-genre",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "bonnaroo-2024",
+      "name": "Bonnaroo 2024",
+      "normalizedName": "bonnaroo",
+      "brand": "Bonnaroo",
+      "edition": 2024,
+      "startDate": "2024-06-13",
+      "endDate": "2024-06-16",
+      "location": {
+        "city": "Manchester",
+        "state": "TN",
+        "venue": "Great Stage Park",
+        "country": "US"
+      },
+      "genre": "multi-genre",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "summerfest-2024",
+      "name": "Summerfest 2024",
+      "normalizedName": "summerfest",
+      "brand": "Summerfest",
+      "edition": 2024,
+      "startDate": "2024-06-20",
+      "endDate": "2024-07-06",
+      "location": {
+        "city": "Milwaukee",
+        "state": "WI",
+        "venue": "Henry Maier Festival Park",
+        "country": "US"
+      },
+      "genre": "multi-genre",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "medium",
+      "notes": "Three weekends."
+    },
+    {
+      "seedKey": "telluride-bluegrass-festival-2024",
+      "name": "Telluride Bluegrass Festival 2024",
+      "normalizedName": "telluride bluegrass festival",
+      "brand": "Telluride Bluegrass Festival",
+      "edition": 2024,
+      "startDate": "2024-06-20",
+      "endDate": "2024-06-23",
+      "location": {
+        "city": "Telluride",
+        "state": "CO",
+        "venue": "Telluride Town Park",
+        "country": "US"
+      },
+      "genre": "bluegrass",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "high-sierra-music-festival-2024",
+      "name": "High Sierra Music Festival 2024",
+      "normalizedName": "high sierra music festival",
+      "brand": "High Sierra Music Festival",
+      "edition": 2024,
+      "startDate": "2024-07-04",
+      "endDate": "2024-07-07",
+      "location": {
+        "city": "Quincy",
+        "state": "CA",
+        "venue": "Plumas County Fairgrounds",
+        "country": "US"
+      },
+      "genre": "jam",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "medium",
+      "notes": null
+    },
+    {
+      "seedKey": "pitchfork-music-festival-2024",
+      "name": "Pitchfork Music Festival 2024",
+      "normalizedName": "pitchfork music festival",
+      "brand": "Pitchfork Music Festival",
+      "edition": 2024,
+      "startDate": "2024-07-19",
+      "endDate": "2024-07-21",
+      "location": {
+        "city": "Chicago",
+        "state": "IL",
+        "venue": "Union Park",
+        "country": "US"
+      },
+      "genre": "indie",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "floydfest-2024",
+      "name": "FloydFest 2024",
+      "normalizedName": "floydfest",
+      "brand": "FloydFest",
+      "edition": 2024,
+      "startDate": "2024-07-24",
+      "endDate": "2024-07-28",
+      "location": {
+        "city": "Check",
+        "state": "VA",
+        "venue": "FestivalPark",
+        "country": "US"
+      },
+      "genre": "jam/americana",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "medium",
+      "notes": null
+    },
+    {
+      "seedKey": "newport-folk-festival-2024",
+      "name": "Newport Folk Festival 2024",
+      "normalizedName": "newport folk festival",
+      "brand": "Newport Folk Festival",
+      "edition": 2024,
+      "startDate": "2024-07-26",
+      "endDate": "2024-07-28",
+      "location": {
+        "city": "Newport",
+        "state": "RI",
+        "venue": "Fort Adams State Park",
+        "country": "US"
+      },
+      "genre": "folk/americana",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "rockygrass-2024",
+      "name": "RockyGrass 2024",
+      "normalizedName": "rockygrass",
+      "brand": "RockyGrass",
+      "edition": 2024,
+      "startDate": "2024-07-26",
+      "endDate": "2024-07-28",
+      "location": {
+        "city": "Lyons",
+        "state": "CO",
+        "venue": "Planet Bluegrass Ranch",
+        "country": "US"
+      },
+      "genre": "bluegrass",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "medium",
+      "notes": null
+    },
+    {
+      "seedKey": "lollapalooza-2024",
+      "name": "Lollapalooza 2024",
+      "normalizedName": "lollapalooza",
+      "brand": "Lollapalooza",
+      "edition": 2024,
+      "startDate": "2024-08-01",
+      "endDate": "2024-08-04",
+      "location": {
+        "city": "Chicago",
+        "state": "IL",
+        "venue": "Grant Park",
+        "country": "US"
+      },
+      "genre": "multi-genre",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "pickathon-2024",
+      "name": "Pickathon 2024",
+      "normalizedName": "pickathon",
+      "brand": "Pickathon",
+      "edition": 2024,
+      "startDate": "2024-08-01",
+      "endDate": "2024-08-04",
+      "location": {
+        "city": "Happy Valley",
+        "state": "OR",
+        "venue": "Pendarvis Farm",
+        "country": "US"
+      },
+      "genre": "indie/roots",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "medium",
+      "notes": null
+    },
+    {
+      "seedKey": "newport-jazz-festival-2024",
+      "name": "Newport Jazz Festival 2024",
+      "normalizedName": "newport jazz festival",
+      "brand": "Newport Jazz Festival",
+      "edition": 2024,
+      "startDate": "2024-08-02",
+      "endDate": "2024-08-04",
+      "location": {
+        "city": "Newport",
+        "state": "RI",
+        "venue": "Fort Adams State Park",
+        "country": "US"
+      },
+      "genre": "jazz",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "outside-lands-2024",
+      "name": "Outside Lands 2024",
+      "normalizedName": "outside lands",
+      "brand": "Outside Lands",
+      "edition": 2024,
+      "startDate": "2024-08-09",
+      "endDate": "2024-08-11",
+      "location": {
+        "city": "San Francisco",
+        "state": "CA",
+        "venue": "Golden Gate Park",
+        "country": "US"
+      },
+      "genre": "multi-genre",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "mondegreen-2024",
+      "name": "Mondegreen 2024",
+      "normalizedName": "mondegreen",
+      "brand": "Mondegreen",
+      "edition": 2024,
+      "startDate": "2024-08-15",
+      "endDate": "2024-08-18",
+      "location": {
+        "city": "Dover",
+        "state": "DE",
+        "venue": "The Woodlands of Dover Motor Speedway",
+        "country": "US"
+      },
+      "genre": "jam",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "bourbon-beyond-2024",
+      "name": "Bourbon & Beyond 2024",
+      "normalizedName": "bourbon beyond",
+      "brand": "Bourbon & Beyond",
+      "edition": 2024,
+      "startDate": "2024-09-12",
+      "endDate": "2024-09-15",
+      "location": {
+        "city": "Louisville",
+        "state": "KY",
+        "venue": "Highland Festival Grounds at Kentucky Expo Center",
+        "country": "US"
+      },
+      "genre": "rock/americana",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "sea-hear-now-2024",
+      "name": "Sea.Hear.Now 2024",
+      "normalizedName": "sea hear now",
+      "brand": "Sea.Hear.Now",
+      "edition": 2024,
+      "startDate": "2024-09-14",
+      "endDate": "2024-09-15",
+      "location": {
+        "city": "Asbury Park",
+        "state": "NJ",
+        "venue": "North Beach Asbury Park",
+        "country": "US"
+      },
+      "genre": "rock/indie",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "medium",
+      "notes": null
+    },
+    {
+      "seedKey": "riot-fest-2024",
+      "name": "Riot Fest 2024",
+      "normalizedName": "riot fest",
+      "brand": "Riot Fest",
+      "edition": 2024,
+      "startDate": "2024-09-20",
+      "endDate": "2024-09-22",
+      "location": {
+        "city": "Chicago",
+        "state": "IL",
+        "venue": "Douglass Park",
+        "country": "US"
+      },
+      "genre": "rock/punk",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "louder-than-life-2024",
+      "name": "Louder Than Life 2024",
+      "normalizedName": "louder than life",
+      "brand": "Louder Than Life",
+      "edition": 2024,
+      "startDate": "2024-09-26",
+      "endDate": "2024-09-29",
+      "location": {
+        "city": "Louisville",
+        "state": "KY",
+        "venue": "Highland Festival Grounds at Kentucky Expo Center",
+        "country": "US"
+      },
+      "genre": "rock/metal",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "oceans-calling-2024",
+      "name": "Oceans Calling 2024",
+      "normalizedName": "oceans calling",
+      "brand": "Oceans Calling",
+      "edition": 2024,
+      "startDate": "2024-09-27",
+      "endDate": "2024-09-29",
+      "location": {
+        "city": "Ocean City",
+        "state": "MD",
+        "venue": "Ocean City Inlet",
+        "country": "US"
+      },
+      "genre": "rock/pop",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "medium",
+      "notes": null
+    },
+    {
+      "seedKey": "ohana-festival-2024",
+      "name": "Ohana Festival 2024",
+      "normalizedName": "ohana festival",
+      "brand": "Ohana Festival",
+      "edition": 2024,
+      "startDate": "2024-09-27",
+      "endDate": "2024-09-29",
+      "location": {
+        "city": "Dana Point",
+        "state": "CA",
+        "venue": "Doheny State Beach",
+        "country": "US"
+      },
+      "genre": "rock/indie",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "austin-city-limits-2024-weekend-1",
+      "name": "Austin City Limits 2024 – Weekend 1",
+      "normalizedName": "austin city limits 2024 weekend 1",
+      "brand": "Austin City Limits Music Festival",
+      "edition": 2024,
+      "startDate": "2024-10-04",
+      "endDate": "2024-10-06",
+      "location": {
+        "city": "Austin",
+        "state": "TX",
+        "venue": "Zilker Park",
+        "country": "US"
+      },
+      "genre": "multi-genre",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "hardly-strictly-bluegrass-2024",
+      "name": "Hardly Strictly Bluegrass 2024",
+      "normalizedName": "hardly strictly bluegrass",
+      "brand": "Hardly Strictly Bluegrass",
+      "edition": 2024,
+      "startDate": "2024-10-04",
+      "endDate": "2024-10-06",
+      "location": {
+        "city": "San Francisco",
+        "state": "CA",
+        "venue": "Golden Gate Park (Hellman Hollow)",
+        "country": "US"
+      },
+      "genre": "bluegrass/americana",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "mempho-music-festival-2024",
+      "name": "Mempho Music Festival 2024",
+      "normalizedName": "mempho music festival",
+      "brand": "Mempho Music Festival",
+      "edition": 2024,
+      "startDate": "2024-10-04",
+      "endDate": "2024-10-06",
+      "location": {
+        "city": "Memphis",
+        "state": "TN",
+        "venue": "Radians Amphitheater at Memphis Botanic Garden",
+        "country": "US"
+      },
+      "genre": "jam/americana",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "aftershock-2024",
+      "name": "Aftershock 2024",
+      "normalizedName": "aftershock",
+      "brand": "Aftershock",
+      "edition": 2024,
+      "startDate": "2024-10-10",
+      "endDate": "2024-10-13",
+      "location": {
+        "city": "Sacramento",
+        "state": "CA",
+        "venue": "Discovery Park",
+        "country": "US"
+      },
+      "genre": "rock/metal",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "medium",
+      "notes": null
+    },
+    {
+      "seedKey": "austin-city-limits-2024-weekend-2",
+      "name": "Austin City Limits 2024 – Weekend 2",
+      "normalizedName": "austin city limits 2024 weekend 2",
+      "brand": "Austin City Limits Music Festival",
+      "edition": 2024,
+      "startDate": "2024-10-11",
+      "endDate": "2024-10-13",
+      "location": {
+        "city": "Austin",
+        "state": "TX",
+        "venue": "Zilker Park",
+        "country": "US"
+      },
+      "genre": "multi-genre",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "when-we-were-young-2024",
+      "name": "When We Were Young 2024",
+      "normalizedName": "when we were young",
+      "brand": "When We Were Young",
+      "edition": 2024,
+      "startDate": "2024-10-19",
+      "endDate": "2024-10-20",
+      "location": {
+        "city": "Las Vegas",
+        "state": "NV",
+        "venue": "Las Vegas Festival Grounds",
+        "country": "US"
+      },
+      "genre": "emo/pop-punk",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "suwannee-hulaween-2024",
+      "name": "Suwannee Hulaween 2024",
+      "normalizedName": "suwannee hulaween",
+      "brand": "Suwannee Hulaween",
+      "edition": 2024,
+      "startDate": "2024-10-24",
+      "endDate": "2024-10-27",
+      "location": {
+        "city": "Live Oak",
+        "state": "FL",
+        "venue": "Spirit of the Suwannee Music Park",
+        "country": "US"
+      },
+      "genre": "jam",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "medium",
+      "notes": null
+    },
+    {
+      "seedKey": "treefort-music-fest-2025",
+      "name": "Treefort Music Fest 2025",
+      "normalizedName": "treefort music fest",
+      "brand": "Treefort Music Fest",
+      "edition": 2025,
+      "startDate": "2025-03-26",
+      "endDate": "2025-03-30",
+      "location": {
+        "city": "Boise",
+        "state": "ID",
+        "venue": null,
+        "country": "US"
+      },
+      "genre": "indie",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "big-ears-festival-2025",
+      "name": "Big Ears Festival 2025",
+      "normalizedName": "big ears festival",
+      "brand": "Big Ears Festival",
+      "edition": 2025,
+      "startDate": "2025-03-27",
+      "endDate": "2025-03-30",
+      "location": {
+        "city": "Knoxville",
+        "state": "TN",
+        "venue": null,
+        "country": "US"
+      },
+      "genre": "experimental/jazz",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "coachella-2025-weekend-1",
+      "name": "Coachella 2025 – Weekend 1",
+      "normalizedName": "coachella 2025 weekend 1",
+      "brand": "Coachella",
+      "edition": 2025,
+      "startDate": "2025-04-11",
+      "endDate": "2025-04-13",
+      "location": {
+        "city": "Indio",
+        "state": "CA",
+        "venue": "Empire Polo Club",
+        "country": "US"
+      },
+      "genre": "multi-genre",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "coachella-2025-weekend-2",
+      "name": "Coachella 2025 – Weekend 2",
+      "normalizedName": "coachella 2025 weekend 2",
+      "brand": "Coachella",
+      "edition": 2025,
+      "startDate": "2025-04-18",
+      "endDate": "2025-04-20",
+      "location": {
+        "city": "Indio",
+        "state": "CA",
+        "venue": "Empire Polo Club",
+        "country": "US"
+      },
+      "genre": "multi-genre",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "merlefest-2025",
+      "name": "MerleFest 2025",
+      "normalizedName": "merlefest",
+      "brand": "MerleFest",
+      "edition": 2025,
+      "startDate": "2025-04-24",
+      "endDate": "2025-04-27",
+      "location": {
+        "city": "Wilkesboro",
+        "state": "NC",
+        "venue": "Wilkes Community College",
+        "country": "US"
+      },
+      "genre": "bluegrass/americana",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "new-orleans-jazz-heritage-festival-2025",
+      "name": "New Orleans Jazz & Heritage Festival 2025",
+      "normalizedName": "new orleans jazz heritage festival",
+      "brand": "New Orleans Jazz & Heritage Festival",
+      "edition": 2025,
+      "startDate": "2025-04-24",
+      "endDate": "2025-05-04",
+      "location": {
+        "city": "New Orleans",
+        "state": "LA",
+        "venue": "Fair Grounds Race Course",
+        "country": "US"
+      },
+      "genre": "jazz/roots",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": "Runs across two weekends."
+    },
+    {
+      "seedKey": "welcome-to-rockville-2025",
+      "name": "Welcome to Rockville 2025",
+      "normalizedName": "welcome to rockville",
+      "brand": "Welcome to Rockville",
+      "edition": 2025,
+      "startDate": "2025-05-08",
+      "endDate": "2025-05-11",
+      "location": {
+        "city": "Daytona Beach",
+        "state": "FL",
+        "venue": "Daytona International Speedway",
+        "country": "US"
+      },
+      "genre": "rock/metal",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "kilby-block-party-2025",
+      "name": "Kilby Block Party 2025",
+      "normalizedName": "kilby block party",
+      "brand": "Kilby Block Party",
+      "edition": 2025,
+      "startDate": "2025-05-15",
+      "endDate": "2025-05-18",
+      "location": {
+        "city": "Salt Lake City",
+        "state": "UT",
+        "venue": "Utah State Fairpark",
+        "country": "US"
+      },
+      "genre": "indie",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "delfest-2025",
+      "name": "DelFest 2025",
+      "normalizedName": "delfest",
+      "brand": "DelFest",
+      "edition": 2025,
+      "startDate": "2025-05-22",
+      "endDate": "2025-05-25",
+      "location": {
+        "city": "Cumberland",
+        "state": "MD",
+        "venue": "Allegany County Fairgrounds",
+        "country": "US"
+      },
+      "genre": "bluegrass",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "boston-calling-2025",
+      "name": "Boston Calling 2025",
+      "normalizedName": "boston calling",
+      "brand": "Boston Calling",
+      "edition": 2025,
+      "startDate": "2025-05-23",
+      "endDate": "2025-05-25",
+      "location": {
+        "city": "Boston",
+        "state": "MA",
+        "venue": "Harvard Athletic Complex",
+        "country": "US"
+      },
+      "genre": "rock/indie",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "bottlerock-napa-valley-2025",
+      "name": "BottleRock Napa Valley 2025",
+      "normalizedName": "bottlerock napa valley",
+      "brand": "BottleRock Napa Valley",
+      "edition": 2025,
+      "startDate": "2025-05-23",
+      "endDate": "2025-05-25",
+      "location": {
+        "city": "Napa",
+        "state": "CA",
+        "venue": "Napa Valley Expo",
+        "country": "US"
+      },
+      "genre": "multi-genre",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "california-roots-music-arts-festival-2025",
+      "name": "California Roots Music & Arts Festival 2025",
+      "normalizedName": "california roots music arts festival",
+      "brand": "California Roots Music & Arts Festival",
+      "edition": 2025,
+      "startDate": "2025-05-23",
+      "endDate": "2025-05-25",
+      "location": {
+        "city": "Monterey",
+        "state": "CA",
+        "venue": "Monterey County Fair & Event Center",
+        "country": "US"
+      },
+      "genre": "reggae/rock",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "medium",
+      "notes": null
+    },
+    {
+      "seedKey": "governors-ball-2025",
+      "name": "Governors Ball 2025",
+      "normalizedName": "governors ball",
+      "brand": "Governors Ball",
+      "edition": 2025,
+      "startDate": "2025-06-06",
+      "endDate": "2025-06-08",
+      "location": {
+        "city": "New York",
+        "state": "NY",
+        "venue": "Flushing Meadows Corona Park",
+        "country": "US"
+      },
+      "genre": "multi-genre",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "bonnaroo-2025",
+      "name": "Bonnaroo 2025",
+      "normalizedName": "bonnaroo",
+      "brand": "Bonnaroo",
+      "edition": 2025,
+      "startDate": "2025-06-12",
+      "endDate": "2025-06-15",
+      "location": {
+        "city": "Manchester",
+        "state": "TN",
+        "venue": "Great Stage Park",
+        "country": "US"
+      },
+      "genre": "multi-genre",
+      "status": "cut_short",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": "Severe weather cancelled the festival after the first day of performances."
+    },
+    {
+      "seedKey": "vans-warped-tour-2025-washington-dc",
+      "name": "Vans Warped Tour 2025 – Washington, DC",
+      "normalizedName": "vans warped tour 2025 washington dc",
+      "brand": "Vans Warped Tour",
+      "edition": 2025,
+      "startDate": "2025-06-14",
+      "endDate": "2025-06-15",
+      "location": {
+        "city": "Washington",
+        "state": "DC",
+        "venue": null,
+        "country": "US"
+      },
+      "genre": "punk",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "summerfest-2025",
+      "name": "Summerfest 2025",
+      "normalizedName": "summerfest",
+      "brand": "Summerfest",
+      "edition": 2025,
+      "startDate": "2025-06-19",
+      "endDate": "2025-07-05",
+      "location": {
+        "city": "Milwaukee",
+        "state": "WI",
+        "venue": "Henry Maier Festival Park",
+        "country": "US"
+      },
+      "genre": "multi-genre",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": "Three weekends: Jun 19-21, Jun 26-28, Jul 3-5."
+    },
+    {
+      "seedKey": "telluride-bluegrass-festival-2025",
+      "name": "Telluride Bluegrass Festival 2025",
+      "normalizedName": "telluride bluegrass festival",
+      "brand": "Telluride Bluegrass Festival",
+      "edition": 2025,
+      "startDate": "2025-06-19",
+      "endDate": "2025-06-22",
+      "location": {
+        "city": "Telluride",
+        "state": "CO",
+        "venue": "Telluride Town Park",
+        "country": "US"
+      },
+      "genre": "bluegrass",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "mountain-jam-2025",
+      "name": "Mountain Jam 2025",
+      "normalizedName": "mountain jam",
+      "brand": "Mountain Jam",
+      "edition": 2025,
+      "startDate": "2025-06-20",
+      "endDate": "2025-06-22",
+      "location": {
+        "city": "Highmount",
+        "state": "NY",
+        "venue": "Belleayre Mountain",
+        "country": "US"
+      },
+      "genre": "jam",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "high-sierra-music-festival-2025",
+      "name": "High Sierra Music Festival 2025",
+      "normalizedName": "high sierra music festival",
+      "brand": "High Sierra Music Festival",
+      "edition": 2025,
+      "startDate": "2025-07-03",
+      "endDate": "2025-07-06",
+      "location": {
+        "city": "Quincy",
+        "state": "CA",
+        "venue": "Plumas County Fairgrounds",
+        "country": "US"
+      },
+      "genre": "jam",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "grey-fox-bluegrass-festival-2025",
+      "name": "Grey Fox Bluegrass Festival 2025",
+      "normalizedName": "grey fox bluegrass festival",
+      "brand": "Grey Fox Bluegrass Festival",
+      "edition": 2025,
+      "startDate": "2025-07-16",
+      "endDate": "2025-07-20",
+      "location": {
+        "city": "Oak Hill",
+        "state": "NY",
+        "venue": "Walsh Farm",
+        "country": "US"
+      },
+      "genre": "bluegrass",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "floydfest-2025",
+      "name": "FloydFest 2025",
+      "normalizedName": "floydfest",
+      "brand": "FloydFest",
+      "edition": 2025,
+      "startDate": "2025-07-23",
+      "endDate": "2025-07-27",
+      "location": {
+        "city": "Check",
+        "state": "VA",
+        "venue": "FestivalPark",
+        "country": "US"
+      },
+      "genre": "jam/americana",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "medium",
+      "notes": null
+    },
+    {
+      "seedKey": "newport-folk-festival-2025",
+      "name": "Newport Folk Festival 2025",
+      "normalizedName": "newport folk festival",
+      "brand": "Newport Folk Festival",
+      "edition": 2025,
+      "startDate": "2025-07-25",
+      "endDate": "2025-07-27",
+      "location": {
+        "city": "Newport",
+        "state": "RI",
+        "venue": "Fort Adams State Park",
+        "country": "US"
+      },
+      "genre": "folk/americana",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "rockygrass-2025",
+      "name": "RockyGrass 2025",
+      "normalizedName": "rockygrass",
+      "brand": "RockyGrass",
+      "edition": 2025,
+      "startDate": "2025-07-25",
+      "endDate": "2025-07-27",
+      "location": {
+        "city": "Lyons",
+        "state": "CO",
+        "venue": "Planet Bluegrass Ranch",
+        "country": "US"
+      },
+      "genre": "bluegrass",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "medium",
+      "notes": null
+    },
+    {
+      "seedKey": "vans-warped-tour-2025-long-beach",
+      "name": "Vans Warped Tour 2025 – Long Beach",
+      "normalizedName": "vans warped tour 2025 long beach",
+      "brand": "Vans Warped Tour",
+      "edition": 2025,
+      "startDate": "2025-07-26",
+      "endDate": "2025-07-27",
+      "location": {
+        "city": "Long Beach",
+        "state": "CA",
+        "venue": null,
+        "country": "US"
+      },
+      "genre": "punk",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "lollapalooza-2025",
+      "name": "Lollapalooza 2025",
+      "normalizedName": "lollapalooza",
+      "brand": "Lollapalooza",
+      "edition": 2025,
+      "startDate": "2025-07-31",
+      "endDate": "2025-08-03",
+      "location": {
+        "city": "Chicago",
+        "state": "IL",
+        "venue": "Grant Park",
+        "country": "US"
+      },
+      "genre": "multi-genre",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "pickathon-2025",
+      "name": "Pickathon 2025",
+      "normalizedName": "pickathon",
+      "brand": "Pickathon",
+      "edition": 2025,
+      "startDate": "2025-07-31",
+      "endDate": "2025-08-03",
+      "location": {
+        "city": "Happy Valley",
+        "state": "OR",
+        "venue": "Pendarvis Farm",
+        "country": "US"
+      },
+      "genre": "indie/roots",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "newport-jazz-festival-2025",
+      "name": "Newport Jazz Festival 2025",
+      "normalizedName": "newport jazz festival",
+      "brand": "Newport Jazz Festival",
+      "edition": 2025,
+      "startDate": "2025-08-01",
+      "endDate": "2025-08-03",
+      "location": {
+        "city": "Newport",
+        "state": "RI",
+        "venue": "Fort Adams State Park",
+        "country": "US"
+      },
+      "genre": "jazz",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "outside-lands-2025",
+      "name": "Outside Lands 2025",
+      "normalizedName": "outside lands",
+      "brand": "Outside Lands",
+      "edition": 2025,
+      "startDate": "2025-08-08",
+      "endDate": "2025-08-10",
+      "location": {
+        "city": "San Francisco",
+        "state": "CA",
+        "venue": "Golden Gate Park",
+        "country": "US"
+      },
+      "genre": "multi-genre",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "bourbon-beyond-2025",
+      "name": "Bourbon & Beyond 2025",
+      "normalizedName": "bourbon beyond",
+      "brand": "Bourbon & Beyond",
+      "edition": 2025,
+      "startDate": "2025-09-11",
+      "endDate": "2025-09-14",
+      "location": {
+        "city": "Louisville",
+        "state": "KY",
+        "venue": "Highland Festival Grounds at Kentucky Expo Center",
+        "country": "US"
+      },
+      "genre": "rock/americana",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "medium",
+      "notes": null
+    },
+    {
+      "seedKey": "sea-hear-now-2025",
+      "name": "Sea.Hear.Now 2025",
+      "normalizedName": "sea hear now",
+      "brand": "Sea.Hear.Now",
+      "edition": 2025,
+      "startDate": "2025-09-13",
+      "endDate": "2025-09-14",
+      "location": {
+        "city": "Asbury Park",
+        "state": "NJ",
+        "venue": "North Beach Asbury Park",
+        "country": "US"
+      },
+      "genre": "rock/indie",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "louder-than-life-2025",
+      "name": "Louder Than Life 2025",
+      "normalizedName": "louder than life",
+      "brand": "Louder Than Life",
+      "edition": 2025,
+      "startDate": "2025-09-18",
+      "endDate": "2025-09-21",
+      "location": {
+        "city": "Louisville",
+        "state": "KY",
+        "venue": "Highland Festival Grounds at Kentucky Expo Center",
+        "country": "US"
+      },
+      "genre": "rock/metal",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "riot-fest-2025",
+      "name": "Riot Fest 2025",
+      "normalizedName": "riot fest",
+      "brand": "Riot Fest",
+      "edition": 2025,
+      "startDate": "2025-09-19",
+      "endDate": "2025-09-21",
+      "location": {
+        "city": "Chicago",
+        "state": "IL",
+        "venue": "Douglass Park",
+        "country": "US"
+      },
+      "genre": "rock/punk",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "shaky-knees-2025",
+      "name": "Shaky Knees 2025",
+      "normalizedName": "shaky knees",
+      "brand": "Shaky Knees",
+      "edition": 2025,
+      "startDate": "2025-09-19",
+      "endDate": "2025-09-21",
+      "location": {
+        "city": "Atlanta",
+        "state": "GA",
+        "venue": "Piedmont Park",
+        "country": "US"
+      },
+      "genre": "rock/indie",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "oceans-calling-2025",
+      "name": "Oceans Calling 2025",
+      "normalizedName": "oceans calling",
+      "brand": "Oceans Calling",
+      "edition": 2025,
+      "startDate": "2025-09-26",
+      "endDate": "2025-09-28",
+      "location": {
+        "city": "Ocean City",
+        "state": "MD",
+        "venue": "Ocean City Inlet",
+        "country": "US"
+      },
+      "genre": "rock/pop",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "ohana-festival-2025",
+      "name": "Ohana Festival 2025",
+      "normalizedName": "ohana festival",
+      "brand": "Ohana Festival",
+      "edition": 2025,
+      "startDate": "2025-09-26",
+      "endDate": "2025-09-28",
+      "location": {
+        "city": "Dana Point",
+        "state": "CA",
+        "venue": "Doheny State Beach",
+        "country": "US"
+      },
+      "genre": "rock/indie",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "pilgrimage-music-cultural-festival-2025",
+      "name": "Pilgrimage Music & Cultural Festival 2025",
+      "normalizedName": "pilgrimage music cultural festival",
+      "brand": "Pilgrimage Music & Cultural Festival",
+      "edition": 2025,
+      "startDate": "2025-09-27",
+      "endDate": "2025-09-28",
+      "location": {
+        "city": "Franklin",
+        "state": "TN",
+        "venue": "The Park at Harlinsdale",
+        "country": "US"
+      },
+      "genre": "americana/rock",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "aftershock-2025",
+      "name": "Aftershock 2025",
+      "normalizedName": "aftershock",
+      "brand": "Aftershock",
+      "edition": 2025,
+      "startDate": "2025-10-02",
+      "endDate": "2025-10-05",
+      "location": {
+        "city": "Sacramento",
+        "state": "CA",
+        "venue": "Discovery Park",
+        "country": "US"
+      },
+      "genre": "rock/metal",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "medium",
+      "notes": null
+    },
+    {
+      "seedKey": "austin-city-limits-2025-weekend-1",
+      "name": "Austin City Limits 2025 – Weekend 1",
+      "normalizedName": "austin city limits 2025 weekend 1",
+      "brand": "Austin City Limits Music Festival",
+      "edition": 2025,
+      "startDate": "2025-10-03",
+      "endDate": "2025-10-05",
+      "location": {
+        "city": "Austin",
+        "state": "TX",
+        "venue": "Zilker Park",
+        "country": "US"
+      },
+      "genre": "multi-genre",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "hardly-strictly-bluegrass-2025",
+      "name": "Hardly Strictly Bluegrass 2025",
+      "normalizedName": "hardly strictly bluegrass",
+      "brand": "Hardly Strictly Bluegrass",
+      "edition": 2025,
+      "startDate": "2025-10-03",
+      "endDate": "2025-10-05",
+      "location": {
+        "city": "San Francisco",
+        "state": "CA",
+        "venue": "Golden Gate Park (Hellman Hollow)",
+        "country": "US"
+      },
+      "genre": "bluegrass/americana",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "mempho-music-festival-2025",
+      "name": "Mempho Music Festival 2025",
+      "normalizedName": "mempho music festival",
+      "brand": "Mempho Music Festival",
+      "edition": 2025,
+      "startDate": "2025-10-03",
+      "endDate": "2025-10-05",
+      "location": {
+        "city": "Memphis",
+        "state": "TN",
+        "venue": "Radians Amphitheater at Memphis Botanic Garden",
+        "country": "US"
+      },
+      "genre": "jam/americana",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "austin-city-limits-2025-weekend-2",
+      "name": "Austin City Limits 2025 – Weekend 2",
+      "normalizedName": "austin city limits 2025 weekend 2",
+      "brand": "Austin City Limits Music Festival",
+      "edition": 2025,
+      "startDate": "2025-10-10",
+      "endDate": "2025-10-12",
+      "location": {
+        "city": "Austin",
+        "state": "TX",
+        "venue": "Zilker Park",
+        "country": "US"
+      },
+      "genre": "multi-genre",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "when-we-were-young-2025",
+      "name": "When We Were Young 2025",
+      "normalizedName": "when we were young",
+      "brand": "When We Were Young",
+      "edition": 2025,
+      "startDate": "2025-10-18",
+      "endDate": "2025-10-19",
+      "location": {
+        "city": "Las Vegas",
+        "state": "NV",
+        "venue": "Las Vegas Festival Grounds",
+        "country": "US"
+      },
+      "genre": "emo/pop-punk",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "suwannee-hulaween-2025",
+      "name": "Suwannee Hulaween 2025",
+      "normalizedName": "suwannee hulaween",
+      "brand": "Suwannee Hulaween",
+      "edition": 2025,
+      "startDate": "2025-10-30",
+      "endDate": "2025-11-02",
+      "location": {
+        "city": "Live Oak",
+        "state": "FL",
+        "venue": "Spirit of the Suwannee Music Park",
+        "country": "US"
+      },
+      "genre": "jam",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "medium",
+      "notes": null
+    },
+    {
+      "seedKey": "vans-warped-tour-2025-orlando",
+      "name": "Vans Warped Tour 2025 – Orlando",
+      "normalizedName": "vans warped tour 2025 orlando",
+      "brand": "Vans Warped Tour",
+      "edition": 2025,
+      "startDate": "2025-11-15",
+      "endDate": "2025-11-16",
+      "location": {
+        "city": "Orlando",
+        "state": "FL",
+        "venue": null,
+        "country": "US"
+      },
+      "genre": "punk",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "innings-festival-2026",
+      "name": "Innings Festival 2026",
+      "normalizedName": "innings festival",
+      "brand": "Innings Festival",
+      "edition": 2026,
+      "startDate": "2026-02-20",
+      "endDate": "2026-02-22",
+      "location": {
+        "city": "Tempe",
+        "state": "AZ",
+        "venue": "Tempe Beach Park",
+        "country": "US"
+      },
+      "genre": "rock/indie",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "treefort-music-fest-2026",
+      "name": "Treefort Music Fest 2026",
+      "normalizedName": "treefort music fest",
+      "brand": "Treefort Music Fest",
+      "edition": 2026,
+      "startDate": "2026-03-25",
+      "endDate": "2026-03-29",
+      "location": {
+        "city": "Boise",
+        "state": "ID",
+        "venue": null,
+        "country": "US"
+      },
+      "genre": "indie",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "big-ears-festival-2026",
+      "name": "Big Ears Festival 2026",
+      "normalizedName": "big ears festival",
+      "brand": "Big Ears Festival",
+      "edition": 2026,
+      "startDate": "2026-03-26",
+      "endDate": "2026-03-29",
+      "location": {
+        "city": "Knoxville",
+        "state": "TN",
+        "venue": null,
+        "country": "US"
+      },
+      "genre": "experimental/jazz",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "coachella-2026-weekend-1",
+      "name": "Coachella 2026 – Weekend 1",
+      "normalizedName": "coachella 2026 weekend 1",
+      "brand": "Coachella",
+      "edition": 2026,
+      "startDate": "2026-04-10",
+      "endDate": "2026-04-12",
+      "location": {
+        "city": "Indio",
+        "state": "CA",
+        "venue": "Empire Polo Club",
+        "country": "US"
+      },
+      "genre": "multi-genre",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "coachella-2026-weekend-2",
+      "name": "Coachella 2026 – Weekend 2",
+      "normalizedName": "coachella 2026 weekend 2",
+      "brand": "Coachella",
+      "edition": 2026,
+      "startDate": "2026-04-17",
+      "endDate": "2026-04-19",
+      "location": {
+        "city": "Indio",
+        "state": "CA",
+        "venue": "Empire Polo Club",
+        "country": "US"
+      },
+      "genre": "multi-genre",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "merlefest-2026",
+      "name": "MerleFest 2026",
+      "normalizedName": "merlefest",
+      "brand": "MerleFest",
+      "edition": 2026,
+      "startDate": "2026-04-23",
+      "endDate": "2026-04-26",
+      "location": {
+        "city": "Wilkesboro",
+        "state": "NC",
+        "venue": "Wilkes Community College",
+        "country": "US"
+      },
+      "genre": "bluegrass/americana",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "new-orleans-jazz-heritage-festival-2026",
+      "name": "New Orleans Jazz & Heritage Festival 2026",
+      "normalizedName": "new orleans jazz heritage festival",
+      "brand": "New Orleans Jazz & Heritage Festival",
+      "edition": 2026,
+      "startDate": "2026-04-23",
+      "endDate": "2026-05-03",
+      "location": {
+        "city": "New Orleans",
+        "state": "LA",
+        "venue": "Fair Grounds Race Course",
+        "country": "US"
+      },
+      "genre": "jazz/roots",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": "Runs across two weekends."
+    },
+    {
+      "seedKey": "welcome-to-rockville-2026",
+      "name": "Welcome to Rockville 2026",
+      "normalizedName": "welcome to rockville",
+      "brand": "Welcome to Rockville",
+      "edition": 2026,
+      "startDate": "2026-05-07",
+      "endDate": "2026-05-10",
+      "location": {
+        "city": "Daytona Beach",
+        "state": "FL",
+        "venue": "Daytona International Speedway",
+        "country": "US"
+      },
+      "genre": "rock/metal",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "sonic-temple-art-music-festival-2026",
+      "name": "Sonic Temple Art + Music Festival 2026",
+      "normalizedName": "sonic temple art music festival",
+      "brand": "Sonic Temple Art + Music Festival",
+      "edition": 2026,
+      "startDate": "2026-05-14",
+      "endDate": "2026-05-17",
+      "location": {
+        "city": "Columbus",
+        "state": "OH",
+        "venue": "Historic Crew Stadium",
+        "country": "US"
+      },
+      "genre": "rock/metal",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "kilby-block-party-2026",
+      "name": "Kilby Block Party 2026",
+      "normalizedName": "kilby block party",
+      "brand": "Kilby Block Party",
+      "edition": 2026,
+      "startDate": "2026-05-15",
+      "endDate": "2026-05-17",
+      "location": {
+        "city": "Salt Lake City",
+        "state": "UT",
+        "venue": "Utah State Fairpark",
+        "country": "US"
+      },
+      "genre": "indie",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "delfest-2026",
+      "name": "DelFest 2026",
+      "normalizedName": "delfest",
+      "brand": "DelFest",
+      "edition": 2026,
+      "startDate": "2026-05-21",
+      "endDate": "2026-05-24",
+      "location": {
+        "city": "Cumberland",
+        "state": "MD",
+        "venue": "Allegany County Fairgrounds",
+        "country": "US"
+      },
+      "genre": "bluegrass",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "bottlerock-napa-valley-2026",
+      "name": "BottleRock Napa Valley 2026",
+      "normalizedName": "bottlerock napa valley",
+      "brand": "BottleRock Napa Valley",
+      "edition": 2026,
+      "startDate": "2026-05-22",
+      "endDate": "2026-05-24",
+      "location": {
+        "city": "Napa",
+        "state": "CA",
+        "venue": "Napa Valley Expo",
+        "country": "US"
+      },
+      "genre": "multi-genre",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "high",
+      "notes": null
+    },
+    {
+      "seedKey": "california-roots-music-arts-festival-2026",
+      "name": "California Roots Music & Arts Festival 2026",
+      "normalizedName": "california roots music arts festival",
+      "brand": "California Roots Music & Arts Festival",
+      "edition": 2026,
+      "startDate": "2026-05-22",
+      "endDate": "2026-05-24",
+      "location": {
+        "city": "Monterey",
+        "state": "CA",
+        "venue": "Monterey County Fair & Event Center",
+        "country": "US"
+      },
+      "genre": "reggae/rock",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "outside-days-2026",
+      "name": "Outside Days 2026",
+      "normalizedName": "outside days",
+      "brand": "Outside Days",
+      "edition": 2026,
+      "startDate": "2026-05-29",
+      "endDate": "2026-05-31",
+      "location": {
+        "city": "Denver",
+        "state": "CO",
+        "venue": "Auraria Campus",
+        "country": "US"
+      },
+      "genre": "indie/rock",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "governors-ball-2026",
+      "name": "Governors Ball 2026",
+      "normalizedName": "governors ball",
+      "brand": "Governors Ball",
+      "edition": 2026,
+      "startDate": "2026-06-05",
+      "endDate": "2026-06-07",
+      "location": {
+        "city": "New York",
+        "state": "NY",
+        "venue": "Flushing Meadows Corona Park",
+        "country": "US"
+      },
+      "genre": "multi-genre",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "bonnaroo-2026",
+      "name": "Bonnaroo 2026",
+      "normalizedName": "bonnaroo",
+      "brand": "Bonnaroo",
+      "edition": 2026,
+      "startDate": "2026-06-11",
+      "endDate": "2026-06-14",
+      "location": {
+        "city": "Manchester",
+        "state": "TN",
+        "venue": "Great Stage Park",
+        "country": "US"
+      },
+      "genre": "multi-genre",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "vans-warped-tour-2026-washington-dc",
+      "name": "Vans Warped Tour 2026 – Washington, DC",
+      "normalizedName": "vans warped tour 2026 washington dc",
+      "brand": "Vans Warped Tour",
+      "edition": 2026,
+      "startDate": "2026-06-13",
+      "endDate": "2026-06-14",
+      "location": {
+        "city": "Washington",
+        "state": "DC",
+        "venue": null,
+        "country": "US"
+      },
+      "genre": "punk",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "summerfest-2026",
+      "name": "Summerfest 2026",
+      "normalizedName": "summerfest",
+      "brand": "Summerfest",
+      "edition": 2026,
+      "startDate": "2026-06-18",
+      "endDate": "2026-07-04",
+      "location": {
+        "city": "Milwaukee",
+        "state": "WI",
+        "venue": "Henry Maier Festival Park",
+        "country": "US"
+      },
+      "genre": "multi-genre",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": "Three weekends: Jun 18-20, Jun 25-27, Jul 2-4."
+    },
+    {
+      "seedKey": "telluride-bluegrass-festival-2026",
+      "name": "Telluride Bluegrass Festival 2026",
+      "normalizedName": "telluride bluegrass festival",
+      "brand": "Telluride Bluegrass Festival",
+      "edition": 2026,
+      "startDate": "2026-06-18",
+      "endDate": "2026-06-21",
+      "location": {
+        "city": "Telluride",
+        "state": "CO",
+        "venue": "Telluride Town Park",
+        "country": "US"
+      },
+      "genre": "bluegrass",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "zootown-festival-2026",
+      "name": "Zootown Festival 2026",
+      "normalizedName": "zootown festival",
+      "brand": "Zootown Festival",
+      "edition": 2026,
+      "startDate": "2026-06-19",
+      "endDate": "2026-06-20",
+      "location": {
+        "city": "Missoula",
+        "state": "MT",
+        "venue": null,
+        "country": "US"
+      },
+      "genre": "rock/americana",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "high-sierra-music-festival-2026",
+      "name": "High Sierra Music Festival 2026",
+      "normalizedName": "high sierra music festival",
+      "brand": "High Sierra Music Festival",
+      "edition": 2026,
+      "startDate": "2026-07-02",
+      "endDate": "2026-07-05",
+      "location": {
+        "city": "Grass Valley",
+        "state": "CA",
+        "venue": "Nevada County Fairgrounds",
+        "country": "US"
+      },
+      "genre": "jam",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "grey-fox-bluegrass-festival-2026",
+      "name": "Grey Fox Bluegrass Festival 2026",
+      "normalizedName": "grey fox bluegrass festival",
+      "brand": "Grey Fox Bluegrass Festival",
+      "edition": 2026,
+      "startDate": "2026-07-15",
+      "endDate": "2026-07-19",
+      "location": {
+        "city": "Oak Hill",
+        "state": "NY",
+        "venue": "Walsh Farm",
+        "country": "US"
+      },
+      "genre": "bluegrass",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "4848-festival-2026",
+      "name": "4848 Festival 2026",
+      "normalizedName": "4848 festival",
+      "brand": "4848 Festival",
+      "edition": 2026,
+      "startDate": "2026-07-16",
+      "endDate": "2026-07-18",
+      "location": {
+        "city": "Snowshoe",
+        "state": "WV",
+        "venue": "Snowshoe Mountain",
+        "country": "US"
+      },
+      "genre": "jam",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "floydfest-2026",
+      "name": "FloydFest 2026",
+      "normalizedName": "floydfest",
+      "brand": "FloydFest",
+      "edition": 2026,
+      "startDate": "2026-07-22",
+      "endDate": "2026-07-26",
+      "location": {
+        "city": "Check",
+        "state": "VA",
+        "venue": "FestivalPark",
+        "country": "US"
+      },
+      "genre": "jam/americana",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "newport-folk-festival-2026",
+      "name": "Newport Folk Festival 2026",
+      "normalizedName": "newport folk festival",
+      "brand": "Newport Folk Festival",
+      "edition": 2026,
+      "startDate": "2026-07-24",
+      "endDate": "2026-07-26",
+      "location": {
+        "city": "Newport",
+        "state": "RI",
+        "venue": "Fort Adams State Park",
+        "country": "US"
+      },
+      "genre": "folk/americana",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "rockygrass-2026",
+      "name": "RockyGrass 2026",
+      "normalizedName": "rockygrass",
+      "brand": "RockyGrass",
+      "edition": 2026,
+      "startDate": "2026-07-24",
+      "endDate": "2026-07-26",
+      "location": {
+        "city": "Lyons",
+        "state": "CO",
+        "venue": "Planet Bluegrass Ranch",
+        "country": "US"
+      },
+      "genre": "bluegrass",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "vans-warped-tour-2026-long-beach",
+      "name": "Vans Warped Tour 2026 – Long Beach",
+      "normalizedName": "vans warped tour 2026 long beach",
+      "brand": "Vans Warped Tour",
+      "edition": 2026,
+      "startDate": "2026-07-25",
+      "endDate": "2026-07-26",
+      "location": {
+        "city": "Long Beach",
+        "state": "CA",
+        "venue": null,
+        "country": "US"
+      },
+      "genre": "punk",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "lollapalooza-2026",
+      "name": "Lollapalooza 2026",
+      "normalizedName": "lollapalooza",
+      "brand": "Lollapalooza",
+      "edition": 2026,
+      "startDate": "2026-07-30",
+      "endDate": "2026-08-02",
+      "location": {
+        "city": "Chicago",
+        "state": "IL",
+        "venue": "Grant Park",
+        "country": "US"
+      },
+      "genre": "multi-genre",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "pickathon-2026",
+      "name": "Pickathon 2026",
+      "normalizedName": "pickathon",
+      "brand": "Pickathon",
+      "edition": 2026,
+      "startDate": "2026-07-30",
+      "endDate": "2026-08-02",
+      "location": {
+        "city": "Happy Valley",
+        "state": "OR",
+        "venue": "Pendarvis Farm",
+        "country": "US"
+      },
+      "genre": "indie/roots",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "newport-jazz-festival-2026",
+      "name": "Newport Jazz Festival 2026",
+      "normalizedName": "newport jazz festival",
+      "brand": "Newport Jazz Festival",
+      "edition": 2026,
+      "startDate": "2026-07-31",
+      "endDate": "2026-08-02",
+      "location": {
+        "city": "Newport",
+        "state": "RI",
+        "venue": "Fort Adams State Park",
+        "country": "US"
+      },
+      "genre": "jazz",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "grand-targhee-bluegrass-festival-2026",
+      "name": "Grand Targhee Bluegrass Festival 2026",
+      "normalizedName": "grand targhee bluegrass festival",
+      "brand": "Grand Targhee Bluegrass Festival",
+      "edition": 2026,
+      "startDate": "2026-08-07",
+      "endDate": "2026-08-09",
+      "location": {
+        "city": "Alta",
+        "state": "WY",
+        "venue": "Grand Targhee Resort",
+        "country": "US"
+      },
+      "genre": "bluegrass",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "outside-lands-2026",
+      "name": "Outside Lands 2026",
+      "normalizedName": "outside lands",
+      "brand": "Outside Lands",
+      "edition": 2026,
+      "startDate": "2026-08-07",
+      "endDate": "2026-08-09",
+      "location": {
+        "city": "San Francisco",
+        "state": "CA",
+        "venue": "Golden Gate Park",
+        "country": "US"
+      },
+      "genre": "multi-genre",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "rocky-mountain-folks-festival-2026",
+      "name": "Rocky Mountain Folks Festival 2026",
+      "normalizedName": "rocky mountain folks festival",
+      "brand": "Rocky Mountain Folks Festival",
+      "edition": 2026,
+      "startDate": "2026-08-07",
+      "endDate": "2026-08-09",
+      "location": {
+        "city": "Lyons",
+        "state": "CO",
+        "venue": "Planet Bluegrass Ranch",
+        "country": "US"
+      },
+      "genre": "folk",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "louder-than-life-2026",
+      "name": "Louder Than Life 2026",
+      "normalizedName": "louder than life",
+      "brand": "Louder Than Life",
+      "edition": 2026,
+      "startDate": "2026-09-17",
+      "endDate": "2026-09-20",
+      "location": {
+        "city": "Louisville",
+        "state": "KY",
+        "venue": "Highland Festival Grounds at Kentucky Expo Center",
+        "country": "US"
+      },
+      "genre": "rock/metal",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "riot-fest-2026",
+      "name": "Riot Fest 2026",
+      "normalizedName": "riot fest",
+      "brand": "Riot Fest",
+      "edition": 2026,
+      "startDate": "2026-09-18",
+      "endDate": "2026-09-20",
+      "location": {
+        "city": "Chicago",
+        "state": "IL",
+        "venue": "Douglass Park",
+        "country": "US"
+      },
+      "genre": "rock/punk",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "shaky-knees-2026",
+      "name": "Shaky Knees 2026",
+      "normalizedName": "shaky knees",
+      "brand": "Shaky Knees",
+      "edition": 2026,
+      "startDate": "2026-09-18",
+      "endDate": "2026-09-20",
+      "location": {
+        "city": "Atlanta",
+        "state": "GA",
+        "venue": "Piedmont Park",
+        "country": "US"
+      },
+      "genre": "rock/indie",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "sea-hear-now-2026",
+      "name": "Sea.Hear.Now 2026",
+      "normalizedName": "sea hear now",
+      "brand": "Sea.Hear.Now",
+      "edition": 2026,
+      "startDate": "2026-09-19",
+      "endDate": "2026-09-20",
+      "location": {
+        "city": "Asbury Park",
+        "state": "NJ",
+        "venue": "North Beach Asbury Park",
+        "country": "US"
+      },
+      "genre": "rock/indie",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "bourbon-beyond-2026",
+      "name": "Bourbon & Beyond 2026",
+      "normalizedName": "bourbon beyond",
+      "brand": "Bourbon & Beyond",
+      "edition": 2026,
+      "startDate": "2026-09-24",
+      "endDate": "2026-09-27",
+      "location": {
+        "city": "Louisville",
+        "state": "KY",
+        "venue": "Highland Festival Grounds at Kentucky Expo Center",
+        "country": "US"
+      },
+      "genre": "rock/americana",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "ohana-festival-2026",
+      "name": "Ohana Festival 2026",
+      "normalizedName": "ohana festival",
+      "brand": "Ohana Festival",
+      "edition": 2026,
+      "startDate": "2026-09-25",
+      "endDate": "2026-09-27",
+      "location": {
+        "city": "Dana Point",
+        "state": "CA",
+        "venue": "Doheny State Beach",
+        "country": "US"
+      },
+      "genre": "rock/indie",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "ocean-way-festival-2026",
+      "name": "Ocean Way Festival 2026",
+      "normalizedName": "ocean way festival",
+      "brand": "Ocean Way Festival",
+      "edition": 2026,
+      "startDate": "2026-09-26",
+      "endDate": "2026-09-27",
+      "location": {
+        "city": "Santa Monica",
+        "state": "CA",
+        "venue": "Santa Monica State Beach",
+        "country": "US"
+      },
+      "genre": "rock/indie",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "aftershock-2026",
+      "name": "Aftershock 2026",
+      "normalizedName": "aftershock",
+      "brand": "Aftershock",
+      "edition": 2026,
+      "startDate": "2026-10-01",
+      "endDate": "2026-10-04",
+      "location": {
+        "city": "Sacramento",
+        "state": "CA",
+        "venue": "Discovery Park",
+        "country": "US"
+      },
+      "genre": "rock/metal",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "austin-city-limits-2026-weekend-1",
+      "name": "Austin City Limits 2026 – Weekend 1",
+      "normalizedName": "austin city limits 2026 weekend 1",
+      "brand": "Austin City Limits Music Festival",
+      "edition": 2026,
+      "startDate": "2026-10-02",
+      "endDate": "2026-10-04",
+      "location": {
+        "city": "Austin",
+        "state": "TX",
+        "venue": "Zilker Park",
+        "country": "US"
+      },
+      "genre": "multi-genre",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "hardly-strictly-bluegrass-2026",
+      "name": "Hardly Strictly Bluegrass 2026",
+      "normalizedName": "hardly strictly bluegrass",
+      "brand": "Hardly Strictly Bluegrass",
+      "edition": 2026,
+      "startDate": "2026-10-02",
+      "endDate": "2026-10-04",
+      "location": {
+        "city": "San Francisco",
+        "state": "CA",
+        "venue": "Golden Gate Park (Hellman Hollow)",
+        "country": "US"
+      },
+      "genre": "bluegrass/americana",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "austin-city-limits-2026-weekend-2",
+      "name": "Austin City Limits 2026 – Weekend 2",
+      "normalizedName": "austin city limits 2026 weekend 2",
+      "brand": "Austin City Limits Music Festival",
+      "edition": 2026,
+      "startDate": "2026-10-09",
+      "endDate": "2026-10-11",
+      "location": {
+        "city": "Austin",
+        "state": "TX",
+        "venue": "Zilker Park",
+        "country": "US"
+      },
+      "genre": "multi-genre",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "mempho-music-festival-2026",
+      "name": "Mempho Music Festival 2026",
+      "normalizedName": "mempho music festival",
+      "brand": "Mempho Music Festival",
+      "edition": 2026,
+      "startDate": "2026-10-09",
+      "endDate": "2026-10-11",
+      "location": {
+        "city": "Memphis",
+        "state": "TN",
+        "venue": "Radians Amphitheater at Memphis Botanic Garden",
+        "country": "US"
+      },
+      "genre": "jam/americana",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "furnace-fest-2026",
+      "name": "Furnace Fest 2026",
+      "normalizedName": "furnace fest",
+      "brand": "Furnace Fest",
+      "edition": 2026,
+      "startDate": "2026-10-10",
+      "endDate": "2026-10-11",
+      "location": {
+        "city": "Birmingham",
+        "state": "AL",
+        "venue": "Sloss Furnaces",
+        "country": "US"
+      },
+      "genre": "punk/hardcore",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "suwannee-hulaween-2026",
+      "name": "Suwannee Hulaween 2026",
+      "normalizedName": "suwannee hulaween",
+      "brand": "Suwannee Hulaween",
+      "edition": 2026,
+      "startDate": "2026-10-22",
+      "endDate": "2026-10-25",
+      "location": {
+        "city": "Live Oak",
+        "state": "FL",
+        "venue": "Spirit of the Suwannee Music Park",
+        "country": "US"
+      },
+      "genre": "jam",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "ibma-bluegrass-live-2026",
+      "name": "IBMA Bluegrass Live! 2026",
+      "normalizedName": "ibma bluegrass live",
+      "brand": "IBMA Bluegrass Live!",
+      "edition": 2026,
+      "startDate": "2026-10-23",
+      "endDate": "2026-10-24",
+      "location": {
+        "city": "Chattanooga",
+        "state": "TN",
+        "venue": null,
+        "country": "US"
+      },
+      "genre": "bluegrass",
+      "status": "held",
+      "timing": "past",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "darker-waves-2026",
+      "name": "Darker Waves 2026",
+      "normalizedName": "darker waves",
+      "brand": "Darker Waves",
+      "edition": 2026,
+      "startDate": "2026-11-14",
+      "endDate": "2026-11-14",
+      "location": {
+        "city": "Huntington Beach",
+        "state": "CA",
+        "venue": "Huntington State Beach",
+        "country": "US"
+      },
+      "genre": "new wave/rock",
+      "status": "held",
+      "timing": "upcoming",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "vans-warped-tour-2026-orlando",
+      "name": "Vans Warped Tour 2026 – Orlando",
+      "normalizedName": "vans warped tour 2026 orlando",
+      "brand": "Vans Warped Tour",
+      "edition": 2026,
+      "startDate": "2026-11-14",
+      "endDate": "2026-11-15",
+      "location": {
+        "city": "Orlando",
+        "state": "FL",
+        "venue": null,
+        "country": "US"
+      },
+      "genre": "punk",
+      "status": "held",
+      "timing": "upcoming",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "orange-blossom-revue-2026",
+      "name": "Orange Blossom Revue 2026",
+      "normalizedName": "orange blossom revue",
+      "brand": "Orange Blossom Revue",
+      "edition": 2026,
+      "startDate": "2026-12-04",
+      "endDate": "2026-12-05",
+      "location": {
+        "city": "Lake Wales",
+        "state": "FL",
+        "venue": null,
+        "country": "US"
+      },
+      "genre": "americana/indie",
+      "status": "held",
+      "timing": "upcoming",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "denver-comes-alive-2027",
+      "name": "Denver Comes Alive 2027",
+      "normalizedName": "denver comes alive",
+      "brand": "Denver Comes Alive",
+      "edition": 2027,
+      "startDate": "2027-01-08",
+      "endDate": "2027-01-09",
+      "location": {
+        "city": "Denver",
+        "state": "CO",
+        "venue": null,
+        "country": "US"
+      },
+      "genre": "jam",
+      "status": "held",
+      "timing": "upcoming",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "something-in-the-way-2027",
+      "name": "Something in the Way 2027",
+      "normalizedName": "something in the way",
+      "brand": "Something in the Way",
+      "edition": 2027,
+      "startDate": "2027-02-04",
+      "endDate": "2027-02-06",
+      "location": {
+        "city": "Boston",
+        "state": "MA",
+        "venue": null,
+        "country": "US"
+      },
+      "genre": "indie/punk",
+      "status": "held",
+      "timing": "upcoming",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "wintergrass-2027",
+      "name": "Wintergrass 2027",
+      "normalizedName": "wintergrass",
+      "brand": "Wintergrass",
+      "edition": 2027,
+      "startDate": "2027-02-18",
+      "endDate": "2027-02-21",
+      "location": {
+        "city": "Bellevue",
+        "state": "WA",
+        "venue": null,
+        "country": "US"
+      },
+      "genre": "bluegrass",
+      "status": "held",
+      "timing": "upcoming",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "innings-festival-2027",
+      "name": "Innings Festival 2027",
+      "normalizedName": "innings festival",
+      "brand": "Innings Festival",
+      "edition": 2027,
+      "startDate": "2027-02-26",
+      "endDate": "2027-02-28",
+      "location": {
+        "city": "Tempe",
+        "state": "AZ",
+        "venue": "Tempe Beach Park",
+        "country": "US"
+      },
+      "genre": "rock/indie",
+      "status": "held",
+      "timing": "upcoming",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "winterwondergrass-steamboat-2027",
+      "name": "WinterWonderGrass Steamboat 2027",
+      "normalizedName": "winterwondergrass steamboat",
+      "brand": "WinterWonderGrass Steamboat",
+      "edition": 2027,
+      "startDate": "2027-03-05",
+      "endDate": "2027-03-07",
+      "location": {
+        "city": "Steamboat Springs",
+        "state": "CO",
+        "venue": null,
+        "country": "US"
+      },
+      "genre": "bluegrass",
+      "status": "held",
+      "timing": "upcoming",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "groundup-music-festival-2027",
+      "name": "GroundUP Music Festival 2027",
+      "normalizedName": "groundup music festival",
+      "brand": "GroundUP Music Festival",
+      "edition": 2027,
+      "startDate": "2027-03-12",
+      "endDate": "2027-03-14",
+      "location": {
+        "city": "Miami Beach",
+        "state": "FL",
+        "venue": null,
+        "country": "US"
+      },
+      "genre": "jazz/jam",
+      "status": "held",
+      "timing": "upcoming",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "hogs-for-the-cause-2027",
+      "name": "Hogs for the Cause 2027",
+      "normalizedName": "hogs for the cause",
+      "brand": "Hogs for the Cause",
+      "edition": 2027,
+      "startDate": "2027-03-19",
+      "endDate": "2027-03-20",
+      "location": {
+        "city": "New Orleans",
+        "state": "LA",
+        "venue": null,
+        "country": "US"
+      },
+      "genre": "rock/roots",
+      "status": "held",
+      "timing": "upcoming",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "treefort-music-fest-2027",
+      "name": "Treefort Music Fest 2027",
+      "normalizedName": "treefort music fest",
+      "brand": "Treefort Music Fest",
+      "edition": 2027,
+      "startDate": "2027-03-31",
+      "endDate": "2027-04-04",
+      "location": {
+        "city": "Boise",
+        "state": "ID",
+        "venue": null,
+        "country": "US"
+      },
+      "genre": "indie",
+      "status": "held",
+      "timing": "upcoming",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "big-ears-festival-2027",
+      "name": "Big Ears Festival 2027",
+      "normalizedName": "big ears festival",
+      "brand": "Big Ears Festival",
+      "edition": 2027,
+      "startDate": "2027-04-01",
+      "endDate": "2027-04-04",
+      "location": {
+        "city": "Knoxville",
+        "state": "TN",
+        "venue": null,
+        "country": "US"
+      },
+      "genre": "experimental/jazz",
+      "status": "held",
+      "timing": "upcoming",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "coachella-2027-weekend-1",
+      "name": "Coachella 2027 – Weekend 1",
+      "normalizedName": "coachella 2027 weekend 1",
+      "brand": "Coachella",
+      "edition": 2027,
+      "startDate": "2027-04-09",
+      "endDate": "2027-04-11",
+      "location": {
+        "city": "Indio",
+        "state": "CA",
+        "venue": "Empire Polo Club",
+        "country": "US"
+      },
+      "genre": "multi-genre",
+      "status": "held",
+      "timing": "upcoming",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "tampa-bay-blues-festival-2027",
+      "name": "Tampa Bay Blues Festival 2027",
+      "normalizedName": "tampa bay blues festival",
+      "brand": "Tampa Bay Blues Festival",
+      "edition": 2027,
+      "startDate": "2027-04-09",
+      "endDate": "2027-04-11",
+      "location": {
+        "city": "St. Petersburg",
+        "state": "FL",
+        "venue": "Vinoy Park",
+        "country": "US"
+      },
+      "genre": "blues",
+      "status": "held",
+      "timing": "upcoming",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "pilgrimage-music-cultural-festival-2027",
+      "name": "Pilgrimage Music & Cultural Festival 2027",
+      "normalizedName": "pilgrimage music cultural festival",
+      "brand": "Pilgrimage Music & Cultural Festival",
+      "edition": 2027,
+      "startDate": "2027-04-10",
+      "endDate": "2027-04-11",
+      "location": {
+        "city": "Franklin",
+        "state": "TN",
+        "venue": "The Park at Harlinsdale",
+        "country": "US"
+      },
+      "genre": "americana/rock",
+      "status": "held",
+      "timing": "upcoming",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "coachella-2027-weekend-2",
+      "name": "Coachella 2027 – Weekend 2",
+      "normalizedName": "coachella 2027 weekend 2",
+      "brand": "Coachella",
+      "edition": 2027,
+      "startDate": "2027-04-16",
+      "endDate": "2027-04-18",
+      "location": {
+        "city": "Indio",
+        "state": "CA",
+        "venue": "Empire Polo Club",
+        "country": "US"
+      },
+      "genre": "multi-genre",
+      "status": "held",
+      "timing": "upcoming",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "high-water-festival-2027",
+      "name": "High Water Festival 2027",
+      "normalizedName": "high water festival",
+      "brand": "High Water Festival",
+      "edition": 2027,
+      "startDate": "2027-04-17",
+      "endDate": "2027-04-18",
+      "location": {
+        "city": "North Charleston",
+        "state": "SC",
+        "venue": "Riverfront Park",
+        "country": "US"
+      },
+      "genre": "indie/americana",
+      "status": "held",
+      "timing": "upcoming",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "bluebird-music-festival-2027",
+      "name": "Bluebird Music Festival 2027",
+      "normalizedName": "bluebird music festival",
+      "brand": "Bluebird Music Festival",
+      "edition": 2027,
+      "startDate": "2027-04-22",
+      "endDate": "2027-04-25",
+      "location": {
+        "city": "Boulder",
+        "state": "CO",
+        "venue": null,
+        "country": "US"
+      },
+      "genre": "folk/bluegrass",
+      "status": "held",
+      "timing": "upcoming",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "new-orleans-jazz-heritage-festival-2027",
+      "name": "New Orleans Jazz & Heritage Festival 2027",
+      "normalizedName": "new orleans jazz heritage festival",
+      "brand": "New Orleans Jazz & Heritage Festival",
+      "edition": 2027,
+      "startDate": "2027-04-22",
+      "endDate": "2027-05-02",
+      "location": {
+        "city": "New Orleans",
+        "state": "LA",
+        "venue": "Fair Grounds Race Course",
+        "country": "US"
+      },
+      "genre": "jazz/roots",
+      "status": "held",
+      "timing": "upcoming",
+      "seedConfidence": "verified",
+      "notes": "Runs across two weekends."
+    },
+    {
+      "seedKey": "moon-crush-pink-moon-2027",
+      "name": "Moon Crush Pink Moon 2027",
+      "normalizedName": "moon crush pink moon",
+      "brand": "Moon Crush",
+      "edition": 2027,
+      "startDate": "2027-04-23",
+      "endDate": "2027-04-25",
+      "location": {
+        "city": "Miramar Beach",
+        "state": "FL",
+        "venue": null,
+        "country": "US"
+      },
+      "genre": "americana/rock",
+      "status": "held",
+      "timing": "upcoming",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "merlefest-2027",
+      "name": "MerleFest 2027",
+      "normalizedName": "merlefest",
+      "brand": "MerleFest",
+      "edition": 2027,
+      "startDate": "2027-04-29",
+      "endDate": "2027-05-02",
+      "location": {
+        "city": "Wilkesboro",
+        "state": "NC",
+        "venue": "Wilkes Community College",
+        "country": "US"
+      },
+      "genre": "bluegrass/americana",
+      "status": "held",
+      "timing": "upcoming",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "beachlife-festival-2027",
+      "name": "BeachLife Festival 2027",
+      "normalizedName": "beachlife festival",
+      "brand": "BeachLife Festival",
+      "edition": 2027,
+      "startDate": "2027-04-30",
+      "endDate": "2027-05-02",
+      "location": {
+        "city": "Redondo Beach",
+        "state": "CA",
+        "venue": "Seaside Lagoon",
+        "country": "US"
+      },
+      "genre": "rock/pop",
+      "status": "held",
+      "timing": "upcoming",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "welcome-to-rockville-2027",
+      "name": "Welcome to Rockville 2027",
+      "normalizedName": "welcome to rockville",
+      "brand": "Welcome to Rockville",
+      "edition": 2027,
+      "startDate": "2027-05-06",
+      "endDate": "2027-05-09",
+      "location": {
+        "city": "Daytona Beach",
+        "state": "FL",
+        "venue": "Daytona International Speedway",
+        "country": "US"
+      },
+      "genre": "rock/metal",
+      "status": "held",
+      "timing": "upcoming",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "sonic-temple-art-music-festival-2027",
+      "name": "Sonic Temple Art + Music Festival 2027",
+      "normalizedName": "sonic temple art music festival",
+      "brand": "Sonic Temple Art + Music Festival",
+      "edition": 2027,
+      "startDate": "2027-05-13",
+      "endDate": "2027-05-16",
+      "location": {
+        "city": "Columbus",
+        "state": "OH",
+        "venue": "Historic Crew Stadium",
+        "country": "US"
+      },
+      "genre": "rock/metal",
+      "status": "held",
+      "timing": "upcoming",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "boardwalk-rock-2027",
+      "name": "Boardwalk Rock 2027",
+      "normalizedName": "boardwalk rock",
+      "brand": "Boardwalk Rock",
+      "edition": 2027,
+      "startDate": "2027-05-14",
+      "endDate": "2027-05-16",
+      "location": {
+        "city": "Ocean City",
+        "state": "MD",
+        "venue": "Ocean City Inlet",
+        "country": "US"
+      },
+      "genre": "rock",
+      "status": "held",
+      "timing": "upcoming",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "kilby-block-party-2027",
+      "name": "Kilby Block Party 2027",
+      "normalizedName": "kilby block party",
+      "brand": "Kilby Block Party",
+      "edition": 2027,
+      "startDate": "2027-05-14",
+      "endDate": "2027-05-16",
+      "location": {
+        "city": "Salt Lake City",
+        "state": "UT",
+        "venue": "Utah State Fairpark",
+        "country": "US"
+      },
+      "genre": "indie",
+      "status": "held",
+      "timing": "upcoming",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "rooster-walk-2027",
+      "name": "Rooster Walk 2027",
+      "normalizedName": "rooster walk",
+      "brand": "Rooster Walk",
+      "edition": 2027,
+      "startDate": "2027-05-27",
+      "endDate": "2027-05-30",
+      "location": {
+        "city": "Martinsville",
+        "state": "VA",
+        "venue": "Pop's Farm",
+        "country": "US"
+      },
+      "genre": "jam/americana",
+      "status": "held",
+      "timing": "upcoming",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "bottlerock-napa-valley-2027",
+      "name": "BottleRock Napa Valley 2027",
+      "normalizedName": "bottlerock napa valley",
+      "brand": "BottleRock Napa Valley",
+      "edition": 2027,
+      "startDate": "2027-05-28",
+      "endDate": "2027-05-30",
+      "location": {
+        "city": "Napa",
+        "state": "CA",
+        "venue": "Napa Valley Expo",
+        "country": "US"
+      },
+      "genre": "multi-genre",
+      "status": "held",
+      "timing": "upcoming",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "outside-days-2027",
+      "name": "Outside Days 2027",
+      "normalizedName": "outside days",
+      "brand": "Outside Days",
+      "edition": 2027,
+      "startDate": "2027-06-03",
+      "endDate": "2027-06-06",
+      "location": {
+        "city": "Denver",
+        "state": "CO",
+        "venue": "Auraria Campus",
+        "country": "US"
+      },
+      "genre": "indie/rock",
+      "status": "held",
+      "timing": "upcoming",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "boston-calling-2027",
+      "name": "Boston Calling 2027",
+      "normalizedName": "boston calling",
+      "brand": "Boston Calling",
+      "edition": 2027,
+      "startDate": "2027-06-04",
+      "endDate": "2027-06-06",
+      "location": {
+        "city": "Boston",
+        "state": "MA",
+        "venue": "Harvard Athletic Complex",
+        "country": "US"
+      },
+      "genre": "rock/indie",
+      "status": "held",
+      "timing": "upcoming",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "michael-arnone-s-crawfish-fest-2027",
+      "name": "Michael Arnone's Crawfish Fest 2027",
+      "normalizedName": "michael arnone s crawfish fest",
+      "brand": "Michael Arnone's Crawfish Fest",
+      "edition": 2027,
+      "startDate": "2027-06-04",
+      "endDate": "2027-06-06",
+      "location": {
+        "city": "Augusta",
+        "state": "NJ",
+        "venue": "Sussex County Fairgrounds",
+        "country": "US"
+      },
+      "genre": "roots/blues",
+      "status": "held",
+      "timing": "upcoming",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "telluride-bluegrass-festival-2027",
+      "name": "Telluride Bluegrass Festival 2027",
+      "normalizedName": "telluride bluegrass festival",
+      "brand": "Telluride Bluegrass Festival",
+      "edition": 2027,
+      "startDate": "2027-06-17",
+      "endDate": "2027-06-20",
+      "location": {
+        "city": "Telluride",
+        "state": "CO",
+        "venue": "Telluride Town Park",
+        "country": "US"
+      },
+      "genre": "bluegrass",
+      "status": "held",
+      "timing": "upcoming",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "zootown-festival-2027",
+      "name": "Zootown Festival 2027",
+      "normalizedName": "zootown festival",
+      "brand": "Zootown Festival",
+      "edition": 2027,
+      "startDate": "2027-06-18",
+      "endDate": "2027-06-19",
+      "location": {
+        "city": "Missoula",
+        "state": "MT",
+        "venue": null,
+        "country": "US"
+      },
+      "genre": "rock/americana",
+      "status": "held",
+      "timing": "upcoming",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "summerfest-2027",
+      "name": "Summerfest 2027",
+      "normalizedName": "summerfest",
+      "brand": "Summerfest",
+      "edition": 2027,
+      "startDate": "2027-06-24",
+      "endDate": "2027-07-10",
+      "location": {
+        "city": "Milwaukee",
+        "state": "WI",
+        "venue": "Henry Maier Festival Park",
+        "country": "US"
+      },
+      "genre": "multi-genre",
+      "status": "held",
+      "timing": "upcoming",
+      "seedConfidence": "verified",
+      "notes": "Three weekends."
+    },
+    {
+      "seedKey": "inkcarceration-2027",
+      "name": "Inkcarceration 2027",
+      "normalizedName": "inkcarceration",
+      "brand": "Inkcarceration",
+      "edition": 2027,
+      "startDate": "2027-07-16",
+      "endDate": "2027-07-18",
+      "location": {
+        "city": "Mansfield",
+        "state": "OH",
+        "venue": "Ohio State Reformatory",
+        "country": "US"
+      },
+      "genre": "rock/metal",
+      "status": "held",
+      "timing": "upcoming",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "levitate-music-arts-festival-2027",
+      "name": "Levitate Music & Arts Festival 2027",
+      "normalizedName": "levitate music arts festival",
+      "brand": "Levitate Music & Arts Festival",
+      "edition": 2027,
+      "startDate": "2027-07-17",
+      "endDate": "2027-07-18",
+      "location": {
+        "city": "Marshfield",
+        "state": "MA",
+        "venue": "Marshfield Fairgrounds",
+        "country": "US"
+      },
+      "genre": "rock/reggae",
+      "status": "held",
+      "timing": "upcoming",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "floydfest-2027",
+      "name": "FloydFest 2027",
+      "normalizedName": "floydfest",
+      "brand": "FloydFest",
+      "edition": 2027,
+      "startDate": "2027-07-22",
+      "endDate": "2027-07-25",
+      "location": {
+        "city": "Check",
+        "state": "VA",
+        "venue": "FestivalPark",
+        "country": "US"
+      },
+      "genre": "jam/americana",
+      "status": "held",
+      "timing": "upcoming",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "great-south-bay-music-festival-2027",
+      "name": "Great South Bay Music Festival 2027",
+      "normalizedName": "great south bay music festival",
+      "brand": "Great South Bay Music Festival",
+      "edition": 2027,
+      "startDate": "2027-07-22",
+      "endDate": "2027-07-25",
+      "location": {
+        "city": "Patchogue",
+        "state": "NY",
+        "venue": "Shorefront Park",
+        "country": "US"
+      },
+      "genre": "rock/roots",
+      "status": "held",
+      "timing": "upcoming",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "newport-folk-festival-2027",
+      "name": "Newport Folk Festival 2027",
+      "normalizedName": "newport folk festival",
+      "brand": "Newport Folk Festival",
+      "edition": 2027,
+      "startDate": "2027-07-23",
+      "endDate": "2027-07-25",
+      "location": {
+        "city": "Newport",
+        "state": "RI",
+        "venue": "Fort Adams State Park",
+        "country": "US"
+      },
+      "genre": "folk/americana",
+      "status": "held",
+      "timing": "upcoming",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "outside-lands-2027",
+      "name": "Outside Lands 2027",
+      "normalizedName": "outside lands",
+      "brand": "Outside Lands",
+      "edition": 2027,
+      "startDate": "2027-08-06",
+      "endDate": "2027-08-08",
+      "location": {
+        "city": "San Francisco",
+        "state": "CA",
+        "venue": "Golden Gate Park",
+        "country": "US"
+      },
+      "genre": "multi-genre",
+      "status": "held",
+      "timing": "upcoming",
+      "seedConfidence": "verified",
+      "notes": null
+    },
+    {
+      "seedKey": "hardly-strictly-bluegrass-2027",
+      "name": "Hardly Strictly Bluegrass 2027",
+      "normalizedName": "hardly strictly bluegrass",
+      "brand": "Hardly Strictly Bluegrass",
+      "edition": 2027,
+      "startDate": "2027-10-08",
+      "endDate": "2027-10-10",
+      "location": {
+        "city": "San Francisco",
+        "state": "CA",
+        "venue": "Golden Gate Park (Hellman Hollow)",
+        "country": "US"
+      },
+      "genre": "bluegrass/americana",
+      "status": "held",
+      "timing": "upcoming",
+      "seedConfidence": "verified",
+      "notes": null
+    }
+  ]
+}

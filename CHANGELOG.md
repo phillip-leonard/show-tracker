@@ -4,6 +4,69 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.57.0] — 2026-11-09
+
+Ships in iOS 3.12.9 (`MARKETING_VERSION` 3.12.8 → 3.12.9, the default patch
+bump. The build number is left to Xcode Cloud).
+
+**The shared festival catalog is pre-populated.** Until now it held only
+festivals users typed in, so almost everyone creating a festival was the
+first. `data/festival-seed.json` holds 293 US festival editions across 78
+brands, 2021 through 2027 (no country, rap/hip-hop or electronic-specific
+festivals; 2027 only where dates are announced). A new admin function adds
+them to the catalog as ordinary canonical festivals, so the create form
+offers them and a user joins in one tap.
+
+- **Seeder**, `netlify/functions/admin-seed-festivals.js`, admin only, a dry
+  run unless the body is `{ "commit": true }`. Each record is checked with
+  the app's own match rule against the catalog as it stands:
+  `create`, `matched_existing` (already there, same dates and city),
+  `conflict` (matched, but dates or city differ), `skip` (already seeded)
+  or `failed`. It never writes to a festival that exists, user-created or
+  not, and never touches an attendance record or a show. Matches and
+  conflicts are reported for a human to decide.
+- **Confidence filter.** `{ "confidence": ["verified", "high"] }` creates
+  only those levels (omitted = all). The rest are reported as `excluded`,
+  and a later run that includes them creates exactly those. It gates
+  creation only: an excluded-level record that matches an existing
+  festival is still reported as a match. An unknown level is a 400. The
+  admin card has a checkbox per level; a write always repeats the levels
+  of the dry run it follows. Against production today, verified + high is
+  242 creates, 3 matches and 48 medium records excluded.
+- **Idempotent.** Document ids are `seed_<seedKey>` (e.g.
+  `seed_bonnaroo-2025`) written with `create()`, so a second run creates
+  nothing and two racing runs can't write one festival twice. Batches of
+  400; a failed batch is retried one document at a time so one bad record
+  costs only itself.
+- **Same fields as a user-created festival** (`name`, `nameNormalized`,
+  `startDate`, `endDate`, `location`, `edition`, `createdBy`, `createdAt`,
+  `updatedAt`) plus `source: "seed"`, `seedKey`, `seedConfidence`, `genre`,
+  `status`, `notes`. `createdBy` is `"system:seed"`. `location` is
+  `"City, ST"`, the create flow's free-text shape; the seed's venue is left
+  out. `nameNormalized` is recomputed with the app's normalizer (the seed
+  file's guess differed for 22 records). A test checks the field list
+  against both `firestore.rules` and `createFestival`.
+- **No rules change.** Admin-SDK writes bypass rules; signed-in users read
+  seeded festivals like any other; and since no uid equals `system:seed`,
+  the existing creator-or-admin update rule leaves them admin-editable only.
+- **Dry run output**: AdminView → Seed Festival Catalog (one table per
+  action, sorted by start date, with `seedConfidence`), or
+  `node scripts/festival-seed-dryrun.js --env <file>`, which reads
+  production and has no write path.
+- **UI**: a catalog festival says so where a user festival says "created by
+  another user": in the create form's matches, on the festival header, and
+  in the edit modal, which explains its details can't be edited here (the
+  user's notes still can). `status: "cut_short"` (Bonnaroo 2025) shows a
+  "Cut short" note on the header. The seed's `notes` reach the UI as
+  `catalogNote`, never as the user's own `notes`. `lib/festivalCatalog.js`.
+- New test `lib/__tests__/festivalSeed.test.js` (in `test:unit`): field
+  names, idempotency, matches and conflicts, and create-form suggestions
+  for Coachella/ACL weekends, Bonnaroo 2025 vs 2026, multi-weekend spans,
+  single-day festivals and Hulaween across Oct/Nov.
+
+The festivals appear only once the seeder has been run for real
+(AdminView → Write Festivals) after this deploys.
+
 ## [5.56.0] — 2026-11-08
 
 Ships in iOS 3.12.8 (`MARKETING_VERSION` 3.12.7 → 3.12.8, the default patch

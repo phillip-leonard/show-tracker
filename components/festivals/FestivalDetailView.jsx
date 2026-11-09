@@ -20,7 +20,8 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Star, Pencil, LogOut, UserPlus, X, Search, Users } from 'lucide-react';
+import { ArrowLeft, Star, Pencil, LogOut, UserPlus, X, Search, Users, BookOpen, CloudLightning } from 'lucide-react';
+import { isCutShort } from '@/lib/festivalCatalog';
 import { useApp } from '@/context/AppContext';
 import useFestivalShows from '@/hooks/useFestivalShows';
 import { Card, StatFigure, Button, Textarea } from '@/components/ui';
@@ -87,11 +88,30 @@ export default function FestivalDetailView({ festival }) {
               {festival.endDate !== festival.startDate ? ` – ${formatDate(festival.endDate)}` : ''}
               {festival.location ? ` · ${festival.location}` : ''}
             </p>
+            {isCutShort(festival) && (
+              <p className="text-xs text-secondary mt-1.5 flex items-start gap-1.5">
+                <CloudLightning className="w-3.5 h-3.5 flex-shrink-0 mt-px" aria-hidden="true" />
+                <span>
+                  <span className="font-semibold text-primary">Cut short.</span>{' '}
+                  {festival.catalogNote || 'This edition ended early.'}
+                </span>
+              </p>
+            )}
             {festival.festivalId && !festival.isCreator && (
-              <p className="text-xs text-muted mt-1.5 flex items-center gap-1.5">
-                <Users className="w-3.5 h-3.5 flex-shrink-0" aria-hidden="true" />
-                Added by another user — its name, dates and location are theirs to change. Your
-                shows and notes here are yours alone.
+              <p className="text-xs text-muted mt-1.5 flex items-start gap-1.5">
+                {festival.isSeeded ? (
+                  <>
+                    <BookOpen className="w-3.5 h-3.5 flex-shrink-0 mt-px" aria-hidden="true" />
+                    From the MySetlists festival catalog, so its name, dates and location are
+                    fixed. Your shows and notes here are yours alone.
+                  </>
+                ) : (
+                  <>
+                    <Users className="w-3.5 h-3.5 flex-shrink-0 mt-px" aria-hidden="true" />
+                    Added by another user — its name, dates and location are theirs to change. Your
+                    shows and notes here are yours alone.
+                  </>
+                )}
               </p>
             )}
           </div>
