@@ -13,6 +13,16 @@ const STREAMING_MENTION = /spotify|apple\s*music/i;
 function ReleaseNotesView() {
   const releases = [
     {
+      version: '5.57.0',
+      date: 'November 9, 2026',
+      title: 'Your Festival Is Probably Already Here',
+      changes: [
+        'Nearly 300 US festivals from 2021 through 2027 are now in the festival list. Start typing yours and join it in one tap instead of entering it yourself',
+        'Coachella and ACL weekends are listed separately, so you join the weekend you went to',
+        'Upcoming 2027 festivals can be joined now, before you have any shows to attach',
+      ]
+    },
+    {
       version: '5.56.0',
       date: 'November 8, 2026',
       title: 'Every Song, One Page',
