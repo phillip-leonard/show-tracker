@@ -13,6 +13,16 @@ const STREAMING_MENTION = /spotify|apple\s*music/i;
 function ReleaseNotesView() {
   const releases = [
     {
+      version: '5.58.0',
+      date: 'November 9, 2026',
+      title: 'Don\u2019t Remember the Dates? Just the Year Will Do',
+      changes: [
+        'Adding a festival, tick \u201cI don\u2019t know the exact dates\u201d and enter only the year. You can add the dates later',
+        'We\u2019ll still suggest the festival if it\u2019s already listed for that year, so you can join it instead',
+        'Upcoming festivals can now show their announced lineup as soon as it\u2019s out, not only once Ticketmaster lists it',
+      ]
+    },
+    {
       version: '5.57.0',
       date: 'November 9, 2026',
       title: 'Your Festival Is Probably Already Here',
