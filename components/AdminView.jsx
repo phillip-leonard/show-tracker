@@ -20,6 +20,7 @@ import StatsTab from '@/components/admin/StatsTab';
 import ArchiveDryRunCard from '@/components/admin/ArchiveDryRunCard';
 import WelcomeEmailCard from '@/components/admin/WelcomeEmailCard';
 import FestivalSeedCard from '@/components/admin/FestivalSeedCard';
+import FestivalLineupSeedCard from '@/components/admin/FestivalLineupSeedCard';
 import { buildUserRows } from '@/lib/adminUsers';
 import { sendEmailIfAllowed } from '@/lib/email';
 import { PageHeader, Button } from '@/components/ui';
@@ -3118,6 +3119,9 @@ function AdminView() {
 
       {/* Festival catalog seed (5.57.0) — netlify/functions/admin-seed-festivals.js */}
       <FestivalSeedCard />
+
+      {/* Announced festival lineups (5.58.0) — netlify/functions/admin-seed-festival-lineups.js */}
+      <FestivalLineupSeedCard />
 
       {/* Cache Management */}
       <div className="space-y-4">

@@ -19,7 +19,7 @@ import { useRouter } from 'next/navigation';
 import { Tent, Plus, ChevronRight } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { Card, PageHeader, EmptyState, Button, Spinner } from '@/components/ui';
-import { formatDate } from '@/lib/utils';
+import { festivalWhenLabel, festivalSortKey } from '@/lib/festivalDates';
 import { festivalHref } from '@/lib/festivalGrouping';
 import FestivalFormModal from './FestivalFormModal';
 import ShowFilters from '@/components/shows/ShowFilters';
@@ -57,7 +57,7 @@ export default function FestivalListView() {
   };
 
   const sorted = useMemo(
-    () => (festivals || []).slice().sort((a, b) => (a.startDate < b.startDate ? 1 : -1)),
+    () => (festivals || []).slice().sort((a, b) => (festivalSortKey(a) < festivalSortKey(b) ? 1 : -1)),
     [festivals]
   );
 
@@ -131,8 +131,7 @@ export default function FestivalListView() {
                         <div className="min-w-0">
                           <div className="text-base font-semibold text-primary truncate">{festival.name}</div>
                           <div className="text-sm text-secondary mt-0.5 truncate">
-                            {formatDate(festival.startDate)}
-                            {festival.endDate !== festival.startDate ? ` – ${formatDate(festival.endDate)}` : ''}
+                            {festivalWhenLabel(festival)}
                             {festival.location ? ` · ${festival.location}` : ''}
                             {' · '}{count} show{count !== 1 ? 's' : ''}
                           </div>

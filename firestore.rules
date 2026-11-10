@@ -628,27 +628,51 @@ service cloud.firestore {
     match /festivals/{festivalId} {
       allow read: if request.auth != null;
 
+      // WHEN A FESTIVAL HAPPENED (5.58.0). Either both dates, or only the
+      // year, for someone who knows they went to Bonnaroo 2019 but not
+      // which days it ran:
+      //   - dates: startDate and endDate, yyyy-MM-dd, the end not before
+      //     the start (string comparison is exact for this format). `year`
+      //     may sit beside them and must then be the start date's year.
+      //     Clients before 5.58.0 never send `year`, so it stays optional
+      //     here and their writes keep passing.
+      //   - year only: no startDate or endDate at all, and `year` a whole
+      //     number from 1900 to 2100 (the bounds in lib/festivalMatch.js).
+      // Never one date without the other, and never neither: a festival
+      // with no year can't be told apart from other editions of itself.
+      function festivalWhenIsValid(d) {
+        return (
+            d.keys().hasAll(['startDate', 'endDate'])
+            && d.startDate is string
+            && d.startDate.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+            && d.endDate is string
+            && d.endDate.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+            && d.endDate >= d.startDate
+            && (!d.keys().hasAny(['year'])
+                || (d.year is int && d.startDate.matches('^' + string(d.year) + '-.*')))
+          ) || (
+            !d.keys().hasAny(['startDate', 'endDate'])
+            && d.year is int
+            && d.year >= 1900
+            && d.year <= 2100
+          );
+      }
+
       allow create: if request.auth != null
                     && request.resource.data.createdBy == request.auth.uid
                     && request.resource.data.keys().hasOnly([
-                         'name', 'nameNormalized', 'startDate', 'endDate',
+                         'name', 'nameNormalized', 'startDate', 'endDate', 'year',
                          'location', 'edition', 'createdBy', 'createdAt', 'updatedAt'
                        ])
                     && request.resource.data.keys().hasAll([
-                         'name', 'nameNormalized', 'startDate', 'endDate', 'createdBy'
+                         'name', 'nameNormalized', 'createdBy'
                        ])
                     && request.resource.data.name is string
                     && request.resource.data.name.size() > 0
                     && request.resource.data.name.size() <= 120
                     && request.resource.data.nameNormalized is string
                     && request.resource.data.nameNormalized.size() <= 120
-                    // yyyy-MM-dd, and an end that is not before the start.
-                    // String comparison is exact for this format.
-                    && request.resource.data.startDate is string
-                    && request.resource.data.startDate.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
-                    && request.resource.data.endDate is string
-                    && request.resource.data.endDate.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
-                    && request.resource.data.endDate >= request.resource.data.startDate;
+                    && festivalWhenIsValid(request.resource.data);
 
       // Only the creator (or admin) may edit the shared details. Everyone
       // else edits their own attendance record instead. createdBy can
@@ -664,7 +688,7 @@ service cloud.firestore {
                     // client may change them: what other attendees see is
                     // never typed text.
                     && request.resource.data.keys().hasOnly([
-                         'name', 'nameNormalized', 'startDate', 'endDate',
+                         'name', 'nameNormalized', 'startDate', 'endDate', 'year',
                          'location', 'edition', 'createdBy', 'createdAt', 'updatedAt',
                          'lineup', 'lineupSource', 'lineupUrl', 'lineupFetchedAt'
                        ])
@@ -674,9 +698,7 @@ service cloud.firestore {
                     && request.resource.data.name is string
                     && request.resource.data.name.size() > 0
                     && request.resource.data.name.size() <= 120
-                    && request.resource.data.startDate.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
-                    && request.resource.data.endDate.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
-                    && request.resource.data.endDate >= request.resource.data.startDate;
+                    && festivalWhenIsValid(request.resource.data);
 
       allow delete: if false;
     }

@@ -26,6 +26,7 @@ import { useApp } from '@/context/AppContext';
 import useFestivalShows from '@/hooks/useFestivalShows';
 import { Card, StatFigure, Button, Textarea } from '@/components/ui';
 import { formatDate } from '@/lib/utils';
+import { festivalWhenLabel } from '@/lib/festivalDates';
 import FestivalFormModal from './FestivalFormModal';
 import LeaveFestivalModal from './LeaveFestivalModal';
 import AttachShowsModal from './AttachShowsModal';
@@ -84,9 +85,7 @@ export default function FestivalDetailView({ festival }) {
           <div className="min-w-0">
             <h1 className="text-2xl font-bold text-primary mb-1">{festival.name}</h1>
             <p className="text-sm text-secondary">
-              {formatDate(festival.startDate)}
-              {festival.endDate !== festival.startDate ? ` – ${formatDate(festival.endDate)}` : ''}
-              {festival.location ? ` · ${festival.location}` : ''}
+              {[festivalWhenLabel(festival), festival.location].filter(Boolean).join(' · ')}
             </p>
             {isCutShort(festival) && (
               <p className="text-xs text-secondary mt-1.5 flex items-start gap-1.5">

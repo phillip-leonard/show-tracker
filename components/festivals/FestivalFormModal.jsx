@@ -1,8 +1,8 @@
 // components/festivals/FestivalFormModal.jsx
 //
 // Create/edit modal for a Festival — name (required), start/end date
-// (required, end >= start validated client-side), location + notes
-// (optional). Reuses the same Modal/Input/Textarea/Button primitives as
+// (end >= start validated client-side) or, behind "I don't know the exact
+// dates", only the year (5.58.0), then location + notes (optional). Reuses the same Modal/Input/Textarea/Button primitives as
 // other form modals in the app (see components/VenueRatingModal.jsx).
 //
 // CREATE MODE also runs the shared-festival dedup: as the name and dates
@@ -26,15 +26,24 @@
 
 import { useEffect, useState } from 'react';
 import { Users, Info } from 'lucide-react';
-import { festivalNameProblem } from '@/lib/festivalMatch';
+import { festivalNameProblem, MIN_FESTIVAL_YEAR, MAX_FESTIVAL_YEAR } from '@/lib/festivalMatch';
 import { isSeededFestival } from '@/lib/festivalCatalog';
+import { festivalWhenLabel, isYearOnly } from '@/lib/festivalDates';
 import { Modal, Button, Input, Textarea, Card, Spinner } from '@/components/ui';
 import { useApp } from '@/context/AppContext';
-import { formatDate } from '@/lib/utils';
 
 // Wait this long after the last keystroke before looking for matches, so
 // typing "Bonnaroo" is one lookup rather than eight.
 const MATCH_DEBOUNCE_MS = 400;
+
+// The year field as a whole year in range, or null. The bounds are the
+// match rule's, which firestore.rules repeats.
+function parseYear(value) {
+  const s = String(value || '').trim();
+  if (!/^\d{4}$/.test(s)) return null;
+  const y = Number(s);
+  return y >= MIN_FESTIVAL_YEAR && y <= MAX_FESTIVAL_YEAR ? y : null;
+}
 
 export default function FestivalFormModal({ open, onClose, onSubmit, onJoin, festival = null }) {
   const { findFestivalMatches } = useApp();
@@ -46,6 +55,9 @@ export default function FestivalFormModal({ open, onClose, onSubmit, onJoin, fes
   const [name, setName] = useState(festival?.name || '');
   const [startDate, setStartDate] = useState(festival?.startDate || '');
   const [endDate, setEndDate] = useState(festival?.endDate || '');
+  // "I don't know the exact dates": the year stands in for both dates.
+  const [yearOnly, setYearOnly] = useState(isYearOnly(festival));
+  const [year, setYear] = useState(festival?.year ? String(festival.year) : '');
   const [location, setLocation] = useState(festival?.location || '');
   const [notes, setNotes] = useState(festival?.notes || '');
   const [error, setError] = useState('');
@@ -64,6 +76,8 @@ export default function FestivalFormModal({ open, onClose, onSubmit, onJoin, fes
     setName(festival?.name || '');
     setStartDate(festival?.startDate || '');
     setEndDate(festival?.endDate || '');
+    setYearOnly(isYearOnly(festival));
+    setYear(festival?.year ? String(festival.year) : '');
     setLocation(festival?.location || '');
     setNotes(festival?.notes || '');
     setError('');
@@ -75,7 +89,8 @@ export default function FestivalFormModal({ open, onClose, onSubmit, onJoin, fes
   // moment to be offered a different one.
   useEffect(() => {
     if (!open || isEdit) return;
-    if (!name.trim() || !startDate) {
+    const knownYear = yearOnly ? parseYear(year) : null;
+    if (!name.trim() || (yearOnly ? !knownYear : !startDate)) {
       setMatches([]);
       return;
     }
@@ -84,12 +99,9 @@ export default function FestivalFormModal({ open, onClose, onSubmit, onJoin, fes
     setMatching(true);
     const timer = setTimeout(async () => {
       try {
-        const found = await findFestivalMatches({
-          name: name.trim(),
-          startDate,
-          endDate: endDate || startDate,
-          location: location.trim(),
-        });
+        const found = await findFestivalMatches(yearOnly
+          ? { name: name.trim(), year: knownYear, location: location.trim() }
+          : { name: name.trim(), startDate, endDate: endDate || startDate, location: location.trim() });
         if (!cancelled) setMatches(found);
       } finally {
         if (!cancelled) setMatching(false);
@@ -97,7 +109,15 @@ export default function FestivalFormModal({ open, onClose, onSubmit, onJoin, fes
     }, MATCH_DEBOUNCE_MS);
 
     return () => { cancelled = true; clearTimeout(timer); setMatching(false); };
-  }, [open, isEdit, name, startDate, endDate, location, findFestivalMatches]);
+  }, [open, isEdit, name, startDate, endDate, yearOnly, year, location, findFestivalMatches]);
+
+  // Switching to the year carries over the year of a start date already
+  // picked, so ticking the box never loses what was typed.
+  const toggleYearOnly = (checked) => {
+    setYearOnly(checked);
+    if (checked && !year && startDate) setYear(startDate.slice(0, 4));
+    setError('');
+  };
 
   const validate = () => {
     // Name limits mirror the `festivals` rule in firestore.rules, so an
@@ -105,7 +125,11 @@ export default function FestivalFormModal({ open, onClose, onSubmit, onJoin, fes
     // unexplained permission denial from Firestore.
     const nameProblem = festivalNameProblem(name);
     if (nameProblem) return nameProblem;
-    if (!startDate || !endDate) return 'Start and end dates are required.';
+    if (yearOnly) {
+      if (!parseYear(year)) return `Enter the year as four digits, from ${MIN_FESTIVAL_YEAR} to ${MAX_FESTIVAL_YEAR}.`;
+      return '';
+    }
+    if (!startDate || !endDate) return 'Add the start and end dates, or tick “I don’t know the exact dates”.';
     if (endDate < startDate) return 'End date can’t be before the start date.';
     return '';
   };
@@ -130,7 +154,9 @@ export default function FestivalFormModal({ open, onClose, onSubmit, onJoin, fes
     setError('');
     setSaving(true);
     try {
-      await onSubmit({ name: name.trim(), startDate, endDate, location, notes });
+      await onSubmit(yearOnly
+        ? { name: name.trim(), startDate: '', endDate: '', year: parseYear(year), location, notes }
+        : { name: name.trim(), startDate, endDate, location, notes });
       onClose();
     } catch {
       // AppContext already surfaces a toast on failure — keep the modal
@@ -149,13 +175,6 @@ export default function FestivalFormModal({ open, onClose, onSubmit, onJoin, fes
     } catch {
       setJoiningId('');
     }
-  };
-
-  const dateLabel = (f) => {
-    if (!f.startDate) return '';
-    return f.endDate && f.endDate !== f.startDate
-      ? `${formatDate(f.startDate)} – ${formatDate(f.endDate)}`
-      : formatDate(f.startDate);
   };
 
   return (
@@ -204,20 +223,43 @@ export default function FestivalFormModal({ open, onClose, onSubmit, onJoin, fes
               placeholder="e.g. Bonnaroo 2023"
               autoFocus
             />
-            <div className="grid grid-cols-2 gap-3">
+            {yearOnly ? (
               <Input
-                label="Start date"
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
+                label="Year"
+                type="text"
+                inputMode="numeric"
+                autoComplete="off"
+                maxLength={4}
+                value={year}
+                onChange={(e) => setYear(e.target.value.replace(/\D/g, ''))}
+                placeholder="e.g. 2019"
+                hint="You can add the dates later."
               />
-              <Input
-                label="End date"
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
+            ) : (
+              <div className="grid grid-cols-2 gap-3">
+                <Input
+                  label="Start date"
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                />
+                <Input
+                  label="End date"
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                />
+              </div>
+            )}
+            <label className="flex items-center gap-2 text-sm text-secondary -mt-1 min-h-[44px] md:fine:min-h-0 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={yearOnly}
+                onChange={(e) => toggleYearOnly(e.target.checked)}
+                className="w-5 h-5 accent-brand flex-shrink-0"
               />
-            </div>
+              I don’t know the exact dates
+            </label>
             <Input
               label="Location (optional)"
               value={location}
@@ -249,7 +291,7 @@ export default function FestivalFormModal({ open, onClose, onSubmit, onJoin, fes
                   <div className="min-w-0">
                     <div className="text-sm font-semibold text-primary truncate">{candidate.name}</div>
                     <div className="text-xs text-secondary truncate">
-                      {dateLabel(candidate)}
+                      {festivalWhenLabel(candidate)}
                       {candidate.location ? ` · ${candidate.location}` : ''}
                       {isSeededFestival(candidate) ? ' · from the festival catalog' : ' · created by another user'}
                     </div>

@@ -12,7 +12,9 @@
 //
 // The lineup is written to the canonical document with the Admin SDK.
 // firestore.rules lets no client write the lineup fields, so what other
-// attendees see is only ever Ticketmaster's data, never typed text. A lineup
+// attendees see is only ever Ticketmaster's data or the admin's lineup
+// file (data/festival-lineups.json, 5.58.0), never typed text. A lineup
+// from the file is never replaced from Ticketmaster. A lineup
 // someone enters by hand stays on their own attendance record.
 //
 //   200 { lineup: [names], source, url, fetchedAt, upcoming }
@@ -21,6 +23,7 @@
 const { getDb, verifyUser, isAdminClaims } = require('./lib/firebaseAdmin');
 const { httpsGetJson } = require('./lib/ticketmasterEvents');
 const { fetchLineup, isUpcoming, isFresh } = require('./lib/festivalLineup');
+const { SEED_LINEUP_SOURCE } = require('./lib/festivalLineupSeed');
 
 const CORS_HEADERS = {
   'Content-Type': 'application/json',
@@ -69,6 +72,16 @@ async function handle(event, { db, get = httpsGetJson, apiKey = process.env.TICK
 
   const upcoming = isUpcoming(festival, now);
   if (!upcoming || isFresh(festival, now) || !apiKey) return reply(200, view(festival, upcoming));
+
+  // A lineup from data/festival-lineups.json (lineupSource 'seed', written
+  // by admin-seed-festival-lineups.js) is the one we chose, so Ticketmaster
+  // never replaces it. The admin replaces it by editing the file and
+  // running the seeder again.
+  if (festival.lineupSource === SEED_LINEUP_SOURCE) return reply(200, view(festival, upcoming));
+
+  // No dates (added with only a year, 5.58.0): there is no window to search
+  // Ticketmaster in, so there is nothing to ask it.
+  if (!festival.startDate) return reply(200, view(festival, upcoming));
 
   let found;
   try {

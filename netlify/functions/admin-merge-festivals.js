@@ -216,6 +216,11 @@ function differencesFrom(survivor, duplicate) {
   return differences;
 }
 
+// `year` is left out on purpose. A festival added with only a year
+// (5.58.0) matches every edition of its name in that year, both Coachella
+// weekends included, so letting it into clusterFestivals could fold it into
+// whichever weekend happened to anchor a cluster. Without `year` it has no
+// date at all, matches nothing here, and is never merged automatically.
 function toFestival(doc) {
   const data = doc.data();
   return {

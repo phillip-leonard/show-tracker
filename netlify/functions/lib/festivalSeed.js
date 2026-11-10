@@ -73,7 +73,7 @@ const SEED_ID_PREFIX = 'seed_';
 // the `festivals` create rule's hasOnly list in firestore.rules. The test
 // reads both and fails if this drifts from either.
 const CREATE_FLOW_FIELDS = [
-  'name', 'nameNormalized', 'startDate', 'endDate',
+  'name', 'nameNormalized', 'startDate', 'endDate', 'year',
   'location', 'edition', 'createdBy', 'createdAt', 'updatedAt',
 ];
 
@@ -144,6 +144,10 @@ function canonicalFromSeed(record, now = null) {
     nameNormalized: normalizeFestivalName(name),
     startDate: record.startDate,
     endDate: record.endDate,
+    // Seed records always have dates; `year` (5.58.0) is their start
+    // date's year, as the create flow writes it. Festivals seeded before
+    // 5.58.0 don't have it, which the rules and lib/festivalDates.js allow.
+    year: Number(String(record.startDate).slice(0, 4)),
     location: seedLocation(record.location),
     edition: record.edition == null ? '' : String(record.edition),
     createdBy: SEED_CREATOR,

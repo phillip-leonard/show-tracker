@@ -4,6 +4,64 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.58.0] — 2026-11-09
+
+Ships in iOS 3.12.10 (`MARKETING_VERSION` 3.12.9 → 3.12.10, the default patch
+bump. The build number is left to Xcode Cloud).
+
+**A festival can be added with only its year, and announced lineups come
+from a file the admin keeps.**
+
+- **Year-only festivals.** The festival form has "I don't know the exact
+  dates", which swaps the two date fields for a year (1900–2100). The
+  shared document then has `year` and no `startDate`/`endDate`. Festivals
+  with dates now also store `year` (their start date's year); festivals
+  from before 5.58.0 and the 242 already seeded don't have it, and don't
+  need it. The creator can add the dates later, or take them away again.
+- **Rules change** (`firestore.rules`, `festivals` create and update): a
+  festival has either both dates (as before, with an optional `year` that
+  must be the start date's year) or no dates and an integer `year` from
+  1900 to 2100. Never one date, never null dates, never neither. Clients
+  before 5.58.0 never send `year`, so their writes still pass. `year` is
+  added to both `hasOnly` lists; nothing else changes. New
+  `tests/rules/festivals.rules.test.js` (17 cases, in `test:rules`).
+- **Matching.** When either festival has no dates, the date gate becomes
+  "same year" (`yearsAgree` in `lib/festivalMatch.js` and its CommonJS copy,
+  with parity tests). Two festivals that both have dates are matched exactly
+  as before, so Coachella and ACL weekends stay apart; a year-only
+  "Coachella 2024" is offered both weekends to pick from. Bonnaroo 2025 still
+  never matches 2026. The create form's lookup runs only the name-prefix
+  query for a year-only draft. The admin merge tool never clusters a
+  year-only festival automatically.
+- **Screens** read dates through the new `lib/festivalDates.js`: the year
+  shows where dates would; lists sort a year-only festival after that
+  year's dated ones; "Add shows" offers that year's shows; festival picks
+  treat it as upcoming through 31 December; "Search lineup" falls back to
+  setlist.fm's year-scoped search and says it can't narrow to the
+  festival's days. Ticketmaster isn't asked about a festival with no dates.
+- **Announced lineups.** `data/festival-lineups.json` (empty for now) lists
+  lineups by catalog `seedKey` or any `festivalId`, with an optional https
+  `sourceUrl`. New admin function `admin-seed-festival-lineups.js` and
+  AdminView card "Seed Festival Lineups" write them, dry run first, into
+  the same four fields Ticketmaster lineups use, with
+  `lineupSource: "seed"`. Plan actions: `set`, `replace`, `unchanged`,
+  `missing`, `failed`; writing the same file twice writes nothing.
+  `festival-lineup.js` never replaces a lineup from the file, and festival
+  picks credits it as "The announced lineup". Taking an entry out of the
+  file doesn't remove its lineup. No background job: Ticketmaster's terms
+  rule one out, and the file is updated by hand when a festival announces.
+  `node scripts/festival-seed-dryrun.js --lineups` previews it read-only.
+- **Past lineups aren't pre-seeded.** setlist.fm's terms forbid storing its
+  data, and MusicBrainz had a usable lineup (10+ performers) for 18 of the
+  252 past catalog festivals. The live "Search lineup" is unchanged.
+- `festivalMatch`, `festivalMatchParity`, `festivalGrouping`,
+  `festivalMerge` and `lib/__tests__/festivalLineup` tests existed but were
+  not in `test:unit`; they are now, with the new `festivalDates` and
+  `tests/recommendations/festivalLineupSeed` tests.
+
+Older app versions (iOS 3.12.9 and earlier) show a year-only festival with
+no date, and credit a lineup from the file as "Lineup from Ticketmaster".
+
 ## [5.57.0] — 2026-11-09
 
 Ships in iOS 3.12.9 (`MARKETING_VERSION` 3.12.8 → 3.12.9, the default patch

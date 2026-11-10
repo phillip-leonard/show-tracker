@@ -12,7 +12,10 @@
 // WHERE THE LINEUP COMES FROM. For an upcoming festival, Ticketmaster: on
 // open this asks netlify/functions/festival-lineup.js, which refetches at
 // most once a day and stores it on the shared festival (so every attendee
-// sees the same one, credited and linked to Ticketmaster). When Ticketmaster
+// sees the same one, credited and linked to Ticketmaster). A lineup the
+// admin put in data/festival-lineups.json (5.58.0, lineupSource 'seed') is
+// stored the same way, credited as the announced lineup and linked to the
+// announcement, and Ticketmaster never replaces it. When neither has one
 // has nothing, the user can type the lineup in. That copy is `myLineup` on
 // their own attendance record, private to them like their notes, so no
 // typed text ever reaches another person (no new UGC on iOS).
@@ -29,6 +32,7 @@ import { festivalPicks, becauseText, MAX_SEED_READS } from '@/lib/recommendation
 import { loadAffinityDocs } from '@/lib/discover';
 import useMyBands from '@/hooks/useMyBands';
 import BandSuggestionRow from '@/components/discover/BandSuggestionRow';
+import { festivalLastDay } from '@/lib/festivalDates';
 
 const MAX_TYPED = 300;
 
@@ -52,7 +56,7 @@ function Group({ icon: Icon, title, note, children }) {
 
 export default function FestivalPicks({ festival, onSaveMyLineup }) {
   const { uid, ready, bands, seeds, dismissed } = useMyBands();
-  const upcoming = (festival.endDate || festival.startDate || '') >= todayIso();
+  const upcoming = festivalLastDay(festival) >= todayIso();
   const canonicalId = festival.festivalId || null;
 
   const [tm, setTm] = useState({
@@ -94,7 +98,10 @@ export default function FestivalPicks({ festival, onSaveMyLineup }) {
   }, [uid, upcoming, canonicalId]);
 
   const myLineup = Array.isArray(festival.myLineup) ? festival.myLineup : [];
+  // The shared lineup on the festival itself, from Ticketmaster or from the
+  // lineup file. Either one wins over the user's own typed copy.
   const fromTicketmaster = tm.lineup.length > 0;
+  const announced = fromTicketmaster && tm.source === 'seed';
   const lineup = fromTicketmaster ? tm.lineup : myLineup;
 
   const seedSig = seeds.slice(0, MAX_SEED_READS).map((s) => s.key).join('|');
@@ -191,9 +198,9 @@ export default function FestivalPicks({ festival, onSaveMyLineup }) {
             {fromTicketmaster ? (
               tm.url ? (
                 <a href={tm.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 hover:text-primary hover:underline">
-                  Lineup from Ticketmaster <ExternalLink className="w-3 h-3" aria-hidden="true" />
+                  {announced ? 'The announced lineup' : 'Lineup from Ticketmaster'} <ExternalLink className="w-3 h-3" aria-hidden="true" />
                 </a>
-              ) : 'Lineup from Ticketmaster'
+              ) : (announced ? 'The announced lineup' : 'Lineup from Ticketmaster')
             ) : 'The lineup you entered. Only you can see it.'}
           </p>
         </>

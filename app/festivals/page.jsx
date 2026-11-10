@@ -22,7 +22,7 @@ import FestivalDetailView from '@/components/festivals/FestivalDetailView';
 import { Button, PageHeader, EmptyState } from '@/components/ui';
 import SplitView from '@/components/layout/SplitView';
 import useSplitView from '@/hooks/useSplitView';
-import { formatDate } from '@/lib/utils';
+import { festivalWhenLabel, festivalSortKey } from '@/lib/festivalDates';
 import { festivalHref } from '@/lib/festivalGrouping';
 
 export default function FestivalsPage() {
@@ -80,10 +80,10 @@ export default function FestivalsPage() {
     return (
       <SplitView
         label="Your festivals"
-        items={festivals.slice().sort((a, b) => (a.startDate < b.startDate ? 1 : -1)).map(f => ({
+        items={festivals.slice().sort((a, b) => (festivalSortKey(a) < festivalSortKey(b) ? 1 : -1)).map(f => ({
           id: f.id,
           title: f.name,
-          subtitle: `${formatDate(f.startDate)}${f.location ? ` · ${f.location}` : ''}`,
+          subtitle: [festivalWhenLabel(f), f.location].filter(Boolean).join(' · '),
         }))}
         selectedId={festival.id}
         onSelect={(id) => {
