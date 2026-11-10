@@ -112,9 +112,14 @@ async function fetchLineup(festival, { apiKey, get }) {
   return lineupFromEvents((body && body._embedded && body._embedded.events) || [], festival);
 }
 
-/** Upcoming means it hasn't ended yet (today counts). */
+/**
+ * Upcoming means it hasn't ended yet (today counts). A festival added with
+ * only a year (5.58.0) counts as running to 31 December, as
+ * lib/festivalDates.js festivalLastDay has it on the client.
+ */
 function isUpcoming(festival, now = Date.now()) {
-  const end = festival && (festival.endDate || festival.startDate);
+  const year = festival && Number.isInteger(festival.year) ? festival.year : null;
+  const end = festival && (festival.endDate || festival.startDate || (year ? `${year}-12-31` : ''));
   return !!end && end >= isoDay(now);
 }
 

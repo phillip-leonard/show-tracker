@@ -1,0 +1,4 @@
+{
+  "about": "Announced lineups for festivals in the shared catalog. Add an entry when a festival announces its lineup, deploy, then run Seed Festival Lineups on the admin page (dry run first). Format and rules: netlify/functions/lib/festivalLineupSeed.js. Example entry: { \"seedKey\": \"bonnaroo-2027\", \"artists\": [\"Headliner\", \"Second Act\"], \"sourceUrl\": \"https://www.bonnaroo.com/lineup\" }",
+  "lineups": []
+}

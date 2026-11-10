@@ -128,10 +128,12 @@ function createFakeDb() {
       const ops = [];
       return {
         set(ref, data, opts) { ops.push(() => ref.set(data, opts)); },
+        update(ref, data) { ops.push(() => ref.update(data)); },
         delete(ref) { ops.push(() => ref.delete()); },
         async commit() { for (const op of ops) await op(); },
       };
     },
+    async getAll(...refs) { return Promise.all(refs.map((r) => r.get())); },
     async runTransaction(fn) {
       for (let attempt = 0; attempt < 5; attempt++) {
         const reads = new Map(); // path → version seen

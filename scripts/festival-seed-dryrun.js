@@ -15,6 +15,12 @@
  *   node scripts/festival-seed-dryrun.js --env ../.env.local
  *   node scripts/festival-seed-dryrun.js --json          # raw plan
  *   node scripts/festival-seed-dryrun.js --confidence verified,high
+ *   node scripts/festival-seed-dryrun.js --lineups       # data/festival-lineups.json
+ *
+ * --lineups previews admin-seed-festival-lineups.js instead (5.58.0): what
+ * writing the announced lineups would set, replace or leave alone. Also
+ * read-only; the only write path is the admin page's "Seed festival
+ * lineups" card.
  *
  * Credentials come from FIREBASE_PROJECT_ID / FIREBASE_CLIENT_EMAIL /
  * FIREBASE_PRIVATE_KEY, as for the Netlify functions.
@@ -60,6 +66,18 @@ const SEED = require('../data/festival-seed.json');
     process.exit(1);
   }
   initializeApp({ credential: cert({ privateKey, clientEmail, projectId }), projectId });
+
+  if (args.includes('--lineups')) {
+    const { lineupDocIds, planLineups, formatLineupReport } = require('../netlify/functions/lib/festivalLineupSeed');
+    const { loadFestivals } = require('../netlify/functions/admin-seed-festival-lineups');
+    const entries = require('../data/festival-lineups.json').lineups || [];
+    const festivals = await loadFestivals(getFirestore(), lineupDocIds(entries));
+    const lineupPlan = planLineups(entries, festivals);
+    console.log(args.includes('--json')
+      ? JSON.stringify(lineupPlan, null, 2)
+      : formatLineupReport(lineupPlan, { entryCount: entries.length }));
+    return;
+  }
 
   const confArg = args.indexOf('--confidence');
   const confidence = confArg >= 0 ? args[confArg + 1] : undefined;

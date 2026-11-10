@@ -5,6 +5,8 @@
  *   - only attendees can ask; a fresh lineup isn't refetched
  *   - a past festival is never fetched
  *   - nothing found keeps the last lineup
+ *   - a lineup from data/festival-lineups.json is never replaced (5.58.0)
+ *   - a festival with only a year is never looked up (5.58.0)
  *
  *   node tests/recommendations/festivalLineup.test.js
  */
@@ -126,6 +128,39 @@ test('a Ticketmaster failure returns what is stored, without writing', async () 
   const res = await handle(s.ev, { db: s.db, get: failing, apiKey: 'k', now: NOW });
   assert.strictEqual(res.statusCode, 200);
   assert.deepStrictEqual(JSON.parse(res.body).lineup, []);
+  assert.strictEqual(s.db._writes.length, before);
+});
+
+test('a lineup from the lineup file is never replaced from Ticketmaster', async () => {
+  const seeded = {
+    ...FEST,
+    lineup: ['Headliner From The File'],
+    lineupSource: 'seed',
+    lineupUrl: 'https://www.bonnaroo.com/lineup',
+    lineupFetchedAt: new Date(NOW - 10 * L.REFRESH_MS), // stale by Ticketmaster's measure
+  };
+  const s = setup({ festival: seeded });
+  const before = s.db._writes.length;
+  const res = await handle(s.ev, { db: s.db, get: s.get, apiKey: 'k', now: NOW });
+  const body = JSON.parse(res.body);
+  assert.deepStrictEqual(body.lineup, ['Headliner From The File']);
+  assert.strictEqual(body.source, 'seed');
+  assert.strictEqual(body.url, 'https://www.bonnaroo.com/lineup');
+  assert.strictEqual(s.calls(), 0, 'Ticketmaster is not asked');
+  assert.strictEqual(s.db._writes.length, before, 'nothing is written');
+});
+
+test('a festival with only a year is upcoming through its year, and Ticketmaster is not asked', async () => {
+  const yearOnly = { name: 'Bonnaroo', year: 2027, createdBy: 'alice' };
+  assert.strictEqual(L.isUpcoming(yearOnly, Date.parse('2027-12-31T12:00:00Z')), true);
+  assert.strictEqual(L.isUpcoming(yearOnly, Date.parse('2028-01-01T00:00:00Z')), false);
+  assert.strictEqual(L.isUpcoming({ name: 'Bonnaroo', year: '2027' }, NOW), false, 'a string is not a year');
+  const s = setup({ festival: yearOnly });
+  const before = s.db._writes.length;
+  const res = await handle(s.ev, { db: s.db, get: s.get, apiKey: 'k', now: NOW });
+  assert.strictEqual(res.statusCode, 200);
+  assert.strictEqual(JSON.parse(res.body).upcoming, true);
+  assert.strictEqual(s.calls(), 0);
   assert.strictEqual(s.db._writes.length, before);
 });
 
