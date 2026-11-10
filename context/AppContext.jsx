@@ -8,7 +8,7 @@ import { nativeOAuthSignIn, isNativePlatform } from '@/lib/native-auth';
 import {
   collection, doc, setDoc, getDoc, getDocs, deleteDoc, updateDoc,
   serverTimestamp, onSnapshot, query, where, addDoc, writeBatch, limit,
-  arrayUnion, arrayRemove, Timestamp,
+  arrayUnion, arrayRemove, Timestamp, deleteField,
 } from 'firebase/firestore';
 import { auth, db, googleProvider, browserPopupRedirectResolver } from '@/lib/firebase';
 import { formatDate, parseDate } from '@/lib/utils';
@@ -32,6 +32,7 @@ import { resolveSource, SETLIST_SOURCES } from '@/lib/setlistSources';
 import { removeSongFromSetlist, insertSongAt } from '@/lib/setlistGrouping';
 import { buildExistingShowIndex, existingShowStatus } from '@/lib/tourBrowse';
 import { normalizeFestivalName, findFestivalMatches as matchFestivals } from '@/lib/festivalMatch';
+import { festivalWhenFields } from '@/lib/festivalDates';
 import { catalogFields } from '@/lib/festivalCatalog';
 import { logActivity } from '@/lib/activityFeed';
 import { rememberHeardShows } from '@/lib/heardLinks';
@@ -915,6 +916,7 @@ export function AppProvider({ children }) {
             name: canonical.name,
             startDate: canonical.startDate,
             endDate: canonical.endDate,
+            year: canonical.year,
             location: canonical.location || '',
             edition: canonical.edition || '',
             createdBy: canonical.createdBy,
@@ -2136,8 +2138,14 @@ export function AppProvider({ children }) {
   //       name            string   as the creator typed it
   //       nameNormalized  string   lib/festivalMatch normalizeFestivalName(name),
   //                                the key the dedup prefix query ranges over
-  //       startDate       string   yyyy-MM-dd
-  //       endDate         string   yyyy-MM-dd (== startDate for a one-day festival)
+  //       startDate       string   yyyy-MM-dd   } both, or neither (5.58.0):
+  //       endDate         string   yyyy-MM-dd   } == startDate for one day
+  //       year            number   the start date's year; on its own when
+  //                                the dates aren't known. Absent from
+  //                                festivals created before 5.58.0 and
+  //                                from catalog festivals, which always
+  //                                have dates. lib/festivalDates.js reads
+  //                                all three, so screens never need to.
   //       location        string   free text city/state, or a venue
   //       edition         string   optional, e.g. "2026"
   //       createdBy       string   uid
@@ -2219,8 +2227,13 @@ export function AppProvider({ children }) {
   //
   // The union of the two is then run through the real rule
   // (lib/festivalMatch.js), which is where the year/edition guard lives.
+  //
+  // A draft with only a year (5.58.0) has no window for query 2, so only
+  // the name prefix runs. That's the one that matters for it anyway: the
+  // rule then keeps the candidates in the same year, which can be every
+  // edition that year (both Coachella weekends) for the user to pick from.
   const findFestivalMatchesFor = async (draft) => {
-    if (!user || !draft?.name?.trim() || !draft?.startDate) return [];
+    if (!user || !draft?.name?.trim() || (!draft?.startDate && !draft?.year)) return [];
 
     const normalized = normalizeFestivalName(draft.name);
     const prefix = normalized.split(' ')[0] || '';
@@ -2241,7 +2254,7 @@ export function AppProvider({ children }) {
       const pad = 7 * 86400000;
       const from = new Date(Date.parse(`${draft.startDate}T00:00:00Z`) - pad);
       const to = new Date(Date.parse(`${draft.endDate || draft.startDate}T00:00:00Z`) + pad);
-      if (!Number.isNaN(from.getTime()) && !Number.isNaN(to.getTime())) {
+      if (draft.startDate && !Number.isNaN(from.getTime()) && !Number.isNaN(to.getTime())) {
         collect(await getDocs(query(
           collection(db, 'festivals'),
           where('startDate', '>=', from.toISOString().slice(0, 10)),
@@ -2291,6 +2304,7 @@ export function AppProvider({ children }) {
         name: canonicalFestival.name,
         startDate: canonicalFestival.startDate,
         endDate: canonicalFestival.endDate,
+        year: canonicalFestival.year,
         location: canonicalFestival.location || '',
         edition: canonicalFestival.edition || '',
         createdBy: canonicalFestival.createdBy,
@@ -2317,6 +2331,12 @@ export function AppProvider({ children }) {
   const createFestival = async (festivalData) => {
     if (!user) throw new Error('Sign in required to create a festival.');
     const name = (festivalData.name || '').trim();
+    // Both dates and their year, or only the year (5.58.0). Every field is
+    // spelled out in the literal below, because lib/__tests__/festivalSeed
+    // .test.js reads them from this source to check the seeder writes the
+    // same ones.
+    const when = festivalWhenFields(festivalData);
+    if (!when) throw new Error('A festival needs its dates or its year.');
     try {
       // doc() mints the id locally without writing, so the attendance
       // record can point at the canonical before the canonical exists.
@@ -2324,14 +2344,21 @@ export function AppProvider({ children }) {
       const canonical = {
         name,
         nameNormalized: normalizeFestivalName(name),
-        startDate: festivalData.startDate,
-        endDate: festivalData.endDate || festivalData.startDate,
+        startDate: when.startDate,
+        endDate: when.endDate,
+        year: when.year,
         location: festivalData.location?.trim() || '',
         edition: (festivalData.edition || '').trim(),
         createdBy: user.uid,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       };
+      // A year-only festival has no date fields at all: the rules refuse
+      // one date without the other, and refuse a null date.
+      if (!when.startDate) {
+        delete canonical.startDate;
+        delete canonical.endDate;
+      }
 
       const attendanceRef = doc(collection(db, 'users', user.uid, 'festivals'));
       const attendance = {
@@ -2362,6 +2389,7 @@ export function AppProvider({ children }) {
         name: canonical.name,
         startDate: canonical.startDate,
         endDate: canonical.endDate,
+        year: canonical.year,
         location: canonical.location,
         edition: canonical.edition,
         createdBy: user.uid,
@@ -2392,7 +2420,25 @@ export function AppProvider({ children }) {
   // creator-only — the rules reject anyone else, and the UI doesn't offer
   // it. Personal fields (notes, rating) always go to the caller's own
   // attendance record.
-  const CANONICAL_FESTIVAL_FIELDS = ['name', 'startDate', 'endDate', 'location', 'edition'];
+  const CANONICAL_FESTIVAL_FIELDS = ['name', 'startDate', 'endDate', 'year', 'location', 'edition'];
+
+  // An edit that touches when the festival happened is rewritten as a
+  // whole: both dates and their year, or only the year with both dates
+  // deleted, so the canonical document always holds one of the two shapes
+  // firestore.rules accepts. Returns { write, local }: deleteField()
+  // sentinels for Firestore, undefined for local state.
+  const whenPatch = (patch) => {
+    if (!['startDate', 'endDate', 'year'].some(k => k in patch)) return { write: patch, local: patch };
+    const when = festivalWhenFields(patch);
+    if (!when) throw new Error('A festival needs its dates or its year.');
+    const rest = { ...patch };
+    delete rest.startDate; delete rest.endDate; delete rest.year;
+    if (when.startDate) return { write: { ...rest, ...when }, local: { ...rest, ...when } };
+    return {
+      write: { ...rest, year: when.year, startDate: deleteField(), endDate: deleteField() },
+      local: { ...rest, year: when.year, startDate: undefined, endDate: undefined },
+    };
+  };
 
   const updateFestivalData = async (attendanceId, updates) => {
     if (!user) return;
@@ -2424,13 +2470,16 @@ export function AppProvider({ children }) {
       return;
     }
 
+    let canonicalLocal = canonicalPatch;
     try {
       if (Object.keys(canonicalPatch).length > 0 && festival.festivalId) {
         if (canonicalPatch.name != null) {
           canonicalPatch.nameNormalized = normalizeFestivalName(canonicalPatch.name);
         }
+        const { write, local } = whenPatch(canonicalPatch);
+        canonicalLocal = local;
         await updateDoc(doc(db, 'festivals', festival.festivalId), {
-          ...canonicalPatch,
+          ...write,
           updatedAt: serverTimestamp(),
         });
       }
@@ -2441,7 +2490,7 @@ export function AppProvider({ children }) {
         });
       }
       setFestivals(prev => prev.map(f => (
-        f.id === attendanceId ? { ...f, ...personalPatch, ...canonicalPatch, updatedAt: new Date() } : f
+        f.id === attendanceId ? { ...f, ...personalPatch, ...canonicalLocal, updatedAt: new Date() } : f
       )));
     } catch (error) {
       console.error('Failed to update festival:', error);

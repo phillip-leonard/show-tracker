@@ -16,6 +16,7 @@ import { useMemo, useState } from 'react';
 import { Search, Tent } from 'lucide-react';
 import { Modal, Button, Input } from '@/components/ui';
 import { formatDate } from '@/lib/utils';
+import { festivalWhenLabel, festivalYear, showFitsFestival } from '@/lib/festivalDates';
 
 export default function AttachShowsModal({ open, onClose, festival, shows, festivals, onAttach }) {
   const [query, setQuery] = useState('');
@@ -24,10 +25,10 @@ export default function AttachShowsModal({ open, onClose, festival, shows, festi
   const [conflicts, setConflicts] = useState(null); // [{showId, artist, date, festivalId}] | null
   const [saving, setSaving] = useState(false);
 
-  const inRange = (show) => {
-    if (!festival?.startDate || !festival?.endDate || !show.date) return true;
-    return show.date >= festival.startDate && show.date <= festival.endDate;
-  };
+  // Inside the festival's dates, or anywhere in its year when it was added
+  // with only a year (lib/festivalDates.js).
+  const inRange = (show) => showFitsFestival(show.date, festival);
+  const hasWindow = !!(festival?.startDate || festivalYear(festival));
 
   const candidates = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -84,7 +85,7 @@ export default function AttachShowsModal({ open, onClose, festival, shows, festi
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search by artist, venue, or date"
         />
-        {festival?.startDate && festival?.endDate && (
+        {hasWindow && (
           <label className="flex items-center gap-2 text-sm text-secondary">
             <input
               type="checkbox"
@@ -92,7 +93,7 @@ export default function AttachShowsModal({ open, onClose, festival, shows, festi
               onChange={(e) => setIncludeOutsideRange(e.target.checked)}
               className="rounded"
             />
-            Show shows outside {formatDate(festival.startDate)} – {formatDate(festival.endDate)}
+            Show shows outside {festivalWhenLabel(festival)}
           </label>
         )}
 

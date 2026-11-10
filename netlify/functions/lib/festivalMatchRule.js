@@ -116,6 +116,26 @@ function datesAreClose(a, b) {
   return Math.abs(wa.start - wb.start) <= MAX_START_DATE_GAP_DAYS * MS_PER_DAY;
 }
 
+// A festival added with only a year (5.58.0) has `year` and no dates. See
+// lib/festivalMatch.js for why the year is its date gate.
+function festivalYear(festival) {
+  const w = windowOf(festival);
+  if (w) return new Date(w.start).getUTCFullYear();
+  const y = festival && festival.year;
+  return Number.isInteger(y) && y >= MIN_FESTIVAL_YEAR && y <= MAX_FESTIVAL_YEAR ? y : null;
+}
+
+function isYearOnly(festival) {
+  return !windowOf(festival) && festivalYear(festival) !== null;
+}
+
+function yearsAgree(a, b) {
+  if (windowOf(a) && windowOf(b)) return false;
+  const ya = festivalYear(a);
+  const yb = festivalYear(b);
+  return ya !== null && ya === yb;
+}
+
 function normalizeLocation(location) {
   return String(location || '')
     .toLowerCase()
@@ -134,7 +154,7 @@ function locationsAgree(a, b) {
 
 function festivalsMatch(a, b) {
   if (!a || !b) return false;
-  return namesAreClose(a.name, b.name) && datesAreClose(a, b);
+  return namesAreClose(a.name, b.name) && (datesAreClose(a, b) || yearsAgree(a, b));
 }
 
 /**
@@ -180,6 +200,9 @@ module.exports = {
   nameSimilarity,
   namesAreClose,
   datesAreClose,
+  festivalYear,
+  isYearOnly,
+  yearsAgree,
   normalizeLocation,
   locationsAgree,
   festivalsMatch,

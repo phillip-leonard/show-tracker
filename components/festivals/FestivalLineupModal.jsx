@@ -31,6 +31,7 @@ import { SetlistfmCredit } from '@/components/shows/SetlistfmAttribution';
 import { useApp } from '@/context/AppContext';
 import { apiUrl } from '@/lib/api';
 import { formatDate } from '@/lib/utils';
+import { festivalWhenLabel, festivalYear, isYearOnly } from '@/lib/festivalDates';
 import { extractSongsFromSetlist } from '@/lib/setlistParser';
 
 export default function FestivalLineupModal({ open, onClose, festival, onImport }) {
@@ -78,6 +79,9 @@ export default function FestivalLineupModal({ open, onClose, festival, onImport 
       if (festival?.location) params.set('city', festival.location);
       if (festival?.startDate) params.set('from', festival.startDate);
       if (festival?.endDate) params.set('to', festival.endDate);
+      // Added with only a year (5.58.0): the search falls back to its
+      // year-scoped queries, which search-festival-lineup.js already has.
+      if (!festival?.startDate && festivalYear(festival)) params.set('year', String(festivalYear(festival)));
       if (searchMode === 'artist') params.set('artist', artistQuery.trim());
 
       const res = await fetch(`${apiUrl('/.netlify/functions/search-festival-lineup')}?${params}`);
@@ -165,14 +169,20 @@ export default function FestivalLineupModal({ open, onClose, festival, onImport 
               {festival.location}
             </span>
           )}
-          {festival?.startDate && (
+          {festivalWhenLabel(festival) && (
             <span className="inline-flex items-center gap-1 text-secondary">
               <CalendarDays className="w-3.5 h-3.5" aria-hidden="true" />
-              {formatDate(festival.startDate)}
-              {festival.endDate !== festival.startDate ? ` – ${formatDate(festival.endDate)}` : ''}
+              {festivalWhenLabel(festival)}
             </span>
           )}
         </div>
+
+        {isYearOnly(festival) && (
+          <p className="text-xs text-muted -mt-2">
+            This festival has a year but no dates, so the search can’t narrow it to the festival’s
+            days and may show other shows from that year. Add the dates (Edit) for a closer match.
+          </p>
+        )}
 
         {!festival?.location && (
           <p className="text-xs text-muted -mt-2">
