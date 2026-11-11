@@ -128,6 +128,66 @@ test('with the flag on, it sends to exactly the 2026 audience', async () => {
   }
 });
 
+test('each email sends once: a second Send is a 409 and nobody is emailed again', async () => {
+  const { db, calls } = setup();
+  process.env.YEAR_RECAP_EMAILS_ENABLED = 'true';
+  try {
+    const first = await parse(call({ mode: 'send', audience: 'recap-2026', template: 'ready' }));
+    assert.strictEqual(first.http, 200);
+    assert.strictEqual(first.announcementId, 'recap2026ready');
+    const sentBefore = calls.length;
+
+    const again = await parse(call({ mode: 'send', audience: 'recap-2026', template: 'ready' }));
+    assert.strictEqual(again.http, 409);
+    assert.strictEqual(again.announcementId, 'recap2026ready');
+    assert.strictEqual(again.alreadySent.counts.sent, 2);
+    assert.strictEqual(calls.length, sentBefore, 'no second email');
+    assert.strictEqual(db._list('announcements').length, 1);
+
+    const preview = await parse(call({ mode: 'preview', audience: 'recap-2026', template: 'ready' }));
+    assert.strictEqual(preview.alreadySent.announcementId, 'recap2026ready');
+    assert.strictEqual(preview.alreadySent.status, 'completed');
+
+    // The other email is its own send.
+    const preFinal = await parse(call({ mode: 'preview', audience: 'recap-2026', template: 'final' }));
+    assert.strictEqual(preFinal.alreadySent, null);
+    const final = await parse(call({ mode: 'send', audience: 'recap-2026', template: 'final' }));
+    assert.strictEqual(final.http, 200);
+    assert.strictEqual(final.announcementId, 'recap2026final');
+  } finally {
+    delete process.env.YEAR_RECAP_EMAILS_ENABLED;
+  }
+});
+
+test('two Sends racing past the check: only one creates the send', async () => {
+  const { db, calls } = setup();
+  process.env.YEAR_RECAP_EMAILS_ENABLED = 'true';
+  try {
+    // The other tab's create() lands between this call's check and its own create().
+    const realDoc = db.doc.bind(db);
+    let checked = 0;
+    db.doc = (path) => {
+      const ref = realDoc(path);
+      if (path !== 'announcements/recap2026ready') return ref;
+      return {
+        ...ref,
+        get: async () => {
+          const snap = await ref.get();
+          checked += 1;
+          if (checked === 1) await realDoc(path).create({ status: 'sending', counts: { sent: 0 } });
+          return snap;
+        },
+      };
+    };
+    const r = await parse(call({ mode: 'send', audience: 'recap-2026', template: 'ready' }));
+    assert.strictEqual(r.http, 409);
+    assert.ok(r.alreadySent);
+    assert.strictEqual(calls.length, 0);
+  } finally {
+    delete process.env.YEAR_RECAP_EMAILS_ENABLED;
+  }
+});
+
 test('an unknown audience or template is a 400', async () => {
   setup();
   assert.strictEqual((await parse(call({ mode: 'preview', audience: 'everyone' }))).http, 400);

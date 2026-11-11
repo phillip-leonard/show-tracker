@@ -40,6 +40,9 @@
  * subject/html. Only accounts with a 2026 show, no extra emails, the
  * subject and HTML built here from the template, and a real send refused
  * unless YEAR_RECAP_EMAILS_ENABLED=true. Preview and test always work.
+ * Each template sends once: it lives at a fixed announcements/{id}
+ * (recapAnnouncementId), created with create(), so a second Send is a 409
+ * rather than a second email to everyone. Preview reports `alreadySent`.
  */
 
 const crypto = require('crypto');
@@ -105,6 +108,18 @@ async function loadRecapState(db) {
   const [state, uids] = await Promise.all([loadOptOutState(db), recapEmails.loadUidsWithShowsIn(db, recapEmails.RECAP_YEAR)]);
   return { ...state, profiles: state.profiles.filter((p) => uids.has(p.uid)) };
 }
+
+// What an earlier send of this recap email looks like, or null.
+async function recapAlreadySent(db, template) {
+  const id = recapEmails.recapAnnouncementId(template);
+  const snap = await db.doc(`announcements/${id}`).get();
+  if (!snap.exists) return null;
+  const a = snap.data() || {};
+  const createdAt = a.createdAt?.toDate?.()?.toISOString?.() || (a.createdAt instanceof Date ? a.createdAt.toISOString() : null);
+  return { announcementId: id, status: a.status || null, counts: a.counts || null, createdAt };
+}
+
+const isAlreadyExists = (err) => err && (err.code === 6 || err.code === 'already-exists' || /ALREADY_EXISTS/.test(String(err.message || '')));
 
 function replyTo(decoded) {
   return process.env.ANNOUNCEMENT_REPLY_TO || decoded.email;
@@ -294,7 +309,7 @@ exports.handler = async function (event) {
         counts,
         invalidSamples,
         missingConfig: missingConfig(),
-        ...(recap ? { recapEnabled: recapEmails.recapEmailsEnabled() } : {}),
+        ...(recap ? { recapEnabled: recapEmails.recapEmailsEnabled(), alreadySent: await recapAlreadySent(db, recap.template) } : {}),
       });
     }
 
@@ -329,27 +344,46 @@ exports.handler = async function (event) {
       if (recap && !recapEmails.recapEmailsEnabled()) {
         return reply(412, { error: 'Year in Review emails are switched off. Set YEAR_RECAP_EMAILS_ENABLED=true in Netlify to send them.', recapEnabled: false });
       }
+      const alreadySentReply = (sent) => reply(409, {
+        error: 'This Year in Review email has already been sent. Use Resume in the history list if it stopped part-way.',
+        alreadySent: sent,
+        announcementId: sent.announcementId,
+      });
+      if (recap) {
+        const sent = await recapAlreadySent(db, recap.template);
+        if (sent) return alreadySentReply(sent);
+      }
       const invalid = validateContent(body);
       if (invalid) return reply(400, { error: invalid });
       const extraEmails = Array.isArray(body.extraEmails) ? body.extraEmails.slice(0, MAX_EXTRAS) : [];
       const state = recap ? await loadRecapState(db) : await loadOptOutState(db);
       const { recipients, counts } = buildAnnouncementRecipients({ ...state, extraEmails });
       if (!recipients.length) return reply(400, { error: 'Nobody to send to', counts });
-      annRef = db.collection('announcements').doc();
+      annRef = recap
+        ? db.doc(`announcements/${recapEmails.recapAnnouncementId(recap.template)}`)
+        : db.collection('announcements').doc();
       const now = new Date();
-      await annRef.set({
-        subject: body.subject.trim(),
-        html: body.html,
-        createdBy: decoded.email,
-        createdByUid: decoded.uid,
-        createdAt: now,
-        updatedAt: now,
-        status: 'preparing',
-        ...(recap ? { audience: recap.audience, template: recap.template } : {}),
-        recipientCounts: counts,
-        counts: { total: recipients.length, sent: 0, failed: 0, skipped: 0, pending: recipients.length },
-        leaseUntil: null,
-      });
+      // create(), not set(), for a recap: of two Sends racing past the check
+      // above, only one gets the document.
+      const write = recap ? (data) => annRef.create(data) : (data) => annRef.set(data);
+      try {
+        await write({
+          subject: body.subject.trim(),
+          html: body.html,
+          createdBy: decoded.email,
+          createdByUid: decoded.uid,
+          createdAt: now,
+          updatedAt: now,
+          status: 'preparing',
+          ...(recap ? { audience: recap.audience, template: recap.template } : {}),
+          recipientCounts: counts,
+          counts: { total: recipients.length, sent: 0, failed: 0, skipped: 0, pending: recipients.length },
+          leaseUntil: null,
+        });
+      } catch (err) {
+        if (recap && isAlreadyExists(err)) return alreadySentReply(await recapAlreadySent(db, recap.template));
+        throw err;
+      }
       await commitInChunks(db, recipients.map((r) => [annRef.collection('recipients').doc(r.hash), {
         email: r.email, uid: r.uid, status: 'pending', error: null, batchKey: null, createdAt: now, updatedAt: now,
       }]));
