@@ -183,11 +183,14 @@ function AppShell({ children }) {
   }, [authLoading, user, guestMode, pathname]);
 
   // A personal poster (/my-poster/?artist=…, from a /p/ link's "Make your
-  // own") needs an account: open sign-in over the landing page. The URL
-  // stays put, so signing in lands on the poster.
+  // own") and a Year in Review (/year-in-review/?year=…, from the App Store
+  // event, an email or a recap's "Make your own") need an account: open
+  // sign-in over the landing page. The URL stays put, so signing in lands
+  // on the page (lib/deepLinks.js signInLeavesRoute).
   useEffect(() => {
     if (authLoading || user || guestMode) return;
-    if ((pathname || '').replace(/\/+$/, '') === '/my-poster') setAuthModal((m) => m || 'login');
+    const path = (pathname || '').replace(/\/+$/, '');
+    if (path === '/my-poster' || path === '/year-in-review') setAuthModal((m) => m || 'login');
   }, [authLoading, user, guestMode, pathname, setAuthModal]);
 
   // The comparison pages (lib/comparePages.js) are web pages with their

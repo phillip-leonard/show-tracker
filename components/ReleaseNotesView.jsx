@@ -13,6 +13,17 @@ const STREAMING_MENTION = /spotify|apple\s*music/i;
 function ReleaseNotesView() {
   const releases = [
     {
+      version: '5.59.0',
+      date: 'November 11, 2026',
+      title: 'Your 2026 In Live Music Arrives December 2',
+      changes: [
+        'Coming December 2: your 2026 recap, with your top bands and songs, your rarest catch, your show buddy, and a card to share. It keeps updating through New Year\u2019s Eve',
+        'Year in Review now has a year picker, for every year you\u2019ve logged',
+        'Fixed: a Year in Review you made public no longer turns private again when you open it',
+        'Fixed: sharing your Year in Review from the iPhone app now shares a link that works for everyone',
+      ]
+    },
+    {
       version: '5.58.0',
       date: 'November 9, 2026',
       title: 'Don\u2019t Remember the Dates? Just the Year Will Do',

@@ -6,6 +6,7 @@ import { ArrowLeft, Trophy, Star, MapPin, Music, Flame, Lock, Globe } from 'luci
 import { useApp } from '@/context/AppContext';
 import { PageHeader, Button, Card, StatTile } from '@/components/ui';
 import ShareYearInReview from '@/components/yearInReview/ShareYearInReview';
+import YearSelector from '@/components/yearInReview/YearSelector';
 import {
   computeYearInReview, showYear, saveYearInReview, getYearInReview, setYearInReviewPrivacy,
 } from '@/lib/yearInReview';
@@ -21,21 +22,27 @@ export default function YearInReviewClient({ userId, year }) {
   const [remoteDoc, setRemoteDoc] = useState(undefined); // undefined = loading, null = not found
   const [privacy, setPrivacy] = useState('private');
 
+  // The cached stats only; the stored privacy choice is never overwritten
+  // here (see saveYearInReview).
   useEffect(() => {
     if (isOwner && ownStats) {
-      saveYearInReview(userId, year, ownStats, privacy).catch((err) => console.error('Failed to cache year-in-review:', err));
+      saveYearInReview(userId, year, ownStats).catch((err) => console.error('Failed to cache year-in-review:', err));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOwner, ownStats]);
 
+  // The stored doc: a visitor's stats, and everyone's privacy choice. The
+  // owner used to start at 'private' every visit whatever was stored.
   useEffect(() => {
-    if (isOwner) return;
-    getYearInReview(userId, year).then(setRemoteDoc).catch(() => setRemoteDoc(null));
-  }, [isOwner, userId, year]);
-
-  useEffect(() => {
-    if (isOwner) return;
-    getYearInReview(userId, year).then((d) => { if (d?.privacy) setPrivacy(d.privacy); });
+    let live = true;
+    getYearInReview(userId, year)
+      .then((d) => {
+        if (!live) return;
+        if (!isOwner) setRemoteDoc(d);
+        setPrivacy(d?.privacy === 'public' ? 'public' : 'private');
+      })
+      .catch(() => { if (live && !isOwner) setRemoteDoc(null); });
+    return () => { live = false; };
   }, [isOwner, userId, year]);
 
   const stats = isOwner ? ownStats : remoteDoc?.stats;
@@ -52,20 +59,28 @@ export default function YearInReviewClient({ userId, year }) {
 
   if (!stats) {
     return (
+      <div className="max-w-3xl mx-auto">
+      {isOwner && <YearSelector year={year} />}
       <div className="py-24 text-center">
         <p className="text-lg text-primary mb-4">
           {isOwner ? `No shows logged for ${year} yet.` : 'This year in review is private or unavailable.'}
         </p>
         <Button variant="ghost" icon={ArrowLeft} onClick={() => router.push('/')}>Back home</Button>
       </div>
+      </div>
     );
   }
 
-  const shareUrl = typeof window !== 'undefined' ? window.location.href : `https://mysetlists.net${yearInReviewHref(userId, year)}`;
+  // Always the public address: in the iOS app window.location is
+  // capacitor://localhost/…, which opens nothing for anyone else.
+  const shareUrl = `https://mysetlists.net${yearInReviewHref(userId, year)}`;
 
   return (
     <div className="max-w-3xl mx-auto">
-      <Button variant="ghost" icon={ArrowLeft} onClick={() => router.push('/')} className="hidden md:inline-flex mb-4">Back</Button>
+      <div className="flex items-center justify-between gap-3 mb-4">
+        <Button variant="ghost" icon={ArrowLeft} onClick={() => router.push('/')} className="hidden md:inline-flex">Back</Button>
+        {isOwner && <YearSelector year={year} className="ml-auto" />}
+      </div>
 
       <div className="rounded-2xl overflow-hidden bg-gradient-to-br from-brand to-[#059669] text-white p-8 md:p-12 text-center mb-8">
         <p className="text-sm font-bold uppercase tracking-wide opacity-90 mb-2">MySetlists</p>

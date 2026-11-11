@@ -3,51 +3,74 @@
 import React, { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Sparkles, X } from 'lucide-react';
-import { computeYearInReview } from '@/lib/yearInReview';
-import { yearInReviewHref } from '@/lib/showRouting';
+import { computeYearRecap } from '@/lib/yearRecap';
+import { RECAP_YEAR, recapPromoActive, recapHref } from '@/lib/recapLaunch';
 
-// Determines which year's review is "ready" right now — available
-// mid-December through February per the spec. December shows the review
-// for the year currently ending; January/February show the prior year's.
-function currentReviewYear(now = new Date()) {
-  const month = now.getMonth(); // 0-indexed
-  if (month === 11) return now.getFullYear(); // December
-  if (month <= 1) return now.getFullYear() - 1; // Jan/Feb
-  return null;
+// The My Shows banner: "Your 2026 in live music is ready →", Dec 2 – Jan
+// 15 (lib/recapLaunch.js), for anyone with a 2026 show. Until 5.59.0 it
+// showed from Dec 1 through February and came back on every visit.
+//
+// Dismissing it is remembered on this device. Storage can be blocked (a
+// private window, an iOS setting), so every read and write is wrapped:
+// without it the banner just comes back next visit.
+
+const DISMISS_KEY = `mysetlists_recap_banner_dismissed_${RECAP_YEAR}`;
+
+function readDismissed() {
+  try {
+    return localStorage.getItem(DISMISS_KEY) === '1';
+  } catch {
+    return false;
+  }
 }
 
-// Promo banner shown on the home/shows page mid-December through
-// February: "Your <year> Year in Concerts is Ready!"
+function writeDismissed() {
+  try {
+    localStorage.setItem(DISMISS_KEY, '1');
+  } catch {
+    // Storage blocked: dismissed for this visit only.
+  }
+}
+
 export default function YearInReviewCard({ shows, user }) {
-  const [dismissed, setDismissed] = useState(false);
   const router = useRouter();
+  const active = recapPromoActive();
+  const [dismissed, setDismissed] = useState(() => (typeof window !== 'undefined' ? readDismissed() : false));
+  const recap = useMemo(() => (active ? computeYearRecap(shows, RECAP_YEAR) : null), [active, shows]);
 
-  const year = useMemo(() => currentReviewYear(), []);
-  const stats = useMemo(() => (year ? computeYearInReview(shows, year) : null), [shows, year]);
+  if (!active || !recap || dismissed || !user) return null;
 
-  if (!year || !stats || dismissed || !user) return null;
+  const dismiss = (e) => {
+    e.stopPropagation();
+    writeDismissed();
+    setDismissed(true);
+  };
 
   return (
-    <button
-      type="button"
-      onClick={() => router.push(yearInReviewHref(user.uid, year))}
-      className="w-full text-left mb-6 relative overflow-hidden rounded-2xl p-5 md:p-6 bg-gradient-to-br from-brand to-[#059669] text-white shadow-theme-lg hover:brightness-105 transition-all"
-    >
-      <span
-        role="button"
-        tabIndex={0}
-        onClick={(e) => { e.stopPropagation(); setDismissed(true); }}
-        onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); setDismissed(true); } }}
-        className="absolute top-3 right-3 p-1.5 rounded-lg hover:bg-white/20"
+    <div className="relative mb-6">
+      <button
+        type="button"
+        onClick={() => router.push(recapHref())}
+        className="w-full text-left overflow-hidden rounded-2xl p-5 md:p-6 pr-14 bg-gradient-to-br from-[#1c1c36] to-[#2a2a4e] text-white border border-subtle shadow-theme-lg hover:brightness-110 transition-all"
+      >
+        <div className="flex items-center gap-2 text-[13px] font-bold uppercase tracking-wide mb-1.5 text-[#34D399]">
+          <Sparkles size={15} aria-hidden="true" /> Year in Review
+        </div>
+        <h3 className="text-xl md:text-2xl font-extrabold mb-1">
+          Your <span className="text-[#FB923C]">{RECAP_YEAR}</span> in live music is ready &rarr;
+        </h3>
+        <p className="text-sm text-white/80">
+          {recap.totalShows} show{recap.totalShows === 1 ? '' : 's'} · {recap.totalBands} band{recap.totalBands === 1 ? '' : 's'} · {recap.songsHeard} song{recap.songsHeard === 1 ? '' : 's'} heard
+        </p>
+      </button>
+      <button
+        type="button"
+        onClick={dismiss}
+        className="absolute top-3 right-3 p-2 rounded-lg text-white/80 hover:bg-white/15 min-h-[44px] min-w-[44px] md:fine:min-h-0 md:fine:min-w-0 flex items-center justify-center"
         aria-label="Dismiss"
       >
         <X size={16} />
-      </span>
-      <div className="flex items-center gap-2 text-[13px] font-bold uppercase tracking-wide mb-1.5 opacity-90">
-        <Sparkles size={15} /> Year in Review
-      </div>
-      <h3 className="text-xl md:text-2xl font-extrabold mb-1">Your {year} Year in Concerts is Ready!</h3>
-      <p className="text-sm opacity-90">{stats.totalShows} shows · {stats.totalArtists} bands · {stats.totalVenues} venues — see your full recap &rarr;</p>
-    </button>
+      </button>
+    </div>
   );
 }

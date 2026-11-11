@@ -11,6 +11,7 @@ import { useStatsPeriod } from '@/lib/useStatsPeriod';
 import ShowFilters from '@/components/shows/ShowFilters';
 import useShowFilters from '@/hooks/useShowFilters';
 import { SetlistfmCreditFor } from '@/components/shows/SetlistfmAttribution';
+import RecapStatsCard from '@/components/yearInReview/RecapStatsCard';
 
 export default function StatsPage() {
   const {
@@ -73,6 +74,8 @@ export default function StatsPage() {
       />
 
       <StatsSubNav active="overview" />
+
+      {!guestMode && <RecapStatsCard shows={shows} />}
 
       {shows.length > 0 && (
         <ShowFilters

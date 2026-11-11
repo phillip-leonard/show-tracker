@@ -4,6 +4,87 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.59.0] — 2026-11-11
+
+Ships in iOS 3.13 (`MARKETING_VERSION` 3.12.11 → 3.13, a minor bump as
+asked. The build number is left to Xcode Cloud). This build must be
+approved before 2026-12-02: the recap is bundled, and the App Store In-App
+Event (Dec 2 – Jan 1) links to it.
+
+**Year in Review 2026: "Your 2026 in live music", a recap that launches
+on December 2 and keeps updating through New Year's Eve.**
+
+- **The recap** (`components/yearInReview/YearRecapView.jsx`, computed by
+  `lib/yearRecap.js`): headline numbers (shows, bands, venues, songs heard,
+  new bands, new venues, and cities when there's more than one), top 5
+  bands, top 10 songs (a song played twice at one show counts once, as on
+  Stats), rarest catch and bust-outs witnessed, show buddy, highlights
+  (first show, most recent, busiest month, longest run), "Updated through
+  <latest show>", and "Missing a show? Add it". Shows with no setlist count
+  toward shows, bands and venues but not songs, with a line listing them.
+  Bands and songs are keyed the way Stats keys them (`artistNameKeyLoose`,
+  `songTitleKey`), so the numbers agree.
+- **Rarest catch and bust-outs** (`lib/yearRecapRarity.js`) are
+  `heardRecord.js`'s own `matchLoggedShows` + `buildRecord`, run on the
+  year's shows against `/api/artist-shows` for Goose, Phish, Umphrey's
+  McGee and King Gizzard only. The section is hidden when there's nothing
+  to show; it never shows a zero or a placeholder.
+- **Show buddy** counts only accepted tags: `taggedFriendUids` is written
+  while a tag is still pending, so the tags you sent are confirmed against
+  `showTags` with `status == 'accepted'` (`lib/yearRecapData.js`), plus
+  shows a friend tagged you on (`taggedByUid`). Links to Shows Together,
+  which now has a URL: `/friends/?together=<uid>`.
+- **The recap card** is drawn on the server like the "Songs I've heard"
+  posters (`netlify/functions/lib/yearRecapCard.js`, resvg): 1080×1920 and
+  1080×1350, type only, navy / mint / orange. Save or share on iOS,
+  Download and Share on the web, through `components/heard/PosterShare.jsx`
+  (pulled out of `MyPosterView.jsx`, which now uses it too). The show
+  buddy's first name is on the card only when the server confirms they're
+  your friend and their profile is public; the app sends a uid, never a
+  name.
+- **Share link.** `POST /api/my-poster` with `recap` stores it in the same
+  Blobs store as the posters, under the same `/p/<code>/` addresses, with
+  `type: 'recap'`. The page is server-rendered with a 1200×630 OG image, a
+  "Make your own 2026 recap" button and `noindex`. Stored: counts, band and
+  song names, rarest catch, bust-outs, busiest month, longest run. Never a
+  user id, email, notes, show ids or friend names (unless public, as above).
+- **Launch gate** (`lib/recapLaunch.js`): the recap replaces the old layout
+  for your own 2026 review from 2026-12-02 00:00 Pacific. Before then every
+  year keeps today's page. `RECAP_FORCE_LIVE` flips it for a test build;
+  `?recap=preview` shows it early to admins only, on any build. With no
+  `?year=`, the page opens on 2026 once it's live.
+- **Entry points, Dec 2 – Jan 15 only:** the My Shows banner ("Your 2026 in
+  live music is ready →"; dismissal remembered on the device, and storage
+  failures only mean it comes back) and a card at the top of Stats. The
+  banner used to show from Dec 1 through February and return every visit.
+- **Signed out**, `/year-in-review/` opens sign-in over the landing page and
+  keeps the URL, so the event's link
+  (`https://mysetlists.net/year-in-review/?year=2026`) lands on the recap
+  after signing in, cold or warm. The route, the AASA entry and the iOS
+  deep-link handling were already in place (5.46.0, 5.47.18).
+- **"Add it"** opens Search with `?returnTo=/year-in-review/?year=2026`,
+  which shows a "Back to your 2026 recap" bar.
+- **Emails, built and switched off** (`netlify/functions/lib/yearRecapEmail.js`):
+  "Your 2026 in live music is ready" (Dec 2) and "Your final 2026 recap,
+  NYE included" (Jan 2). They go out from Admin → Announcements through
+  `admin-send-announcement.js`'s new `audience: 'recap-2026'`: only accounts
+  with a 2026 show, both opt-outs applied (category `announcement`),
+  signed unsubscribe link and `List-Unsubscribe` headers, resumable and
+  never twice. The server builds the subject and body from the template and
+  refuses a real send unless `YEAR_RECAP_EMAILS_ENABLED=true` is set in
+  Netlify; preview and "send test to me" always work. Nothing sends on
+  deploy. The old `yearInReviewReadyEmail`, which nothing called, is gone.
+- **Fixed: a public Year in Review went private whenever its owner opened
+  it.** The page started at "private" and wrote it back on every visit;
+  it now reads the stored choice and never overwrites it.
+- **Fixed: the old page's share link in the iOS app was
+  `capacitor://localhost/…`.** It's always the mysetlists.net address now.
+- A year picker on your own Year in Review, for every year you've logged.
+- Tests: `lib/__tests__/yearRecap.test.js` (hand-counted account, buddy,
+  rarity, launch dates), `tests/public-pages/yearRecapCard.test.js` (what
+  a stored recap may contain, the buddy gate, the share page),
+  `tests/email/yearRecapEmail.test.js` (audience, templates, the send flag).
+
 ## [5.58.1] — 2026-11-11
 
 Ships in iOS 3.12.11 (`MARKETING_VERSION` 3.12.10 → 3.12.11, the default patch

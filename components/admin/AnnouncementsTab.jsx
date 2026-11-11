@@ -20,6 +20,7 @@ import { Card, Button, Input, Textarea, Badge, Modal, Spinner, EmptyState } from
 import { auth } from '@/lib/firebase';
 import { apiUrl } from '@/lib/api';
 import { wrapEmail, injectUnsubscribeFooter } from '@/netlify/functions/lib/emailLayout';
+import { recapEmail, RECAP_AUDIENCE, RECAP_YEAR } from '@/netlify/functions/lib/yearRecapEmail';
 
 async function callAnnouncements(body) {
   const idToken = await auth.currentUser.getIdToken();
@@ -69,6 +70,120 @@ function StatusBadge({ status }) {
   };
   const [tone, label] = map[status] || ['neutral', status || 'Unknown'];
   return <Badge tone={tone} size="sm">{label}</Badge>;
+}
+
+// The two Year in Review emails (netlify/functions/lib/yearRecapEmail.js):
+// fixed templates, sent only to accounts with a show in the recap year.
+// The server refuses a real send until YEAR_RECAP_EMAILS_ENABLED=true is
+// set in Netlify; preview and "send test to me" always work.
+const RECAP_TEMPLATES = [['ready', `"Ready" (send Dec 2)`], ['final', `"Final, NYE included" (send Jan 2)`]];
+
+function RecapEmailCard({ busy, setBusy, runSend }) {
+  const [template, setTemplate] = useState('ready');
+  const [preview, setPreview] = useState(null); // { counts, recapEnabled, missingConfig, template }
+  const [message, setMessage] = useState(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const email = recapEmail(template, RECAP_YEAR);
+  const html = useMemo(() => injectUnsubscribeFooter(wrapEmail(email.html), {
+    url: '#', scope: 'announcements', mailingAddress: 'Your mailing address (from MAILING_ADDRESS)',
+  }), [email.html]);
+  const body = { audience: RECAP_AUDIENCE, template };
+  const current = preview && preview.template === template;
+
+  const handlePreview = async () => {
+    setBusy('recap-preview'); setMessage(null);
+    try {
+      const r = await callAnnouncements({ mode: 'preview', ...body });
+      if (!r.ok) throw new Error(r.data.error || `Preview failed (${r.status})`);
+      setPreview({ ...r.data, template });
+    } catch (e) {
+      setMessage({ tone: 'error', text: e.message });
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const handleTest = async () => {
+    setBusy('recap-test'); setMessage(null);
+    try {
+      const r = await callAnnouncements({ mode: 'test', ...body });
+      if (!r.ok) throw new Error(r.data.error || `Test send failed (${r.status})`);
+      setMessage({ tone: 'ok', text: `Test sent to ${r.data.sentTo}.` });
+    } catch (e) {
+      setMessage({ tone: 'error', text: e.message });
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const count = current ? preview.counts.total : null;
+  const enabled = current && preview.recapEnabled;
+
+  return (
+    <Card>
+      <div className="flex items-center gap-2 mb-1">
+        <Mail className="w-5 h-5 text-brand" />
+        <h2 className="text-lg font-bold text-primary">Year in Review {RECAP_YEAR} emails</h2>
+      </div>
+      <p className="text-sm text-secondary mb-4">
+        Only to accounts with at least one {RECAP_YEAR} show and email on. Nothing sends until you press Send here,
+        and the server refuses a real send until <code>YEAR_RECAP_EMAILS_ENABLED=true</code> is set in Netlify.
+      </p>
+      <div className="grid gap-6 lg:grid-cols-2">
+        <div className="space-y-4">
+          <div className="flex flex-col gap-2" role="radiogroup" aria-label="Which email">
+            {RECAP_TEMPLATES.map(([key, label]) => (
+              <label key={key} className="flex items-center gap-2 text-sm text-primary">
+                <input type="radio" name="recap-template" value={key} checked={template === key} onChange={() => setTemplate(key)} />
+                {label}
+              </label>
+            ))}
+          </div>
+          <p className="text-sm"><span className="text-muted">Subject:</span> <span className="text-primary font-semibold">{email.subject}</span></p>
+          {current && (
+            <div className="space-y-2">
+              <CountGrid counts={preview.counts} />
+              {!preview.recapEnabled && (
+                <p className="text-xs text-amber flex items-start gap-1.5">
+                  <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" /> Sending is switched off (YEAR_RECAP_EMAILS_ENABLED isn&apos;t true). Test sends still work.
+                </p>
+              )}
+            </div>
+          )}
+          {message && (
+            <div className={`flex items-start gap-2 text-sm ${message.tone === 'error' ? 'text-danger' : 'text-brand'}`}>
+              {message.tone === 'error' ? <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" /> : <Check className="w-4 h-4 mt-0.5 shrink-0" />}
+              <span>{message.text}</span>
+            </div>
+          )}
+          <div className="flex flex-wrap gap-3">
+            <Button variant="secondary" icon={Eye} loading={busy === 'recap-preview'} disabled={!!busy} onClick={handlePreview}>Preview recipients</Button>
+            <Button variant="secondary" icon={Mail} loading={busy === 'recap-test'} disabled={!!busy} onClick={handleTest}>Send test to me</Button>
+            <Button icon={Send} disabled={!!busy || !enabled || !count} onClick={() => setConfirmOpen(true)}>
+              {count != null ? `Send to ${count} ${count === 1 ? 'person' : 'people'}` : 'Send (preview first)'}
+            </Button>
+          </div>
+        </div>
+        <iframe title="Year in Review email preview" sandbox="" srcDoc={html} className="w-full min-h-[480px] rounded-xl border border-subtle bg-white" />
+      </div>
+      <Modal
+        open={confirmOpen}
+        onClose={() => setConfirmOpen(false)}
+        title="Send this Year in Review email?"
+        size="sm"
+        footer={(
+          <>
+            <Button variant="secondary" onClick={() => setConfirmOpen(false)}>Cancel</Button>
+            <Button icon={Send} onClick={() => { setConfirmOpen(false); runSend(body); }}>Send to {count}</Button>
+          </>
+        )}
+      >
+        <p className="text-sm text-secondary">
+          “{email.subject}” will be emailed to <strong className="text-primary">{count} {count === 1 ? 'person' : 'people'}</strong> with a {RECAP_YEAR} show. This can’t be undone.
+        </p>
+      </Modal>
+    </Card>
+  );
 }
 
 export default function AnnouncementsTab({ onViewUnsubscribes }) {
@@ -176,6 +291,8 @@ export default function AnnouncementsTab({ onViewUnsubscribes }) {
 
   return (
     <div className="space-y-6">
+      <RecapEmailCard busy={busy} setBusy={setBusy} runSend={(body) => { setProgress(null); runSend(body); }} />
+
       <Card>
         <div className="flex items-center gap-2 mb-4">
           <Mail className="w-5 h-5 text-brand" />

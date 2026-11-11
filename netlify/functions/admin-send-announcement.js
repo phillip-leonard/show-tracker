@@ -34,6 +34,12 @@
  * Refuses to send (test or real) without UNSUBSCRIBE_SECRET, or without
  * MAILING_ADDRESS — CAN-SPAM requires a physical address on every
  * commercial email.
+ *
+ * AUDIENCE 'recap-2026' (Year in Review, lib/yearRecapEmail.js): body
+ * { audience: 'recap-2026', template: 'ready' | 'final' } in place of
+ * subject/html. Only accounts with a 2026 show, no extra emails, the
+ * subject and HTML built here from the template, and a real send refused
+ * unless YEAR_RECAP_EMAILS_ENABLED=true. Preview and test always work.
  */
 
 const crypto = require('crypto');
@@ -42,6 +48,7 @@ const { buildAnnouncementRecipients } = require('./lib/announcementRecipients');
 const { decideCanEmail } = require('./lib/emailPolicy');
 const { buildEmail, resendRequest, sendOne } = require('./lib/outgoingEmail');
 const { wrapAnnouncement } = require('./lib/emailLayout');
+const recapEmails = require('./lib/yearRecapEmail');
 
 const CORS_HEADERS = {
   'Content-Type': 'application/json',
@@ -80,6 +87,23 @@ function validateContent({ subject, html }) {
   if (typeof html !== 'string' || !html.trim()) return 'HTML body is required';
   if (html.length > MAX_HTML) return 'HTML body is too large';
   return null;
+}
+
+// The Year in Review audience: who it may reach, and its fixed content.
+// null for an ordinary announcement; { error } for a bad request.
+function recapAudienceFor(body) {
+  if (!body.audience) return null;
+  if (body.audience !== recapEmails.RECAP_AUDIENCE) return { error: 'Unknown audience' };
+  const content = recapEmails.recapEmail(body.template, recapEmails.RECAP_YEAR);
+  if (!content) return { error: "template must be 'ready' or 'final'" };
+  return { audience: body.audience, template: body.template, ...content };
+}
+
+// Opt-out state narrowed to the recap audience: accounts with a show in
+// the recap year. Extra emails never apply.
+async function loadRecapState(db) {
+  const [state, uids] = await Promise.all([loadOptOutState(db), recapEmails.loadUidsWithShowsIn(db, recapEmails.RECAP_YEAR)]);
+  return { ...state, profiles: state.profiles.filter((p) => uids.has(p.uid)) };
 }
 
 function replyTo(decoded) {
@@ -259,17 +283,32 @@ exports.handler = async function (event) {
   try {
     if (mode === 'history') return reply(200, { announcements: await history(db) });
 
+    const recap = recapAudienceFor(body);
+    if (recap && recap.error) return reply(400, { error: recap.error });
+
     if (mode === 'preview') {
-      const extraEmails = Array.isArray(body.extraEmails) ? body.extraEmails.slice(0, MAX_EXTRAS) : [];
-      const state = await loadOptOutState(db);
+      const extraEmails = !recap && Array.isArray(body.extraEmails) ? body.extraEmails.slice(0, MAX_EXTRAS) : [];
+      const state = recap ? await loadRecapState(db) : await loadOptOutState(db);
       const { counts, invalidSamples } = buildAnnouncementRecipients({ ...state, extraEmails });
-      return reply(200, { counts, invalidSamples, missingConfig: missingConfig() });
+      return reply(200, {
+        counts,
+        invalidSamples,
+        missingConfig: missingConfig(),
+        ...(recap ? { recapEnabled: recapEmails.recapEmailsEnabled() } : {}),
+      });
     }
 
     if (mode !== 'test' && mode !== 'send') return reply(400, { error: "mode must be 'preview', 'test', 'send' or 'history'" });
 
     const missing = missingConfig();
     if (missing.length) return reply(412, { error: `Not configured: ${missing.join(', ')}. Set them in Netlify environment variables.`, missingConfig: missing });
+
+    // A recap's content is always the template, whatever the browser sent.
+    if (recap) {
+      body.subject = recap.subject;
+      body.html = recap.html;
+      body.extraEmails = [];
+    }
 
     if (mode === 'test') {
       const invalid = validateContent(body);
@@ -287,10 +326,13 @@ exports.handler = async function (event) {
       if (!/^[A-Za-z0-9]{1,64}$/.test(String(body.announcementId))) return reply(400, { error: 'Invalid announcementId' });
       annRef = db.doc(`announcements/${body.announcementId}`);
     } else {
+      if (recap && !recapEmails.recapEmailsEnabled()) {
+        return reply(412, { error: 'Year in Review emails are switched off. Set YEAR_RECAP_EMAILS_ENABLED=true in Netlify to send them.', recapEnabled: false });
+      }
       const invalid = validateContent(body);
       if (invalid) return reply(400, { error: invalid });
       const extraEmails = Array.isArray(body.extraEmails) ? body.extraEmails.slice(0, MAX_EXTRAS) : [];
-      const state = await loadOptOutState(db);
+      const state = recap ? await loadRecapState(db) : await loadOptOutState(db);
       const { recipients, counts } = buildAnnouncementRecipients({ ...state, extraEmails });
       if (!recipients.length) return reply(400, { error: 'Nobody to send to', counts });
       annRef = db.collection('announcements').doc();
@@ -303,6 +345,7 @@ exports.handler = async function (event) {
         createdAt: now,
         updatedAt: now,
         status: 'preparing',
+        ...(recap ? { audience: recap.audience, template: recap.template } : {}),
         recipientCounts: counts,
         counts: { total: recipients.length, sent: 0, failed: 0, skipped: 0, pending: recipients.length },
         leaseUntil: null,
