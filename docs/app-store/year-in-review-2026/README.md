@@ -9,10 +9,14 @@ before 2026-12-02.
 
 Regenerate with `node scripts/render-recap-event-art.js`.
 
-| File | Use |
+| Files | Use |
 |---|---|
-| `event-card-1920x1080.jpg` | Event card (16:9) |
-| `event-details-1080x1920.jpg` | Event details page (9:16) |
+| `event-card-3840x2160.jpg` (or `.png`, or the `1920x1080` pair) | Event card (16:9) |
+| `event-details-2160x3840.jpg` (or `.png`, or the `1080x1920` pair) | Event details page (9:16) |
+
+Each image comes at Apple's minimum and maximum size, as JPEG and PNG, so
+there's an option App Store Connect accepts. Prefer the larger size: it
+stays sharp on every display.
 
 Both show the same flat illustration: a recap card (a year bar, four stat
 tiles, top songs) among setlist rows, in the recap card's palette. They
@@ -24,7 +28,7 @@ follow Apple's In-App Event media guidance:
   gradient.
 - **Main shapes centered,** so the automatic crop doesn't cut them.
 
-Both are JPEG, so they have no alpha channel. Use App Store Connect's
+All of them are opaque sRGB with no alpha channel. Use App Store Connect's
 preview to check both placements before you submit.
 
 ## Metadata

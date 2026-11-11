@@ -5,11 +5,11 @@
 // (Dec 2 – Jan 1), in the recap card's palette
 // (netlify/functions/lib/yearRecapCard.js), rasterized by the same renderer:
 //
-//   event-card-1920x1080.jpg      the event card (16:9)
-//   event-details-1080x1920.jpg   the event details page (9:16)
+//   event-card-1920x1080 / -3840x2160        the event card (16:9)
+//   event-details-1080x1920 / -2160x3840     the event details page (9:16)
 //
-// Written to docs/app-store/year-in-review-2026/. JPEG, so there's no
-// alpha channel for App Store Connect to reject.
+// Written to docs/app-store/year-in-review-2026/ as .jpg and .png, at
+// Apple's minimum and maximum sizes, opaque sRGB with no alpha channel.
 //
 // Apple's In-App Event guidance, which this follows:
 //   - avoid text and logos where possible: there's none here. The event
@@ -105,16 +105,28 @@ function eventDetails() {
   </svg>`;
 }
 
-function writeJpeg(svg, name) {
-  const tmp = path.join(os.tmpdir(), `${name}.png`);
-  fs.writeFileSync(tmp, render(svg));
-  const dest = path.join(OUT, `${name}.jpg`);
-  // macOS sips: PNG -> JPEG drops the alpha channel.
-  execFileSync('sips', ['-s', 'format', 'jpeg', '-s', 'formatOptions', '92', tmp, '--out', dest], { stdio: 'ignore' });
-  fs.unlinkSync(tmp);
-  return dest;
+// Each image at Apple's minimum and maximum size (1x and 2x), as JPEG and
+// as PNG. Both are opaque RGB in sRGB: the PNG is made from the JPEG, so it
+// has no alpha channel either.
+const SRGB = '/System/Library/ColorSync/Profiles/sRGB Profile.icc';
+
+function writeAll(svg, width, height, name) {
+  const written = [];
+  for (const scale of [1, 2]) {
+    const w = width * scale;
+    const h = height * scale;
+    const scaled = svg.replace(`width="${width}" height="${height}"`, `width="${w}" height="${h}"`);
+    const base = path.join(OUT, `${name}-${w}x${h}`);
+    const tmp = path.join(os.tmpdir(), `${name}-${w}x${h}.png`);
+    fs.writeFileSync(tmp, render(scaled));
+    execFileSync('sips', ['-s', 'format', 'jpeg', '-s', 'formatOptions', '92', '--matchTo', SRGB, tmp, '--out', `${base}.jpg`], { stdio: 'ignore' });
+    execFileSync('sips', ['-s', 'format', 'png', `${base}.jpg`, '--out', `${base}.png`], { stdio: 'ignore' });
+    fs.unlinkSync(tmp);
+    written.push(`${base}.jpg`, `${base}.png`);
+  }
+  return written;
 }
 
 fs.mkdirSync(OUT, { recursive: true });
-console.log(writeJpeg(eventCard(), 'event-card-1920x1080'));
-console.log(writeJpeg(eventDetails(), 'event-details-1080x1920'));
+[...writeAll(eventCard(), 1920, 1080, 'event-card'), ...writeAll(eventDetails(), 1080, 1920, 'event-details')]
+  .forEach((f) => console.log(f));
