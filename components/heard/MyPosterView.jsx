@@ -13,17 +13,13 @@
 // link" stores the record under a random code and gives a /p/<code>/ link
 // (netlify/functions/lib/myPosters.js). Both need the user's ID token.
 //
-// Safari (and the iOS app's WebView) refuse the share sheet once an await
-// has gone by since the tap, so both posters are fetched ahead and the
-// link is made in one tap and shared in the next, as /heard/ does.
+// The drawing, saving and share link are components/heard/PosterShare.jsx,
+// shared with the Year in Review recap card.
 
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Download, Share2, Link2, Sparkles, Copy, ArrowLeft } from 'lucide-react';
+import { Sparkles, ArrowLeft } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
-import { auth } from '@/lib/firebase';
-import { apiUrl } from '@/lib/api';
-import { isNativePlatform } from '@/lib/platform';
 import { externalLinkClick } from '@/lib/publicProfile';
 import { heardHref } from '@/lib/heardLinks';
 import { buildMyPoster, ARCHIVE_NOTE, MIN_SHOWS_WITH_SETLIST } from '@/lib/myPoster';
@@ -32,22 +28,9 @@ import { configBandFor, isoDate } from '@/lib/bandScreens';
 import { formatDate } from '@/lib/utils';
 import { Button, Card, StatFigure } from '@/components/ui';
 import { Section, RowList, Row } from '@/components/bands/BandParts';
+import { PosterImages, PosterShareLink } from '@/components/heard/PosterShare';
 
-const POSTERS = [['feed', 'Feed, 1080×1350'], ['story', 'Story, 1080×1920']];
 const SORTS = [['count', 'Most heard'], ['name', 'A–Z'], ['first', 'First heard'], ['last', 'Last heard']];
-
-async function postPoster(body) {
-  const user = auth.currentUser;
-  if (!user) throw new Error('signed out');
-  const token = await user.getIdToken();
-  const res = await fetch(apiUrl('/api/my-poster'), {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res;
-}
 
 const fileSlug = (name) => name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'band';
 
@@ -59,133 +42,6 @@ function SignInPrompt({ artist }) {
       <p className="text-sm text-secondary mb-4">Sign in to make a poster of every {artist} song you&apos;ve heard live, from the shows you&apos;ve logged.</p>
       <Button onClick={() => setAuthModal('login')}>Sign in</Button>
     </Card>
-  );
-}
-
-function Posters({ record }) {
-  const native = isNativePlatform();
-  const [state, setState] = useState({ status: 'idle' }); // idle | drawing | ready | error
-  const name = fileSlug(record.name);
-
-  // A new record (a show added elsewhere) needs new posters.
-  useEffect(() => {
-    setState((s) => {
-      if (s.status === 'ready') s.posters.forEach((p) => URL.revokeObjectURL(p.url));
-      return { status: 'idle' };
-    });
-  }, [record]);
-
-  const draw = async () => {
-    setState({ status: 'drawing' });
-    try {
-      const blobs = await Promise.all(POSTERS.map(([kind]) => postPoster({ action: 'image', kind, record }).then((r) => r.blob())));
-      const canShareFiles = typeof navigator !== 'undefined' && !!navigator.canShare && typeof File !== 'undefined';
-      const posters = POSTERS.map(([kind, label], i) => {
-        const file = typeof File !== 'undefined' ? new File([blobs[i]], `${name}-songs-heard-${kind}.png`, { type: 'image/png' }) : null;
-        return { kind, label, blob: blobs[i], file, url: URL.createObjectURL(blobs[i]), shareable: !!file && canShareFiles && navigator.canShare({ files: [file] }) };
-      });
-      setState({ status: 'ready', posters });
-    } catch {
-      setState({ status: 'error' });
-    }
-  };
-
-  const download = (p) => {
-    const a = document.createElement('a');
-    a.href = p.url;
-    a.download = p.file?.name || `${name}-songs-heard-${p.kind}.png`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-  };
-
-  const share = (p) => {
-    navigator.share({ files: [p.file], title: `${record.name}: songs I've heard live` })
-      .catch((e) => { if (!native && (!e || e.name !== 'AbortError')) download(p); });
-  };
-
-  return (
-    <div>
-      {state.status !== 'ready' && (
-        <Button icon={Sparkles} onClick={draw} loading={state.status === 'drawing'}>
-          {state.status === 'drawing' ? 'Drawing your poster…' : 'Make my poster'}
-        </Button>
-      )}
-      {state.status === 'error' && <p className="text-sm text-danger mt-2">Couldn&apos;t draw the poster just now. Please try again.</p>}
-      {state.status === 'ready' && (
-        <div className="grid grid-cols-2 gap-3">
-          {state.posters.map((p) => (
-            <figure key={p.kind} className="m-0">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={p.url} alt={`${record.name} poster, ${p.label}`} className="w-full rounded-xl border border-subtle bg-[#1f1f3a]" />
-              <figcaption className="text-xs text-muted my-1.5">{p.label}</figcaption>
-              <div className="flex flex-wrap gap-2">
-                {/* The app's WebView can't save a download; its share sheet has Save Image. */}
-                {!native && <Button size="sm" icon={Download} onClick={() => download(p)}>Download</Button>}
-                {p.shareable && (
-                  <Button size="sm" variant={native ? 'primary' : 'secondary'} icon={Share2} onClick={() => share(p)}>
-                    {native ? 'Save or share' : 'Share'}
-                  </Button>
-                )}
-              </div>
-            </figure>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function ShareLink({ record }) {
-  const [state, setState] = useState({ status: 'idle' }); // idle | saving | ready | error
-  const [said, setSaid] = useState('');
-
-  useEffect(() => { setState({ status: 'idle' }); setSaid(''); }, [record]);
-
-  const make = async () => {
-    setState({ status: 'saving' });
-    try {
-      const json = await (await postPoster({ action: 'share', record })).json();
-      if (!json.url) throw new Error('no url');
-      setState({ status: 'ready', url: json.url });
-    } catch {
-      setState({ status: 'error' });
-    }
-  };
-
-  const title = `${record.name}: ${record.shows} shows, ${record.uniqueSongs} songs heard`;
-  const canShare = typeof navigator !== 'undefined' && !!navigator.share;
-  const shareIt = () => navigator.share({ title, url: state.url }).catch(() => {});
-  const copy = () => {
-    if (!navigator.clipboard) { setSaid('Copy the link above to share your record.'); return; }
-    navigator.clipboard.writeText(state.url).then(() => setSaid('Link copied.'), () => setSaid('Copy the link above to share your record.'));
-  };
-
-  if (state.status !== 'ready') {
-    return (
-      <div>
-        <Button variant="secondary" icon={Link2} onClick={make} loading={state.status === 'saving'}>Get a share link</Button>
-        <p className="text-xs text-muted mt-2">A link to your record and poster, with no name or notes on it.</p>
-        {state.status === 'error' && <p className="text-sm text-danger mt-2">Couldn&apos;t make a link just now. Please try again.</p>}
-      </div>
-    );
-  }
-  return (
-    <div>
-      <input
-        type="text"
-        readOnly
-        value={state.url}
-        aria-label="Share link"
-        onFocus={(e) => e.target.select()}
-        className="w-full px-3 py-2 rounded-xl border border-subtle bg-hover text-primary text-sm"
-      />
-      <div className="flex flex-wrap gap-2 mt-2">
-        {canShare && <Button size="sm" icon={Share2} onClick={shareIt}>Share link</Button>}
-        <Button size="sm" variant="secondary" icon={Copy} onClick={copy}>Copy link</Button>
-      </div>
-      {said && <p className="text-xs text-muted mt-2" aria-live="polite">{said}</p>}
-    </div>
   );
 }
 
@@ -311,8 +167,19 @@ export default function MyPosterView({ artist }) {
       <Section title="Your poster" note={enough ? '' : `Add setlists to at least ${MIN_SHOWS_WITH_SETLIST} of your ${record.name} shows to make a poster.`}>
         {enough && (
           <div className="space-y-5">
-            <Posters record={record} />
-            <ShareLink record={record} />
+            <PosterImages
+              request={{ record }}
+              requestKey={record}
+              fileBase={`${fileSlug(record.name)}-songs-heard`}
+              shareTitle={`${record.name}: songs I've heard live`}
+              alt={`${record.name} poster`}
+            />
+            <PosterShareLink
+              request={{ record }}
+              requestKey={record}
+              title={`${record.name}: ${record.shows} shows, ${record.uniqueSongs} songs heard`}
+              note="A link to your record and poster, with no name or notes on it."
+            />
           </div>
         )}
       </Section>

@@ -4,7 +4,8 @@
  * handlers with no credentials and no network.
  *
  * Supports: doc get/set(merge)/create/update/delete, collection add/doc/where
- * ('==', 'in', '>=', '<=', '<')/orderBy/limit/select/get, subcollections, batch(),
+ * ('==', 'in', '>=', '<=', '<')/orderBy/limit/select/get, subcollections,
+ * collectionGroup().get(), batch(),
  * runTransaction() (optimistic, like the real one: writes are buffered
  * until the callback returns, and the callback is run again if a document
  * it read changed meanwhile). Not a general Firestore emulator.
@@ -124,6 +125,19 @@ function createFakeDb() {
   const db = {
     doc: docRef,
     collection: collectionRef,
+    // Every document in any collection with this name; select() is a no-op.
+    collectionGroup(name) {
+      const q = {
+        select() { return q; },
+        async get() {
+          const docs = [...store.keys()]
+            .filter((p) => { const s = p.split('/'); return s.length % 2 === 0 && s[s.length - 2] === name; })
+            .map(docSnap);
+          return { docs, empty: docs.length === 0, size: docs.length };
+        },
+      };
+      return q;
+    },
     batch() {
       const ops = [];
       return {

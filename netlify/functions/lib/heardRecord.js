@@ -700,6 +700,9 @@ function createHeard() {
     credit,
     yearSpan,
     posterSvg,
+    // The SVG text helpers, for the other poster drawn on the same
+    // renderer (yearRecapCard.js's recap card).
+    svgText: { esc, textWidth, clip, FONT },
   };
 }
 

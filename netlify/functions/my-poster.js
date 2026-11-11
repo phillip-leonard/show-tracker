@@ -12,11 +12,19 @@
 // and never stored.
 //
 // CORS is open: the iOS app calls this from capacitor://localhost.
+//
+// The same two actions draw and share a Year in Review recap when the body
+// carries `recap` instead of `record` (lib/yearRecapCard.js):
+//   { action: 'image', kind, recap, buddyUid?, buddyShows? } -> image/png
+//   { action: 'share', recap, buddyUid?, buddyShows? }       -> { ok, code, url }
+// The show buddy's first name is added here, from Firestore, only for a
+// friend of the caller whose profile is public; never from the request.
 
 const heard = require('./lib/heardRecord');
 const { render } = require('./lib/posterImage');
-const { verifyUser } = require('./lib/firebaseAdmin');
-const { openPosterStore, storeRecord, posterPath } = require('./lib/myPosters');
+const { verifyUser, getDb } = require('./lib/firebaseAdmin');
+const { openPosterStore, storeRecord, storeRecap, posterPath } = require('./lib/myPosters');
+const { withBuddy, firestoreBuddyLookup, recapSvg } = require('./lib/yearRecapCard');
 const { SITE_URL } = require('./lib/publicPageHtml');
 
 const CORS = {
@@ -39,10 +47,14 @@ exports.handler = async function (event) {
   if (event.httpMethod !== 'POST') return reply(405, { ok: false, error: 'method_not_allowed' });
 
   try {
-    if (!(await verifyUser(event))) return reply(401, { ok: false, error: 'sign_in' });
+    const decoded = await verifyUser(event);
+    if (!decoded) return reply(401, { ok: false, error: 'sign_in' });
     if ((event.body || '').length > MAX_BODY) return reply(413, { ok: false, error: 'too_large' });
     let body;
     try { body = JSON.parse(event.body || '{}'); } catch { return reply(400, { ok: false, error: 'bad_request' }); }
+
+    if (body && body.recap) return await handleRecap(event, body, decoded);
+
     const record = heard.cleanPersonalRecord(body && body.record);
     if (!record) return reply(400, { ok: false, error: 'bad_request' });
 
@@ -68,3 +80,35 @@ exports.handler = async function (event) {
     return reply(500, { ok: false, error: 'server_error' });
   }
 };
+
+async function handleRecap(event, body, decoded) {
+  let lookup = null;
+  if (body.buddyUid) {
+    try { lookup = firestoreBuddyLookup(getDb()); } catch { lookup = null; }
+  }
+  let recap;
+  try {
+    recap = await withBuddy(body.recap, { uid: decoded.uid, buddyUid: body.buddyUid, buddyShows: body.buddyShows }, lookup);
+  } catch (err) {
+    // A failed buddy lookup leaves the buddy off; it never fails the card.
+    console.error('my-poster recap buddy lookup failed:', err);
+    recap = await withBuddy(body.recap, {}, null);
+  }
+  if (!recap) return reply(400, { ok: false, error: 'bad_request' });
+
+  if (body.action === 'image') {
+    if (!IMAGE_KINDS.has(body.kind)) return reply(400, { ok: false, error: 'bad_request' });
+    const png = render(recapSvg(recap, body.kind));
+    return {
+      statusCode: 200,
+      headers: { ...CORS, 'Content-Type': 'image/png', 'Cache-Control': 'no-store' },
+      body: png.toString('base64'),
+      isBase64Encoded: true,
+    };
+  }
+  if (body.action === 'share') {
+    const code = await storeRecap(openPosterStore(event), recap);
+    return reply(200, { ok: true, code, url: `${SITE_URL}${posterPath(code)}` });
+  }
+  return reply(400, { ok: false, error: 'bad_request' });
+}

@@ -9,6 +9,7 @@ import Tip from '@/components/ui/Tip';
 import FriendCard from '@/components/friends/FriendCard';
 import ShowsTogetherView from '@/components/ShowsTogetherView';
 import { useApp } from '@/context/AppContext';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 function FriendsView({
   user, friends, pendingFriendRequests, sentFriendRequests, pendingShowTags,
@@ -37,6 +38,17 @@ function FriendsView({
   // already long prop list — blocking is not part of the friends feature
   // it would otherwise belong to.
   const { blockUser } = useApp();
+
+  // /friends/?together=<uid> opens Shows Together with that friend (the
+  // Year in Review show buddy links here). Only a current friend.
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const togetherUid = searchParams?.get('together') || '';
+  useEffect(() => {
+    if (!togetherUid) return;
+    const friend = (friends || []).find(f => f.friendUid === togetherUid);
+    if (friend) setShowingTogetherWith({ uid: friend.friendUid, name: friend.friendName || 'Friend' });
+  }, [togetherUid, friends]);
 
   const handleBlock = async () => {
     if (!blockConfirm) return;
@@ -149,7 +161,10 @@ function FriendsView({
       <ShowsTogetherView
         friend={showingTogetherWith}
         getShowsTogether={getShowsTogether}
-        onBack={() => setShowingTogetherWith(null)}
+        onBack={() => {
+          setShowingTogetherWith(null);
+          if (togetherUid) router.replace('/friends/');
+        }}
         onAddSong={onAddSong}
         onRateSong={onRateSong}
         onCommentSong={onCommentSong}

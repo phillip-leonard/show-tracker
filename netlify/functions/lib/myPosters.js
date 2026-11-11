@@ -35,6 +35,7 @@ const crypto = require('crypto');
 const heard = require('./heardRecord');
 const { escapeHtml, page, formatShowDate, SITE_URL } = require('./publicPageHtml');
 const { STYLE } = require('./heardPages');
+const { cleanRecap } = require('./yearRecapCard');
 
 const STORE_NAME = 'my-posters';
 const CODE = /^[A-Za-z0-9_-]{12}$/;
@@ -67,9 +68,36 @@ async function storeRecord(store, record, now = Date.now()) {
 
 /** The record a code names, cleaned again on the way out, or null. */
 async function loadRecord(store, code) {
+  const entry = await loadEntry(store, code);
+  return entry && entry.type === 'poster' ? entry.record : null;
+}
+
+// A Year in Review recap (yearRecapCard.js) shares the same store and the
+// same /p/<code>/ addresses, told apart by `type`:
+//
+//   my-posters/<code> = { type: 'recap', recap, createdAt }
+
+/** Stores a cleaned recap under a new code; resolves the code. */
+async function storeRecap(store, recap, now = Date.now()) {
+  const code = newCode();
+  await store.set(code, { type: 'recap', recap, createdAt: new Date(now).toISOString() });
+  return code;
+}
+
+/**
+ * What a code names, cleaned again on the way out:
+ *   { type: 'poster', record } | { type: 'recap', recap } | null
+ */
+async function loadEntry(store, code) {
   if (!CODE.test(String(code || ''))) return null;
   const saved = await store.get(code);
-  return saved ? heard.cleanPersonalRecord(saved.record) : null;
+  if (!saved) return null;
+  if (saved.type === 'recap') {
+    const recap = cleanRecap(saved.recap);
+    return recap ? { type: 'recap', recap } : null;
+  }
+  const record = heard.cleanPersonalRecord(saved.record);
+  return record ? { type: 'poster', record } : null;
 }
 
 // ── /p/<code>/ ────────────────────────────────────────────────────────
@@ -155,5 +183,7 @@ module.exports = {
   posterImagePath,
   storeRecord,
   loadRecord,
+  storeRecap,
+  loadEntry,
   renderPosterPage,
 };
