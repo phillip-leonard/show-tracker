@@ -14,9 +14,18 @@ Regenerate with `node scripts/render-recap-event-art.js`.
 | `event-card-1920x1080.jpg` | Event card (16:9) |
 | `event-details-1080x1920.jpg` | Event details page (9:16) |
 
-They're type only, in the recap card's palette. The lower part is plain
-navy because the App Store lays the badge, name and short description
-over it. Both are JPEG, so they have no alpha channel.
+Both show the same flat illustration: a recap card (a year bar, four stat
+tiles, top songs) among setlist rows, in the recap card's palette. They
+follow Apple's In-App Event media guidance:
+
+- **No text or logos.** The event name and descriptions come from the
+  metadata below.
+- **No borders or gradients.** The App Store adds its own crop and
+  gradient.
+- **Main shapes centered,** so the automatic crop doesn't cut them.
+
+Both are JPEG, so they have no alpha channel. Use App Store Connect's
+preview to check both placements before you submit.
 
 ## Metadata
 

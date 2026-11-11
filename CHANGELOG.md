@@ -26,7 +26,9 @@ the repo.**
 - **Event media** (`scripts/render-recap-event-art.js` →
   `docs/app-store/year-in-review-2026/`): the 1920×1080 event card and the
   1080×1920 details-page image, drawn with the recap card's renderer and
-  palette, as JPEG with no alpha channel. The folder's README has the
+  palette, as JPEG with no alpha channel. They follow Apple's media
+  guidance: no text or logos, no borders or gradients (the App Store adds
+  its own), main shapes centered for the automatic crop. The folder's README has the
   event metadata (name, descriptions, badge, dates, deep link) and the
   email steps.
 - Tests: `tests/email/yearRecapEmail.test.js` now covers a second Send
