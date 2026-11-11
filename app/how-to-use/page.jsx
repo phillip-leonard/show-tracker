@@ -3,6 +3,9 @@
 import React, { useState } from 'react';
 import { Search, BarChart3, Users, Music, Star, ChevronDown, ChevronUp } from 'lucide-react';
 import { PageHeader, Card, SectionHeader } from '@/components/ui';
+import PublicHeader from '@/components/PublicHeader';
+import Footer from '@/components/Footer';
+import { useApp } from '@/context/AppContext';
 
 const sections = [
   {
@@ -164,8 +167,22 @@ function FaqItem({ faq }) {
   );
 }
 
+// Public: this is the App Store Support URL and is in the sitemap, so a
+// signed-out visitor (and Google) gets the guide, not the landing page.
+// AppProviderWrapper lets it through for anyone not signed in (it is in
+// PUBLIC_PATHS); without the app shell around it, it brings its own header
+// and footer. Signed in, or in guest mode, it renders inside the shell as
+// before. While auth resolves it renders the public version, which is what
+// the static export holds; a returning user sees the app skeleton over it
+// (see SHELL_SKELETON_PATHS in AppProviderWrapper).
 export default function HowToUsePage() {
-  return (
+  const { user, guestMode, authLoading } = useApp();
+  // Not before auth has answered: guestMode is read from localStorage on
+  // the first client render, so deciding on it then would hydrate a guest's
+  // static HTML (the public version) as the in-app one, a hydration error.
+  const inApp = !authLoading && (!!user || guestMode);
+
+  const guide = (
     <div className="max-w-3xl mx-auto">
       <PageHeader
         eyebrow="Help"
@@ -190,14 +207,36 @@ export default function HowToUsePage() {
 
       <Card padding="md" className="bg-brand-subtle border-brand/20 text-center">
         <p className="text-primary text-sm font-medium mb-1">Still have questions?</p>
-        <p className="text-secondary text-sm">
-          Use the{' '}
-          <a href="/feedback" className="text-brand hover:underline font-medium">
-            Feedback
-          </a>{' '}
-          link in the sidebar to send us a message.
-        </p>
+        {inApp ? (
+          <p className="text-secondary text-sm">
+            Use the{' '}
+            <a href="/feedback" className="text-brand hover:underline font-medium">
+              Feedback
+            </a>{' '}
+            link in the sidebar to send us a message.
+          </p>
+        ) : (
+          // The Feedback page needs an account; signed out, the address is
+          // the way to reach us.
+          <p className="text-secondary text-sm">
+            Email{' '}
+            <a href="mailto:support@mysetlists.net" className="text-brand hover:underline font-medium">
+              support@mysetlists.net
+            </a>
+            .
+          </p>
+        )}
       </Card>
+    </div>
+  );
+
+  if (inApp) return guide;
+
+  return (
+    <div className="min-h-dscreen flex flex-col bg-gradient-to-br from-base via-surface to-base text-primary">
+      <PublicHeader />
+      <main className="w-full px-4 py-10 sm:py-14">{guide}</main>
+      <Footer />
     </div>
   );
 }

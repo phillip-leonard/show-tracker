@@ -1,12 +1,36 @@
-# ── Default: block indexing on all paths ──────────────────────
-# Netlify matches top-to-bottom; more-specific paths below override.
+# Robots policy for the static export (X-Robots-Tag).
+#
+# How Netlify applies these: the most specific matching path wins, and
+# `/privacy` also matches `/privacy/` (checked in production, 5.58.1).
+# These rules reach static files only. Function responses (/artist/...,
+# /artists/, /heard/..., /u/..., /p/..., /shared/...) never get them; those
+# functions send their own header and robots meta tag where they need one.
+#
+# Default deny, explicit allow: a page is indexable only if it is listed
+# below. Deploy previews also carry Netlify's own `X-Robots-Tag: noindex`
+# whatever this file says, so check indexing on production.
+
+# ── Default: keep out of search results ───────────────────────
+# Every app route (/shows/, /stats/..., /profile/, /admin/, ...) needs an
+# account and shows the landing page to a signed-out visitor, so it's a
+# copy of `/` to a crawler. This also covers paths that don't exist: the
+# SPA catch-all in netlify.toml (/* → /index.html, 200) serves the home
+# page's HTML for them, and this header is the only thing keeping those
+# soft 404s out of the index. Don't remove it; add an allow rule instead.
 /*
   X-Robots-Tag: noindex, nofollow
 
 # ── Public pages: allow indexing ──────────────────────────────
+# Each of these renders real content for a signed-out visitor and is in
+# sitemap-pages.xml (netlify/functions/sitemap.js). A page added here goes
+# in STATIC_URLS there too, and in PUBLIC_PATHS in AppProviderWrapper.jsx
+# if it's an app route.
+
+# Home: the landing page.
 /
   X-Robots-Tag: index, follow
 
+# Legal pages: readable without an account (App Store Guideline 1.2).
 /privacy
   X-Robots-Tag: index, follow
 
@@ -16,13 +40,39 @@
 /cookies
   X-Robots-Tag: index, follow
 
+# How to Use: the App Store Support URL, public since 5.58.1. Before that
+# it fell through to the default above and was noindexed.
+/how-to-use
+  X-Robots-Tag: index, follow
+
+# Comparison pages (lib/comparePages.js): marketing pages, the same for
+# everyone, signed in or not.
+/compare/concert-archives
+  X-Robots-Tag: index, follow
+
+/compare/setlist-fm
+  X-Robots-Tag: index, follow
+
+/best-concert-tracker-apps-jam-bands
+  X-Robots-Tag: index, follow
+
+/switch/concert-archives
+  X-Robots-Tag: index, follow
+
+# ── Function pages: documentation only ────────────────────────
+# Function responses, which these rules don't reach. Each entry records
+# what the function sends itself, so this file reads as the whole policy.
+
+# Shared shows (public-shared.js): indexable; the function sends no robots
+# header or meta tag.
 /shared/*
   X-Robots-Tag: index, follow
 
+# The artist index and band, song-index and song pages
+# (lib/publicArtistPages.js): indexable. A song page with fewer than
+# SEO_MIN_PLAYS_FOR_INDEX plays sends `noindex, follow` itself, as a header
+# and a meta tag. An unknown band or song is a real 404.
 /artists
-  X-Robots-Tag: index, follow
-
-/artists/
   X-Robots-Tag: index, follow
 
 /artist/*
@@ -30,15 +80,14 @@
 
 # A user's own pages: out of search results, links followed (setlist.fm's
 # API terms forbid discouraging search engines from following its
-# attribution links). These are function responses, which _headers rules
-# do not reach, so public-profile.js and public-show.js send the same value
-# themselves (USER_PAGE_ROBOTS); this entry documents it.
+# attribution links). public-profile.js and public-show.js send the same
+# value themselves (USER_PAGE_ROBOTS).
 /u/*
   X-Robots-Tag: noindex, follow
 
-# Songs I've heard (netlify/functions/lib/heardPages.js). Share links,
-# /heard/<slug>/r/<code>/, are personal: the function sends noindex for
-# them itself, and the rule below keeps them out whatever this one says.
+# Songs I've heard (netlify/functions/lib/heardPages.js): the tool and each
+# band's page are indexable. Share links, /heard/<slug>/r/<code>/, are
+# personal: the function sends noindex for them itself.
 /heard
   X-Robots-Tag: index, follow
 
@@ -49,36 +98,12 @@
   X-Robots-Tag: noindex, follow
 
 # Personal posters (netlify/functions/lib/myPosters.js), shared at
-# /p/<code>/: function responses, which send noindex themselves; this
-# entry documents it. The app's /my-poster/ keeps the default above.
+# /p/<code>/: the function sends noindex itself. The app's /my-poster/
+# keeps the default above.
 /p/*
   X-Robots-Tag: noindex, follow
 
-# Comparison pages (lib/comparePages.js)
-/compare/concert-archives
-  X-Robots-Tag: index, follow
-
-/compare/concert-archives/
-  X-Robots-Tag: index, follow
-
-/compare/setlist-fm
-  X-Robots-Tag: index, follow
-
-/compare/setlist-fm/
-  X-Robots-Tag: index, follow
-
-/best-concert-tracker-apps-jam-bands
-  X-Robots-Tag: index, follow
-
-/best-concert-tracker-apps-jam-bands/
-  X-Robots-Tag: index, follow
-
-/switch/concert-archives
-  X-Robots-Tag: index, follow
-
-/switch/concert-archives/
-  X-Robots-Tag: index, follow
-
+# ── Other headers ─────────────────────────────────────────────
 # iOS universal links (lib/deepLinks.js). Apple fetches this file with no
 # extension and needs it served as JSON, not as the default octet-stream.
 /.well-known/apple-app-site-association

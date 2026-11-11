@@ -9,6 +9,7 @@
 
 import Link from 'next/link';
 import Footer from '@/components/Footer';
+import PublicHeader from '@/components/PublicHeader';
 import { COMPARE_PAGES, SIGNUP_HREF, APP_STORE_URL } from '@/lib/comparePages';
 
 export const LAST_UPDATED = 'October 2026';
@@ -133,19 +134,7 @@ export default function ComparePage({ path, title, faq, cta, children }) {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd(faq)) }}
       />
 
-      <header className="bg-black/20 backdrop-blur-xl border-b border-subtle pt-safe-top">
-        <div className="max-w-3xl mx-auto px-4 py-4 flex items-center justify-between gap-4">
-          <Link href="/" className="text-2xl font-extrabold tracking-tight hover:opacity-80 transition-opacity">
-            <span className="font-light text-muted">my</span><span className="text-amber">setlists</span>
-          </Link>
-          <Link
-            href={SIGNUP_HREF}
-            className="inline-flex items-center min-h-touch px-4 py-2 rounded-xl text-sm font-semibold bg-brand text-[#1f1f3a] hover:opacity-90 transition-opacity"
-          >
-            Start tracking
-          </Link>
-        </div>
-      </header>
+      <PublicHeader />
 
       <main className="max-w-3xl w-full mx-auto px-4 py-10 sm:py-14 text-secondary leading-relaxed">
         <article>

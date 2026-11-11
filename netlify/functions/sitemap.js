@@ -3,19 +3,18 @@
 // One function, every sitemap:
 //
 //   /sitemap.xml                  a sitemap index of the ones below
-//   /sitemap-pages.xml            home, the legal and comparison pages, the
-//                                 Songs I've heard tool (/heard/ and each
-//                                 band's page), and every opted-in public
-//                                 profile (/u/<handle>/)
+//   /sitemap-pages.xml            home, the legal, help and comparison
+//                                 pages, and the Songs I've heard tool
+//                                 (/heard/ and each band's page)
 //   /sitemap-artists.xml          /artists/ and every public band page
 //   /sitemap-artist-<slug>.xml    one per band with song pages: its song
 //                                 index (/artist/<slug>/songs/) and every
 //                                 indexable song page
 //
-// robots.txt points at /sitemap.xml. Public show pages are deliberately not
-// enumerated — "keep the surface small" — since a per-user show list would
-// risk the 50,000-URL/50MB sitemap limits at scale for no real SEO gain
-// over the profile page itself.
+// robots.txt points at /sitemap.xml. Every URL listed here is indexable:
+// public profiles (/u/<handle>/) and their show pages are `noindex, follow`
+// (USER_PAGE_ROBOTS, publicPageHtml.js), so none of them is listed. They
+// were, until 5.58.1, which asked Google to index pages that said not to.
 //
 // lastmod is the date the page's content last changed for a reason a
 // reader would notice, or left out when there's no honest one:
@@ -40,9 +39,15 @@ const STATIC_URLS = [
   // No /roadmap: its items come from Firestore and only render for a
   // signed-in user, so a crawler gets "Loading..." there. Put it back (and
   // its index rule in public/_headers) if the page ever renders signed out.
-  { loc: '/privacy' },
-  { loc: '/terms' },
-  { loc: '/cookies' },
+  //
+  // The legal pages, with the trailing slash the static export serves them
+  // at: the bare path is a 301 to it.
+  { loc: '/privacy/' },
+  { loc: '/terms/' },
+  { loc: '/cookies/' },
+  // How to Use, the App Store Support URL (public since 5.58.1). lastmod is
+  // when its copy last changed.
+  { loc: '/how-to-use/', lastmod: '2026-11-11' },
   // The comparison pages (lib/comparePages.js), with the trailing slash the
   // static export serves them at, matching each page's canonical. lastmod
   // is when each page's copy last changed.
@@ -53,32 +58,6 @@ const STATIC_URLS = [
 ];
 
 const XML_HEADERS = { 'Content-Type': 'application/xml; charset=utf-8', 'Cache-Control': 'public, max-age=3600' };
-
-function getDb() {
-  const privateKey = (process.env.FIREBASE_PRIVATE_KEY || '').replace(/\\n/g, '\n');
-  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-  const projectId = process.env.FIREBASE_PROJECT_ID;
-  if (!privateKey || !clientEmail || !projectId) return null;
-  const { getApps, initializeApp, cert } = require('firebase-admin/app');
-  if (!getApps().length) {
-    initializeApp({ credential: cert({ privateKey, clientEmail, projectId }), projectId });
-  }
-  const { getFirestore } = require('firebase-admin/firestore');
-  return getFirestore();
-}
-
-// One URL per handle. More than one userProfiles doc can carry the same
-// handleLower: the live sitemap listed /u/alexreviewer/ twice. Only
-// handles/{handleLower} decides which account a URL resolves to, so a
-// repeat adds nothing.
-function uniqueHandles(handles) {
-  const seen = new Set();
-  for (const h of handles) {
-    const handle = typeof h === 'string' ? h.trim().toLowerCase() : '';
-    if (handle) seen.add(handle);
-  }
-  return [...seen];
-}
 
 const escapeXml = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
@@ -168,26 +147,13 @@ const sitemapIndex = (entries) => `<?xml version="1.0" encoding="UTF-8"?>
 ${entries.map((e) => `  <sitemap><loc>${escapeXml(`${SITE_URL}${e.loc}`)}</loc>${e.lastmod ? `<lastmod>${e.lastmod}</lastmod>` : ''}</sitemap>`).join('\n')}
 </sitemapindex>`;
 
-async function pagesSitemap(index) {
-  const db = getDb();
-  let publicHandles = [];
-  if (db) {
-    try {
-      const snap = await db.collection('userProfiles').where('publicProfile', '==', true).get();
-      publicHandles = uniqueHandles(snap.docs.map(d => d.data().handleLower));
-    } catch (err) {
-      console.error('sitemap: failed to list public profiles:', err);
-      // Degrade to the static URL set rather than failing the whole sitemap.
-    }
-  }
+function pagesSitemap(index) {
   return urlset([
     ...STATIC_URLS.map(url),
     ...heardUrls(index).map(url),
-    ...publicHandles.map(h => url({ loc: `/u/${h}/` })),
   ]);
 }
 
-exports.uniqueHandles = uniqueHandles;
 exports.artistUrls = artistUrls;
 exports.bandSongUrls = bandSongUrls;
 exports.heardUrls = heardUrls;
@@ -198,6 +164,7 @@ exports.urlset = urlset;
 exports.url = url;
 exports.sitemapIndex = sitemapIndex;
 exports.STATIC_URLS = STATIC_URLS;
+exports.pagesSitemap = pagesSitemap;
 
 exports.handler = async function (event) {
   const doc = whichDocument(event);
@@ -211,7 +178,7 @@ exports.handler = async function (event) {
   }
 
   if (doc === 'pages') {
-    return { statusCode: 200, headers: XML_HEADERS, body: await pagesSitemap(index) };
+    return { statusCode: 200, headers: XML_HEADERS, body: pagesSitemap(index) };
   }
 
   if (doc === 'artists') {

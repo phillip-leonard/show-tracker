@@ -14,7 +14,7 @@
 
 const assert = require('node:assert');
 const { routeParams } = require('../../netlify/functions/lib/publicRouteParams');
-const { uniqueHandles } = require('../../netlify/functions/sitemap');
+const sitemap = require('../../netlify/functions/sitemap');
 
 const tests = [];
 function test(name, fn) { tests.push({ name, fn }); }
@@ -83,15 +83,39 @@ test('shared: public URL and function URL', () => {
 
 // ── Sitemap ──────────────────────────────────────────────────────────────
 
-test('sitemap: each handle listed once, blanks dropped', () => {
-  assert.deepStrictEqual(
-    uniqueHandles(['alexreviewer', 'phillip', 'alexreviewer', 'jordanmills', '', null, undefined]),
-    ['alexreviewer', 'phillip', 'jordanmills'],
-  );
+// Every URL in sitemap-pages.xml must be one Google may index. Public
+// profiles are noindex (USER_PAGE_ROBOTS) and were listed until 5.58.1.
+test('sitemap-pages: no /u/ profile pages, and How to Use is listed', () => {
+  const xml = sitemap.pagesSitemap({ artists: [] });
+  assert.ok(!/\/u\//.test(xml), 'no public profile URLs');
+  assert.match(xml, /<loc>https:\/\/mysetlists\.net\/how-to-use\/<\/loc>/);
 });
 
-test('sitemap: handles differing only in case or whitespace are the same handle', () => {
-  assert.deepStrictEqual(uniqueHandles(['Phillip', ' phillip ']), ['phillip']);
+// The static export serves every page with a trailing slash; a bare path
+// is a 301, which a sitemap shouldn't list.
+test('sitemap-pages: every static URL ends in a slash', () => {
+  for (const { loc } of sitemap.STATIC_URLS) assert.ok(loc.endsWith('/'), loc);
+});
+
+// public/_headers denies indexing by default (/*) and allows listed paths.
+// /how-to-use was missing from it for months, so a page in the sitemap
+// went out with `X-Robots-Tag: noindex, nofollow`. Every static sitemap
+// URL needs its own allow rule (Netlify matches `/x` for `/x/` too).
+test('_headers: every static sitemap URL has an index rule', () => {
+  const fs = require('fs');
+  const path = require('path');
+  const lines = fs.readFileSync(path.join(__dirname, '../../public/_headers'), 'utf8').split('\n');
+  const rules = new Map();
+  let current = null;
+  for (const line of lines) {
+    if (/^\//.test(line)) current = line.trim();
+    else if (current && /^\s+X-Robots-Tag:/i.test(line)) rules.set(current, line.split(':')[1].trim());
+  }
+  assert.strictEqual(rules.get('/*'), 'noindex, nofollow', 'the default deny stays');
+  for (const { loc } of sitemap.STATIC_URLS) {
+    const key = loc === '/' ? '/' : loc.replace(/\/$/, '');
+    assert.strictEqual(rules.get(key), 'index, follow', `${loc} needs an allow rule in public/_headers`);
+  }
 });
 
 (async () => {

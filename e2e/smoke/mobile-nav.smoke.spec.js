@@ -43,9 +43,13 @@ async function coldLaunch(page, route) {
   });
   await page.goto(route, { waitUntil: 'load' });
   await expect(page.locator('body')).not.toContainText('Application error');
-  // The shell renders behind authLoading; wait for that to resolve.
+  // The shell renders behind authLoading; wait for that to resolve. Pages
+  // that render while auth loads (`/`, /how-to-use) never say "Loading",
+  // so also wait for AppShell to drop the signed-in hint, which it does
+  // once auth has answered (lib/signedInHint.js).
   await page.waitForFunction(
-    () => !document.body.innerText.trim().startsWith('Loading'),
+    () => !document.body.innerText.trim().startsWith('Loading')
+      && !document.documentElement.hasAttribute('data-auth-hint'),
     null,
     { timeout: 20000 },
   );
