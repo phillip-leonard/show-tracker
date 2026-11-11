@@ -53,10 +53,22 @@ const PushOfferModal = dynamic(() => import('@/components/notifications/PushOffe
 // WITHOUT signing up. The support address and the Community Guidelines
 // live on /terms.
 //
-// Deliberately a small allowlist of static, self-contained legal pages:
-// every other route needs the signed-in shell (sidebar, header, user
-// data), and the landing page is the right answer for those.
-const PUBLIC_PATHS = ['/terms', '/privacy', '/cookies'];
+// Deliberately a small allowlist of static, self-contained pages: every
+// other route needs the signed-in shell (sidebar, header, user data), and
+// the landing page is the right answer for those.
+//
+// /how-to-use (5.58.1) is the App Store Support URL and a public, indexed
+// help page; it showed the landing page to anyone signed out, so App
+// Review and Google got the marketing page instead of the guide. It brings
+// its own header and footer when nobody is signed in (app/how-to-use).
+const PUBLIC_PATHS = ['/terms', '/privacy', '/cookies', '/how-to-use'];
+
+// Public pages that a signed-in user sees inside the app shell. While auth
+// resolves they render their public version (the static export's HTML),
+// which a returning user would see swap for the shell; the signed-in hint
+// hides it behind the app skeleton instead, as on `/`. The legal pages
+// look the same either way and don't need it.
+const SHELL_SKELETON_PATHS = ['/how-to-use'];
 
 function normalizedPath(pathname) {
   // The static export serves these with and without a trailing slash.
@@ -200,6 +212,16 @@ function AppShell({ children }) {
   // they need none of the shell below. Also while auth is still resolving,
   // so they are real HTML in the static export rather than "Loading...".
   if ((authLoading || (!user && !guestMode)) && isPublicPath(pathname)) {
+    if (SHELL_SKELETON_PATHS.includes(normalizedPath(pathname))) {
+      // The same wrapper whether auth is loading or answered "signed out",
+      // so the page stays mounted when it resolves.
+      return (
+        <>
+          <div className="auth-landing">{children}</div>
+          {authLoading && <AppSkeleton />}
+        </>
+      );
+    }
     return <>{children}</>;
   }
 

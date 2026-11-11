@@ -4,6 +4,52 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.58.1] — 2026-11-11
+
+Ships in iOS 3.12.11 (`MARKETING_VERSION` 3.12.10 → 3.12.11, the default patch
+bump. The build number is left to Xcode Cloud).
+
+**How to Use is a public page, and search engines may index it.**
+
+Search Console reported `/how-to-use/` "Excluded by 'noindex' tag" from an
+`X-Robots-Tag` header. No rule matched too much: `public/_headers` starts
+with a default `/* → noindex, nofollow` and allows listed paths, and
+`/how-to-use` was never listed. Behind that, the page wasn't public at all:
+signed out, it showed the landing page, so App Review opening the App
+Store Support URL got the marketing page, not the guide.
+
+- **Signed out, `/how-to-use/` shows the guide** (`PUBLIC_PATHS` in
+  `app/AppProviderWrapper.jsx`), with the public header from the
+  comparison pages (now `components/PublicHeader.jsx`, shared) and the site
+  footer. Signed in or in guest mode it's inside the app shell as before;
+  a returning user sees the app skeleton while auth resolves, as on `/`.
+  The static export now holds the whole guide instead of "Loading...".
+- **"Still have questions?"** points a signed-out visitor at
+  support@mysetlists.net, since the Feedback page needs an account. The
+  rest of the copy is unchanged.
+- **Its own title, description and canonical** (`app/how-to-use/layout.jsx`).
+  It used to inherit the home page's title, with no canonical.
+- **`public/_headers`** allows `/how-to-use`, and every rule now says why
+  it's there. The `/*` default stays: the SPA catch-all serves the home
+  page with a 200 for any unknown path, and that header is the only thing
+  keeping those soft 404s out of the index. Redundant trailing-slash
+  duplicates are gone (Netlify matches `/x` for `/x/`, checked in
+  production).
+- **`sitemap-pages.xml`** lists `/how-to-use/`, lists the legal pages with
+  the trailing slash they're served at (the bare paths are 301s), and no
+  longer lists public profiles (`/u/<handle>/`), which are
+  `noindex, follow`. The Firestore read that listed them is gone.
+- **Tests:** sitemap-pages has no `/u/` URLs and every static URL ends in a
+  slash; every static sitemap URL has an allow rule in `public/_headers`,
+  and the `/*` default is still there. The mobile-nav smoke test's
+  `coldLaunch` also waits for the signed-in hint to clear, since
+  `/how-to-use/` no longer says "Loading..." while auth resolves.
+
+No other route changes its indexing: app routes, admin, `/u/`, thin song
+pages (`noindex, follow`) and share links behave as before.
+
+---
+
 ## [5.58.0] — 2026-11-09
 
 Ships in iOS 3.12.10 (`MARKETING_VERSION` 3.12.9 → 3.12.10, the default patch
