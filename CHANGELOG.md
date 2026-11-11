@@ -6,8 +6,8 @@ All notable changes to mysetlists.net are documented here.
 
 ## [5.59.2] — 2026-11-11
 
-Ships in iOS 3.13.2 (`MARKETING_VERSION` 3.13 → 3.13.2: 3.13.1 is taken by
-the open #393). Everything here is on the server or the admin screen, so the
+Ships in iOS 3.13.2 (`MARKETING_VERSION` 3.13.1 → 3.13.2, after #393's
+3.13.1). Everything here is on the server or the admin screen, so the
 3.13 build already in review doesn't need replacing.
 
 **Each Year in Review email sends once, and the In-App Event media is in
@@ -34,6 +34,43 @@ the repo.**
 - Tests: `tests/email/yearRecapEmail.test.js` now covers a second Send
   (409, nobody emailed again), preview reporting it, the other template
   still sending, and two Sends racing (only one creates the send).
+## [5.59.1] — 2026-11-11
+
+Ships in iOS 3.13.1 (`MARKETING_VERSION` 3.13 → 3.13.1; the build number
+is left to Xcode Cloud).
+
+**Show tags are private to the two people on them.**
+
+Until now `firestore.rules` gave every signed-in user full read and write on
+`showTags`. Each tag holds who tagged whom at which show, the tagger's
+display name and a copy of the show. That meant anyone signed in could list
+every tag, rewrite one or delete it.
+
+- **Read:** only the tag's sender (`fromUid`) or recipient (`toUid`). Every
+  query the app runs filters on one of them, so all of these keep working:
+  the incoming-tags listener, upcoming tag statuses, revoking, blocking
+  (`lib/moderation.js`) and the Year in Review show buddy
+  (`lib/yearRecapData.js`, accepted tags where `fromUid` is you).
+- **Create:** only as yourself (`fromUid == auth.uid`), `pending`, to
+  someone other than yourself, with only the fields the app writes.
+- **Update:** the recipient can accept or decline a pending tag (sending
+  the same answer again is allowed, so a double tap doesn't error). The
+  sender can revoke a pending tag (`status` + `revokedAt`) and update
+  `showData` on a pending upcoming-show tag (what `updateUpcomingShow`
+  does when you change the date or venue). No other field can change.
+- **Delete:** either party, which the block flow needs to clear tags in
+  both directions.
+- Account-deletion purges (`netlify/functions/lib/userDataPurge.js`) and
+  the seed/verify scripts use the Admin SDK and aren't affected.
+- New `tests/rules/showTags.rules.test.js` (24 cases) runs as part of
+  `npm run test:rules`.
+
+**Rules deploy needed:** `deploy-firestore-rules.yml` deploys
+`firestore.rules` on merge to `main`. If that run fails, deploy by hand with
+`npm run deploy:rules`. No client change: the web and iOS builds are only
+here for the version bump.
+
+---
 
 ## [5.59.0] — 2026-11-11
 

@@ -266,9 +266,68 @@ service cloud.firestore {
       allow read, write: if request.auth != null;
     }
 
-    // Show tags (tag friends at shows)
+    // Show tags (tag friends at shows, past and upcoming). Each one holds who
+    // tagged whom, the tagger's display name and a copy of the show, so only
+    // the two people on it may see it. Until 5.59.1 any signed-in user could
+    // read, edit or delete any tag. tests/rules/showTags.rules.test.js covers
+    // every case below. What the app does with them:
+    //   create   tagFriendsAtShow / tagFriendsAtUpcomingShow, as the sender
+    //   read     the recipient's listener (toUid ==), the sender's queries
+    //            (fromUid == ...: upcoming tag statuses, revoking, the Year in
+    //            Review show buddy), acceptShowTag's get by the recipient
+    //   update   acceptShowTag / declineShowTag (recipient, status only);
+    //            revokePendingTags (sender, status + revokedAt);
+    //            updateUpcomingShow (sender, showData of a pending upcoming tag)
+    //   delete   lib/moderation.js clearPendingBetween, either party, on block
+    // Account deletion purges by fromUid/toUid through the Admin SDK.
     match /showTags/{tagId} {
-      allow read, write: if request.auth != null;
+      function isTagParty() {
+        return request.auth != null
+          && (resource.data.fromUid == request.auth.uid
+            || resource.data.toUid == request.auth.uid);
+      }
+      function onlyChanges(keys) {
+        return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys);
+      }
+
+      allow read: if isTagParty();
+
+      allow create: if request.auth != null
+        && request.resource.data.fromUid == request.auth.uid
+        && request.resource.data.toUid is string
+        && request.resource.data.toUid != request.auth.uid
+        && request.resource.data.status == 'pending'
+        && request.resource.data.showData is map
+        && request.resource.data.keys().hasOnly(
+          ['fromUid', 'fromName', 'toUid', 'showData', 'status', 'createdAt', 'upcomingShowId']);
+
+      // Recipient answers a pending tag. Re-sending the answer it already
+      // has (a double tap on Accept) is a no-op and allowed; changing an
+      // answer, or answering a revoked tag, is not.
+      allow update: if request.auth != null
+        && resource.data.toUid == request.auth.uid
+        && onlyChanges(['status'])
+        && request.resource.data.status in ['accepted', 'declined']
+        && (resource.data.status == 'pending'
+          || resource.data.status == request.resource.data.status);
+
+      // Sender takes back a tag that hasn't been answered.
+      allow update: if request.auth != null
+        && resource.data.fromUid == request.auth.uid
+        && resource.data.status == 'pending'
+        && onlyChanges(['status', 'revokedAt'])
+        && request.resource.data.status == 'revoked';
+
+      // Sender edits the date or venue of an upcoming show while a friend
+      // still hasn't answered, so they answer about the right show.
+      allow update: if request.auth != null
+        && resource.data.fromUid == request.auth.uid
+        && resource.data.status == 'pending'
+        && resource.data.get('upcomingShowId', null) is string
+        && onlyChanges(['showData'])
+        && request.resource.data.showData is map;
+
+      allow delete: if isTagParty();
     }
 
     // Venue ratings — user can only write their own
@@ -348,9 +407,10 @@ service cloud.firestore {
     // Friend activity feed — append-only log of add/rate events, read by
     // friends via a `userId in [...]` query. Privacy is enforced by the app
     // (lib/activityFeed.js checks the actor's shareActivity setting before
-    // writing) rather than by a per-doc ACL, matching the existing
-    // showTags/showSuggestions precedent of "any authenticated user can
-    // read/write, the app controls which queries it actually runs."
+    // writing) rather than by a per-doc ACL, matching the showSuggestions
+    // precedent of "any authenticated user can read/write, the app controls
+    // which queries it actually runs." (showTags followed it too until
+    // 5.59.1, when it was limited to the two people on each tag.)
     match /userActivity/{docId} {
       allow read: if request.auth != null;
       allow create: if request.auth != null
