@@ -5,6 +5,8 @@
  *   - every decision processWelcomeEmail makes, through a fake Firestore
  *     whose transactions conflict and retry like the real ones
  *   - the send-welcome-email handler: auth, uid from the token, test mode
+ *   - no emoji anywhere (5.59.4), and the band page line: when it shows,
+ *     where it links, and that a failed lookup never stops the send
  *
  *   node tests/email/welcomeEmail.test.js
  */
@@ -19,9 +21,10 @@ const { __setTestTransport, buildEmail } = require('../../netlify/functions/lib/
 const { hashEmail, verify } = require('../../netlify/functions/lib/unsubscribeToken');
 const { FOOTER_MARKER } = require('../../netlify/functions/lib/emailLayout');
 const {
-  welcomeEmail, processWelcomeEmail, decideClaim,
-  WELCOME_EMAIL_START, MAX_ATTEMPTS, SUBJECT, PREHEADER, LINKS,
+  welcomeEmail, processWelcomeEmail, decideClaim, bandPageFor,
+  WELCOME_EMAIL_START, MAX_ATTEMPTS, SUBJECT, PREHEADER, LINKS, SAMPLES,
 } = require('../../netlify/functions/lib/welcomeEmail');
+const { findArtistByName } = require('../../netlify/functions/lib/publicArtistSnapshot');
 const handlerMod = require('../../netlify/functions/send-welcome-email');
 
 const ROOT = path.join(__dirname, '..', '..');
@@ -31,11 +34,23 @@ const NEW_ACCOUNT = new Date(WELCOME_EMAIL_START + 86400000).toUTCString();
 const OLD_ACCOUNT = new Date(WELCOME_EMAIL_START - 86400000 * 30).toUTCString();
 const NOW = new Date(WELCOME_EMAIL_START + 86400000 * 2);
 
+// Any emoji or pictograph, plus the variation selector that turns a plain
+// symbol into one. Arrows written as &rarr; are entities, not emoji.
+const EMOJI = /[\p{Extended_Pictographic}\p{Regional_Indicator}\u{FE0F}\u{20E3}]/u;
+
+// A snapshot index the way runSnapshot writes it: published entries carry
+// a hash and fetchedAt.
+const entry = (slug, extra = {}) => ({ slug, name: slug, source: 'songfish', fetchedAt: '2026-11-10T00:00:00.000Z', hash: `h_${slug}`, ...extra });
+const INDEX = { schemaVersion: 2, artists: [entry('goose'), entry('phish', { source: 'phishnet', fetchedAt: '2026-01-01T00:00:00.000Z' })] };
+const readIndex = (index = INDEX) => async () => index;
+const GOOSE_LINE = 'Want more Goose? See their most-played songs, gaps and recent setlists on the';
+const GOOSE_URL = 'https://mysetlists.net/bands/?band=goose';
+
 // ── Template ─────────────────────────────────────────────────────────
 
 test('subject and preheader are the agreed copy', () => {
   const { subject, html, preheader } = welcomeEmail({});
-  assert.strictEqual(subject, 'Your first show is in 🎶 Here’s what else MySetlists can do');
+  assert.strictEqual(subject, 'Your first show is in. Here’s what else MySetlists can do');
   assert.strictEqual(subject, SUBJECT);
   assert.strictEqual(preheader, 'Scan tickets, import your ticket history, add photos, tag friends, and more.');
   assert.ok(html.includes(PREHEADER), 'preheader is in the HTML');
@@ -122,6 +137,15 @@ test('dark mode, one image, and the unsubscribe marker', () => {
   assert.ok(html.includes(FOOTER_MARKER));
 });
 
+test('admin samples: Goose with its band line, and a band with no page', () => {
+  assert.ok(welcomeEmail(SAMPLES.band_page).html.includes(GOOSE_LINE));
+  assert.strictEqual(findArtistByName(SAMPLES.no_band_page.artist), null, 'the no-page sample must not be a configured band');
+  assert.ok(!welcomeEmail(SAMPLES.no_band_page).html.includes('Want more'));
+  const card = read('components/admin/WelcomeEmailCard.jsx');
+  assert.ok(card.includes("JSON.stringify({ test: true, variant })"));
+  assert.ok(card.includes("'no_band_page'"));
+});
+
 test('built for sending: signed unsubscribe link and List-Unsubscribe headers', () => {
   const { subject, html } = welcomeEmail({ artist: 'Goose' });
   const payload = buildEmail({ recipient: { email: 'a@example.com', uid: 'u1' }, subject, html, source: 'notification:welcome', replyTo: 'me@example.com' });
@@ -135,6 +159,114 @@ test('built for sending: signed unsubscribe link and List-Unsubscribe headers', 
   assert.ok(payload.headers['List-Unsubscribe'].startsWith('<https://'));
   assert.strictEqual(payload.reply_to, 'me@example.com');
   assert.strictEqual(payload.from, 'Phillip <phillip@mysetlists.net>');
+});
+
+// ── No emoji (5.59.4) ────────────────────────────────────────────────
+
+test('the regex catches what it should', () => {
+  for (const e of ['🎶', '📸', '🎟️', '🖼️', '👯', '🗺️', '🤙', '✅', '❤️', '🇺🇸']) assert.ok(EMOJI.test(e), e);
+  for (const ok of ['→', '&rarr;', '’', '&nbsp;', '—', 'moe.']) assert.ok(!EMOJI.test(ok), ok);
+});
+
+test('no emoji in the subject, preheader, HTML or sent payload, in every variant', () => {
+  const variants = [{}, SAMPLES.band_page, SAMPLES.no_band_page, { firstName: 'Sam', artist: 'Goose', venue: 'Red Rocks', showId: 's1', bandPage: { name: 'Goose', slug: 'goose' } }];
+  for (const v of variants) {
+    const { subject, html, preheader } = welcomeEmail(v);
+    assert.ok(!EMOJI.test(subject), `subject: ${subject}`);
+    assert.ok(!EMOJI.test(preheader), 'preheader');
+    const hit = html.match(EMOJI);
+    assert.ok(!hit, `emoji in HTML: ${hit && hit[0]}`);
+    const payload = buildEmail({ recipient: { email: 'a@example.com', uid: 'u1' }, subject, html, source: 'notification:welcome' });
+    assert.ok(!EMOJI.test(payload.subject) && !EMOJI.test(payload.html), 'payload, footer included');
+  }
+});
+
+test('section headings are plain text', () => {
+  const { html } = welcomeEmail({ artist: 'Goose' });
+  const headings = [...html.matchAll(/<h3[^>]*>([^<]*)<\/h3>/g)].map((m) => m[1]);
+  assert.deepStrictEqual(headings, ['Scan a ticket stub', 'Import your ticket history', 'Add photos to a show', 'Tag friends who were there', 'Tours and Festivals']);
+});
+
+// ── Band page line (5.59.4) ──────────────────────────────────────────
+
+test('template: a band page → one line after the intro, before the first section', () => {
+  const { html } = welcomeEmail({ artist: 'Goose', bandPage: { name: 'Goose', slug: 'goose' } });
+  assert.ok(html.includes(GOOSE_LINE));
+  assert.ok(html.includes(`href="${GOOSE_URL}"`));
+  assert.ok(html.includes('>Goose band page&nbsp;&rarr;</a>'));
+  const line = html.indexOf(GOOSE_LINE);
+  assert.ok(line > html.indexOf('make it more fun.'), 'after the intro');
+  assert.ok(line < html.indexOf('Scan a ticket stub'), 'before the sections');
+  assert.strictEqual(html.split('Want more').length - 1, 1);
+});
+
+test('template: no band page, or a malformed one → no line', () => {
+  for (const bandPage of [undefined, null, {}, { name: 'Goose' }, { slug: 'goose' }, { name: 'X', slug: '../evil' }]) {
+    const { html } = welcomeEmail({ artist: 'Goose', bandPage });
+    assert.ok(!html.includes('Want more'), JSON.stringify(bandPage));
+    assert.ok(!html.includes('/bands/?band='));
+  }
+});
+
+test('template: the band name is escaped', () => {
+  const { html } = welcomeEmail({ bandPage: { name: 'A&B <i>', slug: 'a-b' } });
+  assert.ok(html.includes('Want more A&amp;B &lt;i&gt;?'));
+  assert.ok(!html.includes('<i>'));
+});
+
+test('the band link is a real route and a universal link', () => {
+  assert.ok(fs.existsSync(path.join(ROOT, 'app', 'bands', 'page.jsx')));
+  assert.ok(read('public/.well-known/apple-app-site-association').includes('"/bands/*"'));
+  // Signed out on the web, /bands/?band= goes on to the public page.
+  assert.ok(read('lib/bandScreens.js').includes('`/artist/${band.slug}/`'));
+});
+
+test('artist name → band uses the shared matcher: case, punctuation, qualifiers', () => {
+  const cases = [
+    ['Goose', 'goose'], ['goose', 'goose'], ['GOOSE', 'goose'], ['Goose (US)', 'goose'],
+    ['moe.', 'moe'], ['Moe', 'moe'], ['MOE.', 'moe'],
+    ['King Gizzard & the Lizard Wizard', 'king-gizzard-and-the-lizard-wizard'],
+    ['King Gizzard & The Lizard Wizard', 'king-gizzard-and-the-lizard-wizard'],
+    ['king gizzard & the lizard wizard', 'king-gizzard-and-the-lizard-wizard'],
+    ["Umphrey's McGee", 'umphreys-mcgee'], ['Umphreys McGee', 'umphreys-mcgee'], ['Umphrey’s McGee', 'umphreys-mcgee'],
+    ['The String Cheese Incident', 'string-cheese-incident'], ['String Cheese Incident', 'string-cheese-incident'],
+    ['Dead & Company', 'dead-and-company'], ['Phish', 'phish'],
+  ];
+  for (const [name, slug] of cases) assert.strictEqual(findArtistByName(name)?.slug, slug, name);
+  for (const name of ['Khruangbin', '', null, 'Goose Fan Band', 'Phish Tribute']) assert.strictEqual(findArtistByName(name), null, String(name));
+});
+
+test('bandPageFor: published band → its name and slug', async () => {
+  assert.deepStrictEqual(await bandPageFor('goose (US)', readIndex()), { name: 'Goose', slug: 'goose' });
+  assert.deepStrictEqual(await bandPageFor('moe.', readIndex({ artists: [entry('moe')] })), { name: 'moe.', slug: 'moe' });
+});
+
+test('bandPageFor: Phish past its 24 hours still counts (its page says temporarily unavailable)', async () => {
+  assert.deepStrictEqual(await bandPageFor('Phish', readIndex()), { name: 'Phish', slug: 'phish' });
+});
+
+test('bandPageFor: configured but not in the index, or never published → null', async () => {
+  assert.strictEqual(await bandPageFor('Billy Strings', readIndex()), null);
+  assert.strictEqual(await bandPageFor('Goose', readIndex({ artists: [entry('goose', { hash: undefined })] })), null);
+  assert.strictEqual(await bandPageFor('Goose', readIndex({ artists: [] })), null);
+  assert.strictEqual(await bandPageFor('Goose', readIndex(null)), null);
+  assert.strictEqual(await bandPageFor('Goose', readIndex({ artists: 'nope' })), null);
+});
+
+test('bandPageFor: a band not in config never reads the index', async () => {
+  let reads = 0;
+  assert.strictEqual(await bandPageFor('Khruangbin', async () => { reads++; return INDEX; }), null);
+  assert.strictEqual(reads, 0);
+});
+
+test('bandPageFor: a throwing, rejecting or hanging read → null, never throws', async () => {
+  const warn = console.warn; console.warn = () => {};
+  try {
+    assert.strictEqual(await bandPageFor('Goose', () => { throw new Error('no blobs'); }), null);
+    assert.strictEqual(await bandPageFor('Goose', async () => { throw new Error('503'); }), null);
+    assert.strictEqual(await bandPageFor('Goose', () => new Promise(() => {}), { timeoutMs: 20 }), null);
+    assert.strictEqual(await bandPageFor('Goose', null), null);
+  } finally { console.warn = warn; }
 });
 
 // ── Decisions ────────────────────────────────────────────────────────
@@ -295,6 +427,45 @@ test('a showId that is not one of theirs (or a path) is ignored', async () => {
   assert.ok(ctx.sent[0].html.includes('Goose'));
 });
 
+test('send: Goose with a published page → the band line, linked to its page', async () => {
+  const ctx = setup();
+  assert.strictEqual((await go(ctx, { showId: 'show_0', readBandIndex: readIndex() })).status, 'sent');
+  assert.ok(ctx.sent[0].html.includes(GOOSE_LINE));
+  assert.ok(ctx.sent[0].html.includes(`href="${GOOSE_URL}"`));
+  assert.ok(!EMOJI.test(ctx.sent[0].html) && !EMOJI.test(ctx.sent[0].subject));
+});
+
+test('send: band not in the index → sent, no line', async () => {
+  const ctx = setup();
+  assert.strictEqual((await go(ctx, { readBandIndex: readIndex({ artists: [entry('phish')] }) })).status, 'sent');
+  assert.ok(!ctx.sent[0].html.includes('Want more'));
+});
+
+test('send: the snapshot read throws → still sent, no line, recorded as sent', async () => {
+  const ctx = setup();
+  const warn = console.warn; console.warn = () => {};
+  let r;
+  try { r = await go(ctx, { readBandIndex: () => { throw new Error('Blobs down'); } }); } finally { console.warn = warn; }
+  assert.strictEqual(r.status, 'sent');
+  assert.strictEqual(ctx.sent.length, 1);
+  assert.ok(!ctx.sent[0].html.includes('Want more'));
+  assert.strictEqual(ctx.db._get(`userProfiles/${ctx.uid}`).welcomeEmail.status, 'sent');
+});
+
+test('send: no reader at all → sent, no line', async () => {
+  const ctx = setup();
+  assert.strictEqual((await go(ctx)).status, 'sent');
+  assert.ok(!ctx.sent[0].html.includes('Want more'));
+});
+
+test('send: the band line follows the named show', async () => {
+  const ctx = setup({ shows: 2 });
+  ctx.db._put(`users/${ctx.uid}/shows/show_1`, { artist: 'moe.', venue: 'Red Rocks' });
+  await go(ctx, { showId: 'show_1', readBandIndex: readIndex({ artists: [entry('goose'), entry('moe')] }) });
+  assert.ok(ctx.sent[0].html.includes('Want more moe.?'));
+  assert.ok(ctx.sent[0].html.includes('https://mysetlists.net/bands/?band=moe'));
+});
+
 // ── Handler ──────────────────────────────────────────────────────────
 
 const event = (body, token) => ({
@@ -318,6 +489,7 @@ function handlerSetup() {
     ],
   });
   __setTestFirebase({ db: ctx.db, auth });
+  handlerMod.__setTestBandIndexReader(() => readIndex());
   return ctx;
 }
 
@@ -351,6 +523,48 @@ test('handler: test mode is admin only and writes nothing', async () => {
   assert.strictEqual(ctx.db._writes.length, before);
 });
 
+test('handler: a real send carries the band line from the snapshot index', async () => {
+  const ctx = handlerSetup();
+  const res = await handlerMod.handler(event({ showId: 'show_0' }, 'tok_new'));
+  assert.strictEqual(JSON.parse(res.body).status, 'sent');
+  assert.ok(ctx.sent[0].html.includes(GOOSE_LINE));
+});
+
+test('handler: a Blobs failure on a real send still sends', async () => {
+  const ctx = handlerSetup();
+  handlerMod.__setTestBandIndexReader(() => () => { throw new Error('MissingBlobsEnvironmentError'); });
+  const warn = console.warn; console.warn = () => {};
+  let res;
+  try { res = await handlerMod.handler(event({}, 'tok_new')); } finally { console.warn = warn; }
+  assert.strictEqual(res.statusCode, 200);
+  assert.strictEqual(JSON.parse(res.body).status, 'sent');
+  assert.ok(!ctx.sent[0].html.includes('Want more'));
+});
+
+test('handler: admin test send, both variants', async () => {
+  const ctx = handlerSetup();
+  const withPage = await handlerMod.handler(event({ test: true }, 'tok_admin'));
+  assert.strictEqual(withPage.statusCode, 200);
+  const a = JSON.parse(withPage.body);
+  assert.strictEqual(a.variant, 'band_page');
+  assert.deepStrictEqual(a.bandPage, { name: 'Goose', slug: 'goose' });
+  assert.ok(ctx.sent[0].html.includes(GOOSE_LINE));
+  assert.strictEqual(ctx.sent[0].subject, `[Test] ${SUBJECT}`);
+
+  const without = await handlerMod.handler(event({ test: true, variant: 'no_band_page' }, 'tok_admin'));
+  const b = JSON.parse(without.body);
+  assert.strictEqual(b.variant, 'no_band_page');
+  assert.strictEqual(b.bandPage, null);
+  assert.ok(!ctx.sent[1].html.includes('Want more'));
+  for (const p of ctx.sent) assert.ok(!EMOJI.test(p.subject) && !EMOJI.test(p.html));
+
+  // Goose not published (yet) → the band_page variant goes out without the line, and says so.
+  handlerMod.__setTestBandIndexReader(() => readIndex({ artists: [] }));
+  const unpublished = JSON.parse((await handlerMod.handler(event({ test: true, variant: 'band_page' }, 'tok_admin'))).body);
+  assert.strictEqual(unpublished.bandPage, null);
+  assert.ok(!ctx.sent[2].html.includes('Want more'));
+});
+
 test('handler: without UNSUBSCRIBE_SECRET it refuses before claiming', async () => {
   const ctx = handlerSetup();
   const saved = process.env.UNSUBSCRIBE_SECRET;
@@ -372,4 +586,4 @@ test('handler: CORS only for the site and the app; OPTIONS and GET', async () =>
   assert.strictEqual((await handlerMod.handler({ httpMethod: 'GET', headers: {} })).statusCode, 405);
 });
 
-run('welcome email').then(() => { __setTestFirebase({}); __setTestTransport(null); });
+run('welcome email').then(() => { __setTestFirebase({}); __setTestTransport(null); handlerMod.__setTestBandIndexReader(null); });

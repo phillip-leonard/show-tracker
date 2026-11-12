@@ -38,8 +38,7 @@ const crypto = require('crypto');
 const { escapeHtml, wrapEmail } = require('./emailLayout');
 const { unfollowUrl } = require('./unfollowToken');
 const { PUSH_TOKENS, prefFor, loadPushTokens, isDeadToken, pushToDevices } = require('./pushDelivery');
-const { artistNameKeyLoose } = require('./songfishSites');
-const publicArtists = require('../../../config/public-artists.json');
+const { findArtistByName } = require('./publicArtistSnapshot');
 
 const SITE_URL = 'https://mysetlists.net';
 const LEDGER_COLLECTION = 'bandAnnouncementLedger';
@@ -271,8 +270,8 @@ function shortDate(date, nowMs) {
 }
 
 // The band screens in the app (/bands/?band=<slug>) exist for the bands in
-// config/public-artists.json; lib/bandScreens.js matches names the same way.
-const BAND_SLUGS = new Map(publicArtists.artists.map((a) => [artistNameKeyLoose(a.name), a.slug]));
+// config/public-artists.json; findArtistByName matches names the way
+// lib/bandScreens.js does.
 
 /**
  * Where tapping the push goes, as a universal link: the iOS app routes it
@@ -281,7 +280,7 @@ const BAND_SLUGS = new Map(publicArtists.artists.map((a) => [artistNameKeyLoose(
  * Notifications, where the alert lists its dates and ticket links.
  */
 function pushLink(alert) {
-  const slug = alert.kind === 'tour' ? BAND_SLUGS.get(artistNameKeyLoose(alert.band.name)) : null;
+  const slug = alert.kind === 'tour' ? findArtistByName(alert.band.name)?.slug || null : null;
   return slug ? `${SITE_URL}/bands/?band=${encodeURIComponent(slug)}` : `${SITE_URL}/notifications/`;
 }
 

@@ -27,9 +27,20 @@
  *
  * A 'sending' claim whose function died mid-send stays as it is: never
  * sending is the safe way for that to go wrong.
+ *
+ * THE BAND LINE (5.59.4). When the show's band has a published band page,
+ * the email links to it (bandPageFor below). "Published" means an entry in
+ * the public-artists snapshot index, which runSnapshot only writes after a
+ * complete fetch has been stored, so the link never lands on a band with
+ * no page yet. A band only listed in config/public-artists.json doesn't
+ * count. Phish past phish.net's 24 hours still counts: its page shows
+ * "temporarily unavailable" until the next run, every 6 hours. The lookup
+ * is best-effort: any failure, or no answer within BAND_LOOKUP_TIMEOUT_MS,
+ * sends the email without the line.
  */
 
-const { welcomeEmail, SUBJECT, PREHEADER, LINKS, SAMPLE, showLink } = require('./welcomeEmailTemplate');
+const { welcomeEmail, SUBJECT, PREHEADER, LINKS, SAMPLE, SAMPLE_NO_BAND_PAGE, SAMPLES, showLink, bandLink } = require('./welcomeEmailTemplate');
+const { findArtistByName } = require('./publicArtistSnapshot');
 const { buildEmail, sendOne } = require('./outgoingEmail');
 const { canEmail } = require('./emailPolicy');
 const { normalizeEmail } = require('./unsubscribeToken');
@@ -38,6 +49,37 @@ const { normalizeEmail } = require('./unsubscribeToken');
 // in 5.55.0; everyone already signed up by then has seen the app.
 const WELCOME_EMAIL_START = Date.parse('2026-11-08T00:00:00Z');
 const MAX_ATTEMPTS = 3;
+const BAND_LOOKUP_TIMEOUT_MS = 3000;
+
+// ── Band page ────────────────────────────────────────────────────────
+
+function withTimeout(promise, ms) {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`timed out after ${ms}ms`)), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
+/**
+ * bandPageFor(artist, readIndex) → { name, slug } | null. Never throws.
+ *   artist    — the show's artist string, as the user saved it
+ *   readIndex — () => the snapshot index (publicArtistSnapshot.js
+ *               loadIndex), only called for a configured band
+ */
+async function bandPageFor(artist, readIndex, { timeoutMs = BAND_LOOKUP_TIMEOUT_MS } = {}) {
+  const band = findArtistByName(artist);
+  if (!band || typeof readIndex !== 'function') return null;
+  try {
+    const index = await withTimeout(Promise.resolve().then(readIndex), timeoutMs);
+    const entry = (Array.isArray(index?.artists) ? index.artists : []).find((e) => e && e.slug === band.slug);
+    if (!entry || !entry.hash || !entry.fetchedAt) return null;
+    return { name: band.name, slug: band.slug };
+  } catch (e) {
+    console.warn('[welcome-email] band page lookup failed, sending without it:', e?.message || e);
+    return null;
+  }
+}
 
 // ── Decision ─────────────────────────────────────────────────────────
 
@@ -69,14 +111,19 @@ function decideClaim(existing) {
 }
 
 /**
- * processWelcomeEmail({ db, auth, uid, showId, now, replyTo })
+ * processWelcomeEmail({ db, auth, uid, showId, now, replyTo, readBandIndex })
  * → { status, ... }   never throws for an expected outcome.
  *
  * Statuses that write nothing: 'not_eligible' (no shows yet),
  * 'already_handled', 'max_attempts'. Everything else is written to the
  * profile.
+ *
+ * The band line is for the show the app named (the one just saved, or the
+ * first of a batch), the same show the "You just logged" line names, so
+ * the two always agree. readBandIndex is optional; without it there is no
+ * band line.
  */
-async function processWelcomeEmail({ db, auth, uid, showId = null, now = new Date(), replyTo = null }) {
+async function processWelcomeEmail({ db, auth, uid, showId = null, now = new Date(), replyTo = null, readBandIndex = null }) {
   const profileRef = db.doc(`userProfiles/${uid}`);
   const record = (fields) => profileRef.set({ welcomeEmail: { at: now, ...fields } }, { merge: true });
 
@@ -129,11 +176,13 @@ async function processWelcomeEmail({ db, auth, uid, showId = null, now = new Dat
     return { status: 'skipped_no_email' };
   }
 
+  const bandPage = await bandPageFor(show.artist, readBandIndex);
   const { subject, html } = welcomeEmail({
     firstName: firstNameOf(profile),
     artist: show.artist,
     venue: show.venue,
     showId: show.id,
+    bandPage,
   });
   const payload = buildEmail({
     recipient: { email, uid },
@@ -160,6 +209,7 @@ async function processWelcomeEmail({ db, auth, uid, showId = null, now = new Dat
 }
 
 module.exports = {
-  welcomeEmail, processWelcomeEmail, decideClaim,
-  WELCOME_EMAIL_START, MAX_ATTEMPTS, SUBJECT, PREHEADER, LINKS, SAMPLE, showLink,
+  welcomeEmail, processWelcomeEmail, decideClaim, bandPageFor,
+  WELCOME_EMAIL_START, MAX_ATTEMPTS, BAND_LOOKUP_TIMEOUT_MS,
+  SUBJECT, PREHEADER, LINKS, SAMPLE, SAMPLE_NO_BAND_PAGE, SAMPLES, showLink, bandLink,
 };

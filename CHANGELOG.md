@@ -4,6 +4,49 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.59.4] — 2026-11-11
+
+Ships in iOS 3.13.4 (`MARKETING_VERSION` 3.13.3 → 3.13.4, after #395's
+3.13.3).
+
+**No first-show animation; the welcome email loses its emoji and links
+the band page.**
+
+- **First-show animation removed** (`context/AppContext.jsx`,
+  `app/AppProviderWrapper.jsx`). The bouncing "🤙 First show added!"
+  overlay and its `showCelebration` state are gone. It was the whole
+  celebration (no CTA), used Tailwind's built-in `animate-bounce`, no
+  package and no haptics, and the iOS app runs the same web code. A
+  guest's first show now opens the account prompt immediately instead of
+  two seconds later. The welcome email request (`noteShowsAdded`) never
+  depended on it and is unchanged.
+- **Welcome email: no emoji or icons.** New subject "Your first show is
+  in. Here’s what else MySetlists can do"; the five section headings are
+  plain text. The logo, layout, buttons, dark mode and unsubscribe
+  footer/headers are unchanged.
+- **Welcome email: band page line.** When the band of the show the app
+  named (the one just saved, or the first of a batch) has a published
+  band page, one line follows the intro: "Want more {band}? … on the
+  {band} band page →". It links to `/bands/?band=<slug>`, a universal
+  link: it opens the band in the iPhone app, the band screen on the web
+  when signed in, and `/artist/<slug>/` when signed out. "Published" means
+  an entry in the snapshot index, not just a config listing. Phish past
+  its 24 hours still gets the line. The lookup times out after 3 seconds,
+  and any failure sends the email without the line.
+- **One name matcher.** `findArtistByName` in
+  `netlify/functions/lib/publicArtistSnapshot.js` (artistNameKeyLoose,
+  as `lib/bandScreens.js` uses); `followedBandAlerts.js` now uses it too.
+- **Admin** (`WelcomeEmailCard.jsx`): preview and test-send either
+  variant, "With band page (Goose)" or "No band page". The Goose test send
+  runs the live lookup and reports whether it found the page. The preview
+  modal now opens full size: it was rendered inside the card, whose
+  `backdrop-blur` clipped it to the card's height.
+- Tests: no-emoji checks on every variant (subject, preheader, HTML,
+  sent payload), the band line and its lookup failures, name matching
+  ("moe.", "King Gizzard & the Lizard Wizard"), both admin variants, and a
+  source check that the animation is gone and `addShow` still triggers the
+  email.
+
 ## [5.59.3] — 2026-11-11
 
 Ships in iOS 3.13.3 (`MARKETING_VERSION` 3.13.2 → 3.13.3; the build number
