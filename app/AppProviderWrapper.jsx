@@ -137,7 +137,7 @@ function AppShell({ children }) {
     pushOffer, setPushOffer,
     showMigrationPrompt, handleMigrateData, handleSkipMigration, localShowsToMigrate,
     showGuestPrompt, setShowGuestPrompt, openAuthModal,
-    showCelebration, welcomeState, setWelcomeState,
+    welcomeState, setWelcomeState,
     pendingNotificationCount, unreadNotifications,
     friends, handleLogout,
     enterGuestMode, exitGuestMode, communityStats,
@@ -163,8 +163,6 @@ function AppShell({ children }) {
   useDismissable(showMigrationPrompt, handleSkipMigration, { id: 'migration-prompt' });
   useDismissable(showGuestPrompt, () => setShowGuestPrompt(false), { id: 'guest-prompt' });
   useDismissable(!!welcomeState, () => setWelcomeState(null), { id: 'welcome-modal' });
-  // The first-show celebration is deliberately absent: it is
-  // pointer-events-none and self-dismissing, so it is not a dismiss target.
 
   // Once auth has an answer, React decides what renders: stop hiding the
   // landing page behind the skeleton (lib/signedInHint.js).
@@ -329,18 +327,6 @@ function AppShell({ children }) {
               >
                 Skip
               </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* First Show Celebration */}
-      {showCelebration && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
-          <div className="text-center animate-bounce">
-            <div className="text-8xl mb-4">🤙</div>
-            <div className="text-2xl font-bold text-primary bg-black/50 backdrop-blur-sm px-6 py-3 rounded-2xl">
-              First show added!
             </div>
           </div>
         </div>

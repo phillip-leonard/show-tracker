@@ -446,9 +446,6 @@ export function AppProvider({ children }) {
   // Mobile sidebar
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  // Celebration animation
-  const [showCelebration, setShowCelebration] = useState(false);
-
   // Friends feature state
   const [friends, setFriends] = useState([]);
   const [pendingFriendRequests, setPendingFriendRequests] = useState([]);
@@ -1530,13 +1527,10 @@ export function AppProvider({ children }) {
         console.log('Failed to update guest session:', error);
       }
 
-      if (isFirstShow) {
-        setShowCelebration(true);
-        setTimeout(() => {
-          setShowCelebration(false);
-          setShowGuestPrompt(true);
-        }, 2000);
-      }
+      // A guest's first show opens the account prompt (in place of the
+      // usual "added" toast below). Until 5.59.4 it waited two seconds
+      // behind a first-show animation.
+      if (isFirstShow) setShowGuestPrompt(true);
 
       // Fetch artist image in background for guest mode
       fetchArtistImage(newShow.artist).then(imageUrl => {
@@ -1562,11 +1556,6 @@ export function AppProvider({ children }) {
       setShows(updatedShows);
       setShowForm(false);
       noteShowsAdded(prevCount, [newShow]);
-
-      if (isFirstShow) {
-        setShowCelebration(true);
-        setTimeout(() => setShowCelebration(false), 3000);
-      }
 
       await updateUserProfile(user, updatedShows);
       calculateUserRank(user.uid, updatedShows.length);
@@ -4073,10 +4062,6 @@ export function AppProvider({ children }) {
     // Sidebar
     sidebarOpen,
     setSidebarOpen,
-
-    // Celebration
-    showCelebration,
-    setShowCelebration,
 
     // Friends
     friends,

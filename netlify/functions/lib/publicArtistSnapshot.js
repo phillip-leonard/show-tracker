@@ -66,6 +66,7 @@ const crypto = require('crypto');
 const config = require('../../../config/public-artists.json');
 const stats = require('./artistSnapshotStats');
 const sources = require('./publicArtistSources');
+const { artistNameKeyLoose } = require('./songfishSites');
 
 const SCHEMA_VERSION = 2;
 const RAW_FORMAT = 2;
@@ -108,6 +109,17 @@ function publicArtists() {
 
 function findArtist(slug) {
   return config.artists.find((a) => a.slug === slug) || null;
+}
+
+// A show's artist name to its configured band, matched the way the app's
+// band screens do (lib/bandScreens.js configBandFor): artistNameKeyLoose,
+// so "goose (US)", "moe" and "The String Cheese Incident" all find theirs.
+const BY_NAME_KEY = new Map(config.artists.map((a) => [artistNameKeyLoose(a.name), a]));
+
+/** The configured artist for an artist name, or null. */
+function findArtistByName(name) {
+  const key = artistNameKeyLoose(name);
+  return (key && BY_NAME_KEY.get(key)) || null;
 }
 
 function attributionFor(artist, artistUrl) {
@@ -643,6 +655,7 @@ module.exports = {
   heardArtists,
   hasShowList,
   findArtist,
+  findArtistByName,
   openBlobStore,
   wrapBlobStore,
   runSnapshot,

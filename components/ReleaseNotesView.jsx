@@ -13,6 +13,15 @@ const STREAMING_MENTION = /spotify|apple\s*music/i;
 function ReleaseNotesView() {
   const releases = [
     {
+      version: '5.59.4',
+      date: 'November 11, 2026',
+      title: 'Straight to Your First Show',
+      changes: [
+        'Adding your first show no longer plays an animation, so you can keep going right away',
+        'The welcome email after your first show is cleaner, and if your band has a band page on MySetlists, it links you straight to it',
+      ]
+    },
+    {
       version: '5.59.0',
       date: 'November 11, 2026',
       title: 'Your 2026 In Live Music Arrives December 2',

@@ -8,7 +8,12 @@
  *                             the show just saved, for the personal line.
  * POST { test: true }         admin only: the welcome email with sample
  *                             data, to the admin's own address. Writes
- *                             nothing.
+ *                             nothing. { variant: 'band_page' } (the
+ *                             default) is a Goose show, with the band line
+ *                             if Goose's page is published, through the
+ *                             same lookup a real send uses;
+ *                             { variant: 'no_band_page' } is a band with
+ *                             no page.
  * Auth header: Authorization: Bearer {idToken}
  *
  * The uid always comes from the token. There is no way to name another
@@ -21,8 +26,9 @@
  */
 
 const { getDb, getAdminAuth, verifyUser, isAdminClaims, ADMIN_EMAILS } = require('./lib/firebaseAdmin');
-const { processWelcomeEmail } = require('./lib/welcomeEmail');
-const { welcomeEmail, SAMPLE } = require('./lib/welcomeEmailTemplate');
+const { processWelcomeEmail, bandPageFor } = require('./lib/welcomeEmail');
+const { welcomeEmail, SAMPLES } = require('./lib/welcomeEmailTemplate');
+const { openBlobStore, loadIndex } = require('./lib/publicArtistSnapshot');
 const { buildEmail, sendOne } = require('./lib/outgoingEmail');
 const { normalizeEmail } = require('./lib/unsubscribeToken');
 
@@ -50,6 +56,11 @@ function replyToAddress() {
   return process.env.ANNOUNCEMENT_REPLY_TO || ADMIN_EMAILS[0];
 }
 
+// The band page lookup's index read (lib/welcomeEmail.js bandPageFor).
+// Opening the store is inside the reader, so a Blobs failure is the
+// lookup's failure, which drops the band line and nothing else.
+let bandIndexReader = (event) => () => loadIndex(openBlobStore(event));
+
 exports.handler = async function (event) {
   const headers = corsHeaders(event);
   const reply = (statusCode, body) => ({ statusCode, headers, body: JSON.stringify(body) });
@@ -71,7 +82,10 @@ exports.handler = async function (event) {
   if (body.test === true) {
     if (!isAdminClaims(decoded)) return reply(403, { error: 'Admin only' });
     const to = normalizeEmail(decoded.email);
-    const { subject, html } = welcomeEmail(SAMPLE);
+    const variant = body.variant === 'no_band_page' ? 'no_band_page' : 'band_page';
+    const sample = SAMPLES[variant];
+    const bandPage = await bandPageFor(sample.artist, bandIndexReader(event));
+    const { subject, html } = welcomeEmail({ ...sample, bandPage });
     const payload = buildEmail({
       recipient: { email: to, uid: decoded.uid },
       subject: `[Test] ${subject}`,
@@ -81,7 +95,9 @@ exports.handler = async function (event) {
       replyTo: replyToAddress(),
     });
     const r = await sendOne(payload);
-    return r.ok ? reply(200, { status: 'sent', to, resendId: r.id || null }) : reply(502, { error: 'Send failed', detail: r.error });
+    return r.ok
+      ? reply(200, { status: 'sent', to, variant, bandPage, resendId: r.id || null })
+      : reply(502, { error: 'Send failed', detail: r.error });
   }
 
   try {
@@ -91,6 +107,7 @@ exports.handler = async function (event) {
       uid: decoded.uid,
       showId: typeof body.showId === 'string' ? body.showId : null,
       replyTo: replyToAddress(),
+      readBandIndex: bandIndexReader(event),
     });
     return reply(200, result);
   } catch (e) {
@@ -98,3 +115,5 @@ exports.handler = async function (event) {
     return reply(500, { error: 'Could not process the welcome email' });
   }
 };
+
+exports.__setTestBandIndexReader = (fn) => { bandIndexReader = fn || ((event) => () => loadIndex(openBlobStore(event))); };
