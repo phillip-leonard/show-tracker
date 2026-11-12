@@ -118,6 +118,10 @@ function RecapEmailCard({ busy, setBusy, runSend }) {
 
   const count = current ? preview.counts.total : null;
   const enabled = current && preview.recapEnabled;
+  // Each email sends once (the server refuses a second Send); a send that
+  // stopped part-way is carried on with Resume.
+  const sent = current ? preview.alreadySent : null;
+  const unfinished = sent && sent.counts && sent.counts.pending > 0;
 
   return (
     <Card>
@@ -128,6 +132,7 @@ function RecapEmailCard({ busy, setBusy, runSend }) {
       <p className="text-sm text-secondary mb-4">
         Only to accounts with at least one {RECAP_YEAR} show and email on. Nothing sends until you press Send here,
         and the server refuses a real send until <code>YEAR_RECAP_EMAILS_ENABLED=true</code> is set in Netlify.
+        Each email can be sent once; a second Send is refused.
       </p>
       <div className="grid gap-6 lg:grid-cols-2">
         <div className="space-y-4">
@@ -150,6 +155,16 @@ function RecapEmailCard({ busy, setBusy, runSend }) {
               )}
             </div>
           )}
+          {sent && (
+            <p className="text-sm text-primary flex items-start gap-1.5">
+              <Check className="w-4 h-4 mt-0.5 shrink-0 text-brand" />
+              <span>
+                Already sent{sent.createdAt ? ` ${new Date(sent.createdAt).toLocaleString()}` : ''}
+                {sent.counts && `: ${sent.counts.sent} sent · ${sent.counts.failed} failed · ${sent.counts.skipped} skipped${sent.counts.pending ? ` · ${sent.counts.pending} remaining` : ''}`}.
+                {' '}It can&apos;t be sent again{unfinished ? ', but you can finish it' : ''}.
+              </span>
+            </p>
+          )}
           {message && (
             <div className={`flex items-start gap-2 text-sm ${message.tone === 'error' ? 'text-danger' : 'text-brand'}`}>
               {message.tone === 'error' ? <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" /> : <Check className="w-4 h-4 mt-0.5 shrink-0" />}
@@ -159,9 +174,15 @@ function RecapEmailCard({ busy, setBusy, runSend }) {
           <div className="flex flex-wrap gap-3">
             <Button variant="secondary" icon={Eye} loading={busy === 'recap-preview'} disabled={!!busy} onClick={handlePreview}>Preview recipients</Button>
             <Button variant="secondary" icon={Mail} loading={busy === 'recap-test'} disabled={!!busy} onClick={handleTest}>Send test to me</Button>
-            <Button icon={Send} disabled={!!busy || !enabled || !count} onClick={() => setConfirmOpen(true)}>
-              {count != null ? `Send to ${count} ${count === 1 ? 'person' : 'people'}` : 'Send (preview first)'}
-            </Button>
+            {unfinished ? (
+              <Button icon={RefreshCw} disabled={!!busy} onClick={() => { setPreview(null); runSend({ announcementId: sent.announcementId }); }}>
+                Resume ({sent.counts.pending} remaining)
+              </Button>
+            ) : (
+              <Button icon={Send} disabled={!!busy || !enabled || !count || !!sent} onClick={() => setConfirmOpen(true)}>
+                {sent ? 'Already sent' : count != null ? `Send to ${count} ${count === 1 ? 'person' : 'people'}` : 'Send (preview first)'}
+              </Button>
+            )}
           </div>
         </div>
         <iframe title="Year in Review email preview" sandbox="" srcDoc={html} className="w-full min-h-[480px] rounded-xl border border-subtle bg-white" />
@@ -174,12 +195,12 @@ function RecapEmailCard({ busy, setBusy, runSend }) {
         footer={(
           <>
             <Button variant="secondary" onClick={() => setConfirmOpen(false)}>Cancel</Button>
-            <Button icon={Send} onClick={() => { setConfirmOpen(false); runSend(body); }}>Send to {count}</Button>
+            <Button icon={Send} onClick={() => { setConfirmOpen(false); setPreview(null); runSend(body); }}>Send to {count}</Button>
           </>
         )}
       >
         <p className="text-sm text-secondary">
-          “{email.subject}” will be emailed to <strong className="text-primary">{count} {count === 1 ? 'person' : 'people'}</strong> with a {RECAP_YEAR} show. This can’t be undone.
+          “{email.subject}” will be emailed to <strong className="text-primary">{count} {count === 1 ? 'person' : 'people'}</strong> with a {RECAP_YEAR} show. This can’t be undone, and this email can’t be sent again afterwards.
         </p>
       </Modal>
     </Card>

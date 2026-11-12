@@ -4,6 +4,36 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.59.2] — 2026-11-11
+
+Ships in iOS 3.13.2 (`MARKETING_VERSION` 3.13.1 → 3.13.2, after #393's
+3.13.1). Everything here is on the server or the admin screen, so the
+3.13 build already in review doesn't need replacing.
+
+**Each Year in Review email sends once, and the In-App Event media is in
+the repo.**
+
+- **Send-once guard** (`admin-send-announcement.js`, `yearRecapEmail.js`).
+  A recap email is sent under a fixed id, `announcements/recap2026ready` or
+  `announcements/recap2026final`, created with `create()`. Pressing Send on
+  an email that has already gone out returns a 409 and sends nothing, even
+  when two tabs press Send at the same moment. A send that stopped part-way
+  is finished with Resume, which uses the same document. Ordinary
+  announcements are unchanged.
+- **Admin card.** Preview now shows "Already sent <date>: n sent…" and
+  disables Send, or offers Resume when recipients are still pending. After
+  a send it asks for a fresh preview.
+- **Event media** (`scripts/render-recap-event-art.js` →
+  `docs/app-store/year-in-review-2026/`): the 1920×1080 event card and the
+  1080×1920 details-page image, drawn with the recap card's renderer and
+  palette, as JPEG with no alpha channel. They follow Apple's media
+  guidance: no text or logos, no borders or gradients (the App Store adds
+  its own), main shapes centered for the automatic crop. The folder's README has the
+  event metadata (name, descriptions, badge, dates, deep link) and the
+  email steps.
+- Tests: `tests/email/yearRecapEmail.test.js` now covers a second Send
+  (409, nobody emailed again), preview reporting it, the other template
+  still sending, and two Sends racing (only one creates the send).
 ## [5.59.1] — 2026-11-11
 
 Ships in iOS 3.13.1 (`MARKETING_VERSION` 3.13 → 3.13.1; the build number

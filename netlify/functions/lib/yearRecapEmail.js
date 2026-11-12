@@ -15,6 +15,8 @@
  *     server, never whatever the browser sent
  *   - a real send is refused unless YEAR_RECAP_EMAILS_ENABLED is "true" in
  *     the Netlify environment. A test send to the admin always works.
+ *   - each email sends once (recapAnnouncementId below). Pressing Send on
+ *     "ready" a second time is refused, not a second email to everyone.
  * Nothing sends on deploy: a send only ever starts from the admin tab.
  *
  * The category is 'announcement', so both opt-outs apply: "no email at
@@ -97,6 +99,19 @@ async function loadUidsWithShowsIn(db, year = RECAP_YEAR) {
   return uidsWithShowsIn(snap.docs.map((d) => ({ path: d.ref.path, date: (d.data() || {}).date })), year);
 }
 
+/**
+ * The announcement document a recap email is sent under:
+ * announcements/recap2026ready, announcements/recap2026final. A fixed id,
+ * created with create(), is what makes each email send once: a second
+ * Send finds the document there and is refused (admin-send-announcement.js),
+ * even from two tabs at the same moment. A send cut short is carried on
+ * with Resume, which reuses the same document. Letters and digits only, the
+ * shape Resume accepts.
+ */
+function recapAnnouncementId(template, year = RECAP_YEAR) {
+  return `recap${year}${template}`;
+}
+
 const recapEmailsEnabled = () => String(process.env.YEAR_RECAP_EMAILS_ENABLED || '').trim() === 'true';
 
 module.exports = {
@@ -104,6 +119,7 @@ module.exports = {
   RECAP_AUDIENCE,
   recapEmail,
   recapUrl,
+  recapAnnouncementId,
   showYearOf,
   uidsWithShowsIn,
   loadUidsWithShowsIn,
