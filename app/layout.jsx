@@ -1,17 +1,12 @@
-import { Plus_Jakarta_Sans } from 'next/font/google';
 import './globals.css';
 import AppProviderWrapper from './AppProviderWrapper';
 import { HINT_SCRIPT } from '@/lib/signedInHint';
+import { plusJakartaSansFamily } from './fonts/plusJakartaSans';
 
-// Self-hosted via next/font: downloaded at build time and served from our
-// own origin, so there's no render-blocking request to fonts.googleapis.com
-// (previously a <link rel="stylesheet"> in <head> plus two preconnects).
-const plusJakartaSans = Plus_Jakarta_Sans({
-  subsets: ['latin'],
-  weight: ['300', '400', '500', '600', '700'],
-  style: ['normal', 'italic'],
-  display: 'swap',
-});
+// Plus Jakarta Sans is self-hosted from app/fonts/ with next/font/local:
+// served from our own origin, and `next build` makes no network request
+// for it. See app/fonts/plusJakartaSans.js for why it isn't
+// next/font/google any more.
 
 // The social preview image. A PNG because Facebook, LinkedIn, iMessage,
 // Slack and X ignore SVG for og:image. Source and render step:
@@ -78,7 +73,7 @@ export default function RootLayout({ children }) {
             signed-in user. See lib/signedInHint.js. */}
         <script dangerouslySetInnerHTML={{ __html: HINT_SCRIPT }} />
       </head>
-      <body className={plusJakartaSans.className}>
+      <body style={{ fontFamily: plusJakartaSansFamily }}>
         {/* No <Suspense> around the providers, on purpose. One used to sit
             here with a "Loading..." fallback, and because AppProvider read
             useSearchParams(), that fallback was the whole of every exported

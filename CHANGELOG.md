@@ -4,6 +4,38 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.59.3] — 2026-11-11
+
+Ships in iOS 3.13.3 (`MARKETING_VERSION` 3.13.2 → 3.13.3; the build number
+is left to Xcode Cloud).
+
+**The build no longer downloads Plus Jakarta Sans from Google.**
+
+`app/layout.jsx` loaded the font with `next/font/google`, which fetches the
+Google Fonts stylesheet and font files during every `next build`. When
+Google returned a bad response the whole build failed with "An error
+occurred in `next/font`. TypeError: Cannot read properties of null (reading
+'1')", even on code that had just built. That failed the production deploy
+of 858c3f5 and a deploy preview on 2026-11-11.
+
+- The font files are now committed under `app/fonts/` with the SIL OFL
+  license text, and loaded with `next/font/local`
+  (`app/fonts/plusJakartaSans.js`). `next build` makes no font requests.
+- They are byte-for-byte the files the Google loader was serving (Google
+  Fonts v12, variable files), with the same weights (300–700),
+  styles (normal, italic), `font-display: swap`, unicode ranges and
+  preloading (latin only). The latin-ext, Vietnamese and extended Cyrillic
+  files are kept too, because the Google loader declared them and the
+  browser fetched them for names with characters like ł, ř or ő.
+- The size-adjusted Arial fallback (shown while the font loads, and for
+  characters the font lacks) is now a plain `@font-face` in
+  `app/globals.css` with the exact metrics the Google loader generated.
+  `next/font/local`'s own calculation came out about 0.7% wider.
+- `<body>` gets the font stack from an inline style instead of a generated
+  class; nothing else that renders changes.
+
+---
+
 ## [5.59.2] — 2026-11-11
 
 Ships in iOS 3.13.2 (`MARKETING_VERSION` 3.13.1 → 3.13.2, after #393's
@@ -34,6 +66,9 @@ the repo.**
 - Tests: `tests/email/yearRecapEmail.test.js` now covers a second Send
   (409, nobody emailed again), preview reporting it, the other template
   still sending, and two Sends racing (only one creates the send).
+
+---
+
 ## [5.59.1] — 2026-11-11
 
 Ships in iOS 3.13.1 (`MARKETING_VERSION` 3.13 → 3.13.1; the build number
