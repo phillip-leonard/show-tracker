@@ -2,6 +2,20 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Metric-matched Arial for Plus Jakarta Sans: shown during font-display:
+   swap and for characters the font lacks. Last in the stack built in
+   app/fonts/plusJakartaSans.js. These are the values next/font/google
+   generated from Google's font metrics, kept so nothing shifts;
+   next/font/local's own calculation comes out slightly different. */
+@font-face {
+  font-family: 'Plus Jakarta Sans Fallback';
+  src: local('Arial');
+  ascent-override: 98.88%;
+  descent-override: 21.15%;
+  line-gap-override: 0%;
+  size-adjust: 104.98%;
+}
+
 /* ── MySetlists Concert Venue Theme ────────────────── */
 :root {
   /* Core brand */
@@ -85,7 +99,7 @@
 
 body {
   margin: 0;
-  /* Font family is set by next/font's generated class on <body> (see app/layout.jsx) */
+  /* Font family is set by an inline style on <body> from next/font/local (see app/fonts/plusJakartaSans.js) */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background: var(--bg-base);
