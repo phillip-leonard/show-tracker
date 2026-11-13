@@ -17,7 +17,7 @@ const mod = require('../../netlify/functions/admin-send-announcement');
 
 mod.__setSleep(async () => {});
 
-const ADMIN = { uid: 'adminUid000001', email: 'phillip.leonard@gmail.com' };
+const ADMIN = { uid: 'adminUid000001', email: 'phillip.leonard@gmail.com', email_verified: true };
 
 function setup() {
   const db = createFakeDb();

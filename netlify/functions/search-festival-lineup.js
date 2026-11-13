@@ -35,12 +35,13 @@
 // `festival_` key prefix, with the same graceful-degradation-if-env-vars-
 // missing behaviour as search-setlists.js.
 
+const { withCors } = require('./lib/cors');
 const https = require('https');
 const crypto = require('crypto');
 const { setlistfmKey, missingSetlistfmKey } = require('./lib/setlistfmKey');
 const { readFresh, writeEntry } = require('./lib/setlistCache');
 
-const CORS_HEADERS = { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' };
+const CORS_HEADERS = { 'Content-Type': 'application/json' };
 
 // Bounds on upstream work. A festival is a handful of days; anything
 // claiming more than MAX_DAYS is truncated rather than fanned out.
@@ -340,3 +341,6 @@ exports.handler = async function handler(event) {
     return { statusCode: 500, headers: CORS_HEADERS, body: JSON.stringify({ error: 'Request failed', details: e.message }) };
   }
 };
+
+// CORS allowlist on every response (lib/cors.js) — no more `*` (5.59.6).
+module.exports.handler = withCors(module.exports.handler);

@@ -1,5 +1,6 @@
+const { withCors } = require('./lib/cors');
 const ADMIN_EMAILS = ['phillip.leonard@gmail.com'];
-const CORS_HEADERS = { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' };
+const CORS_HEADERS = { 'Content-Type': 'application/json' };
 
 function initFirebase() {
   const { getApps, initializeApp, cert } = require('firebase-admin/app');
@@ -113,3 +114,6 @@ exports.handler = async function(event) {
     return { statusCode: 500, headers: CORS_HEADERS, body: JSON.stringify({ error: e.message }) };
   }
 };
+
+// CORS allowlist on every response (lib/cors.js) — no more `*` (5.59.6).
+module.exports.handler = withCors(module.exports.handler);

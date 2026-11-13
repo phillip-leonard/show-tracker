@@ -1,3 +1,4 @@
+const { withCors } = require('./lib/cors');
 const https = require('https');
 const { setlistfmKey, missingSetlistfmKey } = require('./lib/setlistfmKey');
 
@@ -10,7 +11,6 @@ exports.handler = async function(event) {
       statusCode: 204,
       headers: {
         'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Methods': 'GET, OPTIONS',
         'Access-Control-Allow-Headers': 'Content-Type',
       },
@@ -51,13 +51,13 @@ exports.handler = async function(event) {
           const artist = parsed.artist?.[0] || null;
           resolve({
             statusCode: artist ? 200 : 404,
-            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(artist || { error: 'Artist not found' })
           });
         } catch (error) {
           resolve({
             statusCode: 500,
-            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ error: 'Failed to parse response', details: error.message })
           });
         }
@@ -67,7 +67,7 @@ exports.handler = async function(event) {
     req.on('error', (error) => {
       resolve({
         statusCode: 500,
-        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ error: 'Request failed', details: error.message })
       });
     });
@@ -75,3 +75,6 @@ exports.handler = async function(event) {
     req.end();
   });
 };
+
+// CORS allowlist on every response (lib/cors.js) — no more `*` (5.59.6).
+module.exports.handler = withCors(module.exports.handler);

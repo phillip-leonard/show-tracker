@@ -20,6 +20,7 @@
 //   200 { lineup: [names], source, url, fetchedAt, upcoming }
 //   401 not signed in · 403 not attending · 404 no such festival
 
+const { withCors } = require('./lib/cors');
 const { getDb, verifyUser, isAdminClaims } = require('./lib/firebaseAdmin');
 const { httpsGetJson } = require('./lib/ticketmasterEvents');
 const { fetchLineup, isUpcoming, isFresh } = require('./lib/festivalLineup');
@@ -27,7 +28,6 @@ const { SEED_LINEUP_SOURCE } = require('./lib/festivalLineupSeed');
 
 const CORS_HEADERS = {
   'Content-Type': 'application/json',
-  'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'Authorization, Content-Type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
@@ -111,3 +111,6 @@ exports.handler = async function (event) {
   }
 };
 exports.handle = handle;
+
+// CORS allowlist on every response (lib/cors.js) — no more `*` (5.59.6).
+module.exports.handler = withCors(module.exports.handler);

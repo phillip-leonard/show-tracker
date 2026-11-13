@@ -144,7 +144,7 @@ const ENTRIES = [
 function setup() {
   const db = createFakeDb();
   const auth = createFakeAuth({ tokens: {
-    admin: { uid: 'admin', email: 'phillip.leonard@gmail.com' },
+    admin: { uid: 'admin', email: 'phillip.leonard@gmail.com', email_verified: true },
     bob: { uid: 'bob', email: 'bob@example.com' },
   } });
   __setTestFirebase({ db, auth });

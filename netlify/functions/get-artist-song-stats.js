@@ -1,3 +1,4 @@
+const { withCors } = require('./lib/cors');
 const https = require('https');
 const { setlistfmKey, missingSetlistfmKey } = require('./lib/setlistfmKey');
 
@@ -63,7 +64,6 @@ function aggregateSongs(setlists) {
 
 const CORS_HEADERS = {
   'Content-Type': 'application/json',
-  'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type',
 };
@@ -127,3 +127,6 @@ exports.handler = async function (event) {
     };
   }
 };
+
+// CORS allowlist on every response (lib/cors.js) — no more `*` (5.59.6).
+module.exports.handler = withCors(module.exports.handler);

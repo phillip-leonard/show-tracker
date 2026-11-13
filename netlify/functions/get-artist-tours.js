@@ -33,12 +33,13 @@
 // startDate/endDate/avgSongCount/shows, plus totalShows/artistName/mbid/
 // fetchedAt — and only adds fields.
 
+const { withCors } = require('./lib/cors');
 const https = require('https');
 const crypto = require('crypto');
 const { setlistfmKey, missingSetlistfmKey } = require('./lib/setlistfmKey');
 const { readFresh, writeEntry } = require('./lib/setlistCache');
 
-const CORS_HEADERS = { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' };
+const CORS_HEADERS = { 'Content-Type': 'application/json' };
 
 const MAX_PAGES = 8;              // 8 x 20 = the 160 most recent setlists
 const PAGE_DELAY_MS = 200;
@@ -327,3 +328,6 @@ exports.handler = async function (event) {
 
   return { statusCode: 200, headers: { ...CORS_HEADERS, 'X-Cache': 'MISS' }, body: responseBody };
 };
+
+// CORS allowlist on every response (lib/cors.js) — no more `*` (5.59.6).
+module.exports.handler = withCors(module.exports.handler);

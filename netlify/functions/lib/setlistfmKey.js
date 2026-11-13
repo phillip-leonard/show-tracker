@@ -32,7 +32,7 @@ function missingSetlistfmKey() {
   console.error('SETLISTFM_API_KEY is not set. setlist.fm requests are disabled until it is added to the Netlify environment.');
   return {
     statusCode: 500,
-    headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ error: 'Server misconfigured: SETLISTFM_API_KEY is not set' }),
   };
 }

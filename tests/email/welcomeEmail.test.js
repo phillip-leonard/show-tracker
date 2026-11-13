@@ -481,7 +481,7 @@ function handlerSetup() {
   const auth = createFakeAuth({
     tokens: {
       tok_new: { uid: ctx.uid, email: 'new@example.com' },
-      tok_admin: { uid: 'uid_admin', email: 'phillip.leonard@gmail.com' },
+      tok_admin: { uid: 'uid_admin', email: 'phillip.leonard@gmail.com', email_verified: true },
     },
     users: [
       { uid: ctx.uid, email: 'new@example.com', metadata: { creationTime: NEW_ACCOUNT } },

@@ -1,9 +1,9 @@
+const { withCors } = require('./lib/cors');
 const https = require('https');
 const querystring = require('querystring');
 
 const CORS_HEADERS = {
   'Content-Type': 'application/json',
-  'Access-Control-Allow-Origin': '*',
 };
 
 const SPOTIFY_CLIENT_ID = process.env.SPOTIFY_CLIENT_ID || process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_ID;
@@ -182,3 +182,6 @@ exports.handler = async function (event) {
     };
   }
 };
+
+// CORS allowlist on every response (lib/cors.js) — no more `*` (5.59.6).
+module.exports.handler = withCors(module.exports.handler);

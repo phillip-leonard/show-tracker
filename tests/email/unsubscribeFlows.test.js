@@ -23,7 +23,7 @@ const sendEmail = require('../../netlify/functions/send-email');
 const listUnsubs = require('../../netlify/functions/admin-list-unsubscribes').handler;
 const sendAnnouncement = require('../../netlify/functions/admin-send-announcement').handler;
 
-const ADMIN = { uid: 'adminUid000001', email: 'phillip.leonard@gmail.com' };
+const ADMIN = { uid: 'adminUid000001', email: 'phillip.leonard@gmail.com', email_verified: true };
 const ALICE = { uid: 'aliceUid000001', email: 'alice@example.com' };
 const BOB = { uid: 'bobUid00000001', email: 'bob@example.com' };
 
@@ -274,12 +274,25 @@ test('profile: GET reflects a pre-signup suppression; re-subscribing lifts it', 
 });
 
 // ── send-email ───────────────────────────────────────────────────────
+// Since 5.59.6 the browser names a record, never an address or HTML
+// (tests/security/sendEmail.test.js has the per-type rules). These keep
+// the unsubscribe guarantees covered: footer, headers, token kind, opt-out.
 
-const sendBody = (to) => ({ to, subject: 'Hi', html: '<html><body><p>hello</p><!--MYSETLISTS_UNSUBSCRIBE_FOOTER--></body></html>', type: 'tag' });
+let tagSeq = 0;
+function tagFor(db, toUid) {
+  const id = `tag${++tagSeq}`;
+  db._put(`showTags/${id}`, { fromUid: BOB.uid, toUid, showData: { artist: 'Goose', venue: 'Red Rocks', date: '2024-06-15' }, status: 'pending', createdAt: new Date() });
+  return { type: 'tag', tagId: id };
+}
+function inviteFor(db, email) {
+  const id = `inv${++tagSeq}`;
+  db._put(`invites/${id}`, { inviterUid: BOB.uid, inviteeEmail: email, status: 'pending', createdAt: new Date() });
+  return { type: 'invite', inviteId: id };
+}
 
 test('send-email: 401 without a token', async () => {
-  const { sent } = setup();
-  const res = await sendEmail.handler({ httpMethod: 'POST', headers: {}, body: JSON.stringify(sendBody('x@example.com')) });
+  const { db, sent } = setup();
+  const res = await sendEmail.handler({ httpMethod: 'POST', headers: {}, body: JSON.stringify(tagFor(db, ALICE.uid)) });
   assert.strictEqual(res.statusCode, 401);
   assert.strictEqual(sent.length, 0);
 });
@@ -293,8 +306,8 @@ test('send-email: CORS only for the site and the iOS app', async () => {
 });
 
 test('send-email: account recipient gets a uid token, footer and List-Unsubscribe headers', async () => {
-  const { sent } = setup();
-  const res = await sendEmail.handler(authed('bob-token', 'POST', sendBody('Alice@Example.com')));
+  const { db, sent } = setup();
+  const res = await sendEmail.handler(authed('bob-token', 'POST', tagFor(db, ALICE.uid)));
   assert.strictEqual(res.statusCode, 200);
   assert.strictEqual(sent.length, 1);
   const p = sent[0].payload;
@@ -309,24 +322,18 @@ test('send-email: account recipient gets a uid token, footer and List-Unsubscrib
 });
 
 test('send-email: non-user recipient gets an email token (never the sender\'s uid)', async () => {
-  const { sent } = setup();
-  await sendEmail.handler(authed('bob-token', 'POST', { ...sendBody('newfriend@example.com'), recipientUid: BOB.uid }));
+  const { db, sent } = setup();
+  await sendEmail.handler(authed('bob-token', 'POST', { ...inviteFor(db, 'newfriend@example.com'), recipientUid: BOB.uid }));
   const token = decodeURIComponent(sent[0].payload.headers['List-Unsubscribe'].slice(1, -1).split('token=')[1]);
-  assert.deepStrictEqual(verify(token), { kind: 'email', id: 'newfriend@example.com', scope: 'all', source: 'notification:tag' });
-});
-
-test('send-email: html without the marker still gets a footer', async () => {
-  const { sent } = setup();
-  await sendEmail.handler(authed('bob-token', 'POST', { to: 'x@example.com', subject: 's', html: '<p>plain</p>' }));
-  assert.match(sent[0].payload.html, /api\/unsubscribe\?token=/);
+  assert.deepStrictEqual(verify(token), { kind: 'email', id: 'newfriend@example.com', scope: 'all', source: 'notification:invite' });
 });
 
 test('send-email: opted-out and suppressed recipients are skipped', async () => {
   const { db, sent } = setup();
   db._put(`userProfiles/${ALICE.uid}`, { email: ALICE.email, emailOptOut: true });
   db._put(`emailSuppressions/${hashEmail('gone@example.com')}`, { email: 'gone@example.com', scope: 'all' });
-  for (const to of [ALICE.email, 'gone@example.com']) {
-    const res = await sendEmail.handler(authed('bob-token', 'POST', sendBody(to)));
+  for (const req of [tagFor(db, ALICE.uid), inviteFor(db, 'gone@example.com')]) {
+    const res = await sendEmail.handler(authed('bob-token', 'POST', req));
     assert.strictEqual(JSON.parse(res.body).skipped, true);
   }
   assert.strictEqual(sent.length, 0);
@@ -335,29 +342,30 @@ test('send-email: opted-out and suppressed recipients are skipped', async () => 
 test('send-email: announcements-only opt-out does not block notifications', async () => {
   const { db, sent } = setup();
   db._put(`userProfiles/${ALICE.uid}`, { email: ALICE.email, announcementsOptOut: true });
-  await sendEmail.handler(authed('bob-token', 'POST', sendBody(ALICE.email)));
+  await sendEmail.handler(authed('bob-token', 'POST', tagFor(db, ALICE.uid)));
   assert.strictEqual(sent.length, 1);
 });
 
-test('send-email: rate-limited per sender, admins exempt', async () => {
-  const { sent } = setup();
+test('send-email: rate-limited per sender', async () => {
+  const { db, sent } = setup();
   let last;
   for (let i = 0; i <= sendEmail.RATE_LIMIT_PER_HOUR; i++) {
-    last = await sendEmail.handler(authed('bob-token', 'POST', sendBody(`r${i}@example.com`)));
+    last = await sendEmail.handler(authed('bob-token', 'POST', tagFor(db, ALICE.uid)));
   }
   assert.strictEqual(last.statusCode, 429);
   assert.strictEqual(sent.length, sendEmail.RATE_LIMIT_PER_HOUR);
-  for (let i = 0; i <= sendEmail.RATE_LIMIT_PER_HOUR; i++) {
-    last = await sendEmail.handler(authed('admin-token', 'POST', sendBody(`a${i}@example.com`)));
-  }
-  assert.strictEqual(last.statusCode, 200);
 });
 
-test('send-email: rejects multiple or invalid recipients', async () => {
-  setup();
-  for (const to of ['a@b.co,c@d.co', 'nope', ['a@b.co']]) {
-    assert.strictEqual((await sendEmail.handler(authed('bob-token', 'POST', { to, subject: 's', html: 'h' }))).statusCode, 400);
-  }
+test('send-email: a legacy { to, html } call with nothing behind it sends nothing', async () => {
+  const { sent } = setup();
+  const log = console.log; console.log = () => {};
+  try {
+    for (const to of ['a@b.co,c@d.co', 'nope', 'x@example.com']) {
+      const res = await sendEmail.handler(authed('bob-token', 'POST', { to, subject: 's', html: '<p>h</p>', type: 'tag' }));
+      assert.ok([200, 400].includes(res.statusCode));
+    }
+  } finally { console.log = log; }
+  assert.strictEqual(sent.length, 0);
 });
 
 // ── Admin endpoints ──────────────────────────────────────────────────

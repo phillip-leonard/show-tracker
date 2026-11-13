@@ -45,6 +45,7 @@
  * rather than a second email to everyone. Preview reports `alreadySent`.
  */
 
+const { withCors } = require('./lib/cors');
 const crypto = require('crypto');
 const { getDb, verifyUser, isAdminClaims } = require('./lib/firebaseAdmin');
 const { buildAnnouncementRecipients } = require('./lib/announcementRecipients');
@@ -55,7 +56,6 @@ const recapEmails = require('./lib/yearRecapEmail');
 
 const CORS_HEADERS = {
   'Content-Type': 'application/json',
-  'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'Authorization, Content-Type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
@@ -417,3 +417,6 @@ exports.handler = async function (event) {
 
 exports.__setSleep = (fn) => { sleep = fn; };
 exports.TIME_BUDGET_MS = TIME_BUDGET_MS;
+
+// CORS allowlist on every response (lib/cors.js) — no more `*` (5.59.6).
+module.exports.handler = withCors(module.exports.handler);

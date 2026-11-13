@@ -540,7 +540,8 @@ export default function ShowsPage() {
                   : 'Your concert journey starts here')}
             actions={
               <>
-                <Button variant="secondary" icon={Camera} onClick={() => navigateTo('scan-import')}>Scan / Import</Button>
+                {/* Guests can't scan (it needs an account), so for them this is the file import. */}
+                <Button variant="secondary" icon={guestMode ? Upload : Camera} onClick={() => navigateTo('scan-import')}>{guestMode ? 'Import' : 'Scan / Import'}</Button>
                 <Button icon={Search} onClick={() => navigateTo('search')}>Search for a Show</Button>
               </>
             }
@@ -761,6 +762,8 @@ export default function ShowsPage() {
               <Card padding="md" className="max-w-lg mx-auto text-left">
                 <h3 className="text-primary font-semibold mb-4 text-center">Quick ways to add your shows</h3>
                 <div className="space-y-3">
+                  {/* Screenshot import needs an account; not offered to guests. */}
+                  {!guestMode && (
                   <div className="flex items-start gap-3">
                     <div className="w-8 h-8 bg-amber-subtle rounded-lg flex items-center justify-center flex-shrink-0">
                       <Camera className="w-4 h-4 text-amber" />
@@ -770,6 +773,7 @@ export default function ShowsPage() {
                       <p className="text-secondary text-xs">Screenshot your past events or order history on any ticket site (Ticketmaster, AXS, SeatGeek, Eventbrite, DICE and more) and our AI will pull out your shows</p>
                     </div>
                   </div>
+                  )}
                   <div className="flex items-start gap-3">
                     <div className="w-8 h-8 bg-brand-subtle rounded-lg flex items-center justify-center flex-shrink-0">
                       <Upload className="w-4 h-4 text-brand" />

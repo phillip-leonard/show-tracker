@@ -575,7 +575,7 @@ function renderIndex(index, now = Date.now()) {
 
 // ── JSON, for the iOS app ─────────────────────────────────────────────
 
-const JSON_HEADERS = { 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*' };
+const JSON_HEADERS = { 'Content-Type': 'application/json; charset=utf-8' };
 
 function jsonResponse(statusCode, body, cache) {
   return { statusCode, headers: { ...JSON_HEADERS, ...cache }, body: JSON.stringify(body) };

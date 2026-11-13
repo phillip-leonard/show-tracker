@@ -19,7 +19,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Check, Download, Upload, AlertTriangle, Camera, Loader2, Scissors, FileWarning } from 'lucide-react';
 import { formatDate, parseCSV, resizeImageForUpload } from '@/lib/utils';
-import { apiUrl } from '@/lib/api';
+import { authedFetch, apiErrorMessage } from '@/lib/api';
+import GuestScanPrompt from '@/components/GuestScanPrompt';
 import {
   IMPORT_COLUMNS, detectColumns, headerSignature, inferDateOrder, buildRows, planShows,
   showKey, summaryLine, unmatchedCsv,
@@ -108,6 +109,7 @@ function ImportView({ onImport, existingShows = [], onNavigate, guestMode = fals
   const [dragOver, setDragOver] = useState(false);
   const [error, setError] = useState(null);
   const [screenshotAnalyzing, setScreenshotAnalyzing] = useState(false);
+  const [guestScreenshot, setGuestScreenshot] = useState(false);
   const [progress, setProgress] = useState({ done: 0, total: 0, label: '' });
   const [result, setResult] = useState(null);
 
@@ -147,6 +149,7 @@ function ImportView({ onImport, existingShows = [], onNavigate, guestMode = fals
 
   const handleFile = async (file) => {
     setError(null);
+    setGuestScreenshot(false);
     const ext = (file.name.match(/\.([^.]+)$/) || [])[1]?.toLowerCase() || '';
     try {
       if (ext === 'csv' || ext === 'txt' || file.type === 'text/csv') {
@@ -164,6 +167,9 @@ function ImportView({ onImport, existingShows = [], onNavigate, guestMode = fals
         const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', raw: true });
         loadTable(rows.map((row) => row.map((c) => (c == null ? '' : String(c)))), file.name);
       } else if (['png', 'jpg', 'jpeg', 'webp', 'heic'].includes(ext) || file.type.startsWith('image/')) {
+        // Screenshot import calls Claude and needs an account; a guest's
+        // dropped image gets the sign-up prompt instead (5.59.6).
+        if (guestMode) { setGuestScreenshot(true); return; }
         await handleScreenshot(file);
       } else {
         setError('That file type isn\'t supported. Use a .csv or .xlsx file, or a screenshot.');
@@ -179,7 +185,7 @@ function ImportView({ onImport, existingShows = [], onNavigate, guestMode = fals
     setScreenshotAnalyzing(true);
     try {
       const { base64, mediaType } = await resizeImageForUpload(file);
-      const response = await fetch(apiUrl('/.netlify/functions/analyze-screenshot'), {
+      const response = await authedFetch('/.netlify/functions/analyze-screenshot', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ image: base64, mediaType }),
@@ -188,7 +194,11 @@ function ImportView({ onImport, existingShows = [], onNavigate, guestMode = fals
       try { data = await response.json(); } catch {
         throw new Error(`The server couldn't read that image (HTTP ${response.status}). Try cropping it or a smaller screenshot.`);
       }
-      if (!response.ok) throw new Error(data.error || 'Failed to analyze screenshot');
+      if (!response.ok) {
+        throw new Error(apiErrorMessage(response, data, 'Failed to analyze screenshot', {
+          unauthorized: 'Your session has expired. Sign out and back in, then try again.',
+        }));
+      }
       const shows = Array.isArray(data.shows) ? data.shows : [];
       if (shows.length === 0) throw new Error('No shows were found in this screenshot. Try one that shows your past events.');
       // Into the same table shape as a file, with the columns already known.
@@ -341,18 +351,19 @@ function ImportView({ onImport, existingShows = [], onNavigate, guestMode = fals
               <>
                 <Upload className={`w-12 h-12 mx-auto mb-4 ${dragOver ? 'text-brand' : 'text-muted'}`} />
                 <p className="text-lg font-medium text-primary mb-1">Choose a file</p>
-                <p className="text-secondary text-sm">CSV or Excel (.xlsx), or a screenshot of your past events</p>
+                <p className="text-secondary text-sm">{guestMode ? 'CSV or Excel (.xlsx)' : 'CSV or Excel (.xlsx), or a screenshot of your past events'}</p>
               </>
             )}
             <input
               id="import-file-input"
               type="file"
-              accept=".csv,text/csv,.xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,image/*"
+              accept={`.csv,text/csv,.xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel${guestMode ? '' : ',image/*'}`}
               onChange={(e) => { if (e.target.files[0]) handleFile(e.target.files[0]); e.target.value = ''; }}
               className="hidden"
             />
           </div>
           {error && <Notice>{error}</Notice>}
+          {guestScreenshot && <GuestScanPrompt compact className="mt-4" />}
 
           <div className="mt-8 p-4 bg-hover rounded-xl text-sm text-secondary space-y-2">
             <h3 className="text-primary font-medium">What the file needs</h3>

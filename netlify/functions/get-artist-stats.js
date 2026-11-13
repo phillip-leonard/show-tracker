@@ -3,9 +3,9 @@
 // Returns aggregate community stats for an artist slug.
 // Results are cached in publicArtistStats/{slug} for 24 hours.
 
+const { withCors } = require('./lib/cors');
 const CORS_HEADERS = {
   'Content-Type': 'application/json',
-  'Access-Control-Allow-Origin': '*',
 };
 
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
@@ -151,3 +151,6 @@ exports.handler = async function (event) {
     return { statusCode: 500, headers: CORS_HEADERS, body: JSON.stringify({ error: 'Internal server error' }) };
   }
 };
+
+// CORS allowlist on every response (lib/cors.js) — no more `*` (5.59.6).
+module.exports.handler = withCors(module.exports.handler);

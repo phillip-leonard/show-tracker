@@ -22,7 +22,7 @@ import WelcomeEmailCard from '@/components/admin/WelcomeEmailCard';
 import FestivalSeedCard from '@/components/admin/FestivalSeedCard';
 import FestivalLineupSeedCard from '@/components/admin/FestivalLineupSeedCard';
 import { buildUserRows } from '@/lib/adminUsers';
-import { sendEmailIfAllowed } from '@/lib/email';
+import { sendNotification } from '@/lib/email';
 import { PageHeader, Button } from '@/components/ui';
 import { useDismissable } from '@/context/DismissStackContext';
 
@@ -326,15 +326,17 @@ function AdminView() {
   };
 
   const handleSendEmail = async () => {
-    if (!selectedUser?.email || !emailSubject.trim() || !emailBody.trim()) return;
+    if (!selectedUser?.id || !emailSubject.trim() || !emailBody.trim()) return;
     setEmailSending(true);
     setEmailStatus(null);
     try {
-      const res = await sendEmailIfAllowed({
-        to: selectedUser.email,
+      // Plain text; the server escapes it and keeps the line breaks.
+      const res = await sendNotification({
+        type: 'admin_message',
+        toUid: selectedUser.id,
         subject: emailSubject.trim(),
-        html: emailBody.trim().replace(/\n/g, '<br />'),
-      }, { type: 'admin_message' });
+        body: emailBody.trim(),
+      });
       if (res?.ok) {
         setEmailStatus('success');
         setEmailSubject('');

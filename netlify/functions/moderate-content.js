@@ -56,11 +56,11 @@
  *     written here.
  */
 
+const { withCors } = require('./lib/cors');
 const { checkContent } = require('./lib/contentFilterRule');
 
 const CORS_HEADERS = {
   'Content-Type': 'application/json',
-  'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'Authorization, Content-Type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
@@ -361,3 +361,6 @@ exports.handler = async function (event) {
     return json(500, { error: "Couldn't save that. Please try again." });
   }
 };
+
+// CORS allowlist on every response (lib/cors.js) — no more `*` (5.59.6).
+module.exports.handler = withCors(module.exports.handler);

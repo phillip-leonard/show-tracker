@@ -52,8 +52,11 @@ async function verifyUser(event) {
   }
 }
 
+// email_verified too (5.59.6): the allowlist is an address, and an
+// unverified token can carry any address its holder typed. The admin
+// account signs in with Google, whose tokens are always verified.
 function isAdminClaims(decoded) {
-  return !!decoded && ADMIN_EMAILS.includes(decoded.email);
+  return !!decoded && decoded.email_verified === true && ADMIN_EMAILS.includes(decoded.email);
 }
 
 function __setTestFirebase({ db = null, auth = null } = {}) {

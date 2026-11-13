@@ -69,6 +69,7 @@
  * elgoose.net needs no key at all.
  */
 
+const { withCors } = require('./lib/cors');
 const crypto = require('crypto');
 
 const songfishAdapter = require('./lib/songfishAdapter');
@@ -76,7 +77,7 @@ const songfishSites = require('./lib/songfishSites');
 const phishnetAdapter = require('./lib/phishnetAdapter');
 const archiveAdapter = require('./lib/archiveAdapter');
 
-const CORS_HEADERS = { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' };
+const CORS_HEADERS = { 'Content-Type': 'application/json' };
 
 const CACHE_COLLECTION = 'bandSetlistCache';
 
@@ -688,3 +689,6 @@ exports.MAX_TTL_HOURS = MAX_TTL_HOURS;
 exports.CACHE_VERSION = CACHE_VERSION;
 exports.venueKey = venueKey;
 exports.toIsoDate = toIsoDate;
+
+// CORS allowlist on every response (lib/cors.js) — no more `*` (5.59.6).
+module.exports.handler = withCors(module.exports.handler);

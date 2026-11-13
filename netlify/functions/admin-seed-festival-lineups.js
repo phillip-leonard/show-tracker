@@ -24,13 +24,13 @@
  * to the file reaches this function on the next deploy.
  */
 
+const { withCors } = require('./lib/cors');
 const LINEUPS = require('../../data/festival-lineups.json');
 const { getDb, verifyUser, isAdminClaims } = require('./lib/firebaseAdmin');
 const { lineupDocIds, planLineups, formatLineupReport } = require('./lib/festivalLineupSeed');
 
 const CORS_HEADERS = {
   'Content-Type': 'application/json',
-  'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'Authorization, Content-Type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
@@ -140,3 +140,6 @@ exports.handler = async function (event) {
 exports.handle = handle;
 exports.loadFestivals = loadFestivals;
 exports.writeLineups = writeLineups;
+
+// CORS allowlist on every response (lib/cors.js) — no more `*` (5.59.6).
+module.exports.handler = withCors(module.exports.handler);

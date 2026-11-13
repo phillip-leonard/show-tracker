@@ -11,7 +11,7 @@ import {
   arrayUnion, arrayRemove, Timestamp, deleteField,
 } from 'firebase/firestore';
 import { auth, db, googleProvider, browserPopupRedirectResolver } from '@/lib/firebase';
-import { formatDate, parseDate } from '@/lib/utils';
+import { parseDate } from '@/lib/utils';
 import { ADMIN_EMAILS } from '@/lib/constants';
 import { storage, STORAGE_KEYS } from '@/lib/storage';
 import { setSignedInHint, clearSignedInHint } from '@/lib/signedInHint';
@@ -48,18 +48,10 @@ import {
 import { saveDisplayName } from '@/lib/handles';
 import { buildSongStats } from '@/lib/songCounts';
 import { applyShowFilters, availableYearsFor } from '@/lib/showFilters';
-import { sendEmailIfAllowed } from '@/lib/email';
+import { sendNotification } from '@/lib/email';
 import { isFirstShowTransition, requestWelcomeEmail } from '@/lib/welcomeEmailTrigger';
 import { sweepExpiredSetlistfmCaches } from '@/lib/setlistfmLocalCache';
 import { signInLeavesRoute } from '@/lib/deepLinks';
-import {
-  inviteEmail,
-  friendJoinedEmail,
-  tagByEmailNotification,
-  tagAcceptedEmail,
-  showTagNotification,
-  suggestionNudgeEmail,
-} from '@/lib/emailTemplates';
 
 // Gap between writes in a bulk tour add. Enough to keep a 40-night
 // selection from arriving at Firestore as one burst, small enough that a
@@ -1231,13 +1223,9 @@ export function AppProvider({ children }) {
               // Show welcome modal to the new user
               setWelcomeState({ inviterName: inviterName || 'your friend', inviterUid });
 
-              // Notify inviter via email
-              if (inviterEmail) {
-                const email = friendJoinedEmail({
-                  newUserName: currentUser.displayName || 'Your friend',
-                });
-                sendEmailIfAllowed({ to: inviterEmail, ...email }, { type: 'friend_joined' }).catch(() => {});
-              }
+              // Notify inviter via email. The server finds the inviter from
+              // the invitedByUid just written to this user's profile.
+              sendNotification({ type: 'friend_joined' }).catch(() => {});
             }
           }
         } catch (err) {
@@ -2818,8 +2806,10 @@ export function AppProvider({ children }) {
     const sanitizedShow = sanitizeShowForTag(show);
     try {
       const batch = writeBatch(db);
+      const tagIds = {};
       for (const friendUid of selectedFriendUids) {
         const ref = doc(collection(db, 'showTags'));
+        tagIds[friendUid] = ref.id;
         batch.set(ref, {
           fromUid: user.uid,
           fromName: user.displayName || 'Anonymous',
@@ -2831,31 +2821,15 @@ export function AppProvider({ children }) {
       }
       await batch.commit();
 
-      // Send email notifications to tagged friends
-      const taggerName = user.displayName || 'A friend';
-      console.log('[TagEmail] Starting email notifications for', selectedFriendUids.length, 'friend(s)');
+      // Email each tagged friend. The server reads the tag it names,
+      // checks we sent it, and looks the friend's address up itself.
       for (const friendUid of selectedFriendUids) {
         try {
-          const friend = friends.find(f => f.friendUid === friendUid);
-          const friendEmail = friend?.friendEmail;
-          console.log('[TagEmail] Friend:', friendUid, '| email:', friendEmail || 'NONE');
-          if (friendEmail) {
-            const email = showTagNotification({
-              taggerName,
-              artist: sanitizedShow.artist,
-              venue: sanitizedShow.venue || '',
-              date: sanitizedShow.date ? formatDate(sanitizedShow.date) : '',
-            });
-            const result = await sendEmailIfAllowed({ to: friendEmail, ...email }, { type: 'tag' });
-            console.log('[TagEmail] sendEmailIfAllowed result:', result);
-          } else {
-            console.warn('[TagEmail] No email found for friend:', friendUid);
-          }
+          await sendNotification({ type: 'tag', tagId: tagIds[friendUid] });
         } catch (emailErr) {
           console.error('[TagEmail] Failed to send tag notification email:', emailErr);
         }
       }
-      console.log('[TagEmail] Done sending notifications');
 
       const existingUids = show.taggedFriendUids || [];
       const mergedUids = [...new Set([...existingUids, ...selectedFriendUids])];
@@ -2981,8 +2955,11 @@ export function AppProvider({ children }) {
     const showData = upcomingTagShowData(show);
     try {
       const batch = writeBatch(db);
+      const tagIds = {};
       uids.forEach(friendUid => {
-        batch.set(doc(collection(db, 'showTags')), {
+        const ref = doc(collection(db, 'showTags'));
+        tagIds[friendUid] = ref.id;
+        batch.set(ref, {
           fromUid: user.uid,
           fromName: user.displayName || 'Anonymous',
           toUid: friendUid,
@@ -3001,19 +2978,9 @@ export function AppProvider({ children }) {
         ? { ...u, taggedFriendUids: [...new Set([...(u.taggedFriendUids || []), ...uids])] }
         : u)));
 
-      const taggerName = user.displayName || 'A friend';
       for (const friendUid of uids) {
-        const friendEmail = friends.find(f => f.friendUid === friendUid)?.friendEmail;
-        if (!friendEmail) continue;
         try {
-          const email = showTagNotification({
-            taggerName,
-            artist: showData.artist,
-            venue: showData.venue,
-            date: showData.date ? formatDate(showData.date) : '',
-            upcoming: true,
-          });
-          await sendEmailIfAllowed({ to: friendEmail, ...email }, { type: 'tag' });
+          await sendNotification({ type: 'tag', tagId: tagIds[friendUid] });
         } catch (emailErr) {
           console.error('[TagEmail] Failed to send upcoming tag email:', emailErr);
         }
@@ -3257,17 +3224,8 @@ export function AppProvider({ children }) {
       });
       // Send email nudge when we confirm and friend hasn't responded yet
       if (response === 'confirmed' && theirResponse === 'pending' && !suggestion.emailSentToUid) {
-        const friendData = friends.find(f => f.friendUid === friendUid);
-        if (friendData?.friendEmail) {
-          const { artist, venue, date } = suggestion.showData;
-          const email = suggestionNudgeEmail({
-            fromName: user.displayName || 'A friend',
-            friendName: suggestion.names?.[friendUid] || 'your friend',
-            artist, venue, date,
-          });
-          await sendEmailIfAllowed({ to: friendData.friendEmail, ...email }, { type: 'suggestion_nudge' });
-          await updateDoc(ref, { emailSentToUid: friendUid, emailSentAt: serverTimestamp() });
-        }
+        const res = await sendNotification({ type: 'suggestion_nudge', suggestionId: suggestion.id });
+        if (res?.ok) await updateDoc(ref, { emailSentToUid: friendUid, emailSentAt: serverTimestamp() });
       }
     } catch (e) {
       console.error('Failed to respond to suggestion:', e);
@@ -3364,15 +3322,7 @@ export function AppProvider({ children }) {
     try {
       const result = await addShow({ ...tag.showData, taggedBy: tag.fromName, taggedByUid: tag.fromUid }, { silent: true });
       await setDoc(doc(db, 'pendingEmailTags', tag.id), { status: 'accepted' }, { merge: true });
-      if (tag.fromEmail) {
-        const email = tagAcceptedEmail({
-          confirmerName: user.displayName || 'Your friend',
-          artist: tag.showData.artist,
-          venue: tag.showData.venue || '',
-          date: tag.showData.date ? formatDate(tag.showData.date) : '',
-        });
-        sendEmailIfAllowed({ to: tag.fromEmail, ...email }, { type: 'tag_accepted' }).catch(() => {});
-      }
+      sendNotification({ type: 'tag_accepted', pendingTagId: tag.id }).catch(() => {});
       setPendingTagsForReview(prev => prev.filter(t => t.id !== tag.id));
       const artist = tag.showData?.artist || 'Show';
       if (result && result.duplicate) {
@@ -3400,7 +3350,7 @@ export function AppProvider({ children }) {
     const toEmail = toEmailRaw.trim().toLowerCase();
     const sanitizedShow = sanitizeShowForTag(show);
     try {
-      await addDoc(collection(db, 'pendingEmailTags'), {
+      const pendingRef = await addDoc(collection(db, 'pendingEmailTags'), {
         fromUid: user.uid,
         fromName: user.displayName || 'Anonymous',
         fromEmail: user.email || '',
@@ -3412,16 +3362,7 @@ export function AppProvider({ children }) {
         createdAt: serverTimestamp(),
       });
 
-      const inviterName = user.displayName || 'A friend';
-      const email = tagByEmailNotification({
-        taggerName: inviterName,
-        artist: sanitizedShow.artist,
-        venue: sanitizedShow.venue || '',
-        date: sanitizedShow.date ? formatDate(sanitizedShow.date) : '',
-        personalMessage: message || '',
-        signupUrl: `https://mysetlists.net?ref=${user.uid}`,
-      });
-      await sendEmailIfAllowed({ to: toEmail, ...email }, { type: 'tag' });
+      await sendNotification({ type: 'tag_email', pendingTagId: pendingRef.id });
     } catch (error) {
       console.error('Failed to tag friend by email:', error);
       throw error;
@@ -3466,8 +3407,7 @@ export function AppProvider({ children }) {
 
     try {
       const inviterDisplayName = user.displayName || 'A friend';
-      const inviteUrl = `https://mysetlists.net?ref=${user.uid}`;
-      await addDoc(collection(db, 'invites'), {
+      const inviteRef = await addDoc(collection(db, 'invites'), {
         inviterUid: user.uid,
         inviterName: inviterDisplayName,
         inviterEmail: user.email || '',
@@ -3475,8 +3415,7 @@ export function AppProvider({ children }) {
         status: 'pending',
         createdAt: serverTimestamp(),
       });
-      const email = inviteEmail({ inviterName: inviterDisplayName, inviteUrl });
-      await sendEmailIfAllowed({ to: toEmail, ...email }, { type: 'invite' });
+      await sendNotification({ type: 'invite', inviteId: inviteRef.id });
       loadInviteStats(user.uid);
       return { success: true };
     } catch (err) {
@@ -3493,11 +3432,14 @@ export function AppProvider({ children }) {
       return false;
     }
     try {
-      const inviterDisplayName = user.displayName || 'A friend';
-      const inviteUrl = `https://mysetlists.net?ref=${user.uid}`;
-      const email = inviteEmail({ inviterName: inviterDisplayName, inviteUrl });
-      const res = await sendEmailIfAllowed({ to: invite.inviteeEmail, ...email }, { type: 'invite' });
+      const res = await sendNotification({ type: 'invite', inviteId: invite.id });
       if (res && !res.ok) throw new Error('Email send failed');
+      // 200 { skipped: 'already sent' } means the server's own 24-hour
+      // limit for this address caught it.
+      if (res && (await res.clone().json().catch(() => ({}))).reason === 'already sent') {
+        setToast('You can only resend to the same person once per 24 hours.');
+        return false;
+      }
       await updateDoc(doc(db, 'invites', invite.id), { lastSentAt: serverTimestamp() });
       setToast(`Invite resent to ${invite.inviteeEmail}`);
       return true;

@@ -66,7 +66,7 @@ test('builder: announcements opt-out excludes, notification-level state does not
 
 // ── admin-send-announcement ──────────────────────────────────────────
 
-const ADMIN = { uid: 'adminUid000001', email: 'phillip.leonard@gmail.com' };
+const ADMIN = { uid: 'adminUid000001', email: 'phillip.leonard@gmail.com', email_verified: true };
 
 function setup({ users = 3, transport } = {}) {
   const db = createFakeDb();

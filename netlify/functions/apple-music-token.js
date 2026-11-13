@@ -1,8 +1,8 @@
+const { withCors } = require('./lib/cors');
 const crypto = require('crypto');
 
 const CORS_HEADERS = {
   'Content-Type': 'application/json',
-  'Access-Control-Allow-Origin': '*',
 };
 
 /**
@@ -241,3 +241,6 @@ exports.handler = async function (event) {
     };
   }
 };
+
+// CORS allowlist on every response (lib/cors.js) — no more `*` (5.59.6).
+module.exports.handler = withCors(module.exports.handler);

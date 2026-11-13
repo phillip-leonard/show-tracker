@@ -4,6 +4,65 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.59.6] — 2026-11-12
+
+Ships in iOS 3.13.6 (`MARKETING_VERSION` 3.13.5 → 3.13.6, after #397's
+3.13.5).
+
+**Secure the Netlify functions: AI scans, `send-email` (S-06) and CORS.**
+
+- **Shared helpers** in `netlify/functions/lib/`: `requestAuth.js`
+  (`requireUser` → `{ uid, email, isAdmin }` or a 401), `cors.js` (one
+  allowlist: mysetlists.net, www, `capacitor://localhost`, local dev; a
+  deploy preview may echo only its own URL) and `rateLimit.js` (daily
+  counters in the server-only `rateLimits` collection, by transaction).
+  Admin stays the `ADMIN_EMAILS` allowlist, and now also requires a
+  verified email (`isAdminClaims`).
+- **AI scans** (`analyze-tickets`, `analyze-screenshot`, shared code in
+  `lib/aiScan.js`). Live now: JPEG/PNG/WebP/GIF only, with the bytes
+  checked against the declared type; ≤4 MB per image; at most 10 images per
+  ticket scan; the CORS allowlist; and generic error messages (no Anthropic
+  error bodies, status codes, raw model text or configuration details).
+  With a token: 20 scans per user per day (admins exempt). Without one,
+  while enforcement is off: 100 a day across everyone and 10 per IP
+  (hashed, never stored). `REQUIRE_AUTH_AI=true` in Netlify turns on the
+  token requirement; leave it off until the 3.13.6 iOS build is live,
+  because 3.13.5 and earlier send no token.
+- **Client:** `authedFetch()` and `apiErrorMessage()` in `lib/api.js`
+  attach the ID token to the scan calls and word 401/429.
+- **Guests can't scan.** `/scan-import/` opens on the file import for a
+  guest, the Scan Tickets tab shows "Create a free account to scan
+  tickets" (`components/GuestScanPrompt.jsx`), the dropzone stops
+  accepting images, and My Shows says "Import" and drops the screenshot
+  tip. CSV/Excel import and manual entry are unchanged.
+- **`send-email` takes no HTML, subject or free-form recipient.** The
+  browser sends `{ type, …ids }` (`sendNotification` in `lib/email.js`).
+  The server checks that the caller sent the tag, invite or notification
+  the email is about, looks the recipient up and builds the email from
+  `lib/notificationTemplates.js` (moved from `lib/emailTemplates.js`,
+  which now re-exports it, with every value HTML-escaped). Rules per type
+  are in `lib/emailAuthorization.js`.
+- **Old iOS builds keep working.** Their `{ to, subject, html, type }`
+  calls are matched to the record written just before them, and the email
+  is rebuilt from that record. The client's HTML and subject are never
+  used, and a call with no record behind it sends nothing.
+- **`send-email` limits:** daily limits per type on top of the existing
+  30 an hour, and one-time markers in `emailSends` (the same tag is never
+  emailed twice, and an invite can't be re-sent within 24 hours). Admin
+  one-off messages are plain text.
+- **No function answers `Access-Control-Allow-Origin: *`** any more. The
+  53 that did, plus `artist-api`, go through `withCors`. CDN-cached
+  responses carry `Netlify-Vary: header=Origin`, so the iOS app never
+  gets a copy cached for the website.
+- `rateLimits` and `emailSends` are stamped with the user's uid and purged
+  on account deletion (`lib/userDataPurge.js`).
+- Tests: `tests/security/` (auth helper, rate limiter, CORS, AI
+  endpoints, and every `send-email` type allowed and denied, in both
+  shapes) and `e2e/smoke/guest-scan.smoke.spec.js`. The AI and email e2e
+  specs are updated.
+
+---
+
 ## [5.59.5] — 2026-11-12
 
 Ships in iOS 3.13.5 (`MARKETING_VERSION` 3.13.4 → 3.13.5).

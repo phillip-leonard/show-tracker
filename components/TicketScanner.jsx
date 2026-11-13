@@ -4,13 +4,16 @@ import React, { useState } from 'react';
 import { toIsoDate } from '@/lib/utils';
 import { Camera, X, RefreshCw, Search, Check, Download, Plus, ChevronDown } from 'lucide-react';
 import { resizeImageForUpload } from '@/lib/utils';
-import { apiUrl } from '@/lib/api';
+import { apiUrl, authedFetch, apiErrorMessage } from '@/lib/api';
 import { isNativePlatform } from '@/lib/native-auth';
 import { extractSongsFromSetlist } from '@/lib/setlistParser';
 import { Card, Button } from '@/components/ui';
 import {
   PERMISSION_KIND, requestNativePermission, openAppSettings,
 } from '@/lib/nativePermissions';
+
+// The server's cap (netlify/functions/lib/aiScan.js MAX_TICKET_IMAGES).
+const MAX_TICKETS_PER_SCAN = 10;
 
 function TicketScanner({ onImport, importedIds, existingShows }) {
   const [files, setFiles] = useState([]);
@@ -116,13 +119,16 @@ function TicketScanner({ onImport, importedIds, existingShows }) {
     setExtractedShows([]);
 
     try {
+      if (files.length > MAX_TICKETS_PER_SCAN) {
+        throw new Error(`Scan up to ${MAX_TICKETS_PER_SCAN} tickets at a time. Remove ${files.length - MAX_TICKETS_PER_SCAN} and try again.`);
+      }
       const images = [];
       for (const file of files) {
         const { base64, mediaType } = await resizeImageForUpload(file);
         images.push({ base64, mediaType });
       }
 
-      const response = await fetch(apiUrl('/.netlify/functions/analyze-tickets'), {
+      const response = await authedFetch('/.netlify/functions/analyze-tickets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ images })
@@ -136,7 +142,9 @@ function TicketScanner({ onImport, importedIds, existingShows }) {
       }
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to analyze tickets');
+        throw new Error(apiErrorMessage(response, data, 'Failed to analyze tickets', {
+          unauthorized: 'Your session has expired. Sign out and back in, then try again.',
+        }));
       }
 
       const shows = Array.isArray(data.shows) ? data.shows : [];

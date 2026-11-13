@@ -1,3 +1,4 @@
+const { withCors } = require('./lib/cors');
 const https = require('https');
 const { setlistfmKey, missingSetlistfmKey } = require('./lib/setlistfmKey');
 
@@ -52,8 +53,7 @@ exports.handler = async function(event, context) {
           resolve({
             statusCode: res.statusCode,
             headers: {
-              'Content-Type': 'application/json',
-              'Access-Control-Allow-Origin': '*'
+              'Content-Type': 'application/json'
             },
             body: JSON.stringify(parsedData)
           });
@@ -61,8 +61,7 @@ exports.handler = async function(event, context) {
           resolve({
             statusCode: res.statusCode || 500,
             headers: {
-              'Content-Type': 'application/json',
-              'Access-Control-Allow-Origin': '*'
+              'Content-Type': 'application/json'
             },
             body: JSON.stringify({ error: 'Failed to parse response', details: error.message, raw: data })
           });
@@ -74,8 +73,7 @@ exports.handler = async function(event, context) {
       resolve({
         statusCode: 500,
         headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*'
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({ error: 'Request failed', details: error.message })
       });
@@ -84,3 +82,6 @@ exports.handler = async function(event, context) {
     req.end();
   });
 };
+
+// CORS allowlist on every response (lib/cors.js) — no more `*` (5.59.6).
+module.exports.handler = withCors(module.exports.handler);
