@@ -13,12 +13,12 @@ const STREAMING_MENTION = /spotify|apple\s*music/i;
 function ReleaseNotesView() {
   const releases = [
     {
-      version: '5.59.8',
+      version: '5.59.9',
       date: 'November 13, 2026',
-      title: 'Artist Photos in the App',
+      title: 'Cleaner Account Deletion',
       changes: [
-        'Artist photos now show in the iPhone and iPad app',
         'Deleting an account you created with Sign in with Apple now also removes MySetlists from your Apple ID',
+        'My Shows no longer makes background requests for artist photos it never showed',
       ]
     },
     {

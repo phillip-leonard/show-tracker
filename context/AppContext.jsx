@@ -23,7 +23,6 @@ import {
   UPCOMING_COLLECTION, normalizeUpcomingInput, validateUpcomingInput, sortUpcoming,
   upcomingTagShowData, upcomingInputFromTag, findSetlistForDate, upcomingToShowData,
 } from '@/lib/upcomingShows';
-import { fetchArtistImage } from '@/lib/artistImage';
 import { isReturningUser as checkIsReturningUser } from '@/lib/popupManager';
 import { extractSongsFromSetlist } from '@/lib/setlistParser';
 import { enrichShowDataWithBandSetlist, fetchBandSetlist, fetchBandSetlistWithReason, bandSetlistShowFields, mergeSourceSetlist, mergeNeedsWrite, userNoteCounts } from '@/lib/bandSetlist';
@@ -1432,16 +1431,6 @@ export function AppProvider({ children }) {
       // behind a first-show animation.
       if (isFirstShow) setShowGuestPrompt(true);
 
-      // Fetch artist image in background for guest mode
-      fetchArtistImage(newShow.artist).then(imageUrl => {
-        if (!imageUrl) return;
-        setShows(prev => {
-          const updated = prev.map(s => s.id === showId ? { ...s, artistImage: imageUrl } : s);
-          saveGuestShows(updated);
-          return updated;
-        });
-      }).catch(() => {});
-
       if (!silent && !isFirstShow) announceAddedShow(showId, newShow.artist);
       return showId;
     }
@@ -1449,7 +1438,6 @@ export function AppProvider({ children }) {
     if (!user) return null;
 
     try {
-      const showRef = doc(db, 'users', user.uid, 'shows', showId);
       await writeShowDoc(user.uid, newShow);
       const updatedShows = [...latestShows.current, newShow];
       latestShows.current = updatedShows;
@@ -1469,13 +1457,6 @@ export function AppProvider({ children }) {
         artist: newShow.artist,
         venue: newShow.venue || null,
       });
-
-      // Fetch and store artist image in background — non-blocking
-      fetchArtistImage(newShow.artist).then(imageUrl => {
-        if (!imageUrl) return;
-        updateDoc(showRef, { artistImage: imageUrl }).catch(() => {});
-        setShows(prev => prev.map(s => s.id === showId ? { ...s, artistImage: imageUrl } : s));
-      }).catch(() => {});
 
       if (!silent) announceAddedShow(showId, newShow.artist);
       return showId;
@@ -1572,20 +1553,6 @@ export function AppProvider({ children }) {
       const updatedShows = [...shows, ...createdThisRun];
       updateUserProfile(user, updatedShows).catch(() => {});
       calculateUserRank(user.uid, updatedShows.length);
-
-      // One image fetch per distinct artist — a tour is almost always one
-      // artist, so this is a single request for the whole batch.
-      const artists = Array.from(new Set(createdThisRun.map(s => s.artist).filter(Boolean)));
-      artists.forEach(artist => {
-        fetchArtistImage(artist).then(imageUrl => {
-          if (!imageUrl) return;
-          const ids = createdThisRun.filter(s => s.artist === artist).map(s => s.id);
-          ids.forEach(id => {
-            updateDoc(doc(db, 'users', user.uid, 'shows', id), { artistImage: imageUrl }).catch(() => {});
-          });
-          setShows(prev => prev.map(s => (ids.includes(s.id) ? { ...s, artistImage: imageUrl } : s)));
-        }).catch(() => {});
-      });
     }
 
     setBulkAdd({ total: candidates.length, completed: candidates.length, added: createdThisRun.length, running: false });
@@ -1617,36 +1584,6 @@ export function AppProvider({ children }) {
       setShows(prev => prev.map(s => s.id === showId ? { ...s, ...updates } : s));
     } catch (error) {
       console.error('Failed to update show data:', error);
-    }
-  };
-
-  // Backfill artist images for existing shows that don't have one yet.
-  // Runs in the background; caller can fire-and-forget.
-  const backfillArtistImages = async () => {
-    const missing = shows.filter(s => !s.artistImage);
-    if (!missing.length) return;
-
-    for (const show of missing) {
-      try {
-        const imageUrl = await fetchArtistImage(show.artist);
-        if (imageUrl) {
-          if (guestMode) {
-            setShows(prev => {
-              const updated = prev.map(s => s.id === show.id ? { ...s, artistImage: imageUrl } : s);
-              saveGuestShows(updated);
-              return updated;
-            });
-          } else if (user) {
-            const showRef = doc(db, 'users', user.uid, 'shows', show.id);
-            updateDoc(showRef, { artistImage: imageUrl }).catch(() => {});
-            setShows(prev => prev.map(s => s.id === show.id ? { ...s, artistImage: imageUrl } : s));
-          }
-        }
-      } catch {
-        // skip this show and continue
-      }
-      // Rate limit: MusicBrainz allows ~1 req/sec; our function makes 2 calls per artist
-      await new Promise(resolve => setTimeout(resolve, 2500));
     }
   };
 
@@ -4007,7 +3944,6 @@ export function AppProvider({ children }) {
     clearSetlistReview,
     restoreSongToShow,
     deleteShow,
-    backfillArtistImages,
     updateShowRating,
     updateShowComment,
     updateArchivalAudioPick,

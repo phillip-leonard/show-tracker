@@ -57,7 +57,7 @@ export default function ShowsPage() {
     searchTerm, setSearchTerm,
     filterYear, setFilterYear, filterDate, setFilterDate, availableYears,
     sortBy, setSortBy,
-    addShow, updateShowRating, updateShowComment, deleteShow, updateShowData, backfillArtistImages,
+    addShow, updateShowRating, updateShowComment, deleteShow, updateShowData,
     addSongToShow, updateSetlistOrder, resyncSetlistFromSource,
     proposeSetlistFromSource, applySetlistProposal,
     pendingProposalShows, acceptStoredProposal, declineStoredProposal, clearSetlistReview,
@@ -277,18 +277,6 @@ export default function ShowsPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // Backfill artist images for existing shows — runs once after shows load, non-blocking
-  useEffect(() => {
-    if (isLoading || !shows.length) return;
-    const hasMissing = shows.some(s => !s.artistImage);
-    if (hasMissing) {
-      // Delay start so the page renders first
-      const timer = setTimeout(() => backfillArtistImages(), 3000);
-      return () => clearTimeout(timer);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoading]);
 
   if (isLoading) {
     return <ShowsListSkeleton />;

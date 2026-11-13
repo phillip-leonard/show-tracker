@@ -227,10 +227,10 @@ Gating key: **All** = rendered for signed-in users on web and iOS with no native
 | `mergeTagDataIntoShow` | 1434–1450 | FW | show `taggedBy`, `taggedByUid` | Yes | Swift | |
 | `announceAddedShow` | 1458–1466 | UI | toast | No | Swift | |
 | `noteShowsAdded` | 1477–1483 | SE | `send-welcome-email` | Yes | Swift (calls function) | Server decides eligibility (`netlify/functions/lib/welcomeEmail.js`) |
-| `addShow` | 1485–1587 | FW+API+SE | show write, `guestSessions`, `band-setlist`, `artist-image`, `userActivity`, profile counters, suggestions | **Yes** (shape) | Swift (core) + **Server** (counters, suggestions) | |
-| `addShowsFromTour` | 1614–1704 | FW+API | shows, `artist-image` | Yes | Swift | Sequential writes, 120 ms apart |
+| `addShow` | 1485–1587 | FW+API+SE | show write, `guestSessions`, `band-setlist`, `userActivity`, profile counters, suggestions | **Yes** (shape) | Swift (core) + **Server** (counters, suggestions) | |
+| `addShowsFromTour` | 1614–1704 | FW+API | shows | Yes | Swift | Sequential writes, 120 ms apart |
 | `updateShowData` | 1706–1721 | FW | `updateDoc` show | Yes | Swift | |
-| `backfillArtistImages` | 1725–1751 | API+FW | `artist-image`, show `artistImage` | No | Swift (or server job) | 2.5 s per show |
+| `backfillArtistImages` | 1725–1751 | API+FW | `artist-image`, show `artistImage` | No | Swift (or server job) | 2.5 s per show **Removed in 5.59.9: nothing displays `artistImage`.** |
 | `scanForMissingSetlists` | 1754–1900 | API+DC+FW | `search-setlists`, `band-setlist`, shows | **Yes** | **Server** | Matching rules duplicate `admin-find-missing-setlists.js`. Bug B-06 |
 | `proposeSetlistFromSource` | 1924–1951 | API+DC | `band-setlist`, `mergeSourceSetlist` | **Yes** | **Server** | Merge logic exists twice: `lib/bandSetlistMerge.js` and `netlify/functions/lib/bandSetlistMergeRule.js`, kept equal by `lib/__tests__/bandSetlistMergeParity.test.js` |
 | `applySetlistProposal` | 1968–2010 | DC+FW | show setlist | **Yes** | **Server** | Refuses a merge that would lose ratings or comments (1994–1999) |
@@ -334,7 +334,7 @@ Gating key: **All** = rendered for signed-in users on web and iOS with no native
 | `lib/anniversaries.js` | `nextOccurrence` 22, `buildUpcomingAnniversaries` 35 | DC | Yes | Swift | UTC-today and DD-MM-YYYY bugs already fixed here (10–12) |
 | `lib/api.js` | `apiUrl` 25 | UI | — | Native | Base URL |
 | `lib/appleMusic.js` | `loadMusicKit` 12 … | API | — | v1.x (MusicKit) | Disabled by flag |
-| `lib/artistImage.js` | `fetchArtistImage` 6 | API | — | Swift | Relative URL, no `apiUrl` (B-01) |
+| `lib/artistImage.js` | `fetchArtistImage` 6 | API | — | Swift | Relative URL, no `apiUrl` (B-01) **Removed in 5.59.9.** |
 | `lib/bandScreens.js` | `loadBandIndex` 130, `loadBand` 176, `loadBandSong` 186, `buildBandPersonal` 265 … | API+DC | Yes | Swift | Reads `/api/artists`, `/api/artist`, `/api/artist-song` |
 | `lib/bandSetlist.js` | `fetchBandSetlistWithReason` 72, `bandSetlistShowFields` 227, `mergeSourceSetlist` 274, `mergeNeedsWrite` 325, `enrichShowDataWithBandSetlist` 347 | API+DC | **Yes** | **Server** | |
 | `lib/bandSetlistMerge.js` | `mergeBandSetlist` 257, `chooseCandidate` 169, `titleAliasesFor` 73 | DC | **Yes** | **Server** | 535 lines; already mirrored server-side with a parity test |
@@ -426,7 +426,7 @@ The two bugs named in the brief are **already fixed**. `lib/anniversaries.js:10�
 
 | ID | Where | Bug | Effect |
 |---|---|---|---|
-| B-01 | `lib/artistImage.js:9–10` | Fetches `/.netlify/functions/artist-image` with a relative URL, not `apiUrl()` | On iOS the origin is `capacitor://localhost`, so the request can't reach Netlify: artist images likely never load in the app. Needs a device check **Fixed in 5.59.8.** |
+| B-01 | `lib/artistImage.js:9–10` | Fetches `/.netlify/functions/artist-image` with a relative URL, not `apiUrl()` | On iOS the origin is `capacitor://localhost`, so the request can't reach Netlify: artist images likely never load in the app. Needs a device check **Fixed in 5.59.8; moot since 5.59.9, which removed the fetching (no screen has shown artist photos since 2026-08-26).** |
 | B-02 | `components/ShowForm.jsx:11`, `components/bucketlist/BucketListView.jsx:169`, `components/search/AdvancedSearchView.jsx:27`, `lib/songIndex.js:182` | UTC "today" (`toISOString().slice(0,10)` / `split('T')[0]`) | On a US evening a new show defaults to tomorrow's date; bucket-list and search "today" cut-offs and song "current gap" days are off by one |
 | B-03 | `context/AppContext.jsx:173` | Writes `odubleserId` (typo of `userId`) to every `userProfiles` doc | The profile field itself is not read (the leaderboard builds its own from the doc id, `netlify/functions/lib/communityStats.js:30`), but the misspelled key **is** the contract between `communityStats/global` and `components/CommunityStatsView.jsx:26–74` (noted at `communityStats.js:14` and `scripts/seed-review-account.js:195`). Swift models must decode `odubleserId` until both sides are renamed together |
 | B-04 | `context/AppContext.jsx:157, 3976`, `3808` | Venue counts use the raw `venue` string (or case-sensitive `venue, city`), while Year in Review uses name + city lowercased (`lib/yearRecap.js:17`) | Profile, leaderboard, Stats and Year in Review can show different venue counts for the same shows |
@@ -543,7 +543,7 @@ struct Show: Codable, Identifiable {
     var createdAt: FlexibleDate?           // custom
     var rating: Int?                       // custom: decode any number, round
     var comment: String?
-    var artistImage: String?
+    var artistImage: String?               // legacy: written until 5.59.9, never displayed
     var festivalId: String?
     var taggedBy: String?
     var taggedByUid: String?
@@ -703,7 +703,7 @@ Auth key: **none**, **user** (valid ID token), **admin** (ID token whose email i
 | `setlistfm-links` | setlist.fm attribution URL per setlist id | none | GET | Yes |
 | `band-setlist` | One date-addressed setlist from the band source that owns the artist | none | GET `source`, `artist`, `date`, `venue` (`band-setlist.js:6`) | Yes |
 | `archival-audio-lookup` | Archival recordings (Relisten, phish.in, …) | none | GET `artist`, `date` | Yes |
-| `artist-image` | Artist photo via MusicBrainz + Wikipedia | none | GET `artist` | Yes |
+| `artist-image` | Artist photo via MusicBrainz + Wikipedia | none | GET `artist` | Yes **Removed in 5.59.9.** |
 | `enrich-artist` | MusicBrainz/Discogs enrichment, Firestore-cached | none | GET `name` | Yes |
 | `get-entity-info` | Wikipedia-style info for artist/venue | none | GET `name`, `type` | Yes |
 | `ticketmaster-events` | Upcoming events for an artist | none | GET `artistName`, `attractionId` | Yes |

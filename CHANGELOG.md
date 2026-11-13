@@ -4,6 +4,30 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.59.9] — 2026-11-13
+
+Ships in iOS 3.13.9 (`MARKETING_VERSION` 3.13.8 → 3.13.9). Submit 3.13.9
+in place of 3.13.8: it carries everything 3.13.8 does.
+
+**Artist photo fetching removed.** No screen has shown artist photos since
+the show-card redesign on 2026-08-26 (`b1e535c`), but the app kept fetching
+and storing them: on every show added, once per artist for a tour batch,
+and in a My Shows backfill that re-requested every show still missing a
+photo on every visit, 2.5 s apart (a band with no Wikipedia photo was
+asked about forever). With B-01 fixed in 5.59.8 those requests would also
+have started reaching Netlify and MusicBrainz from iOS.
+
+- Removed: `lib/artistImage.js`, `netlify/functions/artist-image.js`,
+  `backfillArtistImages` (`context/AppContext.jsx`) and its trigger in
+  `app/shows/page.jsx`, and the fetches in `addShow` and the tour bulk add.
+- Existing `artistImage` values on show documents are left as they are.
+  Nothing reads them. Bringing photos back to the cards would be a design
+  change of its own; the function is in git history.
+- Older clients that still call `artist-image` get no image back, which
+  they already handled as "no photo".
+
+---
+
 ## [5.59.8] — 2026-11-13
 
 Ships in iOS 3.13.8 (`MARKETING_VERSION` 3.13.7 → 3.13.8). 3.13.7 is in
