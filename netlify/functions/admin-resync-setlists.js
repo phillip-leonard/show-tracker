@@ -86,6 +86,7 @@
  * so a truncated run still returns its report.
  */
 
+const { internalProxyHeader } = require('./lib/proxyLimit');
 const { withCors } = require('./lib/cors');
 const https = require('https');
 
@@ -284,7 +285,9 @@ function fetchViaBandSetlistFunction({ baseUrl, source, artist, date, venue, art
         hostname: url.hostname,
         path: `${url.pathname}?${url.search.replace(/^\?/, '')}`,
         method: 'GET',
-        headers: { Accept: 'application/json', 'User-Agent': 'MySetlists/5.33 (admin-resync)' },
+        // Exempt from band-setlist's per-IP limit: every call comes from
+        // Netlify's own IPs (lib/proxyLimit.js).
+        headers: { Accept: 'application/json', 'User-Agent': 'MySetlists/5.33 (admin-resync)', ...internalProxyHeader() },
       },
       (res) => {
         let data = '';

@@ -4,6 +4,54 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.59.8] — 2026-11-13
+
+Ships in iOS 3.13.8 (`MARKETING_VERSION` 3.13.7 → 3.13.8). 3.13.7 is in
+App Review; this is the next build.
+
+**Audit follow-ups: B-01, B-11 and the shared-quota proxies.**
+
+- **B-01: artist images load in the iOS app.** `lib/artistImage.js`
+  fetched `/.netlify/functions/artist-image` with a relative URL, which on
+  iOS resolves against `capacitor://localhost` and never reaches Netlify.
+  It now goes through `apiUrl()`. `artist-image` answers with a CDN cache
+  (a day when an image is found, an hour when not), since the app now adds
+  lookups and MusicBrainz asks for about one request a second. Shows saved
+  from the app without an image are filled in by the existing backfill.
+- **B-11: Sign in with Apple tokens are revoked on account deletion.**
+  For an Apple account, deleting it now asks Apple to confirm once more
+  (`lib/appleRevocation.js`): on iOS the native sheet returns a one-time
+  authorization code, on the web the popup returns Apple's access token.
+  `delete-account` hands it to Firebase's `accounts:revokeToken`
+  (`netlify/functions/lib/appleRevoke.js`) **before** it disables the
+  account, because Firebase checks the user's ID token. Firebase uses the
+  Apple key on the project's Apple provider, so no Apple key lives in
+  Netlify. Backing out of Apple's sheet cancels the deletion; any other
+  failure (Apple down, a different Apple ID on the device) is logged and
+  the deletion goes ahead. Older builds send no token and delete as before.
+- **Per-IP daily limits on the proxies that spend a shared API quota**
+  (#398 follow-up 2). `lib/proxyLimit.js` wraps the ten setlist.fm
+  proxies (search-setlists, search-artists, search-artist-shows,
+  get-artist-tours, get-tour-shows, get-artist-info,
+  get-artist-song-stats, band-setlist, setlistfm-links,
+  search-festival-lineup) at 2,000 a day, and ticketmaster-events and
+  seatgeek-events at 500 each, counted in `rateLimits/proxy_{service}_ip_{hash}_{day}`
+  (IP HMAC-hashed). The limits sit well above one person's day, including
+  a 1,000-row spreadsheet import, and can be changed with
+  `PROXY_LIMIT_SETLISTS` / `PROXY_LIMIT_TICKETMASTER` /
+  `PROXY_LIMIT_SEATGEEK`. A 429 keeps its CORS headers. The limiter fails
+  open. `admin-resync-setlists`, which calls band-setlist from Netlify's
+  own IPs, sends an `X-MySetlists-Internal` HMAC header and is exempt.
+- Tests: `tests/security/auditFollowups.test.js` (18) and
+  `lib/__tests__/appleRevocation.test.js` (9), in `npm run test:unit`.
+
+**Check after deploy:** Firebase console → Authentication → Sign-in
+method → Apple must have the OAuth code flow configuration (Services ID,
+Apple team ID, key ID, private key), or Firebase answers the revoke with
+an error, which `delete-account` logs as `Apple token not revoked`.
+
+---
+
 ## [5.59.7] — 2026-11-13
 
 Ships in iOS 3.13.7 (`MARKETING_VERSION` 3.13.6 → 3.13.7, after #398's

@@ -13,6 +13,7 @@ import { publicProfileUrl, openExternalUrl, externalLinkClick } from '@/lib/publ
 import BlockedAccountsSection from '@/components/moderation/BlockedAccountsSection';
 import NotificationSettings from '@/components/notifications/NotificationSettings';
 import { forgetPushToken } from '@/lib/pushAlerts';
+import { appleTokenForDeletion, appleProviderUid } from '@/lib/appleRevocation';
 import TourInfoModal from '@/components/TourInfoModal';
 import FollowBandButton from '@/components/artists/FollowBandButton';
 
@@ -285,11 +286,29 @@ export default function ProfileView({ user, shows, userRank, onProfileUpdate, on
     setDeleteError('');
 
     try {
+      // Apple accounts: ask Apple for a fresh token so delete-account can
+      // revoke it (B-11). Backing out of Apple's sheet cancels the deletion;
+      // anything else Apple does wrong doesn't stop it.
+      let apple = null;
+      try {
+        apple = await appleTokenForDeletion(auth.currentUser);
+      } catch (err) {
+        if (err?.code === 'apple/cancelled') {
+          setDeleteLoading(false);
+          setDeleteError('Deletion cancelled. Confirm with Apple to delete your account.');
+          return;
+        }
+      }
+      if (apple?.skipped) console.warn('[delete-account] Apple token not revoked:', apple.skipped);
+
       const token = await auth.currentUser.getIdToken();
       const res = await fetch(apiUrl('/api/delete-account'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ confirmText: 'DELETE' }),
+        body: JSON.stringify({
+          confirmText: 'DELETE',
+          ...(apple?.token ? { appleToken: apple.token, appleTokenType: apple.tokenType } : {}),
+        }),
       });
 
       if (!res.ok) {
@@ -879,6 +898,12 @@ export default function ProfileView({ user, shows, userRank, onProfileUpdate, on
           You will be signed out immediately and will not be able to sign back
           in with this account.
         </p>
+        {appleProviderUid(user) !== null && (
+          <p className="text-secondary text-sm mb-4">
+            Apple will ask you to confirm once more, so MySetlists can be
+            removed from the apps that use your Apple ID.
+          </p>
+        )}
         {deleteError && (
           <p className="text-danger text-sm mb-4">{deleteError}</p>
         )}

@@ -122,9 +122,16 @@ exports.handler = async function (event) {
 
   try {
     const imageUrl = await getArtistImage(artist);
+    // CDN-cache the answer (a day when found, an hour when not) so repeat
+    // lookups don't reach MusicBrainz, whose policy is ~1 request/second.
+    // iOS calls this too since B-01 (5.59.8). withCors adds Netlify-Vary
+    // on Origin so the web and app copies are cached apart.
     return {
       statusCode: 200,
-      headers: CORS_HEADERS,
+      headers: {
+        ...CORS_HEADERS,
+        'Cache-Control': imageUrl ? 'public, max-age=86400, s-maxage=86400' : 'public, max-age=3600, s-maxage=3600',
+      },
       body: JSON.stringify({ imageUrl }),
     };
   } catch (err) {

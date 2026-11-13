@@ -46,7 +46,7 @@ The public band pages (`/artist/...`) read a snapshot from Netlify Blobs, writte
 
 Deploy previews always carry `X-Robots-Tag: noindex` (Netlify adds it). Lighthouse's `is-crawlable` and the Rich Results Test's "Indexing allowed?" fail there for that reason alone.
 
-## Security invariants (5.59.6, 5.59.7)
+## Security invariants (5.59.6 to 5.59.8)
 
 These closed real holes. `tests/rules/security.rules.test.js` and `tests/security/*.test.js` cover them; don't loosen them to make a feature easier.
 
@@ -54,6 +54,8 @@ These closed real holes. `tests/rules/security.rules.test.js` and `tests/securit
 - **The browser never writes into another user's friends list.** Being in `users/{X}/friends/{me}` lets me read X's shows. Cross-user friendship writes go through `netlify/functions/friends.js`, which checks a pending request, an invite to the caller's own address or a signed referral link (`lib/referralToken.js`). Links that should auto-friend must be signed (`signReferral`).
 - **`send-email` builds every email on the server** from a record the caller wrote (`lib/emailAuthorization.js`, templates in `lib/notificationTemplates.js`). Never send HTML or an address from the browser.
 - **Anything that spends a paid API key needs sign-in and a per-user limit** (`lib/aiScan.js`, `lib/rateLimit.js`).
+- **A public function that spends a shared third-party quota (setlist.fm, Ticketmaster, SeatGeek) is wrapped in `withProxyLimit`** (`lib/proxyLimit.js`, 5.59.8). `tests/security/auditFollowups.test.js` fails if a function reads the setlist.fm key without it. Our own server-to-server calls send `internalProxyHeader()`.
+- **Client code reaches a function through `apiUrl()` or `authedFetch()`**, never a bare `/.netlify/...` or `/api/...` string: on iOS a relative URL resolves against `capacitor://localhost` (B-01).
 - **Shared caches are written by the function that fetches the data** (`ticketCache` via `lib/ticketCacheStore.js`), never by the browser.
 
 ## Versioning: every PR bumps the App Store version
