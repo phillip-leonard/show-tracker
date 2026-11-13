@@ -4,6 +4,27 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.59.5] — 2026-11-12
+
+Ships in iOS 3.13.5 (`MARKETING_VERSION` 3.13.4 → 3.13.5).
+
+**Native SwiftUI app: scoping audit (docs only).**
+
+- **`docs/ios-native/SCOPING.md`** audits the Capacitor iOS app ahead of a
+  native SwiftUI rewrite: every screen and flow, the native plumbing,
+  a line-cited classification of every function and derived value in
+  `context/AppContext.jsx` and the `lib/`/`hooks/` helpers, the Firestore
+  collections with their type inconsistencies and Swift `Codable`
+  sketches, auth and what resets at cutover, every Netlify function and
+  client-side key, the App Review carry-over list, and a proposed v1
+  scope, server-side moves, project structure and cutover plan.
+- Bugs found while reading are listed as separate tickets in the
+  document (B-01 to B-13, S-01 to S-06) and are not fixed here.
+- No app code changed. The service worker cache name is restamped to the
+  new version by `scripts/stamp-service-worker.js`, as on every release.
+
+---
+
 ## [5.59.4] — 2026-11-11
 
 Ships in iOS 3.13.4 (`MARKETING_VERSION` 3.13.3 → 3.13.4, after #395's
