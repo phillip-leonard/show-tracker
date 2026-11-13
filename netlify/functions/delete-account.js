@@ -23,11 +23,20 @@
  *           or { confirmText: "DELETE" } — for Hide My Email users, who
  *                                          cannot reasonably type a
  *                                          @privaterelay.appleid.com address
+ *           plus, for Apple accounts, { appleToken, appleTokenType }
+ *                                          ('CODE' from the iOS sheet,
+ *                                          'ACCESS_TOKEN' from the web popup;
+ *                                          lib/appleRevocation.js). Revoked
+ *                                          through Firebase before the account
+ *                                          is disabled (B-11). Optional: an
+ *                                          older build sends none, and
+ *                                          deletion never waits on Apple.
  * Auth header: Authorization: Bearer {idToken}
  */
 
 const { withCors } = require('./lib/cors');
 const { purgeUserData } = require('./lib/userDataPurge');
+const { revokeAppleToken, readAppleToken } = require('./lib/appleRevoke');
 
 const STORAGE_BUCKET = process.env.FIREBASE_STORAGE_BUCKET || 'show-tracker-d7a4d.firebasestorage.app';
 
@@ -113,6 +122,16 @@ exports.handler = async function (event) {
       performedByEmail: decoded.email || '',
       performedAt: FieldValue.serverTimestamp(),
     });
+
+    // Sign in with Apple: revoke the user's Apple tokens (B-11). First,
+    // because Firebase checks the ID token, which disabling the account
+    // below would invalidate. Never fatal.
+    const apple = readAppleToken(body);
+    if (apple) {
+      const result = await revokeAppleToken({ idToken: token, ...apple });
+      if (result.revoked) console.log('[delete-account] Apple token revoked for uid', uid);
+      else console.warn('[delete-account] Apple token not revoked for uid', uid, result.reason);
+    }
 
     // Lock the account out NOW. Everything after this point can be retried;
     // this is the part the user is entitled to have happen immediately.

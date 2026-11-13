@@ -1,4 +1,5 @@
 const { withCors } = require('./lib/cors');
+const { withProxyLimit } = require('./lib/proxyLimit');
 const https = require('https');
 const { artistSlug, readTicketCache, writeTicketCache } = require('./lib/ticketCacheStore');
 
@@ -165,4 +166,5 @@ exports.handler = async function(event) {
 };
 
 // CORS allowlist on every response (lib/cors.js) — no more `*` (5.59.6).
-module.exports.handler = withCors(module.exports.handler);
+// Per-IP daily limit on the shared ticketmaster quota (lib/proxyLimit.js, 5.59.8).
+module.exports.handler = withCors(withProxyLimit('ticketmaster', module.exports.handler));
