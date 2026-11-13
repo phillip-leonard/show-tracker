@@ -12,13 +12,13 @@
  * Auth header: Authorization: Bearer {idToken}   (admin account only)
  */
 
+const { withCors } = require('./lib/cors');
 const { purgeUserData } = require('./lib/userDataPurge');
 
 const ADMIN_EMAILS = ['phillip.leonard@gmail.com'];
 const STORAGE_BUCKET = process.env.FIREBASE_STORAGE_BUCKET || 'show-tracker-d7a4d.firebasestorage.app';
 const CORS_HEADERS = {
   'Content-Type': 'application/json',
-  'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'Authorization, Content-Type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
@@ -141,3 +141,6 @@ exports.handler = async function (event) {
     };
   }
 };
+
+// CORS allowlist on every response (lib/cors.js) — no more `*` (5.59.6).
+module.exports.handler = withCors(module.exports.handler);

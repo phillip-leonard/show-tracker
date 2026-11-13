@@ -1,54 +1,45 @@
 /**
  * send-email — the app's one browser-initiated email path (tags, invites,
- * friend-joined, replies/likes, venue verification, admin messages).
+ * friend-joined, suggestion nudges, replies/likes, venue verification,
+ * admin messages).
  *
- * POST body:   { to, subject, html, type }
- *              type — short notification name for the unsubscribe log,
- *                     e.g. 'tag', 'invite' (becomes 'notification:<type>')
+ * POST body:   { type, …ids }   e.g. { type: 'tag', tagId }
+ *              See lib/emailAuthorization.js for every type and its ids.
+ *              The legacy { to, subject, html, type } shape from the iOS
+ *              app ≤ 3.13.5 is still accepted, but only to find the record
+ *              behind it: its subject and html are ignored.
  * Auth header: Authorization: Bearer {idToken}   (any signed-in user)
  *
- * WHY IT'S LOCKED DOWN. Until 5.38 this took any to/subject/html from
- * anyone, from any origin, and sent it as phillip@mysetlists.net — an
- * open relay. Now it:
- *   - requires a Firebase ID token (401 without one)
- *   - only answers CORS for the site and the iOS app's origin
- *   - rate-limits each sender (RATE_LIMIT_PER_HOUR; admins exempt)
- *   - decides opt-out on the server (canEmail), and resolves the
- *     recipient's account from `to` itself — never from a client-supplied
- *     uid, or a caller could mint a signed unsubscribe link for someone else
- *   - stamps every message with the recipient's signed unsubscribe footer
- *     and List-Unsubscribe headers
+ * HOW IT GOT HERE.
+ *   - Until 5.38 it took any to/subject/html from anyone, from any
+ *     origin: an open relay. 5.38 added the ID token, the CORS allowlist,
+ *     a per-sender hourly limit and server-side opt-out.
+ *   - Until 5.59.6 a signed-in user could still send arbitrary HTML to an
+ *     arbitrary address (S-06). Now the browser never supplies HTML, a
+ *     subject or a free-form recipient: the server checks the caller sent
+ *     the tag / invite / notification the email is about, looks the
+ *     recipient up itself and builds the email from its own templates
+ *     (lib/notificationTemplates.js).
  *
- * A signed-in user can still send arbitrary HTML to an arbitrary address
- * (tag-by-email and invites need that). The rate limit bounds it; moving
- * templating server-side would remove it.
+ * Limits: RATE_LIMIT_PER_HOUR across all types, plus a daily limit per
+ * type (DAILY_LIMITS in lib/emailAuthorization.js); admins exempt. Each
+ * email claims a one-time marker in emailSends/{key}, so the same record
+ * is never emailed twice and an invite can't be re-sent within 24 hours.
+ *
+ * Opt-out (canEmail), the recipient's signed unsubscribe footer and the
+ * List-Unsubscribe headers are unchanged.
  */
 
-const { getDb, getAdminAuth, verifyUser, isAdminClaims } = require('./lib/firebaseAdmin');
-const { canEmail, resolveRecipient } = require('./lib/emailPolicy');
+const { getDb, getAdminAuth } = require('./lib/firebaseAdmin');
+const { requireUser } = require('./lib/requestAuth');
+const { corsHeaders, ALLOWED_ORIGINS } = require('./lib/cors');
+const { canEmail } = require('./lib/emailPolicy');
 const { buildEmail, sendOne } = require('./lib/outgoingEmail');
-const { isValidEmail, normalizeEmail } = require('./lib/unsubscribeToken');
+const { authorizeEmail, DAILY_LIMITS } = require('./lib/emailAuthorization');
+const { takeDailyQuota } = require('./lib/rateLimit');
 
 const RATE_LIMIT_PER_HOUR = 30;
 const WINDOW_MS = 60 * 60 * 1000;
-
-const ALLOWED_ORIGINS = [
-  'https://mysetlists.net',
-  'https://www.mysetlists.net',
-  'capacitor://localhost', // the iOS app (capacitor.config.ts sets no iosScheme)
-];
-
-function corsHeaders(event) {
-  const origin = (event.headers || {}).origin || (event.headers || {}).Origin || '';
-  const h = {
-    'Content-Type': 'application/json',
-    'Access-Control-Allow-Headers': 'Authorization, Content-Type',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    Vary: 'Origin',
-  };
-  if (ALLOWED_ORIGINS.includes(origin)) h['Access-Control-Allow-Origin'] = origin;
-  return h;
-}
 
 /** Fixed hourly window per sender, in emailRateLimits/{uid}. */
 async function takeRateLimit(db, uid, now = Date.now()) {
@@ -64,59 +55,111 @@ async function takeRateLimit(db, uid, now = Date.now()) {
   });
 }
 
+/**
+ * Take the one-time marker for this email. False if it's already taken
+ * (and, with a ttl, was taken less than ttl ago).
+ */
+async function claimSend(db, key, { ttlMs = null, now = Date.now(), type, uid = null } = {}) {
+  if (!key) return true;
+  const ref = db.doc(`emailSends/${key}`);
+  return db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    if (snap.exists) {
+      const sentAt = Number(snap.data().sentAtMs) || 0;
+      if (!ttlMs || now - sentAt < ttlMs) return false;
+    }
+    // uid = the sender, so delete-account's purge can find their markers.
+    tx.set(ref, { type: type || null, uid: uid || null, sentAtMs: now, sentAt: new Date(now) });
+    return true;
+  });
+}
+
+async function releaseSend(db, key) {
+  if (!key) return;
+  try { await db.doc(`emailSends/${key}`).delete(); } catch { /* best effort */ }
+}
+
 exports.handler = async function (event) {
-  const headers = corsHeaders(event);
+  const headers = corsHeaders(event, { methods: 'POST, OPTIONS' });
   const reply = (statusCode, body) => ({ statusCode, headers, body: JSON.stringify(body) });
+  const skipped = (reason) => reply(200, { success: true, skipped: true, reason });
 
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers, body: '' };
   if (event.httpMethod !== 'POST') return reply(405, { error: 'Method not allowed' });
 
-  const decoded = await verifyUser(event);
-  if (!decoded) return reply(401, { error: 'Sign in required' });
+  const caller = await requireUser(event, headers, { message: 'Sign in required' });
+  if (caller.response) return caller.response;
 
   let body;
-  try { body = JSON.parse(event.body || '{}'); } catch { return reply(400, { error: 'Invalid JSON body' }); }
+  try { body = JSON.parse(event.body || '{}'); } catch { return reply(400, { error: 'Invalid request' }); }
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return reply(400, { error: 'Invalid request' });
 
-  const { to, subject, html, type } = body;
-  if (!to || !subject || !html) return reply(400, { error: 'Missing required fields: to, subject, html' });
-  if (typeof to !== 'string' || !isValidEmail(to)) return reply(400, { error: 'to must be a single valid email address' });
-  if (String(subject).length > 300 || String(html).length > 200_000) return reply(400, { error: 'Email too large' });
-
-  if (!process.env.RESEND_API_KEY) return reply(500, { error: 'RESEND_API_KEY not configured' });
-  if (!process.env.UNSUBSCRIBE_SECRET) return reply(500, { error: 'UNSUBSCRIBE_SECRET not configured' });
+  if (!process.env.RESEND_API_KEY || !process.env.UNSUBSCRIBE_SECRET) {
+    console.error('[send-email] RESEND_API_KEY or UNSUBSCRIBE_SECRET is not set');
+    return reply(503, { error: 'Email is unavailable right now' });
+  }
 
   const db = getDb();
-  const admin = isAdminClaims(decoded);
+  const auth = getAdminAuth();
+  const now = Date.now();
+
+  let decision;
+  try {
+    decision = await authorizeEmail({ db, auth, now }, caller, body);
+  } catch (e) {
+    console.error('[send-email] authorization failed:', e.message);
+    return reply(500, { error: 'Could not send right now' });
+  }
+  if (!decision.ok) {
+    // Type and reason only, never an address.
+    console.log(`[send-email] not sent: ${body.type || 'unknown'} ${decision.reason}${decision.legacy ? ' (legacy)' : ''}`);
+    // A legacy client gets a quiet 200, as it always has for a skipped
+    // email; so does a recipient who hasn't opted in.
+    if (decision.legacy || decision.status === 200) return skipped(decision.reason);
+    return reply(decision.status || 403, { error: decision.status === 400 ? 'Invalid request' : 'Not allowed' });
+  }
 
   try {
-    if (!admin && !(await takeRateLimit(db, decoded.uid))) {
-      return reply(429, { error: `Too many emails — the limit is ${RATE_LIMIT_PER_HOUR} per hour.` });
+    if (!caller.isAdmin) {
+      if (!(await takeRateLimit(db, caller.uid, now))) {
+        return reply(429, { error: `Too many emails — the limit is ${RATE_LIMIT_PER_HOUR} per hour.` });
+      }
+      const daily = DAILY_LIMITS[decision.type];
+      if (Number.isFinite(daily)) {
+        const q = await takeDailyQuota(db, `email_${decision.type}_${caller.uid}`, daily, { now, uid: caller.uid });
+        if (!q.allowed) return reply(429, { error: 'You’ve sent the most emails of this kind for today. Try again tomorrow.' });
+      }
     }
   } catch (e) {
     console.error('[send-email] rate limit check failed:', e.message);
     return reply(500, { error: 'Could not send right now' });
   }
 
-  const email = normalizeEmail(to);
-  const recipient = await resolveRecipient(db, getAdminAuth(), email);
-  if (!(await canEmail({ uid: recipient.uid, email, category: 'notification' }, { db }))) {
-    return reply(200, { success: true, skipped: true, reason: 'recipient opted out' });
+  const { recipient } = decision;
+  if (!(await canEmail({ uid: recipient.uid, email: recipient.email, category: 'notification' }, { db }))) {
+    return skipped('recipient opted out');
   }
 
-  const cleanType = String(type || 'general').replace(/[^A-Za-z0-9_\-]/g, '').slice(0, 40) || 'general';
+  if (!(await claimSend(db, decision.dedupeKey, { ttlMs: decision.dedupeTtlMs, now, type: decision.type, uid: caller.uid }))) {
+    return skipped('already sent');
+  }
+
   const payload = buildEmail({
-    recipient: { email, uid: recipient.uid },
-    subject: String(subject),
-    html: String(html),
+    recipient,
+    subject: decision.email.subject,
+    html: decision.email.html,
     scope: 'all',
-    source: `notification:${cleanType}`,
+    source: `notification:${decision.source}`,
   });
 
   const result = await sendOne(payload);
   if (result.ok) return reply(200, { success: true });
-  return reply(502, { error: 'Email send failed', status: result.status });
+  await releaseSend(db, decision.dedupeKey);
+  console.error(`[send-email] Resend ${result.status} for ${decision.type}`);
+  return reply(502, { error: 'Email send failed' });
 };
 
 exports.takeRateLimit = takeRateLimit;
+exports.claimSend = claimSend;
 exports.RATE_LIMIT_PER_HOUR = RATE_LIMIT_PER_HOUR;
 exports.ALLOWED_ORIGINS = ALLOWED_ORIGINS;

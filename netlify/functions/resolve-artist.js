@@ -7,13 +7,13 @@
  * follows, so a signed-in client can't fill artists/ with whatever it likes.
  */
 
+const { withCors } = require('./lib/cors');
 const { getDb, verifyUser } = require('./lib/firebaseAdmin');
 const { artistKey, ledgerId } = require('./lib/followedBandAlerts');
 const { resolveAttraction } = require('./lib/ticketmasterEvents');
 
 const CORS_HEADERS = {
   'Content-Type': 'application/json',
-  'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'Authorization, Content-Type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
@@ -61,3 +61,6 @@ exports.handler = async function (event) {
     return reply(200, { resolved: false });
   }
 };
+
+// CORS allowlist on every response (lib/cors.js) — no more `*` (5.59.6).
+module.exports.handler = withCors(module.exports.handler);

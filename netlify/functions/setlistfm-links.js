@@ -13,10 +13,11 @@
 // Cached for 24 hours per setlist, shared by everyone who logged that show
 // (lib/setlistCache.js).
 
+const { withCors } = require('./lib/cors');
 const { missingSetlistfmKey } = require('./lib/setlistfmKey');
 const { getSetlists, linkFrom } = require('./lib/setlistfmSetlist');
 
-const CORS_HEADERS = { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' };
+const CORS_HEADERS = { 'Content-Type': 'application/json' };
 const MAX_IDS = 20;
 
 function getDb() {
@@ -63,3 +64,6 @@ exports.handler = async function (event) {
     body: JSON.stringify({ links, notFound, pending }),
   };
 };
+
+// CORS allowlist on every response (lib/cors.js) — no more `*` (5.59.6).
+module.exports.handler = withCors(module.exports.handler);

@@ -417,7 +417,7 @@ function renderHeardShare({ entry, shows }, code, ids, now = Date.now()) {
  * inline code, never a stored id).
  */
 function selectedShowsJson({ entry, shows }, code, now = Date.now()) {
-  const headers = { 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*' };
+  const headers = { 'Content-Type': 'application/json; charset=utf-8' };
   if (!availability(entry, now).available) {
     return { statusCode: 503, headers: { ...headers, 'Cache-Control': 'public, s-maxage=60' }, body: JSON.stringify({ ok: false, error: 'unavailable' }) };
   }

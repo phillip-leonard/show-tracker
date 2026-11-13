@@ -16,6 +16,7 @@
 // stored in the same place: same addresses, drawn by recapSvg and shown by
 // renderRecapPage instead.
 
+const { withCors } = require('./lib/cors');
 const { routeParams } = require('./lib/publicRouteParams');
 const { notFoundPage } = require('./lib/publicPageHtml');
 const heard = require('./lib/heardRecord');
@@ -44,7 +45,6 @@ exports.handler = async function (event) {
         headers: {
           'Content-Type': 'image/png',
           'X-Robots-Tag': 'noindex',
-          'Access-Control-Allow-Origin': '*',
           'Cache-Control': 'public, max-age=3600, s-maxage=604800',
         },
         body: png.toString('base64'),
@@ -65,3 +65,6 @@ exports.handler = async function (event) {
     return { statusCode: 500, headers: { 'Content-Type': 'text/html', 'Cache-Control': 'no-store' }, body: notFoundPage('Something went wrong loading this page.') };
   }
 };
+
+// CORS allowlist on every response (lib/cors.js) — no more `*` (5.59.6).
+module.exports.handler = withCors(module.exports.handler);

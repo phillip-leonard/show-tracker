@@ -34,11 +34,11 @@
 // firebase-admin (which bypasses Firestore security rules entirely), so no
 // rules change is needed, same as artistEnrichCache.
 
+const { withCors } = require('./lib/cors');
 const https = require('https');
 
 const CORS_HEADERS = {
   'Content-Type': 'application/json',
-  'Access-Control-Allow-Origin': '*',
 };
 
 const ARTIST_MAP_TTL_MS = 90 * 24 * 60 * 60 * 1000; // 90 days — the roster rarely changes
@@ -247,3 +247,6 @@ exports.handler = async function (event) {
     return { statusCode: 200, headers: CORS_HEADERS, body: JSON.stringify({ found: false }) };
   }
 };
+
+// CORS allowlist on every response (lib/cors.js) — no more `*` (5.59.6).
+module.exports.handler = withCors(module.exports.handler);

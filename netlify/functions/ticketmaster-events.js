@@ -1,6 +1,7 @@
+const { withCors } = require('./lib/cors');
 const https = require('https');
 
-const CORS = { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' };
+const CORS = { 'Content-Type': 'application/json' };
 
 // Promisified HTTPS GET — returns { statusCode, body } where body is parsed JSON
 function httpsGet(url) {
@@ -149,3 +150,6 @@ exports.handler = async function(event) {
     };
   }
 };
+
+// CORS allowlist on every response (lib/cors.js) — no more `*` (5.59.6).
+module.exports.handler = withCors(module.exports.handler);

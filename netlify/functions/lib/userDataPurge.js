@@ -81,6 +81,12 @@ const OWNED_DOCUMENTS = [
   // send-email's per-sender hourly counter (v5.38.0).
   { collection: 'emailRateLimits', fields: ['uid'] },
 
+  // Daily counters (AI scans, send-email per type) and send-email's
+  // one-time markers, both stamped with the user's uid (5.59.6). The
+  // tokenless scan pool carries uid null and is not personal.
+  { collection: 'rateLimits', fields: ['uid'] },
+  { collection: 'emailSends', fields: ['uid'] },
+
   // One doc per device that takes push alerts, id = the FCM token (5.49.0).
   { collection: 'pushTokens', fields: ['userId'] },
 

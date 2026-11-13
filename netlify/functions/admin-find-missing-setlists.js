@@ -15,13 +15,13 @@
  * Auth: Authorization: Bearer {idToken} — admin only
  */
 
+const { withCors } = require('./lib/cors');
 const https = require('https');
 const { setlistfmKey, missingSetlistfmKey } = require('./lib/setlistfmKey');
 
 const ADMIN_EMAILS = ['phillip.leonard@gmail.com'];
 const CORS_HEADERS = {
   'Content-Type': 'application/json',
-  'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'Authorization, Content-Type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
@@ -366,3 +366,6 @@ exports.handler = async function (event) {
     };
   }
 };
+
+// CORS allowlist on every response (lib/cors.js) — no more `*` (5.59.6).
+module.exports.handler = withCors(module.exports.handler);

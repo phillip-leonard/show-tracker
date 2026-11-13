@@ -2,9 +2,9 @@
 // Public endpoint — no auth required.
 // Returns a shared collection by ID for public viewing.
 
+const { withCors } = require('./lib/cors');
 const CORS_HEADERS = {
   'Content-Type': 'application/json',
-  'Access-Control-Allow-Origin': '*',
 };
 
 function initFirebase() {
@@ -82,3 +82,6 @@ exports.handler = async (event) => {
     };
   }
 };
+
+// CORS allowlist on every response (lib/cors.js) — no more `*` (5.59.6).
+module.exports.handler = withCors(module.exports.handler);

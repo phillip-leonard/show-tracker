@@ -1,3 +1,4 @@
+const { withCors } = require('./lib/cors');
 const https = require('https');
 
 exports.handler = async function(event, context) {
@@ -23,7 +24,7 @@ exports.handler = async function(event, context) {
   if (!clientId) {
     return {
       statusCode: 500,
-      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ error: 'SeatGeek client ID not configured' })
     };
   }
@@ -103,15 +104,14 @@ exports.handler = async function(event, context) {
           resolve({
             statusCode: 200,
             headers: {
-              'Content-Type': 'application/json',
-              'Access-Control-Allow-Origin': '*'
+              'Content-Type': 'application/json'
             },
             body: JSON.stringify({ events })
           });
         } catch (err) {
           resolve({
             statusCode: 500,
-            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ error: 'Failed to parse SeatGeek response', events: [] })
           });
         }
@@ -121,7 +121,7 @@ exports.handler = async function(event, context) {
     req.on('error', (err) => {
       resolve({
         statusCode: 500,
-        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ error: 'Request to SeatGeek failed', details: err.message, events: [] })
       });
     });
@@ -129,3 +129,6 @@ exports.handler = async function(event, context) {
     req.end();
   });
 };
+
+// CORS allowlist on every response (lib/cors.js) — no more `*` (5.59.6).
+module.exports.handler = withCors(module.exports.handler);

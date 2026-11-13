@@ -4,7 +4,7 @@
  * handlers with no credentials and no network.
  *
  * Supports: doc get/set(merge)/create/update/delete, collection add/doc/where
- * ('==', 'in', '>=', '<=', '<')/orderBy/limit/select/get, subcollections,
+ * ('==', 'in', '>=', '<=', '<', 'array-contains')/orderBy/limit/select/get, subcollections,
  * collectionGroup().get(), batch(),
  * runTransaction() (optimistic, like the real one: writes are buffered
  * until the callback returns, and the callback is run again if a document
@@ -94,6 +94,7 @@ function createFakeDb() {
             if (f.op === '>=') return v != null && v >= f.value;
             if (f.op === '<=') return v != null && v <= f.value;
             if (f.op === '<') return v != null && v < f.value;
+            if (f.op === 'array-contains') return Array.isArray(v) && v.includes(f.value);
             throw new Error(`fake: unsupported op ${f.op}`);
           });
         }

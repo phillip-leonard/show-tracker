@@ -1,9 +1,10 @@
+const { withCors } = require('./lib/cors');
 const https = require('https');
 const crypto = require('crypto');
 const { setlistfmKey, missingSetlistfmKey } = require('./lib/setlistfmKey');
 const { readFresh, writeEntry } = require('./lib/setlistCache');
 
-const CORS_HEADERS = { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' };
+const CORS_HEADERS = { 'Content-Type': 'application/json' };
 
 // --- Firebase Admin (lazy init, graceful degradation if env vars missing) ---
 
@@ -175,3 +176,6 @@ exports.handler = async function(event) {
     return { statusCode: 502, headers: CORS_HEADERS, body: JSON.stringify({ error: 'upstream_error', message: "Couldn't reach setlist.fm. Try again in a moment.", details: e.message }) };
   }
 };
+
+// CORS allowlist on every response (lib/cors.js) — no more `*` (5.59.6).
+module.exports.handler = withCors(module.exports.handler);

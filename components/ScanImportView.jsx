@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { Camera, Upload } from 'lucide-react';
 import TicketScanner from '@/components/TicketScanner';
 import ImportView from '@/components/ImportView';
+import GuestScanPrompt from '@/components/GuestScanPrompt';
 import { Tabs } from '@/components/ui';
 
 function ScanImportView({ onImport, onUpdateShow, existingShows, importedIds, onNavigate, guestMode = false }) {
@@ -13,9 +14,11 @@ function ScanImportView({ onImport, onUpdateShow, existingShows, importedIds, on
   // Concert Archives" page links here (IMPORT_HREF in lib/comparePages.js).
   // Read after mount rather than with useSearchParams, which would cost
   // the page its static HTML (see components/SearchParamsListener.jsx).
+  // A guest opens on the file import too: scanning needs an account, and
+  // the Scan tab only holds the sign-up prompt for them.
   useEffect(() => {
-    if (new URLSearchParams(window.location.search).has('import')) setActiveTab('import');
-  }, []);
+    if (guestMode || new URLSearchParams(window.location.search).has('import')) setActiveTab('import');
+  }, [guestMode]);
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -29,8 +32,11 @@ function ScanImportView({ onImport, onUpdateShow, existingShows, importedIds, on
         ]}
       />
 
-      {activeTab === 'scan' && (
-        <TicketScanner onImport={onImport} importedIds={importedIds} existingShows={existingShows} />
+      {/* Scanning needs an account (analyze-tickets requires a sign-in),
+          so a guest gets the sign-up prompt in the scanner's place. */}
+      {activeTab === 'scan' && (guestMode
+        ? <GuestScanPrompt />
+        : <TicketScanner onImport={onImport} importedIds={importedIds} existingShows={existingShows} />
       )}
       {activeTab === 'import' && (
         <ImportView onImport={onImport} existingShows={existingShows} onNavigate={onNavigate} guestMode={guestMode} />

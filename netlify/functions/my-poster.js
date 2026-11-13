@@ -20,6 +20,7 @@
 // The show buddy's first name is added here, from Firestore, only for a
 // friend of the caller whose profile is public; never from the request.
 
+const { withCors } = require('./lib/cors');
 const heard = require('./lib/heardRecord');
 const { render } = require('./lib/posterImage');
 const { verifyUser, getDb } = require('./lib/firebaseAdmin');
@@ -28,7 +29,6 @@ const { withBuddy, firestoreBuddyLookup, recapSvg } = require('./lib/yearRecapCa
 const { SITE_URL } = require('./lib/publicPageHtml');
 
 const CORS = {
-  'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
@@ -112,3 +112,6 @@ async function handleRecap(event, body, decoded) {
   }
   return reply(400, { ok: false, error: 'bad_request' });
 }
+
+// CORS allowlist on every response (lib/cors.js) — no more `*` (5.59.6).
+module.exports.handler = withCors(module.exports.handler);

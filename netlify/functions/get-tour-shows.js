@@ -22,12 +22,13 @@
 // the client needs to render the picker AND to build a show document
 // identical to a normal setlist.fm import, without a second round trip.
 
+const { withCors } = require('./lib/cors');
 const https = require('https');
 const crypto = require('crypto');
 const { setlistfmKey, missingSetlistfmKey } = require('./lib/setlistfmKey');
 const { readFresh, writeEntry } = require('./lib/setlistCache');
 
-const CORS_HEADERS = { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' };
+const CORS_HEADERS = { 'Content-Type': 'application/json' };
 
 // 10 x 20 = 200 nights. Longer than any real tour; a tour that hits the
 // cap comes back `truncated: true` rather than silently short.
@@ -260,3 +261,6 @@ exports.handler = async function (event) {
 
   return { statusCode: 200, headers: { ...CORS_HEADERS, 'X-Cache': 'MISS' }, body: responseBody };
 };
+
+// CORS allowlist on every response (lib/cors.js) — no more `*` (5.59.6).
+module.exports.handler = withCors(module.exports.handler);

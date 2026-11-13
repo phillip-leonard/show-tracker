@@ -14,6 +14,7 @@ const {
   loginUser,
   dismissOverlays,
 } = require('../utils/test-helpers');
+const { getIdToken } = require('../utils/firebaseIdToken');
 
 const BASE = process.env.TEST_BASE_URL || 'https://mysetlists.net';
 const TEST_EMAIL = process.env.TEST_EMAIL;
@@ -23,12 +24,18 @@ test.describe('AI Ticket Scan Integration Tests', () => {
   // ---------------------------------------------------------------------------
   // Function health checks (no API key required)
   // ---------------------------------------------------------------------------
-  test('analyze-tickets OPTIONS returns 200', async ({ request }) => {
-    const res = await request.fetch(
+  test('analyze-tickets OPTIONS answers the iOS app origin only', async ({ request }) => {
+    const ok = await request.fetch(
       `${BASE}/.netlify/functions/analyze-tickets`,
-      { method: 'OPTIONS' }
+      { method: 'OPTIONS', headers: { Origin: 'capacitor://localhost' } }
     );
-    expect(res.status()).toBe(200);
+    expect([200, 204]).toContain(ok.status());
+    expect(ok.headers()['access-control-allow-origin']).toBe('capacitor://localhost');
+    const other = await request.fetch(
+      `${BASE}/.netlify/functions/analyze-tickets`,
+      { method: 'OPTIONS', headers: { Origin: 'https://evil.example' } }
+    );
+    expect(other.headers()['access-control-allow-origin']).toBeUndefined();
   });
 
   test('analyze-tickets GET returns 405 Method Not Allowed', async ({
@@ -45,16 +52,36 @@ test.describe('AI Ticket Scan Integration Tests', () => {
       `${BASE}/.netlify/functions/analyze-tickets`,
       { data: {} }
     );
-    // 400 = missing required fields, 500 = API key not configured
-    expect([400, 500]).toContain(res.status());
+    // Shape is checked before auth, so this is 400 with or without
+    // REQUIRE_AUTH_AI.
+    expect(res.status()).toBe(400);
   });
 
-  test('analyze-screenshot OPTIONS returns 200', async ({ request }) => {
+  test('analyze-tickets rejects a non-image before calling Anthropic', async ({ request }) => {
+    const res = await request.post(
+      `${BASE}/.netlify/functions/analyze-tickets`,
+      { data: { images: [{ base64: Buffer.from('%PDF-1.7 not an image').toString('base64'), mediaType: 'application/pdf' }] } }
+    );
+    expect(res.status()).toBe(400);
+    const body = await res.json();
+    expect(body.details).toBeUndefined();
+  });
+
+  test('analyze-tickets rejects more than 10 images', async ({ request }) => {
+    const jpeg = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(32, 1)]).toString('base64');
+    const res = await request.post(
+      `${BASE}/.netlify/functions/analyze-tickets`,
+      { data: { images: Array.from({ length: 11 }, () => ({ base64: jpeg, mediaType: 'image/jpeg' })) } }
+    );
+    expect(res.status()).toBe(400);
+  });
+
+  test('analyze-screenshot OPTIONS succeeds', async ({ request }) => {
     const res = await request.fetch(
       `${BASE}/.netlify/functions/analyze-screenshot`,
       { method: 'OPTIONS' }
     );
-    expect(res.status()).toBe(200);
+    expect([200, 204]).toContain(res.status());
   });
 
   test('analyze-screenshot POST without body returns 400', async ({
@@ -64,7 +91,7 @@ test.describe('AI Ticket Scan Integration Tests', () => {
       `${BASE}/.netlify/functions/analyze-screenshot`,
       { data: {} }
     );
-    expect([400, 500]).toContain(res.status());
+    expect(res.status()).toBe(400);
   });
 
   // ---------------------------------------------------------------------------
@@ -120,13 +147,13 @@ test.describe('AI Ticket Scan Integration Tests', () => {
     const base64Image = imageData.toString('base64');
     const mimeType = imagePath.endsWith('.png') ? 'image/png' : 'image/jpeg';
 
+    // A signed-in scan (the token is required once REQUIRE_AUTH_AI=true).
+    const { idToken } = await getIdToken(request);
     const res = await request.post(
       `${BASE}/.netlify/functions/analyze-tickets`,
       {
-        data: {
-          image: base64Image,
-          mimeType,
-        },
+        headers: { Authorization: `Bearer ${idToken}` },
+        data: { images: [{ base64: base64Image, mediaType: mimeType }] },
       }
     );
 

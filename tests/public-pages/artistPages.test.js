@@ -731,7 +731,9 @@ test('/api/artists lists the bands with a snapshot that may be shown now', async
   const index = await snap.loadIndex(store);
   const res = pages.artistsIndexJson(index, NOW + HOUR);
   assert.strictEqual(res.statusCode, 200);
-  assert.strictEqual(res.headers['Access-Control-Allow-Origin'], '*');
+  // No `*` since 5.59.6: artist-api's withCors (lib/cors.js) echoes the
+  // iOS app's origin instead.
+  assert.strictEqual(res.headers['Access-Control-Allow-Origin'], undefined);
   const body = JSON.parse(res.body);
   assert.deepStrictEqual(body.artists.map((a) => a.slug).sort(), ['goose', 'phish']);
   const goose = body.artists.find((a) => a.slug === 'goose');

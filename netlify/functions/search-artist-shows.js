@@ -1,3 +1,4 @@
+const { withCors } = require('./lib/cors');
 const https = require('https');
 const { setlistfmKey, missingSetlistfmKey } = require('./lib/setlistfmKey');
 
@@ -42,8 +43,7 @@ exports.handler = async function(event) {
   }
 
   const headers = {
-    'Content-Type': 'application/json',
-    'Access-Control-Allow-Origin': '*'
+    'Content-Type': 'application/json'
   };
 
   try {
@@ -97,3 +97,6 @@ exports.handler = async function(event) {
     };
   }
 };
+
+// CORS allowlist on every response (lib/cors.js) — no more `*` (5.59.6).
+module.exports.handler = withCors(module.exports.handler);

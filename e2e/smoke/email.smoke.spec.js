@@ -10,7 +10,8 @@
  *   - unsubscribe: an old base64-uid link shows the "expired" page and a
  *     one-click POST with one is refused; a bad token is a 400 page
  *
- * A full delivery test is gated behind TEST_SEND_REAL_EMAIL=true.
+ * With TEST_EMAIL / TEST_PASSWORD set, it also checks a signed-in user
+ * can't send their own HTML (5.59.6, S-06).
  */
 const { test, expect } = require('@playwright/test');
 const { getIdToken } = require('../utils/firebaseIdToken');
@@ -96,32 +97,34 @@ test.describe('Email Smoke Tests', () => {
   });
 
   // ---------------------------------------------------------------------------
-  // Full delivery test (opt-in only — requires TEST_SEND_REAL_EMAIL=true)
+  // Forged email (needs TEST_EMAIL / TEST_PASSWORD): since 5.59.6 a signed-in
+  // user's { to, subject, html } call is only a pointer to a record; with no
+  // tag/invite behind it nothing is sent, and the HTML is never used.
   // ---------------------------------------------------------------------------
-  test('send-email delivers to test address', async ({ request }) => {
-    test.skip(
-      process.env.TEST_SEND_REAL_EMAIL !== 'true',
-      'Skipping real email delivery test (set TEST_SEND_REAL_EMAIL=true to enable)'
-    );
-
-    const testAddress = process.env.TEST_EMAIL;
-    if (!testAddress || !process.env.TEST_PASSWORD) {
-      throw new Error('TEST_EMAIL and TEST_PASSWORD must be set when TEST_SEND_REAL_EMAIL=true');
-    }
+  test('send-email: a forged call with custom HTML sends nothing', async ({ request }) => {
+    test.skip(!process.env.TEST_EMAIL || !process.env.TEST_PASSWORD, 'Skipping: TEST_EMAIL / TEST_PASSWORD not set');
     const { idToken } = await getIdToken(request);
-
     const res = await request.post(SEND_EMAIL_URL, {
       headers: { Authorization: `Bearer ${idToken}` },
       data: {
-        to: testAddress,
-        subject: `[MySetlists Test] Smoke test — ${new Date().toISOString()}`,
-        html: '<p>This is an automated smoke test email. You can safely ignore it.</p>',
-        type: 'smoke_test',
+        to: 'nobody@example.com',
+        subject: '[MySetlists Test] forged',
+        html: '<p>This must never be delivered.</p>',
+        type: 'tag',
       },
     });
-
     expect(res.status()).toBe(200);
     const body = await res.json();
-    expect(body.success).toBe(true);
+    expect(body.skipped).toBe(true);
+  });
+
+  test('send-email: an unknown type is refused', async ({ request }) => {
+    test.skip(!process.env.TEST_EMAIL || !process.env.TEST_PASSWORD, 'Skipping: TEST_EMAIL / TEST_PASSWORD not set');
+    const { idToken } = await getIdToken(request);
+    const res = await request.post(SEND_EMAIL_URL, {
+      headers: { Authorization: `Bearer ${idToken}` },
+      data: { type: 'smoke_test' },
+    });
+    expect(res.status()).toBe(400);
   });
 });

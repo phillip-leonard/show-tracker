@@ -3,11 +3,11 @@
 // Fetches an artist photo via MusicBrainz + Wikipedia (no API key needed).
 // Flow: MusicBrainz artist search → MBID → Wikipedia URL relation → Wikipedia thumbnail.
 
+const { withCors } = require('./lib/cors');
 const https = require('https');
 
 const CORS_HEADERS = {
   'Content-Type': 'application/json',
-  'Access-Control-Allow-Origin': '*',
 };
 
 // MusicBrainz requires a descriptive User-Agent per their API policy
@@ -136,3 +136,6 @@ exports.handler = async function (event) {
     };
   }
 };
+
+// CORS allowlist on every response (lib/cors.js) — no more `*` (5.59.6).
+module.exports.handler = withCors(module.exports.handler);

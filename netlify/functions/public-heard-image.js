@@ -16,6 +16,7 @@
 // Cached a day at the CDN, less for Phish: a cached image is phish.net data
 // too, and may not outlive its 24 hours.
 
+const { withCors } = require('./lib/cors');
 const { routeParams } = require('./lib/publicRouteParams');
 const { openBlobStore, loadArtistShows, availability, cacheHeaders } = require('./lib/publicArtistSnapshot');
 const { openShareStore, resolveCode } = require('./lib/heardShares');
@@ -56,7 +57,6 @@ exports.handler = async function (event) {
       headers: {
         'Content-Type': 'image/png',
         'X-Robots-Tag': 'noindex',
-        'Access-Control-Allow-Origin': '*',
         ...imageCache(loaded.entry),
       },
       body: png.toString('base64'),
@@ -69,3 +69,6 @@ exports.handler = async function (event) {
 };
 
 exports.render = render;
+
+// CORS allowlist on every response (lib/cors.js) — no more `*` (5.59.6).
+module.exports.handler = withCors(module.exports.handler);

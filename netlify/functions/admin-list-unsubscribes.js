@@ -17,12 +17,12 @@
  * Auth header: Authorization: Bearer {idToken}   (admin only, else 403)
  */
 
+const { withCors } = require('./lib/cors');
 const { getDb, verifyUser, isAdminClaims } = require('./lib/firebaseAdmin');
 const { normalizeEmail } = require('./lib/unsubscribeToken');
 
 const CORS_HEADERS = {
   'Content-Type': 'application/json',
-  'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'Authorization, Content-Type',
   'Access-Control-Allow-Methods': 'GET, OPTIONS',
 };
@@ -143,3 +143,6 @@ exports.handler = async function (event) {
 };
 
 exports.buildCurrentState = buildCurrentState;
+
+// CORS allowlist on every response (lib/cors.js) — no more `*` (5.59.6).
+module.exports.handler = withCors(module.exports.handler);

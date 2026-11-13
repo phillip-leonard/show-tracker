@@ -21,6 +21,7 @@
 // netlify.toml rewrites the public paths to /.netlify/functions/artist-api/band,
 // .../song, .../shows and .../index; the visitor's query string passes through untouched.
 
+const { withCors } = require('./lib/cors');
 const { openBlobStore, loadIndex, loadArtist, loadArtistShows } = require('./lib/publicArtistSnapshot');
 const { artistJson, artistSongJson, artistShowsJson, artistsIndexJson, jsonResponse } = require('./lib/publicArtistPages');
 const { selectedShowsJson } = require('./lib/heardPages');
@@ -70,3 +71,6 @@ exports.handler = async function (event) {
     return jsonResponse(500, { ok: false, error: 'server_error' }, { 'Cache-Control': 'no-store' });
   }
 };
+
+// CORS allowlist on every response (lib/cors.js) — no more `*` (5.59.6).
+module.exports.handler = withCors(module.exports.handler);

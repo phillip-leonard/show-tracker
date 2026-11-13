@@ -45,13 +45,13 @@
  * the way admin-resync-setlists.js bundles config/internet-archive.json.
  */
 
+const { withCors } = require('./lib/cors');
 const SEED = require('../../data/festival-seed.json');
 const { planSeed, formatPlanReport, normalizeConfidence } = require('./lib/festivalSeed');
 
 const ADMIN_EMAILS = ['phillip.leonard@gmail.com'];
 const CORS_HEADERS = {
   'Content-Type': 'application/json',
-  'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'Authorization, Content-Type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
@@ -204,3 +204,6 @@ exports.handler = async function (event) {
 
 exports.loadCatalog = loadCatalog;
 exports.writeCreates = writeCreates;
+
+// CORS allowlist on every response (lib/cors.js) — no more `*` (5.59.6).
+module.exports.handler = withCors(module.exports.handler);
