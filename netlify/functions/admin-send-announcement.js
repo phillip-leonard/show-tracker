@@ -47,7 +47,8 @@
 
 const { withCors } = require('./lib/cors');
 const crypto = require('crypto');
-const { getDb, verifyUser, isAdminClaims } = require('./lib/firebaseAdmin');
+const { getDb, getAdminAuth, verifyUser, isAdminClaims } = require('./lib/firebaseAdmin');
+const { withAccountEmails } = require('./lib/accountEmails');
 const { buildAnnouncementRecipients } = require('./lib/announcementRecipients');
 const { decideCanEmail } = require('./lib/emailPolicy');
 const { buildEmail, resendRequest, sendOne } = require('./lib/outgoingEmail');
@@ -74,12 +75,14 @@ function missingConfig() {
   return ['RESEND_API_KEY', 'UNSUBSCRIBE_SECRET', 'MAILING_ADDRESS'].filter((k) => !String(process.env[k] || '').trim());
 }
 
-async function loadOptOutState(db) {
+// Addresses come from Firebase Auth: profiles stopped carrying `email` in
+// 5.59.7 (S-01). A profile that still has the old field keeps it.
+async function loadOptOutState(db, auth = getAdminAuth()) {
   const [profilesSnap, supSnap] = await Promise.all([
     db.collection('userProfiles').select('email', 'emailOptOut', 'announcementsOptOut').get(),
     db.collection('emailSuppressions').get(),
   ]);
-  const profiles = profilesSnap.docs.map((d) => ({ uid: d.id, ...d.data() }));
+  const profiles = await withAccountEmails(auth, profilesSnap.docs.map((d) => ({ uid: d.id, ...d.data() })));
   const suppressions = new Map(supSnap.docs.map((d) => [d.id, d.data().scope || 'all']));
   return { profiles, suppressions };
 }

@@ -435,7 +435,7 @@ The two bugs named in the brief are **already fixed**. `lib/anniversaries.js:10�
 | B-07 | `context/AppContext.jsx:1424–1431` | `findDuplicateShow` compares the raw date string | A show stored `DD-MM-YYYY` and the same show added as `YYYY-MM-DD` aren't recognised as duplicates |
 | B-08 | `context/AppContext.jsx:3131, 3143` | Shows Together and suggestion keys use the raw date string when there's no `setlistfmId` | Two friends at the same show miss each other if their dates are stored in different formats |
 | B-09 | `lib/utils.js:131–171` `parseImportDate` | Excel serial and the `new Date(s)` fallback go through `toISOString()` | The fallback can shift a date by a day for non-UTC devices |
-| B-10 | `netlify/functions/analyze-tickets.js:4–9`, `analyze-screenshot.js` | No authentication, `Access-Control-Allow-Origin: *` | Anyone can spend the Anthropic key's budget. Not a client-bundle secret, but the same exposure |
+| B-10 | `netlify/functions/analyze-tickets.js:4–9`, `analyze-screenshot.js` | No authentication, `Access-Control-Allow-Origin: *` | Anyone can spend the Anthropic key's budget. Not a client-bundle secret, but the same exposure **Fixed in 5.59.6 (#398).** |
 | B-11 | `netlify/functions/delete-account.js` | No Sign in with Apple token revocation (grep finds no call to Apple's revoke endpoint; only `revokeRefreshTokens` for Firebase, line 120) | Apple expects apps that support SIWA to revoke the user's Apple tokens on account deletion. Needed before or with the native app (§5) |
 | B-12 | `netlify/functions/lib/phishnetAdapter.js:23–37`, `components/LandingPage.jsx:178–183` | phish.net adapter field names unverified and `PHISHNET_API_KEY` not set | Phish setlists still come from setlist.fm. Not a native blocker, but the doc/marketing copy (`app/compare/setlist-fm/page.jsx:14`) says phish.net |
 | B-13 | `context/AppContext.jsx:2583–2598` | `importShowsToFestival` builds show documents itself instead of through `buildShowDoc`: ids from `String(idSeed++)` seeded at `Date.now()` rather than `mintShowId`, `isManual: !candidate.setlistfmId` (ignores band sources, unlike line 105), and no band-source enrichment | Festival-imported Goose shows are marked manual and keep their setlist.fm setlist; ids can collide with ids minted by `mintShowId` in the same millisecond window. Contradicts the "change the shape here or not at all" rule at 87–91 |
@@ -444,12 +444,12 @@ Security findings from the rules, also separate tickets (Part 3 has the detail):
 
 | ID | Where | Finding |
 |---|---|---|
-| S-01 | `firestore.rules:127–128` | `userProfiles` is readable by any signed-in user and carries `email` (written at `context/AppContext.jsx:174`) |
-| S-02 | `firestore.rules:265–267`, `537–553` | `friendRequests`, `ticketCache`, `pendingEmailTags`, `invites`, `adminAuditLog` allow read **and** write to any signed-in user |
-| S-03 | `firestore.rules:45–48` | Every user's `shows` are readable by any signed-in user (for Shows Together) |
-| S-04 | `firestore.rules:81–85` | Anyone may write `users/{X}/friends/{me}`, i.e. add themselves to anyone's friends list. The invite and accept flows depend on it |
-| S-05 | `firestore.rules:605–609`, `615–632` | `guestSessions` create/update `if true`; `roadmapItems` and `feedback` writable by any signed-in user |
-| S-06 | `netlify/functions/send-email.js:74–117` | Any signed-in user can send arbitrary HTML to any address, 30/hour (`RATE_LIMIT_PER_HOUR`, line 32), through the app's Resend domain |
+| S-01 | `firestore.rules:127–128` | `userProfiles` is readable by any signed-in user and carries `email` (written at `context/AppContext.jsx:174`) **Fixed in 5.59.7.** |
+| S-02 | `firestore.rules:265–267`, `537–553` | `friendRequests`, `ticketCache`, `pendingEmailTags`, `invites`, `adminAuditLog` allow read **and** write to any signed-in user **Fixed in 5.59.7.** |
+| S-03 | `firestore.rules:45–48` | Every user's `shows` are readable by any signed-in user (for Shows Together) **Fixed in 5.59.7.** |
+| S-04 | `firestore.rules:81–85` | Anyone may write `users/{X}/friends/{me}`, i.e. add themselves to anyone's friends list. The invite and accept flows depend on it **Fixed in 5.59.7.** |
+| S-05 | `firestore.rules:605–609`, `615–632` | `guestSessions` create/update `if true`; `roadmapItems` and `feedback` writable by any signed-in user **Fixed in 5.59.7.** |
+| S-06 | `netlify/functions/send-email.js:74–117` | Any signed-in user can send arbitrary HTML to any address, 30/hour (`RATE_LIMIT_PER_HOUR`, line 32), through the app's Resend domain **Fixed in 5.59.6 (#398).** |
 
 ---
 

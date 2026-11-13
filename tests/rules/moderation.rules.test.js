@@ -230,7 +230,8 @@ async function main() {
     await assertFails(carol().doc('userProfiles/uid_carol').set({ handle: 'carol', handleLower: 'carol' }));
     // Creating without it is how the app actually does it; the server
     // establishes the name a moment later.
-    await assertSucceeds(carol().doc('userProfiles/uid_carol').set({ email: 'c@example.test' }));
+    // (No email since 5.59.7: profiles can't carry one, S-01.)
+    await assertSucceeds(carol().doc('userProfiles/uid_carol').set({ showCount: 0 }));
   });
 
   await test('a user cannot claim a handle directly', async () => {

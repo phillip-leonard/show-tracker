@@ -36,11 +36,34 @@ function decideCanEmail({ profile, suppressionScope, category }) {
   return true;
 }
 
-async function findProfileByEmail(db, email) {
+/**
+ * Firebase Auth when the function has credentials, else null (unit tests
+ * that don't inject one). Since 5.59.7 profiles don't carry `email` (S-01),
+ * so Auth is how an address finds its account.
+ */
+function defaultAuth() {
+  try { return require('./firebaseAdmin').getAdminAuth(); } catch { return null; }
+}
+
+/**
+ * The account behind an address: { uid, data } (data is the profile, or
+ * {} if it has none), or null. A profile that still carries the pre-5.59.7
+ * `email` field is found directly; otherwise Auth names the uid.
+ */
+async function findProfileByEmail(db, email, auth = defaultAuth()) {
   const e = normalizeEmail(email);
   if (!e) return null;
   const snap = await db.collection('userProfiles').where('email', '==', e).limit(1).get();
   if (!snap.empty) return { uid: snap.docs[0].id, data: snap.docs[0].data() };
+  if (auth) {
+    try {
+      const u = await auth.getUserByEmail(e);
+      if (u && u.uid) {
+        const p = await db.doc(`userProfiles/${u.uid}`).get();
+        return { uid: u.uid, data: p.exists ? p.data() : {} };
+      }
+    } catch { /* no such account */ }
+  }
   return null;
 }
 
@@ -84,7 +107,7 @@ async function canEmail({ uid, email, category }, { db }) {
     if (uid) {
       const snap = await db.doc(`userProfiles/${uid}`).get();
       profile = snap.exists ? snap.data() : null;
-      if (!address && profile?.email) address = normalizeEmail(profile.email);
+      if (!address) address = await resolveEmailForUid(db, defaultAuth(), uid, profile);
     } else if (address) {
       profile = (await findProfileByEmail(db, address))?.data || null;
     }

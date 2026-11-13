@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { callFriends } from '@/lib/friendsApi';
 import { Check, Send } from 'lucide-react';
 import { Card, Button, Input } from '@/components/ui';
 
@@ -10,7 +11,17 @@ function InviteView({ currentUserUid, currentUser, onSendInvite }) {
   const [sendStatus, setSendStatus] = useState(null); // null | 'success' | 'error' | string (error message)
   const [copyLabel, setCopyLabel] = useState('Copy');
 
-  const inviteUrl = currentUserUid ? `https://mysetlists.net?ref=${currentUserUid}` : 'https://mysetlists.net';
+  // The referral link is signed by the server (5.59.7): only links you
+  // hand out make the person who signs up your friend automatically.
+  const [inviteUrl, setInviteUrl] = useState('https://mysetlists.net');
+  useEffect(() => {
+    if (!currentUserUid) return undefined;
+    let cancelled = false;
+    callFriends('referralLink')
+      .then((r) => { if (!cancelled && r.url) setInviteUrl(r.url); })
+      .catch((err) => console.warn('[invite] Could not load your invite link:', err.message));
+    return () => { cancelled = true; };
+  }, [currentUserUid]);
 
   const handleInvite = async () => {
     if (!email.trim() || !currentUserUid || !onSendInvite) return;

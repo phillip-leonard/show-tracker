@@ -329,10 +329,12 @@ async function deliverAlerts({ db, alerts, profiles, tokens = new Map(), created
     if (alert.inAppOnly) continue;
 
     const profile = profiles.get(alert.uid) || {};
-    if (alert.email && profile.email && sendEmail) {
+    // No profile.email needed: the sender finds the address from the uid
+    // (5.59.7, S-01).
+    if (alert.email && sendEmail) {
       const { subject, html } = alert.kind === 'tour' ? tourEmail(alert) : venueEmail(alert);
       const type = alert.kind === 'tour' ? 'followed_band_tour' : 'venue_bucket_list';
-      const r = await sendEmail({ uid: alert.uid, email: profile.email, subject, html, type });
+      const r = await sendEmail({ uid: alert.uid, email: profile.email || null, subject, html, type });
       if (r === 'sent') out.emailed++;
     }
     const devices = tokens.get(alert.uid) || [];

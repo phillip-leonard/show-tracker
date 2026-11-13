@@ -52,9 +52,9 @@ function FeedbackView({ user, onNavigate, unreadNotifications, onMarkRead, onCre
         category: feedbackType === 'feature' ? category : 'other',
         voteCount: 0,
         sourceFeedbackId: feedbackRef.id,
+        // No addresses (5.59.7): roadmap items are publicly readable. The
+        // shipped email finds the submitter's address from this uid.
         submitterUid: user.uid,
-        submitterEmail: user.email || '',
-        contributors: user.email ? [{ email: user.email, votedAt: new Date().toISOString(), notified: false }] : [],
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
         publishedAt: null,

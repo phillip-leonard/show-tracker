@@ -198,7 +198,11 @@ async function writeProfile(db, uid, who, counts) {
     // Seeding the real field name keeps this account behaving like any other;
     // fixing the misspelling is a separate change, and this line moves with it.
     odubleserId: uid,
-    email: who.email,
+    // No address on a profile (5.59.7, S-01): every signed-in user can read
+    // profiles, and the app keeps email in Firebase Auth only. Deleted, not
+    // just left out, so re-seeding also clears one an older run wrote
+    // (this write merges).
+    email: FieldValue.delete(),
     displayName: who.displayName,
     firstName: who.displayName.split(' ')[0],
     photoURL: '',

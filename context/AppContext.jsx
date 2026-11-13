@@ -49,6 +49,7 @@ import { saveDisplayName } from '@/lib/handles';
 import { buildSongStats } from '@/lib/songCounts';
 import { applyShowFilters, availableYearsFor } from '@/lib/showFilters';
 import { sendNotification } from '@/lib/email';
+import { callFriends } from '@/lib/friendsApi';
 import { isFirstShowTransition, requestWelcomeEmail } from '@/lib/welcomeEmailTrigger';
 import { sweepExpiredSetlistfmCaches } from '@/lib/setlistfmLocalCache';
 import { signInLeavesRoute } from '@/lib/deepLinks';
@@ -163,7 +164,8 @@ async function updateUserProfile(user, shows = []) {
   // now rejects a client write that changes either field.
   const profileData = {
     odubleserId: user.uid,
-    email: user.email,
+    // No `email` (5.59.7, S-01): every signed-in user can read profiles.
+    // The address lives in Firebase Auth; the server reads it from there.
     photoURL: user.photoURL || '',
     lastLogin: serverTimestamp(),
     showCount: shows.length,
@@ -1074,12 +1076,12 @@ export function AppProvider({ children }) {
         try {
           const guestSessionId = storage.get(STORAGE_KEYS.GUEST_SESSION);
           if (guestSessionId) {
+            // Counted from the shows saved on this device: guest sessions
+            // are admin-read-only since 5.59.7 (S-05).
             let guestShowsAdded = 0;
             try {
-              const guestSessionDoc = await getDoc(doc(db, 'guestSessions', guestSessionId));
-              if (guestSessionDoc.exists()) {
-                guestShowsAdded = guestSessionDoc.data().showsAdded || 0;
-              }
+              const stored = JSON.parse(storage.get(STORAGE_KEYS.GUEST_SHOWS) || '[]');
+              guestShowsAdded = Array.isArray(stored) ? stored.length : 0;
             } catch (_) {}
 
             await updateDoc(doc(db, 'guestSessions', guestSessionId), {
@@ -1117,119 +1119,29 @@ export function AppProvider({ children }) {
         loadFestivals(currentUser.uid);
         loadInviteStats(currentUser.uid);
 
-        // Auto-friend the user who invited them via referral link
-        const referrerUid = storage.get(STORAGE_KEYS.INVITE_REFERRER);
-        if (referrerUid && referrerUid !== currentUser.uid) {
-          try {
-            const existingFriend = await getDoc(doc(db, 'users', currentUser.uid, 'friends', referrerUid));
-            if (!existingFriend.exists()) {
-              const referrerProfile = await getDoc(doc(db, 'userProfiles', referrerUid));
-              const referrerData = referrerProfile.exists() ? referrerProfile.data() : {};
-
-              await setDoc(doc(db, 'users', currentUser.uid, 'friends', referrerUid), {
-                friendUid: referrerUid,
-                friendName: referrerData.displayName || referrerData.firstName || 'Friend',
-                friendEmail: referrerData.email || '',
-                friendPhotoURL: referrerData.photoURL || '',
-                addedAt: serverTimestamp(),
-              });
-
-              await setDoc(doc(db, 'users', referrerUid, 'friends', currentUser.uid), {
-                friendUid: currentUser.uid,
-                friendName: currentUser.displayName || 'New Friend',
-                friendEmail: currentUser.email || '',
-                friendPhotoURL: currentUser.photoURL || '',
-                addedAt: serverTimestamp(),
-              });
-
-              // Record who invited them (v5.44.0). Until now only the
-              // email-invite path below wrote invitedBy*, so anyone who
-              // joined from a shared ?ref= link showed as not invited.
-              // Only for an account made in the last day: the referrer is
-              // parked in storage until the next sign-in, and an existing
-              // user who once opened a friend's link was not invited by
-              // them. Never overwrites an inviter already on the profile.
-              const createdMs = Date.parse(currentUser.metadata?.creationTime || '');
-              if (createdMs && Date.now() - createdMs < 24 * 60 * 60 * 1000) {
-                try {
-                  const ownProfile = await getDoc(doc(db, 'userProfiles', currentUser.uid));
-                  if (!ownProfile.exists() || !ownProfile.data().invitedByUid) {
-                    await setDoc(doc(db, 'userProfiles', currentUser.uid), {
-                      invitedByUid: referrerUid,
-                      invitedByName: referrerData.displayName || referrerData.firstName || '',
-                      invitedByEmail: referrerData.email || '',
-                      inviteAcceptedAt: serverTimestamp(),
-                    }, { merge: true });
-                  }
-                } catch (err) {
-                  console.warn('Could not record referral inviter:', err);
-                }
-              }
-            }
-            storage.remove(STORAGE_KEYS.INVITE_REFERRER);
-          } catch (err) {
-            console.warn('Auto-friend from invite failed:', err);
-            storage.remove(STORAGE_KEYS.INVITE_REFERRER);
-          }
+        // Auto-friend the user who invited them via referral link. The
+        // server writes both sides of the friendship (5.59.7, S-04): a
+        // signed link from Invite or an invite email makes them friends,
+        // an old ?ref=<uid> link sends the referrer a friend request.
+        const referrerRef = storage.get(STORAGE_KEYS.INVITE_REFERRER);
+        if (referrerRef) {
+          storage.remove(STORAGE_KEYS.INVITE_REFERRER);
+          callFriends('referral', { ref: referrerRef })
+            .catch((err) => console.warn('Auto-friend from invite failed:', err.message));
         }
 
         // ── Email-based invite lookup ─────────────────────────────────
+        // An invite sent to this account's address: the server befriends
+        // the inviter, marks the invite accepted and records invitedByUid.
         try {
-          const inviteQuery = query(
-            collection(db, 'invites'),
-            where('inviteeEmail', '==', (currentUser.email || '').toLowerCase()),
-            where('status', '==', 'pending')
-          );
-          const inviteSnap = await getDocs(inviteQuery);
-          if (!inviteSnap.empty) {
-            const inviteDoc = inviteSnap.docs.sort((a, b) =>
-              (b.data().createdAt?.toMillis?.() || 0) - (a.data().createdAt?.toMillis?.() || 0)
-            )[0];
-            const inviteData = inviteDoc.data();
-            const { inviterUid, inviterName, inviterEmail } = inviteData;
-
-            if (inviterUid && inviterUid !== currentUser.uid) {
-              const existingFriend = await getDoc(doc(db, 'users', currentUser.uid, 'friends', inviterUid));
-              if (!existingFriend.exists()) {
-                const inviterProfile = await getDoc(doc(db, 'userProfiles', inviterUid));
-                const inviterData = inviterProfile.exists() ? inviterProfile.data() : {};
-                await setDoc(doc(db, 'users', currentUser.uid, 'friends', inviterUid), {
-                  friendUid: inviterUid,
-                  friendName: inviterData.displayName || inviterName || 'Friend',
-                  friendEmail: inviterData.email || inviterEmail || '',
-                  friendPhotoURL: inviterData.photoURL || '',
-                  addedAt: serverTimestamp(),
-                });
-                await setDoc(doc(db, 'users', inviterUid, 'friends', currentUser.uid), {
-                  friendUid: currentUser.uid,
-                  friendName: currentUser.displayName || 'New Friend',
-                  friendEmail: currentUser.email || '',
-                  friendPhotoURL: currentUser.photoURL || '',
-                  addedAt: serverTimestamp(),
-                });
-              }
-
-              // Mark invite as accepted
-              await setDoc(doc(db, 'invites', inviteDoc.id), { status: 'accepted' }, { merge: true });
-
-              // Save invitedBy data on user profile
-              await setDoc(doc(db, 'userProfiles', currentUser.uid), {
-                invitedByUid: inviterUid,
-                invitedByName: inviterName || '',
-                invitedByEmail: inviterEmail || '',
-                inviteAcceptedAt: serverTimestamp(),
-              }, { merge: true });
-
-              // Show welcome modal to the new user
-              setWelcomeState({ inviterName: inviterName || 'your friend', inviterUid });
-
-              // Notify inviter via email. The server finds the inviter from
-              // the invitedByUid just written to this user's profile.
-              sendNotification({ type: 'friend_joined' }).catch(() => {});
-            }
+          const claim = await callFriends('claimInvites');
+          if (claim.claimed) {
+            setWelcomeState({ inviterName: claim.inviterName || 'your friend', inviterUid: claim.inviterUid });
+            // The server finds the inviter from the invitedByUid it wrote.
+            if (claim.newFriend) sendNotification({ type: 'friend_joined' }).catch(() => {});
           }
         } catch (err) {
-          console.warn('Email invite lookup failed:', err);
+          console.warn('Email invite lookup failed:', err.message);
         }
 
         // ── Pending email tags lookup ─────────────────────────────────
@@ -2650,7 +2562,7 @@ export function AppProvider({ children }) {
 
   // === FRIEND FUNCTIONS ===
 
-  const sendFriendRequest = async (targetUid, targetName, targetEmail) => {
+  const sendFriendRequest = async (targetUid, targetName) => {
     if (!user || targetUid === user.uid) {
       alert('You cannot send a friend request to yourself.');
       return;
@@ -2664,21 +2576,18 @@ export function AppProvider({ children }) {
         return;
       }
 
+      // Only requests this user is party to can be read (5.59.7), so look
+      // each way rather than through the whole collection.
       try {
-        const allRequests = await getDocs(collection(db, 'friendRequests'));
-        const pendingFromUs = allRequests.docs.find(d => {
-          const data = d.data();
-          return data.from === user.uid && data.to === targetUid && data.status === 'pending';
-        });
-        if (pendingFromUs) {
+        const [fromUs, fromThem] = await Promise.all([
+          getDocs(query(collection(db, 'friendRequests'), where('from', '==', user.uid), where('to', '==', targetUid))),
+          getDocs(query(collection(db, 'friendRequests'), where('from', '==', targetUid), where('to', '==', user.uid))),
+        ]);
+        if (fromUs.docs.some(d => d.data().status === 'pending')) {
           alert('Friend request already sent.');
           return;
         }
-
-        const pendingFromThem = allRequests.docs.find(d => {
-          const data = d.data();
-          return data.from === targetUid && data.to === user.uid && data.status === 'pending';
-        });
+        const pendingFromThem = fromThem.docs.find(d => d.data().status === 'pending');
         if (pendingFromThem) {
           await acceptFriendRequest(pendingFromThem.id);
           return;
@@ -2687,13 +2596,12 @@ export function AppProvider({ children }) {
         console.log('Could not check existing requests, proceeding:', readError.message);
       }
 
+      // No addresses on the request (5.59.7, S-01): names only.
       await addDoc(collection(db, 'friendRequests'), {
         from: user.uid,
         to: targetUid,
         fromName: user.displayName || 'Anonymous',
-        fromEmail: user.email || '',
         toName: targetName || '',
-        toEmail: targetEmail || '',
         status: 'pending',
         createdAt: serverTimestamp(),
       });
@@ -2713,49 +2621,29 @@ export function AppProvider({ children }) {
     }
 
     try {
-      const profilesSnapshot = await getDocs(collection(db, 'userProfiles'));
-      const matchingProfile = profilesSnapshot.docs.find(d =>
-        d.data().email?.toLowerCase() === trimmedEmail
-      );
-      if (!matchingProfile) {
+      // The server looks the address up (5.59.7, S-01): profiles no longer
+      // carry email, and no client reads anyone else's.
+      const match = await callFriends('lookupByEmail', { email: trimmedEmail });
+      if (match.self) {
+        alert('You cannot send a friend request to yourself.');
+        return;
+      }
+      if (!match.found) {
         alert('No user found with that email address. They may need to sign up first.');
         return;
       }
-      await sendFriendRequest(matchingProfile.id, matchingProfile.data().displayName, matchingProfile.data().email);
+      await sendFriendRequest(match.uid, match.displayName);
     } catch (error) {
       console.error('Failed to find user or send request:', error);
-      alert('Something went wrong. Check the browser console (F12) for details — this may be a Firestore permissions issue with new collections.');
+      alert(error.status === 429 ? error.message : 'Something went wrong. Please try again.');
     }
   };
 
   const acceptFriendRequest = async (requestId) => {
     if (!user) return;
     try {
-      const reqRef = doc(db, 'friendRequests', requestId);
-      const reqSnap = await getDoc(reqRef);
-      if (!reqSnap.exists()) return;
-      const reqData = reqSnap.data();
-
-      await setDoc(reqRef, { status: 'accepted' }, { merge: true });
-
-      const myFriendRef = doc(db, 'users', user.uid, 'friends', reqData.from);
-      await setDoc(myFriendRef, {
-        friendUid: reqData.from,
-        friendName: reqData.fromName,
-        friendEmail: reqData.fromEmail,
-        friendPhotoURL: '',
-        addedAt: serverTimestamp(),
-      });
-
-      const theirFriendRef = doc(db, 'users', reqData.from, 'friends', user.uid);
-      await setDoc(theirFriendRef, {
-        friendUid: user.uid,
-        friendName: user.displayName || 'Anonymous',
-        friendEmail: user.email || '',
-        friendPhotoURL: user.photoURL || '',
-        addedAt: serverTimestamp(),
-      });
-
+      // The server writes both sides (5.59.7, S-04).
+      await callFriends('accept', { requestId });
       await loadFriends();
     } catch (error) {
       console.error('Failed to accept friend request:', error);
@@ -3353,7 +3241,6 @@ export function AppProvider({ children }) {
       const pendingRef = await addDoc(collection(db, 'pendingEmailTags'), {
         fromUid: user.uid,
         fromName: user.displayName || 'Anonymous',
-        fromEmail: user.email || '',
         toEmail,
         toName: name,
         showData: sanitizedShow,
@@ -3410,7 +3297,6 @@ export function AppProvider({ children }) {
       const inviteRef = await addDoc(collection(db, 'invites'), {
         inviterUid: user.uid,
         inviterName: inviterDisplayName,
-        inviterEmail: user.email || '',
         inviteeEmail: toEmail,
         status: 'pending',
         createdAt: serverTimestamp(),

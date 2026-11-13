@@ -150,10 +150,12 @@ async function deliverAnniversaries({ db, matches, profiles, tokens = new Map(),
     }
     out.created++;
 
-    if (pref.email && profile.email && sendEmail) {
+    // No profile.email needed: the sender finds the address from the uid
+    // (5.59.7, S-01).
+    if (pref.email && sendEmail) {
       try {
         const { subject, html } = anniversaryEmail(m);
-        const r = await sendEmail({ uid: m.uid, email: profile.email, subject, html, type: 'anniversary' });
+        const r = await sendEmail({ uid: m.uid, email: profile.email || null, subject, html, type: 'anniversary' });
         if (r === 'sent') out.emailed++;
       } catch (err) {
         console.warn('[anniversary] email send failed for', m.uid, err.message);

@@ -14,7 +14,8 @@
  */
 
 const { withCors } = require('./lib/cors');
-const { getDb, verifyUser, isAdminClaims } = require('./lib/firebaseAdmin');
+const { getDb, getAdminAuth, verifyUser, isAdminClaims } = require('./lib/firebaseAdmin');
+const { emailsForUids } = require('./lib/accountEmails');
 const { sendNotificationEmail } = require('./lib/outgoingEmail');
 const { FOOTER_MARKER } = require('./lib/emailLayout');
 
@@ -100,55 +101,33 @@ exports.handler = async function(event) {
 
     const itemData = itemDoc.data();
 
-    // Collect emails to notify: submitter + all voters
-    const emailsToNotify = new Set();
+    // Who to tell: the submitter and every voter, by uid, with addresses
+    // from Firebase Auth. Since 5.59.7 nothing about who asked or who was
+    // emailed is kept on the item itself: roadmapItems are publicly
+    // readable, and until then they carried submitterEmail, contributor
+    // emails and notifiedEmails in plain text. That tracking lives in
+    // roadmapItems/{id}/private/notifications, which no client can read.
+    // scripts/strip-profile-emails.js moved the old fields there.
+    const privateRef = itemRef.collection('private').doc('notifications');
+    const privateSnap = await privateRef.get();
+    const priv = privateSnap.exists ? privateSnap.data() : {};
 
-    // Add submitter email
-    if (itemData.submitterEmail) {
-      emailsToNotify.add(itemData.submitterEmail);
-    }
-
-    // Add contributor emails from the contributors array
-    if (Array.isArray(itemData.contributors)) {
-      for (const c of itemData.contributors) {
-        if (c.email && !c.notified) {
-          emailsToNotify.add(c.email);
-        }
-      }
-    }
-
-    // Query the voters sub-collection for additional emails
     const votersSnap = await itemRef.collection('voters').get();
-    const voterUids = [];
-    for (const voterDoc of votersSnap.docs) {
-      voterUids.push(voterDoc.id);
+    const uids = [...new Set([itemData.submitterUid, ...votersSnap.docs.map((d) => d.id)].filter(Boolean))];
+    const byUid = await emailsForUids(getAdminAuth(), uids);
+
+    const emailsToNotify = new Set([...byUid.values()]);
+    // Items from before 5.59.7 that the strip script hasn't reached yet,
+    // and addresses it moved into the private doc.
+    for (const e of [itemData.submitterEmail, ...(itemData.contributors || []).filter((c) => !c.notified).map((c) => c.email), ...(priv.legacyEmails || [])]) {
+      if (e) emailsToNotify.add(String(e).trim().toLowerCase());
     }
 
-    // Resolve voter UIDs to emails via userProfiles
-    if (voterUids.length > 0) {
-      // Firestore 'in' queries limited to 30 items; batch if needed
-      for (let i = 0; i < voterUids.length; i += 30) {
-        const batch = voterUids.slice(i, i + 30);
-        const profilesSnap = await db.collection('userProfiles')
-          .where('__name__', 'in', batch)
-          .get();
-        for (const profileDoc of profilesSnap.docs) {
-          const email = profileDoc.data().email;
-          if (email) emailsToNotify.add(email);
-        }
-      }
-    }
-
-    // Check previously notified emails to avoid duplicates
-    const alreadyNotified = new Set();
-    if (Array.isArray(itemData.contributors)) {
-      for (const c of itemData.contributors) {
-        if (c.notified) alreadyNotified.add(c.email);
-      }
-    }
-    if (itemData.notifiedEmails && Array.isArray(itemData.notifiedEmails)) {
-      for (const e of itemData.notifiedEmails) alreadyNotified.add(e);
-    }
+    const alreadyNotified = new Set([
+      ...(priv.notifiedEmails || []),
+      ...(itemData.notifiedEmails || []),
+      ...(itemData.contributors || []).filter((c) => c.notified && c.email).map((c) => c.email),
+    ].map((e) => String(e).trim().toLowerCase()));
 
     // Filter out already-notified
     let toSend = [...emailsToNotify].filter(e => e && !alreadyNotified.has(e));
@@ -178,22 +157,16 @@ exports.handler = async function(event) {
       else failures.push(email);
     }
 
-    // Update the roadmap item with notification tracking
     const allNotified = [...alreadyNotified, ...toSend.filter(e => !failures.includes(e) && !skippedEmails.includes(e))];
+    await privateRef.set({ notifiedEmails: allNotified, updatedAt: new Date() }, { merge: true });
     await itemRef.update({
       notificationsSent: true,
       notificationsSentAt: FieldValue.serverTimestamp(),
-      notifiedEmails: allNotified,
+      // Pre-5.59.7 fields: the addresses now live only in the private doc.
+      notifiedEmails: FieldValue.delete(),
+      submitterEmail: FieldValue.delete(),
+      contributors: FieldValue.delete(),
     });
-
-    // Mark contributors as notified
-    if (Array.isArray(itemData.contributors)) {
-      const updatedContributors = itemData.contributors.map(c => ({
-        ...c,
-        notified: allNotified.includes(c.email) ? true : c.notified,
-      }));
-      await itemRef.update({ contributors: updatedContributors });
-    }
 
     return {
       statusCode: 200,

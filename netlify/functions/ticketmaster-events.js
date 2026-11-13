@@ -1,5 +1,6 @@
 const { withCors } = require('./lib/cors');
 const https = require('https');
+const { artistSlug, readTicketCache, writeTicketCache } = require('./lib/ticketCacheStore');
 
 const CORS = { 'Content-Type': 'application/json' };
 
@@ -134,6 +135,18 @@ exports.handler = async function(event) {
         maxPrice: priceRange?.max || null,
       };
     });
+
+    // The function writes the shared cache, not the browser (5.59.7, S-02).
+    // An attraction ID the caller passed is only trusted for caching when
+    // it is the one already cached for this artist, so a request can't
+    // file another artist's dates under this name.
+    const cacheKey = `tm_${artistSlug(artistName)}`;
+    const cached = passedAttractionId ? await readTicketCache(cacheKey) : null;
+    if (!passedAttractionId || (cached && cached.tmAttractionId === passedAttractionId)) {
+      const fields = { data: events };
+      if (resolvedAttractionId) fields.tmAttractionId = resolvedAttractionId;
+      await writeTicketCache(cacheKey, fields);
+    }
 
     return {
       statusCode: 200,

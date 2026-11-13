@@ -95,7 +95,15 @@ async function sendNotificationEmail({ db, uid = null, email, subject, html, typ
   try {
     const { canEmail, findProfileByEmail } = require('./emailPolicy');
     const { normalizeEmail } = require('./unsubscribeToken');
-    const to = normalizeEmail(email);
+    let to = normalizeEmail(email);
+    // Profiles stopped carrying `email` in 5.59.7 (S-01): a caller that
+    // only knows the uid gets the account's address from Auth.
+    if (!to && uid) {
+      const { emailForUid } = require('./accountEmails');
+      let auth = null;
+      try { auth = require('./firebaseAdmin').getAdminAuth(); } catch { /* no credentials (tests) */ }
+      to = (await emailForUid(auth, uid)) || '';
+    }
     if (!to) return 'skipped';
     // An account holder gets an account-level link, even when the caller
     // only knew the address.
