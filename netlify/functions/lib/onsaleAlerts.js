@@ -435,7 +435,8 @@ function onsalePref(profile) {
 function channelsFor(pref, profile, devices) {
   const channels = [];
   if (pref.inApp) channels.push('inApp');
-  if (pref.email && profile.email) channels.push('email');
+  // The address comes from Auth when the profile has none (5.59.7, S-01).
+  if (pref.email) channels.push('email');
   if (pref.push && devices.length) channels.push('push');
   return channels;
 }
@@ -479,9 +480,9 @@ function alertRecord(uid, c, nowMs) {
 
 async function sendChannels({ db, uid, alerts, reminder, profile, settings, pref, tokens, sendEmail, sendPush, totals }) {
   const userTz = settings?.timezone || 'UTC';
-  if (pref.email && profile.email && sendEmail) {
+  if (pref.email && sendEmail) {
     const { subject, html } = onsaleEmail(alerts, { userTz, reminder });
-    const r = await sendEmail({ uid, email: profile.email, subject, html, type: 'onsale_alert' });
+    const r = await sendEmail({ uid, email: profile.email || null, subject, html, type: 'onsale_alert' });
     if (r === 'sent') totals.emailed++;
   }
   const devices = tokens.get(uid) || [];

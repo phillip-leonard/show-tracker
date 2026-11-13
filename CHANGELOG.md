@@ -4,6 +4,70 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.59.7] — 2026-11-13
+
+Ships in iOS 3.13.7 (`MARKETING_VERSION` 3.13.6 → 3.13.7, after #398's
+3.13.6).
+
+**Security PR 2: the Firestore rules (S-01 to S-05).** Follows #398, which
+secured the functions (B-10, S-06, CORS). Rules deploy on merge, while the
+iOS builds people already have keep their old bundled code until updated.
+**On iOS 3.13.6 and earlier, until they update: sending or accepting a
+friend request, claiming an email invite, referral links and "add friend
+by email" stop working; and
+once the cleanup script below has run, saving the profile fails** (the old
+client writes `email`). This ships at once rather than waiting for 3.13.7
+adoption.
+
+- **S-04: nobody can add themselves to someone's friends list.** The rules
+  let a client write only its own list (either party may still remove an
+  edge). `netlify/functions/friends.js` writes the other side after
+  checking what justifies it: accepting a pending request, an invite to
+  the caller's own address (`claimInvites`; the client then asks
+  `send-email` for `friend_joined`), or a referral link. Referral links are
+  now signed (`lib/referralToken.js`, HMAC under `UNSUBSCRIBE_SECRET` with a
+  `referral:` prefix): the Invite page (`referralLink`) and the invite and
+  tag-by-email emails (`emailAuthorization.js`) hand out signed links,
+  which still auto-friend; an old `?ref=<uid>` link sends the referrer a
+  friend request. Refused across a block.
+- **S-03: shows are private to you, your friends and the admin**, readable
+  only when the owner's own friends list names the reader. Shows Together
+  with someone whose list doesn't name you (a one-sided friendship) now
+  fails, on every build.
+- **S-01: no email addresses on profiles.** Profiles (readable by every
+  signed-in user) no longer get `email` or `invitedByEmail`; the rules
+  refuse both. Server readers get addresses from Firebase Auth
+  (`netlify/functions/lib/accountEmails.js`): opt-out checks
+  (`emailPolicy.js`, `outgoingEmail.js`), announcements, on-sale /
+  anniversary / followed-band alerts, the roadmap email, the admin Users
+  tab (`admin-list-auth-users` returns `email`), the unsubscribe list and
+  bulk import. "Add friend by email" is a server lookup
+  (`friends.js lookupByEmail`: uid and name only, 50 a day) instead of
+  downloading every profile. New friend requests, invites and email tags
+  don't store the sender's address. **Run
+  `node scripts/strip-profile-emails.js --yes` once this is live** to
+  delete the copies already stored (dry run without `--yes`).
+- **Roadmap items carried addresses in public** (found while fixing S-05):
+  `roadmapItems` are readable signed out and held `submitterEmail`,
+  `contributors[].email` and `notifiedEmails`. Feedback no longer writes
+  them, `notify-roadmap-completion` resolves the submitter and voters by
+  uid and keeps its sent list in `roadmapItems/{id}/private/notifications`
+  (no client rule), and the same script moves the old fields there.
+- **S-02 and S-05: the open collections.** `friendRequests` (parties only;
+  the recipient may decline, accepting is server-side), `pendingEmailTags`
+  (the sender and the address it was sent to), `invites` (the inviter and
+  the admin), `adminAuditLog` (admin read, no client writes),
+  `ticketCache` (read-only: `ticketmaster-events` and `seatgeek-events`
+  write it now, via `lib/ticketCacheStore.js`), `guestSessions` (the app's
+  shape only, admin read; conversion counts guest shows on the device),
+  `roadmapItems` (drafts private, admin edits, a vote moves the count by
+  one alongside your own voter doc) and `feedback` (submitter and admin).
+  `rateLimits` and `emailSends` from #398 get explicit server-only rules.
+- Tests: `tests/rules/security.rules.test.js` (attacks and the app's own
+  writes for every rule above) and `tests/security/friends.test.js`.
+
+---
+
 ## [5.59.6] — 2026-11-12
 
 Ships in iOS 3.13.6 (`MARKETING_VERSION` 3.13.5 → 3.13.6, after #397's

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { collection, doc, getDocs, query, where, updateDoc } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
@@ -91,6 +91,10 @@ function AdminView() {
   // admin-list-auth-users. userProfiles.createdAt is missing on most
   // accounts made since 5.36.2, so Auth is the date the Users tab trusts.
   const [authDates, setAuthDates] = useState({});
+  // Addresses from Auth (uid -> email), same request. Profiles stopped
+  // carrying `email` in 5.59.7 (S-01); merged into `users` whichever of
+  // the two loads finishes last.
+  const authEmailsRef = useRef({});
   const [authDatesStatus, setAuthDatesStatus] = useState('loading'); // 'loading' | 'ok' | 'error'
   // Profiles whose isTestUser write is in flight.
   const [togglingTestIds, setTogglingTestIds] = useState(new Set());
@@ -147,7 +151,10 @@ function AdminView() {
         lastLogin: doc.data().lastLogin?.toDate?.() || new Date(),
         guestConvertedAt: doc.data().guestConvertedAt?.toDate?.() || null,
       }));
-      setUsers(loadedUsers.sort((a, b) => b.createdAt - a.createdAt));
+      const emails = authEmailsRef.current;
+      setUsers(loadedUsers
+        .map(u => (u.email ? u : { ...u, email: emails[u.id] || '' }))
+        .sort((a, b) => b.createdAt - a.createdAt));
     } catch (error) {
       console.error('Failed to load users:', error);
     } finally {
@@ -166,6 +173,9 @@ function AdminView() {
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || 'Failed to load signup dates');
       setAuthDates(Object.fromEntries((json.users || []).map(u => [u.uid, u.createdAt])));
+      const emails = Object.fromEntries((json.users || []).filter(u => u.email).map(u => [u.uid, u.email]));
+      authEmailsRef.current = emails;
+      setUsers(prev => prev.map(u => (u.email ? u : { ...u, email: emails[u.id] || '' })));
       setAuthDatesStatus('ok');
     } catch (error) {
       console.error('Failed to load Auth signup dates:', error);

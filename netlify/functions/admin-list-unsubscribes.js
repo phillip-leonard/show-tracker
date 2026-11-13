@@ -18,7 +18,8 @@
  */
 
 const { withCors } = require('./lib/cors');
-const { getDb, verifyUser, isAdminClaims } = require('./lib/firebaseAdmin');
+const { getDb, getAdminAuth, verifyUser, isAdminClaims } = require('./lib/firebaseAdmin');
+const { emailsForUids } = require('./lib/accountEmails');
 const { normalizeEmail } = require('./lib/unsubscribeToken');
 
 const CORS_HEADERS = {
@@ -52,12 +53,41 @@ function profileRow(uid, p, level) {
   };
 }
 
-async function buildCurrentState(db) {
+/**
+ * Accounts for addresses with no profile match, via Auth (profiles stopped
+ * carrying `email` in 5.59.7, S-01). Map(email → { uid, ...profile }).
+ */
+async function accountsByEmail(db, auth, emails) {
+  const out = new Map();
+  if (!auth || emails.length === 0) return out;
+  const found = [];
+  if (typeof auth.getUsers === 'function') {
+    for (let i = 0; i < emails.length; i += 100) {
+      const res = await auth.getUsers(emails.slice(i, i + 100).map((email) => ({ email })));
+      for (const u of res.users || []) if (u.email) found.push(u);
+    }
+  } else {
+    for (const email of emails) {
+      try { found.push(await auth.getUserByEmail(email)); } catch { /* no account */ }
+    }
+  }
+  for (const u of found) {
+    const snap = await db.doc(`userProfiles/${u.uid}`).get();
+    out.set(normalizeEmail(u.email), { uid: u.uid, ...(snap.exists ? snap.data() : {}), email: normalizeEmail(u.email) });
+  }
+  return out;
+}
+
+async function buildCurrentState(db, auth = null) {
   const [allSnap, annSnap, supSnap] = await Promise.all([
     db.collection('userProfiles').where('emailOptOut', '==', true).get(),
     db.collection('userProfiles').where('announcementsOptOut', '==', true).get(),
     db.collection('emailSuppressions').get(),
   ]);
+  // Opted-out accounts whose profile has no `email` get it from Auth.
+  const authEmails = await emailsForUids(auth,
+    [...allSnap.docs, ...annSnap.docs].filter((d) => !d.data().email).map((d) => d.id));
+  const withEmail = (d) => ({ ...d.data(), email: d.data().email || authEmails.get(d.id) || '' });
 
   const rows = new Map(); // key → row
   const put = (row) => {
@@ -70,12 +100,12 @@ async function buildCurrentState(db) {
 
   const profilesByEmail = new Map();
   for (const d of allSnap.docs) {
-    const p = d.data();
+    const p = withEmail(d);
     if (p.email) profilesByEmail.set(normalizeEmail(p.email), { uid: d.id, ...p });
     put(profileRow(d.id, p, 'all'));
   }
   for (const d of annSnap.docs) {
-    const p = d.data();
+    const p = withEmail(d);
     if (p.email) profilesByEmail.set(normalizeEmail(p.email), { uid: d.id, ...p });
     if (p.emailOptOut === true) continue;
     put(profileRow(d.id, p, 'announcements'));
@@ -92,6 +122,8 @@ async function buildCurrentState(db) {
     const snap = await db.collection('userProfiles').where('email', 'in', unmatched.slice(i, i + 30)).get();
     for (const d of snap.docs) profilesByEmail.set(normalizeEmail(d.data().email), { uid: d.id, ...d.data() });
   }
+  const stillUnmatched = unmatched.filter((e) => !profilesByEmail.has(e));
+  for (const [email, p] of await accountsByEmail(db, auth, stillUnmatched)) profilesByEmail.set(email, p);
   for (const d of supSnap.docs) {
     const s = d.data();
     const email = normalizeEmail(s.email);
@@ -122,7 +154,7 @@ exports.handler = async function (event) {
   try {
     const db = getDb();
     const [current, evSnap, annSnap] = await Promise.all([
-      buildCurrentState(db),
+      buildCurrentState(db, getAdminAuth()),
       db.collection('unsubscribeEvents').orderBy('createdAt', 'desc').limit(EVENT_LIMIT).get(),
       db.collection('announcements').select('subject').get(),
     ]);

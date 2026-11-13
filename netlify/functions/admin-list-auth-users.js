@@ -79,6 +79,9 @@ exports.handler = async function(event) {
       for (const u of page.users) {
         users.push({
           uid: u.uid,
+          // The admin Users tab's addresses (5.59.7): profiles no longer
+          // carry `email` (S-01), so the admin gets them from Auth here.
+          email: u.email || null,
           createdAt: toIso(u.metadata.creationTime),
           lastSignInAt: toIso(u.metadata.lastSignInTime),
         });

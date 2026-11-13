@@ -41,9 +41,19 @@ service cloud.firestore {
                        .data.get('banned', false) == true);
     }
 
-    // User shows — owner writes, any authenticated user reads (for Shows Together)
+    // User shows — owner writes; the owner, the owner's friends (Shows
+    // Together, "were you there together?") and the admin read.
+    //
+    // Until 5.59.7 any signed-in user could read anyone's whole history
+    // (S-03). "Friend" means the owner's own list names the reader:
+    // users/{owner}/friends/{reader}, which only the owner or the server
+    // (netlify/functions/friends.js) can create, so nobody can make
+    // themselves a reader. tests/rules/security.rules.test.js.
     match /users/{userId}/shows/{showId} {
-      allow read: if request.auth != null;
+      allow read: if request.auth != null
+        && (request.auth.uid == userId
+            || isAdmin()
+            || exists(/databases/$(database)/documents/users/$(userId)/friends/$(request.auth.uid)));
       allow write: if request.auth != null && request.auth.uid == userId;
     }
 
@@ -77,10 +87,19 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
-    // User friends list
+    // User friends list.
+    //
+    // Until 5.59.7 either party could write an edge, so anyone could add
+    // themselves to anyone's list (S-04) and, through the shows rule above,
+    // read their shows. Now only the owner writes their own list; the
+    // other side of a friendship is written by netlify/functions/friends.js
+    // after it checks the request, invite or signed referral link. Either
+    // party may still delete an edge: removing yourself from someone's
+    // list only ever takes access away (remove friend, block).
     match /users/{userId}/friends/{friendId} {
       allow read: if request.auth != null && request.auth.uid == userId;
-      allow write: if request.auth != null
+      allow create, update: if request.auth != null && request.auth.uid == userId;
+      allow delete: if request.auth != null
         && (request.auth.uid == userId || request.auth.uid == friendId);
     }
 
@@ -135,11 +154,16 @@ service cloud.firestore {
       // tabs leave out by default. Admin-set only: an owner can neither
       // create a profile carrying it nor change it, or anyone could take
       // themselves out of (or put themselves into) the numbers.
+      // `email` and `invitedByEmail` (5.59.7, S-01): every signed-in user
+      // can read profiles, so no address may be put on one. Addresses live
+      // in Firebase Auth; scripts/strip-profile-emails.js removed the old
+      // copies.
       allow create: if request.auth != null
                     && request.auth.uid == userId
                     && request.resource.data.get('banned', false) == false
                     && !request.resource.data.keys().hasAny(
-                         ['displayName', 'firstName', 'handle', 'handleLower', 'isTestUser', 'welcomeEmail']);
+                         ['displayName', 'firstName', 'handle', 'handleLower', 'isTestUser', 'welcomeEmail',
+                          'email', 'invitedByEmail']);
       // `welcomeEmail` (5.55.0) is the server's record of the one welcome
       // email (netlify/functions/lib/welcomeEmail.js). Server-only: an
       // owner who could clear it could have it sent again.
@@ -150,7 +174,7 @@ service cloud.firestore {
                     && request.resource.data.get('isTestUser', false)
                        == resource.data.get('isTestUser', false)
                     && !request.resource.data.diff(resource.data).affectedKeys()
-                         .hasAny(['welcomeEmail'])
+                         .hasAny(['welcomeEmail', 'email', 'invitedByEmail'])
                     && textFieldsUnchanged();
       // The admin may flip isTestUser on anyone's profile, and nothing
       // else: the admin's client is no more trusted with the rest of a
@@ -261,9 +285,31 @@ service cloud.firestore {
       allow write: if false;
     }
 
-    // Friend requests
+    // Friend requests. Until 5.59.7 any signed-in user could read, write
+    // or delete any request (S-02). Now:
+    //   read    either party (the app queries `to ==` / `from ==` itself)
+    //   create  as yourself, to someone else, pending, names only (the
+    //           addresses the old requests carried are gone, S-01)
+    //   update  the recipient may decline a pending request, nothing else;
+    //           accepting is netlify/functions/friends.js, which writes
+    //           the friendship both ways
+    //   delete  either party (blocking clears requests both ways)
     match /friendRequests/{requestId} {
-      allow read, write: if request.auth != null;
+      allow read: if request.auth != null
+        && (resource.data.from == request.auth.uid || resource.data.to == request.auth.uid);
+      allow create: if request.auth != null
+        && request.resource.data.from == request.auth.uid
+        && request.resource.data.to is string
+        && request.resource.data.to != request.auth.uid
+        && request.resource.data.status == 'pending'
+        && request.resource.data.keys().hasOnly(['from', 'to', 'fromName', 'toName', 'status', 'createdAt']);
+      allow update: if request.auth != null
+        && resource.data.to == request.auth.uid
+        && resource.data.status == 'pending'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+        && request.resource.data.status == 'declined';
+      allow delete: if request.auth != null
+        && (resource.data.from == request.auth.uid || resource.data.to == request.auth.uid);
     }
 
     // Show tags (tag friends at shows, past and upcoming). Each one holds who
@@ -533,25 +579,58 @@ service cloud.firestore {
         && (resource.data.uploadedBy == request.auth.uid || isAdmin());
     }
 
-    // Ticket search cache
+    // Ticket search cache. Written only by ticketmaster-events.js and
+    // seatgeek-events.js (lib/ticketCacheStore.js). Until 5.59.7 any
+    // signed-in user could write fake dates and ticket links into any
+    // band's cache (S-02).
     match /ticketCache/{doc} {
-      allow read, write: if request.auth != null;
+      allow read: if request.auth != null;
+      allow write: if false;
     }
 
-    // Pending email tags (for non-registered users)
+    // Pending email tags: a show tag sent to an address with no account.
+    // Until 5.59.7 open to every signed-in user (S-02). Now the sender and
+    // the person at that address (by their token's email) read it; the
+    // sender creates and may withdraw it; the recipient accepts or
+    // declines. send-email.js stamps it when emailed (Admin SDK).
     match /pendingEmailTags/{docId} {
-      allow read, write: if request.auth != null;
+      allow read: if request.auth != null
+        && (resource.data.fromUid == request.auth.uid
+            || resource.data.toEmail == request.auth.token.get('email', '').lower());
+      allow create: if request.auth != null
+        && request.resource.data.fromUid == request.auth.uid
+        && request.resource.data.status == 'pending'
+        && request.resource.data.toEmail is string;
+      allow update: if request.auth != null
+        && resource.data.toEmail == request.auth.token.get('email', '').lower()
+        && resource.data.status == 'pending'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+        && request.resource.data.status in ['accepted', 'declined'];
+      allow delete: if request.auth != null && resource.data.fromUid == request.auth.uid;
     }
 
-    // Invite tracking — sender and recipient can read their own invites
+    // Invites to join. Until 5.59.7 open to every signed-in user (S-02).
+    // The inviter creates, reads and withdraws their own; the admin reads
+    // all (Users tab). Accepting and resending are server writes
+    // (friends.js claimInvites, send-email.js), so no client updates one.
     match /invites/{docId} {
-      allow read, write: if request.auth != null;
+      allow read: if request.auth != null
+        && (resource.data.inviterUid == request.auth.uid || isAdmin());
+      allow create: if request.auth != null
+        && request.resource.data.inviterUid == request.auth.uid
+        && request.resource.data.status == 'pending'
+        && request.resource.data.inviteeEmail is string;
+      allow update: if false;
+      allow delete: if request.auth != null && resource.data.inviterUid == request.auth.uid;
     }
 
-    // Admin audit log
+    // Admin audit log: written by admin functions (Admin SDK), read by the
+    // admin. Until 5.59.7 any signed-in user could read or rewrite it (S-02).
     match /adminAuditLog/{docId} {
-      allow read, write: if request.auth != null;
+      allow read: if isAdmin();
+      allow write: if false;
     }
+
 
     // Show suggestions (were you there together?)
     match /showSuggestions/{docId} {
@@ -599,22 +678,64 @@ service cloud.firestore {
       allow write: if false;
     }
 
-    // ── BUG FIX: Guest trial sessions ────────────────────────────────────────
-    // Guests are unauthenticated — create and update must allow if true.
-    // Reads are admin-only but we gate on auth (app enforces admin check).
+    // Guest trial sessions. Guests are unauthenticated, so a session is
+    // created and counted without sign-in, but since 5.59.7 (S-05) only in
+    // the shape the app writes: a fresh session, a show count, and the
+    // signed-in user marking their own conversion once. Read by the admin
+    // only (it was any signed-in user).
     match /guestSessions/{sessionId} {
-      allow create: if true;   // unauthenticated guest starts session
-      allow update: if true;   // guest updates showsAdded; auth'd user marks converted
-      allow read:   if request.auth != null;
+      allow create: if request.resource.data.keys().hasOnly(['startedAt', 'converted', 'showsAdded', 'userAgent'])
+        && request.resource.data.startedAt == request.time
+        && request.resource.data.converted == false
+        && request.resource.data.showsAdded == 0
+        && (!('userAgent' in request.resource.data)
+            || (request.resource.data.userAgent is string && request.resource.data.userAgent.size() <= 500));
+      allow update: if resource.data.converted == false
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['showsAdded'])
+        && request.resource.data.showsAdded is int
+        && request.resource.data.showsAdded >= 0
+        && request.resource.data.showsAdded <= 10000;
+      allow update: if request.auth != null
+        && resource.data.converted == false
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['converted', 'convertedAt', 'convertedUserId'])
+        && request.resource.data.converted == true
+        && request.resource.data.convertedUserId == request.auth.uid;
+      allow read:   if isAdmin();
       allow delete: if false;
     }
 
     // ── NEW: Roadmap (v1.0.24) ────────────────────────────────────────────────
     // Items are publicly readable (shown at /roadmap without login).
     // Writes are admin-managed; app enforces the admin check.
+    //
+    // Since 5.59.7 (S-05): only published items are public (drafts were
+    // readable by anyone, with the submitter's message); a signed-in user
+    // may create a draft from Feedback as themselves, and may move
+    // voteCount by exactly one in the same transaction as adding or
+    // removing their own voter doc. Everything else is the admin's (it was
+    // any signed-in user). No address may be stored on an item: they are
+    // public, and the shipped email's tracking lives in
+    // roadmapItems/{id}/private/notifications, which has no client rule.
     match /roadmapItems/{itemId} {
-      allow read: if true;
-      allow write: if request.auth != null;
+      allow read: if resource.data.status in ['upnext', 'inprogress', 'shipped']
+        || isAdmin()
+        || (request.auth != null && resource.data.submitterUid == request.auth.uid);
+      allow create: if isAdmin()
+        || (request.auth != null
+            && request.resource.data.submitterUid == request.auth.uid
+            && request.resource.data.status == 'draft'
+            && request.resource.data.voteCount == 0
+            && !request.resource.data.keys().hasAny(['submitterEmail', 'contributors', 'notifiedEmails']));
+      allow update: if isAdmin();
+      allow update: if request.auth != null
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['voteCount', 'updatedAt'])
+        && ((request.resource.data.voteCount == resource.data.get('voteCount', 0) + 1
+             && !exists(/databases/$(database)/documents/roadmapItems/$(itemId)/voters/$(request.auth.uid))
+             && existsAfter(/databases/$(database)/documents/roadmapItems/$(itemId)/voters/$(request.auth.uid)))
+          || (request.resource.data.voteCount == resource.data.get('voteCount', 0) - 1
+             && exists(/databases/$(database)/documents/roadmapItems/$(itemId)/voters/$(request.auth.uid))
+             && !existsAfter(/databases/$(database)/documents/roadmapItems/$(itemId)/voters/$(request.auth.uid))));
+      allow delete: if isAdmin();
 
       // Per-user vote — each user can only read/write their own voter doc
       match /voters/{userId} {
@@ -625,10 +746,19 @@ service cloud.firestore {
 
     // ── NEW: Feedback submissions (v1.0.24) ───────────────────────────────────
     // Any authenticated user can submit; admin reads all.
+    // Since 5.59.7 (S-05): as yourself only; the submitter and the admin
+    // read it (it carries the submitter's email, and was readable by every
+    // signed-in user); the submitter may link the roadmap draft Feedback
+    // creates, and the admin may change anything.
     match /feedback/{docId} {
-      allow create: if request.auth != null;
-      allow read:   if request.auth != null;
-      allow update: if request.auth != null;  // admin links roadmapItemId
+      allow create: if request.auth != null
+        && request.resource.data.submitterUid == request.auth.uid;
+      allow read:   if isAdmin()
+        || (request.auth != null && resource.data.submitterUid == request.auth.uid);
+      allow update: if isAdmin()
+        || (request.auth != null
+            && resource.data.submitterUid == request.auth.uid
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['roadmapItemId', 'status']));
       allow delete: if false;
     }
 
@@ -835,6 +965,16 @@ service cloud.firestore {
       allow read, write: if false;
     }
     match /emailRateLimits/{uid} {
+      allow read, write: if false;
+    }
+    // Daily quotas (AI scans, emails by type) and the send-email dedupe
+    // record, both from 5.59.6 (lib/rateLimit.js, lib/emailAuthorization.js).
+    // Server-only; no rule meant default-deny already, this makes it
+    // explicit (5.59.7).
+    match /rateLimits/{docId} {
+      allow read, write: if false;
+    }
+    match /emailSends/{docId} {
       allow read, write: if false;
     }
 

@@ -46,6 +46,16 @@ The public band pages (`/artist/...`) read a snapshot from Netlify Blobs, writte
 
 Deploy previews always carry `X-Robots-Tag: noindex` (Netlify adds it). Lighthouse's `is-crawlable` and the Rich Results Test's "Indexing allowed?" fail there for that reason alone.
 
+## Security invariants (5.59.6, 5.59.7)
+
+These closed real holes. `tests/rules/security.rules.test.js` and `tests/security/*.test.js` cover them; don't loosen them to make a feature easier.
+
+- **No email address on any document other users can read.** `userProfiles` and `roadmapItems` must not carry one (the rules refuse `email`/`invitedByEmail` on profiles). Get an address from Firebase Auth on the server: `netlify/functions/lib/accountEmails.js`.
+- **The browser never writes into another user's friends list.** Being in `users/{X}/friends/{me}` lets me read X's shows. Cross-user friendship writes go through `netlify/functions/friends.js`, which checks a pending request, an invite to the caller's own address or a signed referral link (`lib/referralToken.js`). Links that should auto-friend must be signed (`signReferral`).
+- **`send-email` builds every email on the server** from a record the caller wrote (`lib/emailAuthorization.js`, templates in `lib/notificationTemplates.js`). Never send HTML or an address from the browser.
+- **Anything that spends a paid API key needs sign-in and a per-user limit** (`lib/aiScan.js`, `lib/rateLimit.js`).
+- **Shared caches are written by the function that fetches the data** (`ticketCache` via `lib/ticketCacheStore.js`), never by the browser.
+
 ## Versioning: every PR bumps the App Store version
 
 **Every PR opened for MySetlists bumps the App Store version**, in addition to the web version in `package.json` (and its `CHANGELOG.md` entry).

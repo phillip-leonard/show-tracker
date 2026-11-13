@@ -68,7 +68,7 @@ async function main() {
 
   await test('a new profile cannot arrive carrying welcomeEmail', async () => {
     await assertFails(as(NEWBIE).doc(`userProfiles/${NEWBIE}`).set({ email: 'n@example.com', welcomeEmail: { status: 'sent' } }));
-    await assertSucceeds(as(NEWBIE).doc(`userProfiles/${NEWBIE}`).set({ email: 'n@example.com' }));
+    await assertSucceeds(as(NEWBIE).doc(`userProfiles/${NEWBIE}`).set({ showCount: 0 }));
   });
 
   await test('an owner cannot set welcomeEmail on their profile', async () => {
@@ -82,7 +82,7 @@ async function main() {
 
   await test('the app’s own profile writes still go through', async () => {
     await assertSucceeds(as(ALICE).doc(`userProfiles/${ALICE}`).set({
-      email: 'alice@example.com', showCount: 2, songCount: 30,
+      showCount: 2, songCount: 30,
       lastLogin: firebase.firestore.FieldValue.serverTimestamp(),
     }, { merge: true }));
   });

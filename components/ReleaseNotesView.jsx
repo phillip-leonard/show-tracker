@@ -13,6 +13,16 @@ const STREAMING_MENTION = /spotify|apple\s*music/i;
 function ReleaseNotesView() {
   const releases = [
     {
+      version: '5.59.7',
+      date: 'November 13, 2026',
+      title: 'Your Account, Better Protected',
+      changes: [
+        'Your shows are now visible only to you and your friends',
+        'Your email address is no longer stored where other members could read it',
+        'Invite links you share from Invite still make you friends automatically; older links now send you a friend request to accept',
+      ]
+    },
+    {
       version: '5.59.4',
       date: 'November 11, 2026',
       title: 'Straight to Your First Show',

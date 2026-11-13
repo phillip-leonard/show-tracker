@@ -30,9 +30,16 @@
 
 const crypto = require('crypto');
 const T = require('./notificationTemplates');
+const { signReferral } = require('./referralToken');
 const { normalizeEmail, isValidEmail } = require('./unsubscribeToken');
 
 const APP_URL = 'https://mysetlists.net';
+
+// The sign-up link in an invite or tag-by-email: a signed referral (5.59.7,
+// lib/referralToken.js), so the person who signs up from it becomes the
+// sender's friend. A bare ?ref=<uid> anyone could forge now only sends a
+// friend request (netlify/functions/friends.js).
+const referralUrl = (uid) => `${APP_URL}?ref=${encodeURIComponent(signReferral(uid))}`;
 const RECENT_MS = 15 * 60 * 1000; // a legacy email follows its record within seconds
 const INVITE_RESEND_MS = 24 * 60 * 60 * 1000;
 
@@ -186,7 +193,7 @@ async function tagEmail(ctx, caller, req) {
       taggerName,
       ...showFields(doc.showData),
       personalMessage: str(doc.personalMessage, 500),
-      signupUrl: `${APP_URL}?ref=${encodeURIComponent(caller.uid)}`,
+      signupUrl: referralUrl(caller.uid),
     }),
     dedupeKey: `tag_email_${doc.id}`,
   });
@@ -260,7 +267,7 @@ async function invite(ctx, caller, req) {
   return ok({
     type: 'invite',
     recipient: { email: to, uid: null },
-    email: T.inviteEmail({ inviterName, inviteUrl: `${APP_URL}?ref=${encodeURIComponent(caller.uid)}` }),
+    email: T.inviteEmail({ inviterName, inviteUrl: referralUrl(caller.uid) }),
     dedupeKey: `invite_${caller.uid}_${hash(to)}`,
     dedupeTtlMs: INVITE_RESEND_MS,
   });

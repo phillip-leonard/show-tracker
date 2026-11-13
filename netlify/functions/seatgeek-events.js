@@ -1,5 +1,6 @@
 const { withCors } = require('./lib/cors');
 const https = require('https');
+const { artistSlug, writeTicketCache } = require('./lib/ticketCacheStore');
 
 exports.handler = async function(event, context) {
   if (event.httpMethod !== 'GET') {
@@ -101,13 +102,15 @@ exports.handler = async function(event, context) {
             };
           });
 
-          resolve({
-            statusCode: 200,
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ events })
-          });
+          // The function writes the shared cache, not the browser (5.59.7, S-02).
+          writeTicketCache(`sg_${artistSlug(artistName)}`, { data: events })
+            .finally(() => resolve({
+              statusCode: 200,
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({ events })
+            }));
         } catch (err) {
           resolve({
             statusCode: 500,

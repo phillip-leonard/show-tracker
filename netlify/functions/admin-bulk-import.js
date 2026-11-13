@@ -91,7 +91,9 @@ exports.handler = async function (event) {
       return { statusCode: 404, headers: CORS_HEADERS, body: JSON.stringify({ error: 'Target user not found' }) };
     }
     const targetProfile = profileDoc.data();
-    const targetEmail = targetProfile.email || '';
+    // From Auth: profiles stopped carrying `email` in 5.59.7 (S-01).
+    const targetEmail = targetProfile.email
+      || (await require('firebase-admin/auth').getAuth().getUser(targetUid).then((u) => u.email || '').catch(() => ''));
     const targetDisplayName = targetProfile.displayName || targetProfile.firstName || '';
 
     // ── Step 2: Fetch existing shows for duplicate detection ──────────────────
