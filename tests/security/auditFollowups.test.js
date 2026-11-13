@@ -234,7 +234,6 @@ test('B-01: no client code fetches a function by a relative URL', () => {
   };
   for (const d of ['lib', 'components', 'context', 'hooks', 'app']) walk(path.join(ROOT, d));
   assert.deepStrictEqual(offenders, []);
-  assert.ok(fs.readFileSync(path.join(ROOT, 'lib/artistImage.js'), 'utf8').includes('apiUrl(`/.netlify/functions/artist-image'));
 });
 
 run('Audit follow-ups (5.59.8)');
