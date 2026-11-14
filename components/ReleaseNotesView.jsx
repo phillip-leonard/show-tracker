@@ -2,13 +2,16 @@
 
 import React from 'react';
 import { Check } from 'lucide-react';
-import { PLAYLIST_CREATION_ENABLED } from '@/lib/constants';
+import { PLAYLIST_CREATION_ENABLED, DISCOVER_NAV_ENABLED } from '@/lib/constants';
 
 // Playlist creation is switched off (see lib/constants.js), so the historical
 // entries that name Spotify or Apple Music advertise a feature no one can
 // reach. Filter them at render rather than editing the history: flipping
 // PLAYLIST_CREATION_ENABLED back on restores every entry untouched.
 const STREAMING_MENTION = /spotify|apple\s*music/i;
+// Discover is out of the menu while DISCOVER_NAV_ENABLED is false (5.60.2), so
+// the note that sends people to it there is hidden the same way.
+const DISCOVER_MENU_MENTION = /\bDiscover, in the menu\b/;
 
 function ReleaseNotesView() {
   const releases = [
@@ -1806,6 +1809,12 @@ function ReleaseNotesView() {
           changes: release.changes.filter((change) => !STREAMING_MENTION.test(change)),
         }))
         .filter((release) => release.changes.length > 0);
+  const shownReleases = DISCOVER_NAV_ENABLED
+    ? visibleReleases
+    : visibleReleases.map((release) => ({
+        ...release,
+        changes: release.changes.filter((change) => !DISCOVER_MENU_MENTION.test(change)),
+      }));
 
   return (
     <div className="max-w-2xl mx-auto">
@@ -1813,7 +1822,7 @@ function ReleaseNotesView() {
       <p className="text-secondary mb-8">What's new in Setlist Tracker</p>
 
       <div className="space-y-6">
-        {visibleReleases.map((release, index) => (
+        {shownReleases.map((release, index) => (
           <div
             key={release.version}
             className={`bg-hover backdrop-blur-xl rounded-2xl border border-subtle p-6 ${
