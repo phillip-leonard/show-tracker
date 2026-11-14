@@ -4,6 +4,59 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.60.6] — 2026-11-14
+
+Ships in **iOS 3.13.22** (`MARKETING_VERSION` 3.13.21 → 3.13.22). Changes
+how the app adds shows, so it needs a new iOS build.
+
+**Every show the app adds is built by `normalize-show`** (pre-native server
+moves, Part 1b). The web app sends what the user picked or typed; the
+server builds and writes the document (5.60.5), and the app shows that
+document. The iOS app gets the same through this build.
+
+- **Every add path.** The search (one show and "Add all"), the manual form
+  and bucket-list "Mark attended", the ticket scan (a setlist.fm match or a
+  typed row), the screenshot/CSV import, the tour browser, the Songs I've
+  heard tool, the festival lineup import, an upcoming show converted after
+  the date, and accepting a friend's tag or an email tag (the server checks
+  the tag is the user's and marks it accepted). Guests, who have no
+  account, build their shows on the device with the same code
+  (`lib/normalizeShow.js`), band source included.
+- **Offline.** When `normalize-show` can't be reached (no signal, a
+  timeout, a 5xx), the show is built on the device with the same code,
+  shown at once, written with `needsNormalization` and its input, and kept
+  in a per-user outbox in localStorage (`lib/showAdd.js`). Back online (the
+  `online` event, the app coming to the foreground, or the next sign-in),
+  the outbox commits under the same show id; the server normalizes the
+  document in place and keeps whatever the user did to it meanwhile. An
+  entry commits only once the device's own write has reached Firestore, so
+  a late write can't land on the server's document. The hourly sweep
+  finishes anything a device never sends. Accepting a friend's tag needs a
+  connection, and says so.
+- **One duplicate rule everywhere** (`classifyDuplicate`): the tour browser,
+  "Add all", the Songs I've heard picker (`lib/tourBrowse.js`) and the
+  spreadsheet import's plan (`lib/importSheet.js`) use it, as the server
+  does. A "possible duplicate" (same band and day, another venue) is a
+  question: the single add asks ("Add … as a separate show?"), the pickers
+  show it, the spreadsheet import skips and lists it. A venue that differs
+  only in punctuation is the same show.
+- **No client builder left.** Gone from the app: the ticket scanner's own
+  copy of the setlist.fm conversion, the per-picker song parsing, the
+  festival import's local document building, the tag-merge write and the
+  client's tag-accepted writes. `setlistToShowData` is the server's
+  `showDataFromSetlistfm`. New inputs: a setlist.fm `row` (the tour and
+  lineup lists), and a tag on an upcoming show accepted after its date
+  (`asPastShow`). The sweep stops retrying an input the server refuses
+  (a withdrawn tag) and records `normalizationError`.
+- Tests: `lib/__tests__/showAdd.test.js` (the outbox, the request, and
+  offline end to end: an offline add, a rating meanwhile, the outbox
+  committed to the real handler, one document with the rating kept and the
+  band source applied; and the sweep when a device never returns),
+  `lib/__tests__/tourBrowse.test.js` now runs in `test:unit`, two new show
+  fixtures (`setlistfm-row`, `tag-upcoming-past`).
+
+---
+
 ## [5.60.5] — 2026-11-14
 
 Ships in **iOS 3.13.21** (`MARKETING_VERSION` 3.13.20 → 3.13.21). Server and

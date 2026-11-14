@@ -1,12 +1,10 @@
 'use client';
 
 import React, { useState } from 'react';
-import { toIsoDate } from '@/lib/utils';
 import { Camera, X, RefreshCw, Search, Check, Download, Plus, ChevronDown } from 'lucide-react';
 import { resizeImageForUpload } from '@/lib/utils';
 import { apiUrl, authedFetch, apiErrorMessage } from '@/lib/api';
 import { isNativePlatform } from '@/lib/native-auth';
-import { extractSongsFromSetlist } from '@/lib/setlistParser';
 import { Card, Button } from '@/components/ui';
 import {
   PERMISSION_KIND, requestNativePermission, openAppSettings,
@@ -224,24 +222,10 @@ function TicketScanner({ onImport, importedIds, existingShows }) {
     }
   };
 
+  // normalize-show builds the show from setlist.fm's setlist (the date,
+  // the songs, the source), as for every other add.
   const importSetlist = (showIdx, setlist) => {
-    const songs = extractSongsFromSetlist(setlist);
-
-    onImport({
-      artist: setlist.artist.name,
-      venue: setlist.venue.name,
-      city: setlist.venue.city.name,
-      country: setlist.venue.city.country.name,
-      // setlist.fm sends DD-MM-YYYY. Every other add path reverses it before
-      // saving; this one stored it verbatim, so shows added by scanning a
-      // ticket carried a date no band-source archive could be asked about.
-      date: toIsoDate(setlist.eventDate) || setlist.eventDate,
-      setlist: songs,
-      setlistfmId: setlist.id,
-      setlistfmUrl: setlist.url || null,
-      tour: setlist.tour ? setlist.tour.name : null
-    });
-
+    onImport({ kind: 'setlistfm', setlist });
     setExtractedShows(prev => prev.map((s, idx) =>
       idx === showIdx ? { ...s, imported: true } : s
     ));
@@ -250,11 +234,11 @@ function TicketScanner({ onImport, importedIds, existingShows }) {
   const importManually = (showIdx) => {
     const show = extractedShows[showIdx];
     onImport({
+      kind: 'manual',
       artist: show.artist || '',
       venue: show.venue || '',
       city: show.city || '',
-      date: toIsoDate(show.date) || show.date || '',
-      setlist: [],
+      date: show.date || '',
     });
     setExtractedShows(prev => prev.map((s, idx) =>
       idx === showIdx ? { ...s, imported: true } : s

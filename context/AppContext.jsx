@@ -18,18 +18,16 @@ import { setSignedInHint, clearSignedInHint } from '@/lib/signedInHint';
 import { apiUrl, apiErrorMessage, authedFetch } from '@/lib/api';
 import { loadAlertSettings } from '@/lib/alertSettings';
 import { showHref, upcomingShowHref } from '@/lib/showRouting';
-import { setlistToShowData } from '@/lib/setlistSearch';
 import {
   UPCOMING_COLLECTION, normalizeUpcomingInput, validateUpcomingInput, sortUpcoming,
-  upcomingTagShowData, upcomingInputFromTag, findSetlistForDate, upcomingToShowData,
+  upcomingTagShowData, upcomingInputFromTag, findSetlistForDate,
 } from '@/lib/upcomingShows';
 import { isReturningUser as checkIsReturningUser } from '@/lib/popupManager';
 import { extractSongsFromSetlist } from '@/lib/setlistParser';
-import { enrichShowDataWithBandSetlist, fetchBandSetlist, fetchBandSetlistWithReason, bandSetlistShowFields, mergeSourceSetlist, mergeNeedsWrite, userNoteCounts } from '@/lib/bandSetlist';
+import { fetchBandSetlistResponse, fetchBandSetlist, fetchBandSetlistWithReason, bandSetlistShowFields, mergeSourceSetlist, mergeNeedsWrite, userNoteCounts } from '@/lib/bandSetlist';
 import { describeSummary } from '@/lib/bandSetlistMerge';
 import { resolveSource, SETLIST_SOURCES } from '@/lib/setlistSources';
 import { removeSongFromSetlist, insertSongAt } from '@/lib/setlistGrouping';
-import { buildExistingShowIndex, existingShowStatus } from '@/lib/tourBrowse';
 import { normalizeFestivalName, findFestivalMatches as matchFestivals } from '@/lib/festivalMatch';
 import { festivalWhenFields } from '@/lib/festivalDates';
 import { catalogFields } from '@/lib/festivalCatalog';
@@ -56,17 +54,17 @@ import { toIsoDate, showYear, utcIsoDate } from '@/lib/showDate';
 import { performSignOut } from '@/lib/signOutFlow';
 import { pushOfferEnabled } from '@/lib/appConfig';
 import { clearSpotifySession } from '@/lib/spotify';
-import { mintShowId, buildShowDoc } from '@/lib/showDoc';
+import { mintShowId } from '@/lib/showDoc';
+import { normalizeShowInput } from '@/lib/normalizeShow';
+import { showDataFromSetlistfmRow } from '@/lib/showInputs';
+import {
+  commitShowInputs, OfflineError, readOutbox, addToOutbox, removeFromOutbox, deviceShowWrite, possibleDuplicateQuestion,
+} from '@/lib/showAdd';
 import { venueCountKey } from '@/lib/venueCount';
 import { computeUserStats, STATS_VERSION } from '@/lib/stats';
 import { bandKey, songKey } from '@/lib/stats/keys';
 import { mergeGuestShows, mergeMessage, readLocalShows } from '@/lib/guestMerge';
-import { findDuplicate, showMatchKey, setlistIsOnShowDate } from '@/lib/showIdentity';
-
-// Gap between writes in a bulk tour add. Enough to keep a 40-night
-// selection from arriving at Firestore as one burst, small enough that a
-// typical five-night selection still feels immediate.
-const BULK_ADD_DELAY_MS = 120;
+import { classifyDuplicate, showMatchKey, setlistIsOnShowDate } from '@/lib/showIdentity';
 
 // ── Helper: mint a show document id ─────────────────────────────────────
 // Where a sign-in from the Songs I've heard tool may return to: a band's
@@ -1356,30 +1354,43 @@ export function AppProvider({ children }) {
     }
   };
 
-  // ── Duplicate detection helper ─────────────────────────────────────
-  const findDuplicateShow = (showData) => {
-    // Same artist, venue and calendar day in any stored format (B-07).
-    return findDuplicate(latestShows.current, showData);
-  };
+  // ── Adding a show (5.60.6) ──────────────────────────────────────────
+  //
+  // Every add path sends an input ({ kind, … }) to normalize-show, which
+  // builds and writes the document (lib/normalizeShow.js); the app shows
+  // the document the server wrote. When the server can't be reached, the
+  // show is built here with the same code, saved with needsNormalization,
+  // and its input kept in this device's outbox until the server takes it
+  // (lib/showAdd.js). A guest has no account to send to, so a guest's show
+  // is always built here, band source included.
 
-  // Merge friend tag data into an existing show (comments, tags, etc.)
-  const mergeTagDataIntoShow = async (existingShow, tagData) => {
-    const updates = {};
-    if (tagData.taggedBy && !existingShow.taggedBy) {
-      updates.taggedBy = tagData.taggedBy;
-      updates.taggedByUid = tagData.taggedByUid;
-    }
-    if (Object.keys(updates).length > 0 && user) {
-      try {
-        const showRef = doc(db, 'users', user.uid, 'shows', existingShow.id);
-        await updateDoc(showRef, updates);
-        setShows(prev => prev.map(s => s.id === existingShow.id ? { ...s, ...updates } : s));
-      } catch (e) {
-        console.error('Failed to merge tag data into existing show:', e);
-      }
-    }
-    return existingShow.id;
-  };
+  // A show written here while normalize-show was out of reach, by id:
+  // { settled } once Firestore has the write. The outbox commits an entry
+  // only after that (or after a restart, when the write is gone with the
+  // process), so a late device write can't land on the server's document.
+  const pendingDeviceWrites = useRef(new Map());
+  const flushingOutbox = useRef(false);
+
+  // The reads lib/normalizeShow.js needs, from the app.
+  const clientShowDeps = ({ bandSource = true } = {}) => ({
+    setlistfmSetlist: async () => null, // every app input carries its setlist
+    bandSetlist: bandSource ? fetchBandSetlistResponse : async () => null,
+    showTag: async (tagId) => {
+      const snap = await getDoc(doc(db, 'showTags', tagId));
+      const tag = snap.exists() ? snap.data() : null;
+      return tag && tag.toUid === user?.uid && tag.status === 'pending' ? tag : null;
+    },
+    pendingEmailTag: async (tagId) => {
+      const snap = await getDoc(doc(db, 'pendingEmailTags', tagId));
+      const tag = snap.exists() ? snap.data() : null;
+      const mine = String(user?.email || '').toLowerCase();
+      return tag && mine && String(tag.toEmail || '').toLowerCase() === mine && tag.status === 'pending' ? tag : null;
+    },
+    upcomingShow: async (id) => upcomingShows.find((u) => u.id === id) || null,
+  });
+
+  // Any caller still passing show data rather than an input is a typed show.
+  const asInput = (raw) => (raw && raw.kind ? raw : { kind: 'manual', ...(raw || {}) });
 
   // Every single-show add lands on the same "you can open it now" toast.
   // The id is minted on the device (mintShowId) and is the Firestore doc
@@ -1399,7 +1410,7 @@ export function AppProvider({ children }) {
 
   // ── Welcome email (5.55.0) ────────────────────────────────────────
   // The one place a show write asks for the welcome email. Each of the
-  // four functions that write shows (addShow, addShowsFromTour,
+  // functions that add shows (addShow, addShowsFromTour,
   // importShowsToFestival, rescueLocalShows) calls this after its write
   // succeeds, with how many shows the account had before it. A guest has
   // no account and no address; their shows reach this through
@@ -1414,46 +1425,190 @@ export function AppProvider({ children }) {
     });
   };
 
-  const addShow = async (showData, { silent = false } = {}) => {
-    // Check for duplicate before adding
-    const existing = findDuplicateShow(showData);
-    if (existing) {
-      // Merge tag metadata into existing show rather than creating a duplicate
-      await mergeTagDataIntoShow(existing, showData);
+  // What follows a new show, however it was added.
+  const afterShowsAdded = (prevCount, added, { activity = true } = {}) => {
+    if (!added.length) return;
+    const updatedShows = [...latestShows.current];
+    noteShowsAdded(prevCount, added);
+    updateUserProfile(user, updatedShows).catch(() => {});
+    requestStatsRecompute();
+    if (!activity) return;
+    added.forEach((show) => {
+      // Background suggestion check — non-blocking
+      checkShowSuggestionsForNewShow(show).catch(() => {});
+      // Friend activity feed — best-effort, non-blocking (see lib/activityFeed.js)
+      logActivity(user.uid, user.displayName, 'added_show', { showId: show.id, artist: show.artist, venue: show.venue || null });
+    });
+  };
+
+  const appendShows = (added) => {
+    if (!added.length) return;
+    const updated = [...latestShows.current, ...added];
+    latestShows.current = updated;
+    setShows(updated);
+  };
+
+  // A friend's tag merged into a show already logged: the server credited
+  // the friend on it (normalize-show); mirror that here.
+  const noteTagMerged = (showId, show) => {
+    if (!show?.taggedBy) return;
+    setShows((prev) => prev.map((s) => (s.id === showId && !s.taggedBy
+      ? { ...s, taggedBy: show.taggedBy, taggedByUid: show.taggedByUid || null }
+      : s)));
+  };
+
+  // The server's document as the app holds it: `id` plus the stored fields.
+  const asLoadedShow = (show) => ({ ...show, setlist: show.setlist || [] });
+
+  // ── Offline: built here, written with needsNormalization, kept in the outbox
+  const addShowOnDevice = async (input, showId, { silent = false, onPossible = 'ask', confirmed = false } = {}) => {
+    if (input.kind === 'tag' || input.kind === 'email-tag') {
+      // A friend's tag has to be read from the server to be accepted.
+      setToast({ message: 'You’re offline. Accept the tag again when you’re connected.', type: 'error' });
+      return null;
+    }
+    let built;
+    try {
+      built = await normalizeShowInput({ ...input, showId }, { deps: clientShowDeps({ bandSource: false }), existingShows: latestShows.current });
+    } catch (err) {
+      setToast({ message: err?.message || 'That show couldn’t be saved.', type: 'error' });
+      return null;
+    }
+    const { show, duplicate } = built;
+    if (duplicate && duplicate.rule !== 'possible') {
       setShowForm(false);
-      if (!silent) announceAddedShow(existing.id, existing.artist, { duplicate: true });
-      return { id: existing.id, duplicate: true };
+      if (!silent) announceAddedShow(duplicate.showId, show.artist, { duplicate: true });
+      return { id: duplicate.showId, duplicate: true };
+    }
+    if (duplicate && !confirmed) {
+      const existing = latestShows.current.find((s) => s.id === duplicate.showId);
+      const ok = onPossible === 'add' || (onPossible === 'ask' && window.confirm(possibleDuplicateQuestion(existing, show)));
+      if (!ok) return { id: duplicate.showId, duplicate: true, possible: true };
     }
 
-    // ── Where the setlist comes from ──────────────────────────────────
-    // Every add path lands here — the setlist.fm search in SearchView, the
-    // CSV import, the ticket scanner, the festival lineup modal, the manual
-    // form — so resolving the artist through lib/setlistSources.js once,
-    // here, covers all of them rather than five copies of the same branch.
-    // For an artist with no band source this is a no-op that stamps
-    // `setlistSource: 'setlistfm'` and returns; see lib/bandSetlist.js.
-    //
-    // Deliberately after the duplicate check, so adding a show the user
-    // already has doesn't spend a request on a volunteer-run archive.
-    const enriched = await enrichShowDataWithBandSetlist(showData);
-
-    const showId = mintShowId();
-    const newShow = buildShowDoc(enriched, showId);
+    const { id, fields, local, outboxEntry } = deviceShowWrite(show, input);
+    const state = { settled: false };
+    pendingDeviceWrites.current.set(id, state);
+    setDoc(doc(db, 'users', user.uid, 'shows', id), { ...fields, createdAt: serverTimestamp() })
+      .then(() => { state.settled = true; flushOutbox(); })
+      .catch((error) => { state.settled = true; console.error('Failed to save show on the device:', error); });
+    addToOutbox(user.uid, outboxEntry);
 
     const prevCount = latestShows.current.length;
-    const isFirstShow = prevCount === 0;
+    appendShows([local]);
+    setShowForm(false);
+    afterShowsAdded(prevCount, [local], { activity: false });
+    if (!silent) {
+      setToast({
+        message: `Saved ${show.artist || 'the show'} on this device. It finishes saving when you’re back online.`,
+        href: showHref(id),
+        actionLabel: 'View show',
+      });
+    }
+    return id;
+  };
+
+  // ── The outbox: inputs normalize-show hasn't taken yet ──────────────
+  const flushOutbox = async () => {
+    if (!user || guestMode || flushingOutbox.current) return;
+    const ready = readOutbox(user.uid).filter((e) => {
+      const write = pendingDeviceWrites.current.get(e.showId);
+      return !write || write.settled;
+    });
+    if (!ready.length) return;
+    flushingOutbox.current = true;
+    try {
+      const results = await commitShowInputs(ready.map((e) => ({ ...e.input, showId: e.showId, confirmPossible: true })));
+      const done = [];
+      const refreshed = new Map();
+      results.forEach((res, i) => {
+        const entry = ready[i];
+        if (!entry) return;
+        done.push(entry.showId);
+        if (res.error) {
+          console.warn(`[outbox] ${entry.showId} can't be normalized (${res.error.code}); the sweep leaves it as saved`);
+          return;
+        }
+        if (res.show && (res.written || res.alreadyNormalized)) refreshed.set(entry.showId, res.show);
+      });
+      removeFromOutbox(user.uid, done);
+      done.forEach((id) => pendingDeviceWrites.current.delete(id));
+      // The server's document for each, read back so the user's edits made
+      // meanwhile (kept by the server) and the band source's setlist both show.
+      for (const id of refreshed.keys()) {
+        try {
+          const snap = await getDoc(doc(db, 'users', user.uid, 'shows', id));
+          if (snap.exists()) refreshed.set(id, { id, ...snap.data() });
+        } catch { /* keep the server's answer */ }
+      }
+      if (refreshed.size) {
+        setShows((prev) => prev.map((s) => (refreshed.has(s.id) ? asLoadedShow({ ...refreshed.get(s.id), id: s.id }) : s)));
+        latestShows.current = latestShows.current.map((s) => (refreshed.has(s.id) ? asLoadedShow({ ...refreshed.get(s.id), id: s.id }) : s));
+        requestStatsRecompute();
+      }
+    } catch (err) {
+      if (!(err instanceof OfflineError)) console.warn('[outbox] flush failed:', err?.message);
+    } finally {
+      flushingOutbox.current = false;
+    }
+  };
+
+  // Commit the outbox once signed in, whenever the device comes back
+  // online, and whenever the app comes back to the foreground.
+  useEffect(() => {
+    if (!user?.uid || guestMode) return undefined;
+    flushOutbox();
+    const onOnline = () => flushOutbox();
+    const onVisible = () => { if (document.visibilityState === 'visible') flushOutbox(); };
+    window.addEventListener('online', onOnline);
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      window.removeEventListener('online', onOnline);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.uid, guestMode]);
+
+  /**
+   * addShow(input, { silent, onPossible }) -> the show id, { id, duplicate }
+   * for a show already logged (with `possible` when the user said no to a
+   * possible duplicate), or null.
+   *
+   * onPossible: 'ask' (the default) asks the user; 'skip' treats a possible
+   * duplicate as already logged (the spreadsheet import); 'add' adds it.
+   */
+  const addShow = async (rawInput, { silent = false, onPossible = 'ask' } = {}) => {
+    const input = asInput(rawInput);
+    const prevCount = latestShows.current.length;
 
     if (guestMode) {
-      const updatedShows = [...latestShows.current, newShow];
-      latestShows.current = updatedShows;
-      setShows(updatedShows);
-      saveGuestShows(updatedShows);
+      let built;
+      try {
+        built = await normalizeShowInput({ ...input, showId: mintShowId() }, { deps: clientShowDeps(), existingShows: latestShows.current });
+      } catch (err) {
+        setToast({ message: err?.message || 'That show couldn’t be saved.', type: 'error' });
+        return null;
+      }
+      const { show, duplicate } = built;
+      if (duplicate && duplicate.rule !== 'possible') {
+        setShowForm(false);
+        if (!silent) announceAddedShow(duplicate.showId, show.artist, { duplicate: true });
+        return { id: duplicate.showId, duplicate: true };
+      }
+      if (duplicate) {
+        const existing = latestShows.current.find((s) => s.id === duplicate.showId);
+        const ok = onPossible === 'add' || (onPossible === 'ask' && window.confirm(possibleDuplicateQuestion(existing, show)));
+        if (!ok) return { id: duplicate.showId, duplicate: true, possible: true };
+      }
+      const { normalizedVersion: _v, ...guestShow } = show;
+      appendShows([guestShow]);
+      saveGuestShows(latestShows.current);
       setShowForm(false);
 
       try {
         const sessionId = storage.get(STORAGE_KEYS.GUEST_SESSION);
         if (sessionId) {
-          await updateDoc(doc(db, 'guestSessions', sessionId), { showsAdded: updatedShows.length });
+          await updateDoc(doc(db, 'guestSessions', sessionId), { showsAdded: latestShows.current.length });
         }
       } catch (error) {
         console.log('Failed to update guest session:', error);
@@ -1462,145 +1617,124 @@ export function AppProvider({ children }) {
       // A guest's first show opens the account prompt (in place of the
       // usual "added" toast below). Until 5.59.4 it waited two seconds
       // behind a first-show animation.
+      const isFirstShow = prevCount === 0;
       if (isFirstShow) setShowGuestPrompt(true);
-
-      if (!silent && !isFirstShow) announceAddedShow(showId, newShow.artist);
-      return showId;
+      if (!silent && !isFirstShow) announceAddedShow(guestShow.id, guestShow.artist);
+      return guestShow.id;
     }
 
     if (!user) return null;
 
+    const showId = mintShowId();
+    let res;
     try {
-      await writeShowDoc(user.uid, newShow);
-      const updatedShows = [...latestShows.current, newShow];
-      latestShows.current = updatedShows;
-      setShows(updatedShows);
-      setShowForm(false);
-      noteShowsAdded(prevCount, [newShow]);
+      [res] = await commitShowInputs([{ ...input, showId }]);
+    } catch (err) {
+      if (err instanceof OfflineError) return addShowOnDevice(input, showId, { silent, onPossible });
+      throw err;
+    }
 
-      await updateUserProfile(user, updatedShows);
-      requestStatsRecompute();
+    if (res?.needsConfirmation) {
+      const existing = latestShows.current.find((s) => s.id === res.duplicate?.showId);
+      const ok = onPossible === 'add' || (onPossible === 'ask' && window.confirm(possibleDuplicateQuestion(existing, res.show)));
+      if (!ok) return { id: res.duplicate.showId, duplicate: true, possible: true };
+      try {
+        [res] = await commitShowInputs([{ ...input, showId, confirmPossible: true }]);
+      } catch (err) {
+        if (err instanceof OfflineError) return addShowOnDevice(input, showId, { silent, onPossible, confirmed: true });
+        throw err;
+      }
+    }
 
-      // Background suggestion check — non-blocking
-      checkShowSuggestionsForNewShow(newShow).catch(() => {});
-
-      // Friend activity feed — best-effort, non-blocking (see lib/activityFeed.js)
-      logActivity(user.uid, user.displayName, 'added_show', {
-        showId: newShow.id,
-        artist: newShow.artist,
-        venue: newShow.venue || null,
-      });
-
-      if (!silent) announceAddedShow(showId, newShow.artist);
-      return showId;
-    } catch (error) {
-      console.error('Failed to add show:', error);
-      alert('Failed to add show. Please try again.');
+    if (!res || res.error) {
+      setToast({ message: res?.error?.message || 'Failed to add show. Please try again.', type: 'error' });
       return null;
     }
+
+    if (res.mergedInto) {
+      noteTagMerged(res.mergedInto, res.show);
+      setShowForm(false);
+      if (!silent) announceAddedShow(res.mergedInto, res.show?.artist, { duplicate: true });
+      return { id: res.mergedInto, duplicate: true };
+    }
+
+    const newShow = asLoadedShow(res.show);
+    appendShows([newShow]);
+    setShowForm(false);
+    afterShowsAdded(prevCount, [newShow]);
+    if (!silent) announceAddedShow(newShow.id, newShow.artist);
+    return newShow.id;
   };
 
   // ── Bulk add: every night you caught on one tour ────────────────────
-  // The write half of the tour browse flow (see
-  // components/tours/TourBrowseModal.jsx and
-  // netlify/functions/get-tour-shows.js).
+  // The write half of the tour browse flow (components/tours/
+  // TourBrowseModal.jsx), "Add all" on the search and the Songs I've heard
+  // tool. `inputs` are normalize-show inputs; the picker already showed
+  // which nights are logged or possibly logged and the user chose, so a
+  // possible duplicate is added (confirmPossible).
   //
-  // Deliberately NOT one Firestore batch. A batch is all-or-nothing, and
-  // partial failure is the normal case here, not the exception: if three
-  // of twelve fail the user must keep the nine and be told which three to
-  // retry. So this writes one document at a time, throttled, recording
-  // each outcome — losing connectivity mid-run leaves the completed
-  // writes standing and reports the rest as not added.
-  //
-  // Every document goes through buildShowDoc/writeShowDoc, the same pair
-  // addShow uses, so a bulk-added show is indistinguishable from a
-  // hand-added one. What is NOT repeated per show is the aggregate work
-  // addShow does — profile/community/rank recalculation and the artist
-  // image fetch — which runs once at the end instead of N times.
+  // Not all-or-nothing: normalize-show writes each show on its own, 25 to a
+  // request, and partial failure is the normal case. If the connection
+  // drops mid-run, what the server took stands and the rest are saved on
+  // the device for the outbox; a show the server refused is reported as
+  // failed so the user can retry it.
   //
   // Progress lives in AppContext rather than in the modal on purpose: the
-  // run survives closing the modal and navigating around the app. Only
-  // closing the tab stops it, and whatever was written by then stands.
-  //
-  // No per-show activity-feed entry. Catching five nights of a tour is one
-  // action by the user, and N feed items for it would drown a friend's
-  // feed; the show documents themselves are identical either way.
-  const addShowsFromTour = async (candidates = []) => {
+  // run survives closing the modal and navigating around the app. No
+  // per-show activity-feed entry: catching five nights of a tour is one
+  // action by the user.
+  const addShowsFromTour = async (inputs = []) => {
     const empty = { added: [], skipped: [], failed: [] };
-    if (!user || guestMode || !candidates.length) return empty;
+    if (!user || guestMode || !inputs.length) return empty;
 
-    // Snapshot the dedup index once. `shows` can't change under us mid-run
-    // (this closure holds one render's array), so ids created during the
-    // run are tracked separately — two nights of the same tour can't
-    // collide, but a candidate list containing the same show twice can.
-    const index = buildExistingShowIndex(shows);
     const prevCount = latestShows.current.length;
-    const createdThisRun = [];
+    const all = inputs.map((input) => ({ ...asInput(input), showId: mintShowId(), confirmPossible: true }));
+    const added = [];
     const skipped = [];
     const failed = [];
+    let offlineFrom = all.length;
 
-    setBulkAdd({ total: candidates.length, completed: 0, added: 0, running: true });
-
-    for (let i = 0; i < candidates.length; i++) {
-      const candidate = candidates[i];
-      setBulkAdd({ total: candidates.length, completed: i, added: createdThisRun.length, running: true });
-
-      // Re-checked at write time, not just in the picker: the picker's
-      // marking is a render-time snapshot, and this is the last line of
-      // defence against creating a duplicate.
-      if (existingShowStatus(index, candidate) === 'added') {
-        skipped.push(candidate);
-        continue;
-      }
-
-      try {
-        // Same band-source resolution addShow does, for the same reason —
-        // a bulk-added show must be indistinguishable from a hand-added
-        // one, and that now includes where its setlist came from. A no-op
-        // for any artist the registry doesn't claim, and a single
-        // date-addressed request for one that does; the cache in
-        // band-setlist.js means two nights of the same tour don't re-ask
-        // for the same date.
-        const enriched = await enrichShowDataWithBandSetlist(candidate);
-        const show = buildShowDoc(enriched, mintShowId());
-        await writeShowDoc(user.uid, show);
-        createdThisRun.push(show);
-        // Fold each success into the index so a repeated candidate in the
-        // same selection is skipped rather than written twice.
-        if (show.setlistfmId) index.bySetlistfmId.add(String(show.setlistfmId));
-      } catch (error) {
-        console.error('Failed to add show from tour:', error);
-        failed.push({ candidate, reason: error?.message || 'Firestore write failed' });
-      }
-
-      // Throttle so a 40-night selection doesn't burst at Firestore.
-      if (i < candidates.length - 1) await new Promise(r => setTimeout(r, BULK_ADD_DELAY_MS));
+    setBulkAdd({ total: all.length, completed: 0, added: 0, running: true });
+    let results = [];
+    try {
+      results = await commitShowInputs(all, {
+        onProgress: (n) => setBulkAdd({ total: all.length, completed: n, added: 0, running: true }),
+      });
+    } catch (err) {
+      if (!(err instanceof OfflineError)) throw err;
+      results = err.done || [];
+      offlineFrom = results.length;
     }
 
-    if (createdThisRun.length > 0) {
-      setShows(prev => [...prev, ...createdThisRun]);
-      noteShowsAdded(prevCount, createdThisRun);
+    results.forEach((res, i) => {
+      if (res.error) failed.push({ candidate: inputs[i], reason: res.error.message || res.error.code });
+      else if (res.mergedInto) skipped.push(inputs[i]);
+      else if (res.created) added.push(asLoadedShow(res.show));
+    });
+    appendShows(added);
+    // Aggregates once for what the server took, not once per show.
+    afterShowsAdded(prevCount, added, { activity: false });
 
-      // Aggregates once, off the post-run list rather than the stale
-      // render-time `shows`.
-      const updatedShows = [...shows, ...createdThisRun];
-      updateUserProfile(user, updatedShows).catch(() => {});
-      requestStatsRecompute();
+    // The rest, saved on the device for the outbox.
+    for (let i = offlineFrom; i < all.length; i++) {
+      setBulkAdd({ total: all.length, completed: i, added: added.length, running: true });
+      const { showId, ...input } = all[i];
+      const id = await addShowOnDevice(input, showId, { silent: true, onPossible: 'add', confirmed: true });
+      if (typeof id === 'string') added.push(latestShows.current.find((s) => s.id === id));
+      else if (id && id.duplicate) skipped.push(inputs[i]);
+      else failed.push({ candidate: inputs[i], reason: 'Couldn’t be saved' });
     }
 
-    setBulkAdd({ total: candidates.length, completed: candidates.length, added: createdThisRun.length, running: false });
+    setBulkAdd({ total: all.length, completed: all.length, added: added.length, running: false });
 
     // Never claim success for the batch when part of it failed.
     if (failed.length > 0) {
-      setToast({
-        message: `Added ${createdThisRun.length} of ${candidates.length} shows — ${failed.length} failed.`,
-        type: 'error',
-      });
-    } else if (createdThisRun.length > 0) {
-      setToast(`Added ${createdThisRun.length} show${createdThisRun.length !== 1 ? 's' : ''}.`);
+      setToast({ message: `Added ${added.length} of ${all.length} shows — ${failed.length} failed.`, type: 'error' });
+    } else if (added.length > 0) {
+      setToast(`Added ${added.length} show${added.length !== 1 ? 's' : ''}.`);
     }
 
-    return { added: createdThisRun, skipped, failed };
+    return { added: added.filter(Boolean), skipped, failed };
   };
 
   const updateShowData = async (showId, rawUpdates) => {
@@ -2434,96 +2568,71 @@ export function AppProvider({ children }) {
   // attaches every one of them to the festival through the existing
   // attachShowsToFestival batch, so there is only ever one attach path.
   //
-  // Dedup reuses findDuplicateShow (artist + venue + date, the same check
-  // the manual add and the setlist.fm import already run) and additionally
-  // matches on setlistfmId, which catches the case where the same set was
-  // imported under a slightly different venue spelling.
+  // Duplicates by the one rule (lib/showIdentity.js classifyDuplicate,
+  // 5.60.6): a set already logged (by setlist.fm id, or artist + venue +
+  // day) is attached rather than created again, and a set picked twice in
+  // this import is created once. A "possible" match is created: the user
+  // picked it from the lineup knowing what they have.
   //
-  // The writes go out as one Firestore batch rather than N addShow() calls:
-  // addShow derives its doc id from Date.now() and closes over the current
-  // `shows` array, so calling it in a loop would collide ids and clobber
-  // state. `shows` is updated with a functional setState here for the same
-  // reason.
+  // `candidates` are setlist.fm rows from the lineup search
+  // (search-festival-lineup.js). New sets are written by normalize-show
+  // (festival-row inputs, with festivalId), like every other add.
   const importShowsToFestival = async (festivalId, candidates = [], { force = false } = {}) => {
     if (!user || !festivalId || !candidates.length) return { success: false, created: 0, attached: 0, conflicts: [] };
-
-    const bySetlistfmId = new Map(
-      shows.filter(s => s.setlistfmId).map(s => [s.setlistfmId, s])
-    );
 
     // Resolve every candidate to either an existing show or a new one
     // *before* writing anything, so a conflict bail-out can't leave newly
     // created shows stranded outside the festival.
     const existingIds = [];
-    const toCreate = [];
-    const prevCount = latestShows.current.length;
     const fresh = [];
-
-    // The same duplicate rule as every add path: a festival set already
-    // logged through search (any stored date format) is attached, not
-    // created again. A set picked twice in this import is created once.
-    candidates.forEach(candidate => {
-      const existing =
-        (candidate.setlistfmId && bySetlistfmId.get(candidate.setlistfmId)) ||
-        findDuplicateShow(candidate) ||
-        findDuplicate(fresh, candidate);
-      if (existing) {
-        if (existing.id) existingIds.push(existing.id);
+    const prevCount = latestShows.current.length;
+    candidates.forEach((row) => {
+      const data = showDataFromSetlistfmRow(row);
+      const match = classifyDuplicate([...latestShows.current, ...fresh.map((f) => f.data)], data);
+      if (match && match.rule !== 'possible') {
+        if (match.show.id) existingIds.push(match.show.id);
         return;
       }
-      fresh.push(candidate);
+      fresh.push({ row, data: { ...data, id: `fresh-${fresh.length}` } });
     });
-
 
     // Only already-logged shows can belong to another festival; the ones
     // about to be created obviously can't.
     if (!force) {
       const conflicts = existingIds
-        .map(id => shows.find(s => s.id === id))
+        .map(id => latestShows.current.find(s => s.id === id))
         .filter(s => s && s.festivalId && s.festivalId !== festivalId)
         .map(s => ({ showId: s.id, artist: s.artist, date: s.date, festivalId: s.festivalId }));
       if (conflicts.length > 0) return { success: false, created: 0, attached: 0, conflicts };
     }
 
-    // After the conflict check, so a refused import spends no requests.
-    // Built exactly as addShow builds a show (B-13): the band-source
-    // setlist where the artist has one, then buildShowDoc with a minted id,
-    // so isManual, the date format and the id scheme are the same.
-    for (const candidate of fresh) {
-      const enriched = await enrichShowDataWithBandSetlist(candidate);
-      toCreate.push(buildShowDoc(enriched, mintShowId()));
-    }
-
-    try {
-      if (toCreate.length > 0) {
-        const batch = writeBatch(db);
-        toCreate.forEach(show => {
-          const { id, ...showData } = show;
-          batch.set(doc(db, 'users', user.uid, 'shows', id), { ...showData, createdAt: serverTimestamp() });
+    const created = [];
+    if (fresh.length) {
+      try {
+        const results = await commitShowInputs(fresh.map(({ row }) => ({
+          kind: 'festival-row', row, festivalId, showId: mintShowId(), confirmPossible: true,
+        })));
+        results.forEach((res) => {
+          if (res.created) created.push(asLoadedShow(res.show));
+          else if (res.mergedInto) existingIds.push(res.mergedInto);
         });
-        await batch.commit();
-        setShows(prev => [...prev, ...toCreate]);
-        noteShowsAdded(prevCount, toCreate);
+      } catch (error) {
+        console.error('Failed to import festival shows:', error);
+        setToast({
+          message: error instanceof OfflineError ? 'You’re offline. Import the lineup again when you’re connected.' : 'Failed to add those shows. Please try again.',
+          type: 'error',
+        });
+        throw error;
       }
-    } catch (error) {
-      console.error('Failed to import festival shows:', error);
-      setToast({ message: 'Failed to add those shows. Please try again.', type: 'error' });
-      throw error;
+      appendShows(created);
+      afterShowsAdded(prevCount, created, { activity: false });
     }
 
     // force:true here because the conflict check above already ran against
-    // the right set — attachShowsToFestival's own check reads the `shows`
-    // array from this render, which doesn't yet contain the rows created
-    // a few lines up.
-    await attachShowsToFestival(festivalId, [...existingIds, ...toCreate.map(s => s.id)], { force: true });
+    // the right set.
+    await attachShowsToFestival(festivalId, [...existingIds, ...created.map(s => s.id)], { force: true });
 
-    if (toCreate.length > 0) {
-      const updatedShows = [...shows, ...toCreate];
-      await updateUserProfile(user, updatedShows);
-      requestStatsRecompute();
-    }
-
-    return { success: true, created: toCreate.length, attached: existingIds.length, conflicts: [] };
+    return { success: true, created: created.length, attached: existingIds.length, conflicts: [] };
   };
 
   // Detaches shows from whichever festival they're on (does not delete the
@@ -2943,8 +3052,8 @@ export function AppProvider({ children }) {
   // friend tags carried over. Returns { id, setlistFound } or null.
   const convertUpcomingShow = async (show, { setlist = null } = {}) => {
     if (!user || !show?.id) return null;
-    const setlistData = setlist ? setlistToShowData(setlist, extractSongsFromSetlist) : null;
-    const result = await addShow(upcomingToShowData(show, setlistData), { silent: true });
+    const setlistData = !!setlist;
+    const result = await addShow({ kind: 'upcoming', upcomingId: show.id, ...(setlist ? { setlist } : {}) }, { silent: true });
     const newId = typeof result === 'string' ? result : result?.id;
     if (!newId) return null;
     await deleteUpcomingShow(show, { silent: true });
@@ -3121,11 +3230,12 @@ export function AppProvider({ children }) {
         // A tag accepted after the date has passed would fail validation;
         // a show that already happened belongs in history instead.
         if (validateUpcomingInput(fields)) {
-          await addShow({ artist: fields.artist, venue: fields.venue, city: fields.city, date: fields.date, setlist: [], taggedBy, taggedByUid }, { silent: true });
+          // normalize-show marks the tag accepted with the write.
+          await addShow({ kind: 'tag', tagId, asPastShow: true }, { silent: true });
         } else {
           await addUpcomingShow(fields, { silent: true, extra: { taggedBy, taggedByUid, originUpcomingId } });
+          await setDoc(tagRef, { status: 'accepted' }, { merge: true });
         }
-        await setDoc(tagRef, { status: 'accepted' }, { merge: true });
         if (!silent) {
           setToast(`${tagData.showData.artist || 'Show'} added to your upcoming shows!`);
           navigateTo('shows');
@@ -3133,13 +3243,11 @@ export function AppProvider({ children }) {
         return;
       }
 
-      const result = await addShow({
-        ...tagData.showData,
-        taggedBy: tagData.fromName,
-        taggedByUid: tagData.fromUid,
-      }, { silent: true });
-
-      await setDoc(tagRef, { status: 'accepted' }, { merge: true });
+      // normalize-show reads the tag, builds the show (never the tagger's
+      // notes), credits the friend on a show already logged, and marks the
+      // tag accepted with the write.
+      const result = await addShow({ kind: 'tag', tagId }, { silent: true });
+      if (!result) return;
 
       if (!silent) {
         const artist = tagData.showData?.artist || 'Show';
@@ -3193,8 +3301,10 @@ export function AppProvider({ children }) {
   const acceptPendingEmailTag = async (tag) => {
     if (!user) return;
     try {
-      const result = await addShow({ ...tag.showData, taggedBy: tag.fromName, taggedByUid: tag.fromUid }, { silent: true });
-      await setDoc(doc(db, 'pendingEmailTags', tag.id), { status: 'accepted' }, { merge: true });
+      // normalize-show checks the tag was sent to this account's address,
+      // builds the show and marks the tag accepted with the write.
+      const result = await addShow({ kind: 'email-tag', pendingEmailTagId: tag.id }, { silent: true });
+      if (!result) return;
       sendNotification({ type: 'tag_accepted', pendingTagId: tag.id }).catch(() => {});
       setPendingTagsForReview(prev => prev.filter(t => t.id !== tag.id));
       const artist = tag.showData?.artist || 'Show';

@@ -87,7 +87,9 @@ export default function HeardSaveModal() {
 
   const save = async (list) => {
     setStage('saving');
-    const outcome = await addShowsFromTour(list);
+    // Each night as a typed show with its setlist; normalize-show adds the
+    // band source's details where the band has one.
+    const outcome = await addShowsFromTour(list.map((c) => (c.kind ? c : { kind: 'manual', ...c })));
     setResult((prev) => ({
       added: (prev?.added || 0) + outcome.added.length,
       skipped: (prev?.skipped || 0) + outcome.skipped.length,

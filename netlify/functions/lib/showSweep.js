@@ -16,7 +16,7 @@
 // Used by the hourly normalize-shows-sweep function (pending every run, the
 // full pass once a day) and scripts/normalize-shows.js (dry run by default).
 
-const { normalizeShowInput, canonicalizeStoredShow, KINDS } = require('../../../lib/normalizeShow');
+const { normalizeShowInput, canonicalizeStoredShow, InputError, KINDS } = require('../../../lib/normalizeShow');
 const { depsFor: serverDepsFor, userShows, commitShow } = require('./normalizeShowServer');
 
 const BATCH = 400;
@@ -62,6 +62,17 @@ async function sweepPending(db, { write = false, emailFor = async () => null, Fi
       const done = await commitShow(db, uid, normalized, input, { confirmPossible: true, FieldValue });
       if (done.written) counts.normalized += 1;
     } catch (err) {
+      if (err instanceof InputError) {
+        // An input that can never be used (a tag since withdrawn, an
+        // upcoming show since deleted): the show stays as the device wrote
+        // it, with only the stored fixes, and isn't tried again.
+        bump(counts.failed, err.code);
+        if (write) {
+          const { fields } = canonicalizeStoredShow(stored);
+          await docSnap.ref.update({ ...fields, needsNormalization: false, normalizationInput: null, normalizationError: err.code });
+        }
+        continue;
+      }
       bump(counts.failed, (err && err.code) || 'error');
     }
   }

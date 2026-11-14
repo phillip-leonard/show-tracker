@@ -32,7 +32,6 @@ import { useApp } from '@/context/AppContext';
 import { apiUrl } from '@/lib/api';
 import { formatDate } from '@/lib/utils';
 import { festivalWhenLabel, festivalYear, isYearOnly } from '@/lib/festivalDates';
-import { extractSongsFromSetlist } from '@/lib/setlistParser';
 
 export default function FestivalLineupModal({ open, onClose, festival, onImport }) {
   const { shows, festivals } = useApp();
@@ -129,22 +128,10 @@ export default function FestivalLineupModal({ open, onClose, festival, onImport 
     if (selected.size === 0) return;
     setSaving(true);
     try {
-      // Shape each pick the same way SearchView's setlist.fm import does, so
-      // an imported festival set is indistinguishable from one added through
-      // the normal search.
-      const candidates = results
-        .filter(r => selected.has(r.setlistfmId))
-        .map(r => ({
-          artist: r.artist,
-          venue: r.venue,
-          city: r.city,
-          country: r.country,
-          date: r.date,
-          setlist: extractSongsFromSetlist({ sets: r.sets }),
-          setlistfmId: r.setlistfmId,
-          setlistfmUrl: r.url || null,
-          tour: r.tour || null,
-        }));
+      // The lineup rows themselves: normalize-show builds each set as it
+      // builds a show from the search (festival-row inputs), so an imported
+      // festival set is indistinguishable from one added through the search.
+      const candidates = results.filter(r => selected.has(r.setlistfmId));
       const result = await onImport(candidates, { force });
       if (result?.success === false && result.conflicts?.length) {
         setConflicts(result.conflicts);
