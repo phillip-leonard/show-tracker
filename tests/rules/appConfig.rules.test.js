@@ -54,9 +54,12 @@ async function main() {
       port: 8080,
     },
   });
+  // One ctx.firestore() per context: a second call throws "Firestore has
+  // already been started".
   await testEnv.withSecurityRulesDisabled(async (ctx) => {
-    await ctx.firestore().doc('config/app').set(GOOD);
-    await ctx.firestore().doc('config/other').set({ secret: true });
+    const db = ctx.firestore();
+    await db.doc('config/app').set(GOOD);
+    await db.doc('config/other').set({ secret: true });
   });
 
   await test('anyone reads config/app, signed in or not', async () => {
