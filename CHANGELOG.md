@@ -4,6 +4,82 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.60.0] — 2026-11-14
+
+Ships in **iOS 3.13.16** (`MARKETING_VERSION` 3.13.15 → 3.13.16). 5.59.15
+(#407) took 3.13.15 while this was being built.
+
+**Branded password reset.** "Forgot password" no longer uses Firebase's
+built-in email (sent from `noreply@show-tracker-d7a4d.firebaseapp.com`,
+with a long `__/auth/action?oobCode=…&apiKey=…` link). The email now comes
+from `MySetlists <noreply@mysetlists.net>` in the same layout as every
+other MySetlists email, with a short link: `https://mysetlists.net/reset/<token>`.
+
+- **`send-password-reset`** (`POST { email }`). A password account gets a
+  one-hour, one-use link. A Google- or Apple-only account gets a short
+  "you sign in with Google/Apple, there's no password to reset" email
+  instead. An unknown or disabled address gets nothing. The answer is the
+  same `200 { ok: true }` in every case, and takes at least 3 s, so it
+  can't be used to find out who has an account. A request that takes longer
+  is logged as `slow`. The email is sent before the function returns,
+  because Netlify can freeze a function once it has answered. Limits: 3
+  per address and 10 per network per hour, both counted before the account
+  lookup.
+  Transactional: no unsubscribe footer, sent whatever the user's email
+  opt-out (`buildTransactionalEmail` in `lib/outgoingEmail.js`).
+- **`complete-password-reset`** (`POST { token, newPassword }`). It checks
+  the password against the sign-up rules, marks the token used in a
+  transaction, sets the password with `auth.updateUser`, signs out every
+  other session (`revokeRefreshTokens`), and deletes the account's other
+  unused links. A missing, expired or used link gets one answer: "This
+  reset link is invalid or has expired." 20 attempts per network per hour.
+- **Tokens.** 16 base62 characters from `crypto.randomBytes`. Only the
+  SHA-256 is stored, as the id of `passwordResetTokens/{hash}` (`uid`,
+  `email`, `createdAt`, `expiresAt`, `used`). `firestore.rules` denies the
+  collection to every client. A TTL policy on `expiresAt`
+  (`firestore.indexes.json`) clears old ones. The account purge covers the
+  collection (`lib/userDataPurge.js`).
+- **`/reset` page.** `app/reset` is a real pre-rendered route.
+  `netlify.toml` 301s `/reset/<token>` to `/reset/?token=<token>`, the same
+  pattern as `/shows/?show=`. It renders outside the app shell, signed in
+  or not, with the "Send a new link" form when a link has expired. The
+  page is `noindex`, and `public/_headers` sends `Referrer-Policy:
+  no-referrer` and `Cache-Control: no-store` for it. It loads no analytics
+  or third-party scripts. `/reset` is not a Universal Link, so on an
+  iPhone it opens in Safari. A test fails if `apple-app-site-association`
+  ever claims it. After a reset, the page tells the user they can sign in
+  on the web or in the app.
+- **Forgot password screen.** It now says Apple and Google accounts have no
+  password. A "Hide My Email" account is registered under its
+  `@privaterelay.appleid.com` address, so typing a real address finds
+  nothing, and the screen can't say so.
+- **One set of password rules.** At least 8 characters, with an uppercase
+  letter, a lowercase letter and a number. They now live in
+  `netlify/functions/lib/passwordRules.js`, which the sign-up form, the
+  reset page and the server all use.
+- Tests: `tests/security/passwordReset.test.js` (in `npm run test:unit`),
+  plus a `passwordResetTokens` case in `tests/rules/security.rules.test.js`.
+
+**After merging:**
+- Run `npm run deploy:rules` to deploy the new rule and the TTL policy.
+- Check that `mysetlists.net` is registered as a **domain**, not only as
+  `phillip@mysetlists.net`, under Sign in with Apple for Email
+  Communication in the Apple Developer portal. Otherwise mail from
+  `noreply@` never reaches `@privaterelay.appleid.com` addresses, and
+  Apple-only users don't get the "no password" email.
+- The project's Firebase password policy is the default (6 characters,
+  enforced), and `auth.updateUser` doesn't apply it. The server checks the
+  sign-up rules itself.
+
+Firebase's own reset email template is untouched and simply no longer
+triggered by the app. The iOS app shows the same form (the bundled web
+app, through `apiUrl()`), so iOS 3.13.16 sends the new email too. Older
+iOS builds keep sending Firebase's email until people update. A native
+Swift reset screen, if one is ever added, should call these two
+functions.
+
+---
+
 ## [5.59.15] — 2026-11-14
 
 Ships in **iOS 3.13.15** (`MARKETING_VERSION` 3.13.14 → 3.13.15): the app

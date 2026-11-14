@@ -17,7 +17,7 @@
 
 const https = require('https');
 const { unsubscribeUrl } = require('./unsubscribeToken');
-const { injectUnsubscribeFooter } = require('./emailLayout');
+const { injectUnsubscribeFooter, FOOTER_MARKER } = require('./emailLayout');
 
 const FROM_PHILLIP = 'Phillip <phillip@mysetlists.net>';
 
@@ -42,6 +42,25 @@ function buildEmail({ recipient, subject, html, scope = 'all', source, from = FR
   };
   if (replyTo) payload.reply_to = replyTo;
   return payload;
+}
+
+const FROM_NOREPLY = 'MySetlists <noreply@mysetlists.net>';
+
+/**
+ * A transactional email: one the recipient asked for just now (password
+ * reset, 5.60.0). No unsubscribe footer and no List-Unsubscribe, and the
+ * caller does not check canEmail(): an opt-out from notifications must not
+ * stop someone getting back into their account, and an unsubscribe link
+ * here would be a way to switch resets off. Only for emails that go to the
+ * address that requested them; never for anything a third party triggers.
+ */
+function buildTransactionalEmail({ to, subject, html, from = FROM_NOREPLY }) {
+  return {
+    from,
+    to,
+    subject,
+    html: String(html || '').split(FOOTER_MARKER).join(''),
+  };
 }
 
 let testTransport = null;
@@ -125,4 +144,4 @@ async function sendNotificationEmail({ db, uid = null, email, subject, html, typ
 
 function __setTestTransport(fn) { testTransport = fn; }
 
-module.exports = { buildEmail, resendRequest, sendOne, sendNotificationEmail, FROM_PHILLIP, __setTestTransport };
+module.exports = { buildEmail, buildTransactionalEmail, resendRequest, sendOne, sendNotificationEmail, FROM_PHILLIP, FROM_NOREPLY, __setTestTransport };

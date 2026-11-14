@@ -1,8 +1,29 @@
 'use client';
 import { useState } from 'react';
-import { sendPasswordResetEmail } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { apiUrl } from '@/lib/api';
 import { ArrowLeft, Mail } from 'lucide-react';
+
+// Since 5.60.0 the reset email is ours: send-password-reset mails a
+// one-hour link to https://mysetlists.net/reset/<token> from
+// noreply@mysetlists.net, and app/reset is where it lands. Firebase's own
+// reset email (the firebaseapp.com sender and its long
+// __/auth/action link) is no longer used anywhere.
+async function requestReset(email) {
+  let res;
+  try {
+    res = await fetch(apiUrl('/.netlify/functions/send-password-reset'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    });
+  } catch {
+    throw new Error('Couldn\'t reach the server. Check your connection and try again.');
+  }
+  if (res.ok) return;
+  let message = '';
+  try { message = (await res.json()).error || ''; } catch { /* not JSON */ }
+  throw new Error(message || 'Failed to send reset email. Please try again.');
+}
 
 export default function ForgotPasswordForm({ onBackToLogin }) {
   const [email, setEmail] = useState('');
@@ -16,10 +37,10 @@ export default function ForgotPasswordForm({ onBackToLogin }) {
     setLoading(true);
 
     try {
-      await sendPasswordResetEmail(auth, email);
+      await requestReset(email.trim());
       setSuccess(true);
     } catch (err) {
-      setError(getErrorMessage(err.code));
+      setError(err.message);
     } finally {
       setLoading(false);
     }
@@ -33,9 +54,9 @@ export default function ForgotPasswordForm({ onBackToLogin }) {
         </div>
         <h2 className="text-2xl font-bold text-primary mb-2">Check Your Email</h2>
         {/* Worded the same whether or not the address has an account —
-            this screen must never confirm who is registered. The project
-            has Firebase email-enumeration protection on, so the request
-            succeeds either way and the copy has to match. */}
+            this screen must never confirm who is registered.
+            send-password-reset answers the same 200 either way, so the
+            copy has to match. */}
         <p className="text-secondary mb-6">
           If an account exists for <span className="text-primary">{email}</span>, we&apos;ve sent it a link to reset your password. It can take a few minutes to arrive, so check your spam folder too.
         </p>
@@ -64,6 +85,13 @@ export default function ForgotPasswordForm({ onBackToLogin }) {
       <p className="text-secondary mb-6">
         Enter your email and we'll send you a link to reset your password.
       </p>
+      {/* A "Hide My Email" account is registered under its
+          @privaterelay.appleid.com address, so typing a real address finds
+          nothing, and the screen can't say so without revealing who has an
+          account. Google and Apple accounts have no password to reset. */}
+      <p className="text-muted text-sm -mt-3 mb-6">
+        Signed up with Apple or Google? You don&apos;t have a password. Use the Apple or Google button to sign in.
+      </p>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <input
@@ -91,15 +119,4 @@ export default function ForgotPasswordForm({ onBackToLogin }) {
       </form>
     </div>
   );
-}
-
-// No message for auth/user-not-found: with email-enumeration protection on,
-// Firebase doesn't return it, and saying so would reveal who has an account.
-function getErrorMessage(code) {
-  const messages = {
-    'auth/invalid-email': 'That doesn\'t look like a valid email address.',
-    'auth/too-many-requests': 'Too many attempts. Please try again later.',
-    'auth/network-request-failed': 'Couldn\'t reach the server. Check your connection and try again.',
-  };
-  return messages[code] || 'Failed to send reset email. Please try again.';
 }

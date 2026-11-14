@@ -87,6 +87,10 @@ const OWNED_DOCUMENTS = [
   { collection: 'rateLimits', fields: ['uid'] },
   { collection: 'emailSends', fields: ['uid'] },
 
+  // Password reset tokens (5.60.0): server-only, one doc per link sent,
+  // keyed by the token's hash and stamped with the account's uid.
+  { collection: 'passwordResetTokens', fields: ['uid'] },
+
   // One doc per device that takes push alerts, id = the FCM token (5.49.0).
   { collection: 'pushTokens', fields: ['userId'] },
 

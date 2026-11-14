@@ -336,6 +336,21 @@
   to = "/shows/?show=:showId"
   status = 301
 
+# Password reset links (5.60.0). The email links to the short
+# /reset/<token>; the page is the real pre-rendered /reset/ route, which
+# reads ?token= (there is no /reset/[token] under the static export). Not
+# forced, so /reset/ itself and its index.txt RSC payload are served as
+# they are.
+[[redirects]]
+  from = "/reset/:token"
+  to = "/reset/?token=:token"
+  status = 301
+
+[[redirects]]
+  from = "/reset/:token/"
+  to = "/reset/?token=:token"
+  status = 301
+
 # Venue pages, venue dashboards and Year in Review were dynamic routes
 # (/venues/<key>/, /venue-dashboard/<key>/, /year-in-review/<uid>/<year>/)
 # with only a `_` placeholder in out/, so a real link fell through to the

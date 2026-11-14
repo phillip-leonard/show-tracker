@@ -202,6 +202,13 @@ function AppShell({ children }) {
     return <>{children}</>;
   }
 
+  // The password reset page (5.60.0, app/reset) is standalone too: someone
+  // who has forgotten their password is signed out, and a signed-in
+  // visitor following a reset link should get the form, not the shell.
+  if (normalizedPath(pathname) === '/reset') {
+    return <>{children}</>;
+  }
+
   // While auth initializes, only `/` and the legal pages render content
   // (below); every other route waits, as before.
   if (authLoading && !isHomePath(pathname) && !isPublicPath(pathname)) {
