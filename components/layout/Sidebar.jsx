@@ -27,6 +27,7 @@ import { useDismissable } from '@/context/DismissStackContext';
 import useDrawerSwipeClose from '@/hooks/useDrawerSwipeClose';
 import useIsMobile from '@/hooks/useIsMobile';
 import { isNativePlatform } from '@/lib/native-auth';
+import { DISCOVER_NAV_ENABLED } from '@/lib/constants';
 
 function getActiveId(pathname) {
   if (!pathname || pathname === '/') return 'shows';
@@ -76,7 +77,8 @@ export default function Sidebar({
     // refresh (2ed5bba), leaving only a landing-page footer link. Guests
     // see it too (read-only; adding a friend asks them to sign up).
     { id: 'community', label: 'Community', icon: Users, href: '/community' },
-    !isGuest && { id: 'discover', label: 'Discover', icon: Compass, href: '/discover' },
+    // Hidden for now (5.60.2): flip DISCOVER_NAV_ENABLED in lib/constants.js.
+    DISCOVER_NAV_ENABLED && !isGuest && { id: 'discover', label: 'Discover', icon: Compass, href: '/discover' },
     !isGuest && { id: 'tours', label: 'Tours', icon: Map, href: '/tours' },
     !isGuest && { id: 'festivals', label: 'Festivals', icon: Tent, href: '/festivals' },
     !isGuest && { id: 'wishlist', label: 'Wishlist', icon: Heart, href: '/wishlist' },

@@ -4,6 +4,30 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.60.2] — 2026-11-14
+
+Ships in **iOS 3.13.18** (`MARKETING_VERSION` 3.13.17 → 3.13.18).
+
+**Discover is hidden from navigation for now; it isn't useful yet.** One
+flag, `DISCOVER_NAV_ENABLED` in `lib/constants.js` (false), next to
+`PLAYLIST_CREATION_ENABLED`. Flip it to true to bring everything back;
+nothing was deleted.
+
+- Hidden: the sidebar item (desktop and the phone/iOS drawer), the
+  "Fans also see" button on band rows (`FansAlsoSeeLink`, the only
+  in-app link to `/discover/?band=`), and the 5.54.0 release note line
+  that says Discover is in the menu.
+- `/discover` and `/discover/?band=` still work for direct links and were
+  already `noindex` (`app/discover/layout.jsx`). Universal links in the
+  apple-app-site-association file still open them in the app.
+- Checked, nothing leading there: landing page, empty states, How to Use,
+  onboarding, emails, and the `lib/navRoutes.js` parent chains (nothing
+  has `/discover` as a parent except its own `?band=` detail).
+- `lib/__tests__/discoverHidden.test.js` fails if new code links into
+  `/discover` without going through the flag.
+
+---
+
 ## [5.60.1] — 2026-11-14
 
 Ships in **iOS 3.13.17** (`MARKETING_VERSION` 3.13.16 → 3.13.17).

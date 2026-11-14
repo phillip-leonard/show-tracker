@@ -4,16 +4,18 @@
 //
 // "Fans also see" for one band, next to Follow and Band stats wherever a
 // band appears: opens /discover/?band=<name> (lib/showRouting.js
-// discoverHref). Signed-in only, like Discover itself.
+// discoverHref). Signed-in only, like Discover itself. Hidden while
+// DISCOVER_NAV_ENABLED (lib/constants.js) is false (5.60.2).
 
 import Link from 'next/link';
 import { Users } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { discoverHref } from '@/lib/showRouting';
+import { DISCOVER_NAV_ENABLED } from '@/lib/constants';
 
 export default function FansAlsoSeeLink({ artist, className = '' }) {
   const { user, guestMode } = useApp();
-  if (!user || guestMode || !artist) return null;
+  if (!DISCOVER_NAV_ENABLED || !user || guestMode || !artist) return null;
   return (
     <Link
       href={discoverHref(artist)}
