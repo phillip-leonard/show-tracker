@@ -68,7 +68,7 @@ module.exports = [
   },
   // The two lib files that are CommonJS.
   {
-    files: ['lib/recommendations.js', 'lib/venueCount.js'],
+    files: ['lib/recommendations.js', 'lib/venueCount.js', 'lib/showDate.js', 'lib/stats/**/*.js'],
     languageOptions: { sourceType: 'commonjs' },
   },
 
