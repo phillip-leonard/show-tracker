@@ -73,7 +73,7 @@ function stubModule(id, exports) {
 
 let db;
 stubModule('firebase-admin/app', { getApps: () => [{}], initializeApp: () => {}, cert: () => ({}) });
-stubModule('firebase-admin/auth', { getAuth: () => ({ verifyIdToken: async () => ({ email: 'phillip.leonard@gmail.com' }) }) });
+stubModule('firebase-admin/auth', { getAuth: () => ({ verifyIdToken: async () => ({ email: 'phillip.leonard@gmail.com', email_verified: true }) }) });
 stubModule('firebase-admin/firestore', { getFirestore: () => db, FieldPath: { documentId: () => '__name__' } });
 
 // ── band-setlist, answered locally ─────────────────────────────────────

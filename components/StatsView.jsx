@@ -109,7 +109,7 @@ function StatsView({ shows, allShows = shows, songStats, artistStats, venueStats
     return Object.values(details)
       .map((data) => ({
         name: data.name,
-        venueKey: normalizeVenueKey ? normalizeVenueKey(data.sampleShow.venue, data.sampleShow.city) : name.toLowerCase(),
+        venueKey: normalizeVenueKey ? normalizeVenueKey(data.sampleShow.venue, data.sampleShow.city) : data.name.toLowerCase(),
         sampleShow: data.sampleShow,
         showCount: Object.values(data.years).flat().length,
         artistCount: data.artistSet.size,

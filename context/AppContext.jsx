@@ -12,10 +12,10 @@ import {
 } from 'firebase/firestore';
 import { auth, db, googleProvider, browserPopupRedirectResolver } from '@/lib/firebase';
 import { parseDate } from '@/lib/utils';
-import { ADMIN_EMAILS } from '@/lib/constants';
+import { isAdminUser } from '@/lib/adminAccess';
 import { storage, STORAGE_KEYS } from '@/lib/storage';
 import { setSignedInHint, clearSignedInHint } from '@/lib/signedInHint';
-import { apiUrl } from '@/lib/api';
+import { apiUrl, apiErrorMessage } from '@/lib/api';
 import { loadAlertSettings } from '@/lib/alertSettings';
 import { showHref, upcomingShowHref } from '@/lib/showRouting';
 import { setlistToShowData } from '@/lib/setlistSearch';
@@ -458,7 +458,8 @@ export function AppProvider({ children }) {
   const [unreadNotifications, setUnreadNotifications] = useState([]);
 
   // Admin
-  const isAdmin = user && ADMIN_EMAILS.includes(user.email);
+  // UI gating only; the server and the rules enforce (lib/adminAccess.js).
+  const isAdmin = isAdminUser(user);
 
   // Derived friends data. Blocked users are stripped here, at the one
   // place friendUids is derived, so every consumer of it — the activity
@@ -3615,32 +3616,24 @@ export function AppProvider({ children }) {
     try {
       if (user && !guestMode) {
         const token = await user.getIdToken();
+        // The server builds the snapshot from this account's own shows
+        // (5.59.12); nothing about them is sent from here.
         const res = await fetch(apiUrl('/.netlify/functions/create-shared-collection'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-          body: JSON.stringify({
-            shows: shows.map(s => ({
-              artist: s.artist,
-              venue: s.venue,
-              city: s.city || '',
-              date: s.date || '',
-              rating: s.rating || null,
-              setlist: (s.setlist || []).map(song => ({ name: song.name, rating: song.rating || null })),
-            })),
-            stats: {
-              totalShows: shows.length,
-              totalSongs,
-              topArtist,
-              avgRating: avgShowRating,
-            },
-            ownerName: user.displayName || user.email?.split('@')[0] || 'A Fan',
-          }),
+          body: '{}',
         });
 
         if (res.ok) {
           const { url } = await res.json();
           await navigator.clipboard.writeText(url);
           setToast({ message: 'Share link copied to clipboard!', type: 'success' });
+          return;
+        }
+        // A limit (429) says so instead of silently falling back to text.
+        if (res.status === 429) {
+          const data = await res.json().catch(() => null);
+          setToast({ message: apiErrorMessage(res, data, 'Couldn’t share right now.'), type: 'error' });
           return;
         }
       }

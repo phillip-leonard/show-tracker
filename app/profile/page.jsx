@@ -22,6 +22,14 @@ export default function ProfilePage() {
   const unreadNotificationCount = unreadNotifications?.length || 0;
   const router = useRouter();
 
+  // Before the early return: hooks run in the same order on every render
+  // (react-hooks/rules-of-hooks, found by the 5.59.12 lint setup).
+  const recentShows = useMemo(() =>
+    [...shows]
+      .sort((a, b) => compareShowDates(b.date, a.date))
+      .slice(0, 6),
+  [shows]);
+
   if (guestMode || !user) return null;
 
   const stats = {
@@ -43,11 +51,6 @@ export default function ProfilePage() {
     favoriteArtists.length >= 1 && { icon: Star, name: 'Fan club',   description: 'Followed a band', tone: 'amber' },
   ].filter(Boolean).slice(0, 4);
 
-  const recentShows = useMemo(() =>
-    [...shows]
-      .sort((a, b) => compareShowDates(b.date, a.date))
-      .slice(0, 6),
-  [shows]);
 
   return (
     <>

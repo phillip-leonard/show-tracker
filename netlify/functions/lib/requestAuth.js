@@ -7,12 +7,13 @@
  *
  * Reads `Authorization: Bearer <Firebase ID token>` and verifies it with
  * the Admin SDK (lib/firebaseAdmin.js, so the same credentials and the
- * same test doubles as every other function). Admin is the existing
- * ADMIN_EMAILS allowlist with a verified email (isAdminClaims) — the same
- * address firestore.rules' isAdmin() checks. No custom claims.
+ * same test doubles as every other function). Admin is isAdmin() in
+ * lib/firebaseAdmin.js: the `admin` custom claim, or the allowlisted
+ * address with a verified email; firestore.rules' isAdmin() is the same
+ * rule (5.59.12).
  */
 
-const { verifyUser, isAdminClaims, bearerToken } = require('./firebaseAdmin');
+const { verifyUser, isAdmin, bearerToken } = require('./firebaseAdmin');
 
 function identity(decoded) {
   return {
@@ -20,7 +21,7 @@ function identity(decoded) {
     email: decoded.email || null,
     emailVerified: decoded.email_verified === true,
     name: decoded.name || null,
-    isAdmin: isAdminClaims(decoded),
+    isAdmin: isAdmin(decoded),
   };
 }
 

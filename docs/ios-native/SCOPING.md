@@ -697,7 +697,7 @@ Auth key: **none**, **user** (valid ID token), **admin** (ID token whose email i
 | `search-artist-shows` | Recent shows for top matching artists | none | GET `artistName` | Yes |
 | `get-artist-info` | setlist.fm artist → mbid | none | GET `artistName` → `{mbid, …}` | Yes |
 | `get-artist-song-stats` | Song play counts from setlist.fm | none | GET `mbid` | Yes |
-| `get-artist-stats` | "Public endpoint" artist stats | none | GET | Yes |
+| `get-artist-stats` | "Public endpoint" artist stats | none | GET | Yes **Removed in 5.59.12 (no callers).** |
 | `get-artist-tours` | Every tour setlist.fm knows for an artist | none | GET `mbid` | Yes |
 | `get-tour-shows` | Every show on one tour | none | GET `mbid`, `tourName` | Yes |
 | `setlistfm-links` | setlist.fm attribution URL per setlist id | none | GET | Yes |

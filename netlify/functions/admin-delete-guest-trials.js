@@ -1,5 +1,6 @@
 const { withCors } = require('./lib/cors');
-const ADMIN_EMAILS = ['phillip.leonard@gmail.com'];
+// The one admin check: custom claim or verified allowlisted address (5.59.12).
+const { isAdmin } = require('./lib/firebaseAdmin');
 const CORS_HEADERS = { 'Content-Type': 'application/json' };
 
 function initFirebase() {
@@ -16,7 +17,7 @@ async function verifyAdmin(token) {
   initFirebase();
   const { getAuth } = require('firebase-admin/auth');
   const decoded = await getAuth().verifyIdToken(token);
-  if (!ADMIN_EMAILS.includes(decoded.email)) throw new Error('Forbidden');
+  if (!isAdmin(decoded)) throw new Error('Forbidden');
 }
 
 exports.handler = async function(event) {

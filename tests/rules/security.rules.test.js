@@ -52,7 +52,7 @@ async function test(name, fn) {
 
 const EMAILS = { [ALICE]: 'alice@example.com', [BOB]: 'Bob@Example.com', [MALLORY]: 'mallory@example.com' };
 const as = (uid) => testEnv.authenticatedContext(uid, { email: EMAILS[uid] }).firestore();
-const admin = () => testEnv.authenticatedContext('uid_admin', { email: ADMIN_EMAIL }).firestore();
+const admin = () => testEnv.authenticatedContext('uid_admin', { email: ADMIN_EMAIL, email_verified: true }).firestore();
 const anon = () => testEnv.unauthenticatedContext().firestore();
 const ts = () => firebase.firestore.FieldValue.serverTimestamp();
 const inc = (n) => firebase.firestore.FieldValue.increment(n);
@@ -327,6 +327,19 @@ async function main() {
     await assertFails(as(MALLORY).doc(ref.path).update({ message: 'changed' }));
     await assertFails(as(MALLORY).doc('feedback/f1').update({ roadmapItemId: 'r9' }));
     await assertSucceeds(admin().doc('feedback/f1').update({ roadmapItemId: 'r9' }));
+  });
+
+  // ── One admin rule (5.59.12) ─────────────────────────────────────
+  await test('admin: the claim, or the allowlisted address only when verified', async () => {
+    const claim = testEnv.authenticatedContext('uid_claim', { email: 'someone@example.com', admin: true }).firestore();
+    const unverified = testEnv.authenticatedContext('uid_fake', { email: ADMIN_EMAIL, email_verified: false }).firestore();
+    const missing = testEnv.authenticatedContext('uid_fake2', { email: ADMIN_EMAIL }).firestore();
+    await assertSucceeds(admin().doc('adminAuditLog/a1').get());
+    await assertSucceeds(claim.doc('adminAuditLog/a1').get());
+    await assertFails(unverified.doc('adminAuditLog/a1').get());
+    await assertFails(missing.doc('adminAuditLog/a1').get());
+    await assertFails(as(ALICE).doc('adminAuditLog/a1').get());
+    await assertFails(anon().doc('adminAuditLog/a1').get());
   });
 
   await testEnv.cleanup();

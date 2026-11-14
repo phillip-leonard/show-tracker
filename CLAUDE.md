@@ -53,7 +53,7 @@ Deploy previews always carry `X-Robots-Tag: noindex` (Netlify adds it). Lighthou
 - **A venue count uses `countVenues`** (`lib/venueCount.js`), except the leaderboard's `userProfiles.venueCount`, which the server-side stats PR replaces.
 - **Guest shows leave the device only after their Firestore write is confirmed** (`lib/guestMerge.js`).
 
-## Security invariants (5.59.6 to 5.59.8)
+## Security invariants (5.59.6 to 5.59.12)
 
 These closed real holes. `tests/rules/security.rules.test.js` and `tests/security/*.test.js` cover them; don't loosen them to make a feature easier.
 
@@ -64,6 +64,10 @@ These closed real holes. `tests/rules/security.rules.test.js` and `tests/securit
 - **A public function that spends a shared third-party quota (setlist.fm, Ticketmaster, SeatGeek) is wrapped in `withProxyLimit`** (`lib/proxyLimit.js`, 5.59.8). `tests/security/auditFollowups.test.js` fails if a function reads the setlist.fm key without it. Our own server-to-server calls send `internalProxyHeader()`.
 - **Client code reaches a function through `apiUrl()` or `authedFetch()`**, never a bare `/.netlify/...` or `/api/...` string: on iOS a relative URL resolves against `capacitor://localhost` (B-01).
 - **Shared caches are written by the function that fetches the data** (`ticketCache` via `lib/ticketCacheStore.js`), never by the browser.
+- **One admin check: `isAdmin(decoded)`** in `netlify/functions/lib/firebaseAdmin.js` (the `admin` custom claim, or the allowlisted address with `email_verified`). No function keeps its own `ADMIN_EMAILS` check; `isAdmin()` in `firestore.rules` and `storage.rules` is the same rule. The client's `isAdminUser` (`lib/adminAccess.js`) is for showing UI only.
+- **A public function that writes a cache validates its input first** (`lib/cacheGuard.js`), builds the key itself, caches only a good upstream answer, and counts misses with `checkProxyLimit(event, 'metadata')`.
+- **A public page made from a user's data is built on the server from their own documents**, never from the request body (`create-shared-collection`, 5.59.12).
+- **`npm run lint` must pass with 0 errors** (`eslint.config.js`; the Lint workflow). Warnings are a backlog, not a gate.
 
 ## Versioning: every PR bumps the App Store version
 

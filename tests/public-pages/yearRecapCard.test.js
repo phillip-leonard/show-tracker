@@ -89,6 +89,8 @@ const INPUT = {
       const svg = card.recapSvg(r, kind);
       assert.ok(svg.startsWith('<svg'), kind);
       assert.ok(svg.includes('mysetlists.net'), kind);
+      // References nothing outside itself: no URL for the renderer to fetch (5.59.12).
+      assert.ok(!/<image\b|<use\b|<foreignObject\b|xlink:href|\shref=|url\(\s*['"]?(https?:|\/\/|file:)/i.test(svg), `${kind} references nothing external`);
     }
     assert.ok(!card.recapSvg(r, 'story').includes('SHOW BUDDY'));
     assert.ok(card.recapSvg({ ...r, buddy: { firstName: 'Ann', shows: 6 } }, 'story').includes('SHOW BUDDY'));

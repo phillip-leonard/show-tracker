@@ -309,6 +309,15 @@ test('posters render to PNG at 1080x1350, 1080x1920 and 1200x630 with the credit
   }
   // Names are escaped, not trusted.
   assert.ok(!heard.posterSvg({ ...data, name: '<script>' }, record, 'feed').includes('<script>'));
+  // Nothing outside the SVG is ever referenced, so the renderer (resvg, no
+  // resource resolver) has no URL to fetch: no SSRF through the posters
+  // (5.59.12). A hostile name stays text.
+  const hostile = { ...data, name: '<image href="http://169.254.169.254/x"/>' };
+  for (const kind of ['card', 'feed', 'story']) {
+    for (const svg of [heard.posterSvg(data, record, kind), heard.posterSvg(hostile, record, kind)]) {
+      assert.ok(!/<image\b|<use\b|<foreignObject\b|xlink:href|\shref=|url\(\s*['"]?(https?:|\/\/|file:)/i.test(svg), `${kind} references nothing external`);
+    }
+  }
 });
 
 // ── JSON ─────────────────────────────────────────────────────────────────

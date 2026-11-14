@@ -115,19 +115,12 @@ test.describe('Setlists Integration Tests', () => {
   });
 
   // ---------------------------------------------------------------------------
-  // Artist stats (uses real data from setlist.fm + cache)
+  // get-artist-stats was removed in 5.59.12: nothing called it, and every
+  // anonymous request read every user's shows.
   // ---------------------------------------------------------------------------
-  test('get-artist-stats returns stats for Radiohead', async ({ request }) => {
-    // Function requires ?slug= (lowercase artist slug), not ?artistName=
-    const res = await request.get(
-      `${BASE}/.netlify/functions/get-artist-stats?slug=radiohead`
-    );
-    // 200 with stats, 404 if not cached, 500 if upstream API unavailable
-    expect([200, 404, 500]).toContain(res.status());
-    if (res.status() === 200) {
-      const body = await res.json();
-      expect(body).toBeTruthy();
-    }
+  test('get-artist-stats is gone', async ({ request }) => {
+    const res = await request.get(`${BASE}/.netlify/functions/get-artist-stats?slug=radiohead`);
+    expect(res.status()).toBe(404);
   });
 
   test('get-artist-tours returns tours for Radiohead', async ({ request }) => {

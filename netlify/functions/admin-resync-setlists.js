@@ -4,7 +4,7 @@
  * source.
  *
  * Shaped after admin-populate-setlist.js: admin-only, Authorization: Bearer
- * {idToken} verified against ADMIN_EMAILS, CORS headers, firebase-admin
+ * {idToken} verified by isAdmin (lib/firebaseAdmin.js), CORS headers, firebase-admin
  * server-side.
  *
  * POST body:
@@ -94,7 +94,8 @@ const archiveAdapter = require('./lib/archiveAdapter');
 const archiveConfig = require('../../config/internet-archive.json');
 const { mergeBandSetlist, describeSummary, titleAliasesFor } = require('./lib/bandSetlistMergeRule');
 
-const ADMIN_EMAILS = ['phillip.leonard@gmail.com'];
+// The one admin check: custom claim or verified allowlisted address (5.59.12).
+const { isAdmin } = require('./lib/firebaseAdmin');
 
 const CORS_HEADERS = {
   'Content-Type': 'application/json',
@@ -263,7 +264,7 @@ async function verifyAdmin(token) {
   initFirebase();
   const { getAuth } = require('firebase-admin/auth');
   const decoded = await getAuth().verifyIdToken(token);
-  if (!ADMIN_EMAILS.includes(decoded.email)) throw new Error('Forbidden');
+  if (!isAdmin(decoded)) throw new Error('Forbidden');
   return decoded;
 }
 
