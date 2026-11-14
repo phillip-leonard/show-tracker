@@ -355,8 +355,12 @@ async function purgeUserData({ db, auth, bucket }, uid, opts = {}) {
     }
   });
 
-  // 11. The profile.
+  // 11. The profile, and the server's numbers about it (5.59.15):
+  //     userStats/{uid} and publicUserStats/{uid}, keyed by uid. The
+  //     community leaderboard drops the account on its next rebuild.
   await db.doc(`userProfiles/${uid}`).delete().catch(() => {});
+  await db.doc(`userStats/${uid}`).delete().catch(() => {});
+  await db.doc(`publicUserStats/${uid}`).delete().catch(() => {});
 
   // 12. Storage. Best-effort per object: one missing file must not abort the
   //     deletion and strand the account half-removed.
@@ -431,7 +435,7 @@ async function findRemainingTraces({ db }, uid) {
   const inbound = await db.collectionGroup('friends').where('friendUid', '==', uid).get();
   if (!inbound.empty) traces.push(`inbound friend edges: ${inbound.size}`);
 
-  for (const path of [`userProfiles/${uid}`, `users/${uid}`, `userBlocks/${uid}`]) {
+  for (const path of [`userProfiles/${uid}`, `users/${uid}`, `userBlocks/${uid}`, `userStats/${uid}`, `publicUserStats/${uid}`]) {
     if ((await db.doc(path).get()).exists) traces.push(`${path} still exists`);
   }
   for (const sub of USER_SUBTREE) {

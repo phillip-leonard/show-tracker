@@ -37,9 +37,10 @@ const SHOWS = {
 test('produces every field the app reads, in the old shape', () => {
   const s = buildCommunityStats(PROFILES, SHOWS);
   assert.deepStrictEqual(Object.keys(s).sort(), [
-    'topShowsAttended', 'topSongsByRating', 'topSongsBySightings', 'topSongsRated',
+    'rankedCount', 'topShowsAttended', 'topSongsByRating', 'topSongsBySightings', 'topSongsRated',
     'topVenues', 'topVenuesVisited', 'totalShows', 'totalSongs', 'totalUsers',
   ]);
+  assert.strictEqual(s.rankedCount, 2);
   assert.deepStrictEqual(s.topShowsAttended[0], { userId: 'alice', odubleserId: 'alice', firstName: 'Alice', photoURL: 'a.jpg', count: 3 });
   assert.deepStrictEqual(s.topSongsRated.map((u) => u.odubleserId), ['alice', 'bob']);
   // Both names, same value, on every entry (B-03): old builds read odubleserId.
@@ -53,7 +54,8 @@ test('test users and their shows are left out', () => {
   const s = buildCommunityStats(PROFILES, SHOWS);
   assert.strictEqual(s.totalUsers, 2);
   assert.strictEqual(s.totalShows, 4);
-  assert.strictEqual(s.totalSongs, 7);
+  // From the shows (5.59.15): alice's 3 shows hold 6 setlist entries, bob's 2.
+  assert.strictEqual(s.totalSongs, 8);
   assert.ok(!s.topVenues.some((v) => v.venueName === 'Test Hall'));
   assert.ok(!s.topSongsByRating.some((v) => v.songName === 'Test Song'));
   assert.ok(!s.topShowsAttended.some((u) => u.odubleserId === 'qa'));
@@ -79,10 +81,28 @@ test('venues count shows and distinct artists', () => {
 });
 
 test('lists are capped at five', () => {
-  const many = Array.from({ length: 8 }, (_, i) => ({ id: `u${i}`, firstName: `U${i}`, showCount: i }));
-  const s = buildCommunityStats(many, {});
+  const many = Array.from({ length: 8 }, (_, i) => ({ id: `u${i}`, firstName: `U${i}` }));
+  const shows = Object.fromEntries(many.map((p, i) => [p.id, Array.from({ length: i + 1 }, () => ({ artist: 'A', venue: 'V' }))]));
+  const s = buildCommunityStats(many, shows);
   assert.strictEqual(s.topShowsAttended.length, 5);
-  assert.strictEqual(s.topShowsAttended[0].count, 7);
+  assert.strictEqual(s.topShowsAttended[0].count, 8);
+});
+
+test('client-written profile counts are ignored; banned accounts and empty ones are off the boards (5.59.15)', () => {
+  const profiles = [
+    { id: 'liar', firstName: 'Liar', showCount: 999, songCount: 999, ratedSongCount: 999, venueCount: 999 },
+    { id: 'banned', firstName: 'Banned', banned: true },
+    { id: 'real', firstName: 'Real', showCount: 0 },
+  ];
+  const shows = {
+    liar: [{ artist: 'A', venue: 'V', setlist: [{ name: 'S' }] }],
+    banned: Array.from({ length: 20 }, () => ({ artist: 'B', venue: 'W' })),
+    real: [{ artist: 'A', venue: 'V' }, { artist: 'A', venue: 'X' }],
+  };
+  const s = buildCommunityStats(profiles, shows);
+  assert.deepStrictEqual(s.topShowsAttended.map((u) => [u.userId, u.count]), [['real', 2], ['liar', 1]]);
+  assert.strictEqual(s.totalSongs, 1, 'from the shows, not the 999');
+  assert.strictEqual(s.rankedCount, 2);
 });
 
 // A minimal Admin-SDK-shaped fake: just what rebuildCommunityStats touches.
