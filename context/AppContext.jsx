@@ -53,6 +53,7 @@ import { isFirstShowTransition, requestWelcomeEmail } from '@/lib/welcomeEmailTr
 import { sweepExpiredSetlistfmCaches } from '@/lib/setlistfmLocalCache';
 import { signInLeavesRoute } from '@/lib/deepLinks';
 import { toIsoDate, showYear, utcIsoDate } from '@/lib/showDate';
+import { mintShowId, buildShowDoc } from '@/lib/showDoc';
 import { findDuplicate, showMatchKey, setlistIsOnShowDate } from '@/lib/showIdentity';
 
 // Gap between writes in a bulk tour add. Enough to keep a 40-night
@@ -61,56 +62,13 @@ import { findDuplicate, showMatchKey, setlistIsOnShowDate } from '@/lib/showIden
 const BULK_ADD_DELAY_MS = 120;
 
 // ── Helper: mint a show document id ─────────────────────────────────────
-// Show ids have always been millisecond timestamps as strings, and every
-// existing document in Firestore is keyed that way, so the format is fixed.
-// The counter is what makes it safe to mint several in a row: `Date.now()`
-// alone returns the same value for every call inside the same millisecond,
-// which is exactly what a bulk add does. Monotonic, so ids still sort by
-// creation order.
-let lastMintedShowId = 0;
-
 // Where a sign-in from the Songs I've heard tool may return to: a band's
 // poster, nothing else (see pendingNext below).
 const HEARD_NEXT = /^\/heard\/[a-z0-9-]+\/\?mine=1$/;
-function mintShowId() {
-  const now = Date.now();
-  lastMintedShowId = now > lastMintedShowId ? now : lastMintedShowId + 1;
-  return String(lastMintedShowId);
-}
 
-// ── Helper: the one place a show document's shape is defined ────────────
-// Both the single add (addShow) and the bulk tour add (addShowsFromTour)
-// build their documents here, so a bulk-added show is byte-for-byte the
-// same shape as a hand-added one — setlist, venue, artist, tour name, all
-// of it. Change the shape here or not at all.
-function buildShowDoc(showData, id) {
-  return {
-    ...showData,
-    id,
-    // Stored as ISO 'YYYY-MM-DD' only (lib/showDate.js); a date that can't
-    // be read is kept as given rather than dropped.
-    date: toIsoDate(showData.date) || showData.date || '',
-    setlist: showData.setlist || [],
-    createdAt: new Date().toISOString(),
-    // `isManual` means "nobody but the user wrote this setlist", and it is
-    // what admin-populate-setlist.js checks before it refuses to overwrite.
-    // It used to be derived from setlistfmId alone, which was the same
-    // question back when setlist.fm was the only source. A band-sourced
-    // show (El Goose, Phish.net — see lib/setlistSources.js) has no
-    // setlistfmId and is emphatically not manual, so the source id counts
-    // too.
-    isManual: !showData.setlistfmId && !isBandSourced(showData),
-  };
-}
-
-// True when this show's setlist came from a band source rather than from
-// setlist.fm or the user. Reads the stored `setlistSource` field rather than
-// sniffing for the presence of `footnote`/`transitionMark`: a Goose show
-// where nobody wrote any footnotes is still a Goose show from El Goose.
-function isBandSourced(showData) {
-  const id = showData?.setlistSource;
-  return !!id && id !== 'setlistfm';
-}
+// mintShowId and buildShowDoc, the one place a show document's shape is
+// defined, live in lib/showDoc.js (5.59.10) so the festival import and the
+// guest merge build shows exactly as addShow does, and tests can reach them.
 
 // The Firestore half of the same path. `createdAt` is replaced with a
 // server timestamp on the way in (the local ISO string above is what the
@@ -2426,24 +2384,23 @@ export function AppProvider({ children }) {
     const existingIds = [];
     const toCreate = [];
     const prevCount = latestShows.current.length;
-    let idSeed = Date.now();
+    const fresh = [];
 
+    // The same duplicate rule as every add path: a festival set already
+    // logged through search (any stored date format) is attached, not
+    // created again. A set picked twice in this import is created once.
     candidates.forEach(candidate => {
       const existing =
         (candidate.setlistfmId && bySetlistfmId.get(candidate.setlistfmId)) ||
-        findDuplicateShow(candidate);
+        findDuplicateShow(candidate) ||
+        findDuplicate(fresh, candidate);
       if (existing) {
-        existingIds.push(existing.id);
+        if (existing.id) existingIds.push(existing.id);
         return;
       }
-      toCreate.push({
-        ...candidate,
-        id: String(idSeed++),
-        setlist: candidate.setlist || [],
-        createdAt: new Date().toISOString(),
-        isManual: !candidate.setlistfmId,
-      });
+      fresh.push(candidate);
     });
+
 
     // Only already-logged shows can belong to another festival; the ones
     // about to be created obviously can't.
@@ -2453,6 +2410,15 @@ export function AppProvider({ children }) {
         .filter(s => s && s.festivalId && s.festivalId !== festivalId)
         .map(s => ({ showId: s.id, artist: s.artist, date: s.date, festivalId: s.festivalId }));
       if (conflicts.length > 0) return { success: false, created: 0, attached: 0, conflicts };
+    }
+
+    // After the conflict check, so a refused import spends no requests.
+    // Built exactly as addShow builds a show (B-13): the band-source
+    // setlist where the artist has one, then buildShowDoc with a minted id,
+    // so isManual, the date format and the id scheme are the same.
+    for (const candidate of fresh) {
+      const enriched = await enrichShowDataWithBandSetlist(candidate);
+      toCreate.push(buildShowDoc(enriched, mintShowId()));
     }
 
     try {
