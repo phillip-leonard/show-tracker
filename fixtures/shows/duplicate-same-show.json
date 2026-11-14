@@ -1,0 +1,56 @@
+{
+  "name": "duplicate-same-show",
+  "description": "Same artist, day and venue once case and punctuation are ignored (and the stored date is legacy DD-MM-YYYY): the same show.",
+  "now": "2026-11-14T12:00:00.000Z",
+  "input": {
+    "kind": "manual",
+    "artist": "goose",
+    "venue": "Dicks Sporting Goods Park",
+    "city": "Commerce City",
+    "date": "2024-08-31",
+    "showId": "1763121600000"
+  },
+  "context": {
+    "existingShows": [
+      {
+        "id": "1700000000001",
+        "artist": "Phish",
+        "venue": "Madison Square Garden",
+        "city": "New York",
+        "date": "2024-12-31",
+        "setlistfmId": "63de4613",
+        "setlist": []
+      },
+      {
+        "id": "1700000000002",
+        "artist": "Goose",
+        "venue": "Dick's Sporting Goods Park",
+        "city": "Commerce City",
+        "date": "31-08-2024",
+        "setlist": []
+      }
+    ]
+  },
+  "expected": {
+    "show": {
+      "artist": "goose",
+      "venue": "Dicks Sporting Goods Park",
+      "city": "Commerce City",
+      "date": "2024-08-31",
+      "setlistSource": "setlistfm",
+      "tour": null,
+      "setlist": [],
+      "id": "1763121600000",
+      "createdAt": "2026-11-14T12:00:00.000Z",
+      "isManual": true,
+      "normalizedVersion": 1
+    },
+    "duplicate": {
+      "showId": "1700000000002",
+      "rule": "same-show"
+    },
+    "band": {
+      "reason": "no-show"
+    }
+  }
+}

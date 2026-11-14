@@ -29,7 +29,7 @@
 // (computeTotals in lib/adminUsers.js). The landing page's "N fans, M shows"
 // comes from this doc, so it should count the same people the admin does.
 
-const { normalizeSongTitle } = require('./bandSetlistMergeRule');
+const { normalizeSongTitle } = require('../../../lib/stats/keys');
 const { computeUserStats, isRanked } = require('../../../lib/stats');
 
 /** On the community boards unless the profile opted out (5.60.1). */

@@ -1,0 +1,16 @@
+{
+  "name": "error-no-artist",
+  "description": "A show needs an artist: the input is refused with a code, nothing is built.",
+  "now": "2026-11-14T12:00:00.000Z",
+  "input": {
+    "kind": "manual",
+    "artist": "  ",
+    "venue": "Somewhere",
+    "date": "2024-01-01",
+    "showId": "1763121600000"
+  },
+  "context": {},
+  "expected": {
+    "error": "bad-input"
+  }
+}

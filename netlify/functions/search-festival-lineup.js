@@ -36,6 +36,8 @@
 // missing behaviour as search-setlists.js.
 
 const { withCors } = require('./lib/cors');
+// setlist.fm's DD-MM-YYYY -> ISO, the app's own rule (lib/showDate.js, 5.60.5).
+const { fromSetlistfmDate } = require('../../lib/showDate');
 const { withProxyLimit } = require('./lib/proxyLimit');
 const https = require('https');
 const crypto = require('crypto');
@@ -100,11 +102,6 @@ function fetchJSON(path) {
 }
 
 // setlist.fm returns dd-MM-yyyy; everything in this app stores yyyy-MM-dd.
-function toIsoDate(eventDate) {
-  const parts = (eventDate || '').split('-');
-  if (parts.length !== 3) return '';
-  return `${parts[2]}-${parts[1]}-${parts[0]}`;
-}
 
 // yyyy-MM-dd -> dd-MM-yyyy, the only date format /search/setlists accepts.
 function toSetlistFmDate(isoDate) {
@@ -189,7 +186,7 @@ function toLineup(setlists, { from, to }) {
 
   setlists.forEach(sl => {
     const artist = sl.artist?.name || '';
-    const date = toIsoDate(sl.eventDate);
+    const date = fromSetlistfmDate(sl.eventDate);
     if (!artist || !date) return;
     if (from && date < from) return;
     if (to && date > to) return;
@@ -226,7 +223,7 @@ function countSongs(setlist) {
 // Exported for lib/__tests__/festivalLineup.test.js — these are the parts
 // with real logic in them, and they're pure.
 exports._toLineup = toLineup;
-exports._toIsoDate = toIsoDate;
+exports._toIsoDate = fromSetlistfmDate;
 exports._toSetlistFmDate = toSetlistFmDate;
 exports._daysInWindow = daysInWindow;
 exports._cityFromLocation = cityFromLocation;

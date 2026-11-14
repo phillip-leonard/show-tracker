@@ -19,6 +19,12 @@ const { withCors } = require('./lib/cors');
 // The one admin check: custom claim or verified allowlisted address (5.59.12).
 const { isAdmin } = require('./lib/firebaseAdmin');
 const { recomputeUserStats } = require('./lib/userStats');
+// The show document every add path builds (5.60.5).
+const { canonicalShowData, showDataFromFields } = require('../../lib/showInputs');
+const { buildShowDoc, mintShowId } = require('../../lib/showDoc');
+const { classifyDuplicate } = require('../../lib/showIdentity');
+const { SETLISTFM_SOURCE_ID } = require('../../lib/setlistSources');
+const { SHOW_SCHEMA_VERSION } = require('../../lib/normalizeShow');
 const CORS_HEADERS = {
   'Content-Type': 'application/json',
   'Access-Control-Allow-Headers': 'Authorization, Content-Type',
@@ -100,14 +106,16 @@ exports.handler = async function (event) {
 
     // ── Step 2: Fetch existing shows for duplicate detection ──────────────────
     const existingSnap = await db.collection(`users/${targetUid}/shows`).get();
-    const existingKeys = new Set();
-    existingSnap.docs.forEach(d => {
-      const s = d.data();
-      const key = `${(s.artist || '').trim().toLowerCase()}|${(s.venue || '').trim().toLowerCase()}|${s.date || ''}`;
-      existingKeys.add(key);
-    });
+    const known = existingSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
 
-    // ── Step 3: Filter duplicates and validate shows ──────────────────────────
+    // ── Step 3: Build each show as every other add path does (5.60.5) ─────────
+    // The canonical shape (lib/showInputs.js) and lib/showDoc.js, with a
+    // minted id, so an admin import is the same document normalize-show
+    // writes: the date as ISO, isManual by the rule, setlistSource stamped.
+    // No band-source lookup here (an import of hundreds of rows must finish
+    // inside the function's time limit); the setlist scan fills setlists
+    // later. Duplicates by the one rule (lib/showIdentity.js): a certain
+    // match is skipped, a possible one is imported, as before.
     const toImport = [];
     let duplicatesSkipped = 0;
 
@@ -115,45 +123,33 @@ exports.handler = async function (event) {
       if (!show.artist || !show.venue || !show.date) {
         continue; // Skip invalid rows (should have been filtered client-side)
       }
-      const key = `${show.artist.trim().toLowerCase()}|${show.venue.trim().toLowerCase()}|${show.date}`;
-      if (existingKeys.has(key)) {
+      const data = canonicalShowData({ ...showDataFromFields(show), setlist: [], setlistSource: SETLISTFM_SOURCE_ID });
+      const doc = { ...buildShowDoc(data, mintShowId()), normalizedVersion: SHOW_SCHEMA_VERSION };
+      const dup = classifyDuplicate(known, doc);
+      if (dup && dup.rule !== 'possible') {
         duplicatesSkipped++;
         continue;
       }
-      existingKeys.add(key); // Prevent duplicates within the same import batch
-      toImport.push(show);
+      known.push(doc); // Prevent duplicates within the same import batch
+      toImport.push(doc);
     }
 
     // ── Step 4: Batch-write new shows ─────────────────────────────────────────
     const CHUNK = 500;
-    const baseTimestamp = Date.now();
 
     for (let i = 0; i < toImport.length; i += CHUNK) {
       const batch = db.batch();
-      const chunk = toImport.slice(i, i + CHUNK);
-
-      chunk.forEach((show, idx) => {
-        const showId = (baseTimestamp + i + idx).toString();
-        const ref = db.doc(`users/${targetUid}/shows/${showId}`);
-        batch.set(ref, {
-          artist: show.artist.trim(),
-          venue: show.venue.trim(),
-          date: show.date,
-          city: (show.city || '').trim(),
-          country: (show.country || '').trim(),
-          rating: show.rating || null,
-          comment: (show.comment || '').trim(),
-          tour: (show.tour || '').trim(),
-          setlist: [],
+      toImport.slice(i, i + CHUNK).forEach((doc) => {
+        const { id: showId, ...fields } = doc;
+        batch.set(db.doc(`users/${targetUid}/shows/${showId}`), {
+          ...fields,
           createdAt: FieldValue.serverTimestamp(),
-          isManual: true,
           // A flag, not who: show documents are readable by the owner's
           // friends, so no email address may go on one (5.60.3). Who ran
           // the import is in adminAuditLog (performedByUid, below).
           importedByAdmin: true,
         });
       });
-
       await batch.commit();
     }
 

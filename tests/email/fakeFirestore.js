@@ -126,14 +126,20 @@ function createFakeDb() {
   const db = {
     doc: docRef,
     collection: collectionRef,
-    // Every document in any collection with this name; select() is a no-op.
-    collectionGroup(name) {
+    // Every document in any collection with this name.
+    // select() is a no-op; where() supports '==' (the sweep's query).
+    collectionGroup(name, filters = []) {
       const q = {
         select() { return q; },
+        where(field, op, value) {
+          if (op !== '==') throw new Error(`fake: unsupported collectionGroup op ${op}`);
+          return db.collectionGroup(name, [...filters, { field, value }]);
+        },
         async get() {
           const docs = [...store.keys()]
             .filter((p) => { const s = p.split('/'); return s.length % 2 === 0 && s[s.length - 2] === name; })
-            .map(docSnap);
+            .map(docSnap)
+            .filter((d) => filters.every((f) => d.data()[f.field] === f.value));
           return { docs, empty: docs.length === 0, size: docs.length };
         },
       };

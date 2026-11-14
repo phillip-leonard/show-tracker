@@ -23,6 +23,8 @@
 // identical to a normal setlist.fm import, without a second round trip.
 
 const { withCors } = require('./lib/cors');
+// setlist.fm's DD-MM-YYYY -> ISO, the app's own rule (lib/showDate.js, 5.60.5).
+const { fromSetlistfmDate } = require('../../lib/showDate');
 const { withProxyLimit } = require('./lib/proxyLimit');
 const https = require('https');
 const crypto = require('crypto');
@@ -89,10 +91,6 @@ function fetchJSON(path) {
   });
 }
 
-function toIsoDate(eventDate) {
-  const parts = (eventDate || '').split('-');
-  return parts.length === 3 ? `${parts[2]}-${parts[1]}-${parts[0]}` : '';
-}
 
 // setlist.fm's tourName filter is a match, not an exact equality, so a
 // query for "Summer Tour" can come back carrying "Summer Tour 2025" rows
@@ -115,7 +113,7 @@ function toShow(sl) {
   return {
     setlistfmId: sl.id,
     url: sl.url || '',
-    date: toIsoDate(sl.eventDate),
+    date: fromSetlistfmDate(sl.eventDate),
     artist: sl.artist?.name || '',
     venue: sl.venue?.name || '',
     city: sl.venue?.city?.name || '',

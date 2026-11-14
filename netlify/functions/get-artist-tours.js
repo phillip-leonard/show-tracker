@@ -34,6 +34,8 @@
 // fetchedAt — and only adds fields.
 
 const { withCors } = require('./lib/cors');
+// setlist.fm's DD-MM-YYYY -> ISO, the app's own rule (lib/showDate.js, 5.60.5).
+const { fromSetlistfmDate } = require('../../lib/showDate');
 const { withProxyLimit } = require('./lib/proxyLimit');
 const https = require('https');
 const crypto = require('crypto');
@@ -109,10 +111,6 @@ function fetchJSON(path) {
 }
 
 // dd-MM-yyyy (setlist.fm) -> yyyy-MM-dd (everything in this app).
-function toIsoDate(eventDate) {
-  const parts = (eventDate || '').split('-');
-  return parts.length === 3 ? `${parts[2]}-${parts[1]}-${parts[0]}` : '';
-}
 
 // Groups setlists by tour name. Names are compared case- and
 // whitespace-insensitively (contributors type them freehand, so "Summer
@@ -150,7 +148,7 @@ function parseTours(setlists) {
   for (const sl of (setlists || [])) {
     const rawName = sl.tour?.name || UNTAGGED_TOUR_NAME;
     const untagged = !sl.tour?.name;
-    const date = toIsoDate(sl.eventDate);
+    const date = fromSetlistfmDate(sl.eventDate);
     const songCount = (sl.sets?.set || []).reduce((acc, s) => acc + (s.song?.length || 0), 0);
 
     const show = {

@@ -1,0 +1,86 @@
+// netlify/functions/normalize-show.js — every new show, built on the
+// server (5.60.5, pre-native server moves Part 1a).
+//
+//   POST /.netlify/functions/normalize-show     Auth: Bearer {idToken}
+//   { mode: 'preview' | 'commit', input: { kind, … } }
+//   { mode, inputs: [ { kind, … }, … ] }          up to 25, in order
+//     -> { ok, …result }  or  { ok, results: [ result | { error }, … ] }
+//
+// result: { show, duplicate, band } and, on commit, what was written
+// (lib/normalizeShowServer.js commitShow). The input kinds and the
+// document are lib/normalizeShow.js and lib/showInputs.js; the golden
+// fixtures in fixtures/shows/ are the contract the Swift app tests
+// against.
+//
+// preview writes nothing: an add flow shows the user what will be saved.
+// commit writes it (or normalizes a document the app wrote offline with
+// needsNormalization, under the same id). An input may carry `showId` (a
+// minted id, lib/showDoc.js) so the device and the server agree on the
+// document, and `confirmPossible: true` once the user has said a
+// "possible duplicate" is a different show.
+//
+// Signed-in only; NORMALIZE_DAILY_LIMIT inputs per user per UTC day (a
+// big spreadsheet import fits), and the per-IP setlist.fm limit
+// (lib/proxyLimit.js), since an input can make this ask setlist.fm and the
+// band sources.
+//
+// Nothing here is called by the app yet: the web app moves its add paths
+// onto it in Part 1b, and the Swift app starts on it.
+
+const { withCors } = require('./lib/cors');
+const { withProxyLimit } = require('./lib/proxyLimit');
+const { getDb } = require('./lib/firebaseAdmin');
+const { requireUser } = require('./lib/requestAuth');
+const { takeDailyQuota } = require('./lib/rateLimit');
+const { depsFor, userShows, normalizeOne } = require('./lib/normalizeShowServer');
+
+const NORMALIZE_DAILY_LIMIT = 3000;
+const MAX_INPUTS = 25;
+const HEADERS = {
+  'Content-Type': 'application/json',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Cache-Control': 'no-store',
+};
+const reply = (statusCode, body, extra = {}) => ({ statusCode, headers: { ...HEADERS, ...extra }, body: JSON.stringify(body) });
+
+exports.handler = async function (event) {
+  if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers: HEADERS, body: '' };
+  if (event.httpMethod !== 'POST') return reply(405, { error: 'method_not_allowed' });
+
+  const user = await requireUser(event, HEADERS);
+  if (user.response) return user.response;
+
+  let body;
+  try { body = JSON.parse(event.body || '{}'); } catch { return reply(400, { error: 'Invalid JSON body.' }); }
+  const mode = body.mode === 'commit' ? 'commit' : body.mode === 'preview' ? 'preview' : null;
+  if (!mode) return reply(400, { error: "mode must be 'preview' or 'commit'." });
+  const batch = Array.isArray(body.inputs);
+  const inputs = batch ? body.inputs : (body.input ? [body.input] : []);
+  if (!inputs.length) return reply(400, { error: 'An input is required.' });
+  if (inputs.length > MAX_INPUTS) return reply(400, { error: `At most ${MAX_INPUTS} inputs per request.` });
+
+  try {
+    const db = getDb();
+    const quota = await takeDailyQuota(db, `normalize_${user.uid}`, NORMALIZE_DAILY_LIMIT, { uid: user.uid, cost: inputs.length });
+    if (!quota.allowed) return reply(429, { error: 'That’s a lot of shows for one day. Try again tomorrow.' }, { 'Retry-After': '3600' });
+
+    const { FieldValue } = require('firebase-admin/firestore');
+    const deps = depsFor(db, user);
+    const existingShows = await userShows(db, user.uid);
+    const results = [];
+    for (const input of inputs) {
+      results.push(await normalizeOne(db, user, input, { mode, existingShows, deps, FieldValue }));
+    }
+    if (batch) return reply(200, { ok: true, results });
+    const [only] = results;
+    return only.error ? reply(400, { ok: false, ...only }) : reply(200, { ok: true, ...only });
+  } catch (err) {
+    console.error('normalize-show failed:', err && err.message);
+    return reply(500, { error: 'server_error' });
+  }
+};
+
+// Per-IP setlist.fm limit inside the CORS allowlist (lib/cors.js), so a
+// 429 still carries CORS headers.
+module.exports.handler = withCors(withProxyLimit('setlists', module.exports.handler));

@@ -58,6 +58,12 @@
 [functions."moderation-sla-reminder"]
   schedule = "15 */4 * * *"
 
+# Hourly (5.60.5): shows the app wrote before normalize-show answered are
+# normalized from their saved input; the 03:xx UTC run also fixes what older
+# builds wrote (date format, isManual). See netlify/functions/lib/showSweep.js.
+[functions."normalize-shows-sweep"]
+  schedule = "25 * * * *"
+
 # Public band-page snapshot (Netlify Blobs, store "public-artists") — every
 # 6 hours. Phish data refreshes on every run, since phish.net allows showing
 # it for 24 hours at most; everyone else once a day. The scheduled function
