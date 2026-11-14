@@ -27,6 +27,7 @@ import { publicBandUrl } from '@/lib/bandScreens';
 // blocked it anyway; that cost every page ~450 lines + 23KB of CSS less,
 // but a lazy chunk here means the first paint is empty again.
 import LandingPage from '@/components/LandingPage';
+import GuestRescueBanner from '@/components/GuestRescueBanner';
 
 // Code-split: each of these only renders behind a runtime condition (a
 // modal opened, a venue being rated, a gate after sign-in) that's never
@@ -135,7 +136,7 @@ function AppShell({ children }) {
     toast, setToast,
     venueRatingShow, setVenueRatingShow,
     pushOffer, setPushOffer,
-    showMigrationPrompt, handleMigrateData, handleSkipMigration, localShowsToMigrate,
+    shows,
     showGuestPrompt, setShowGuestPrompt, openAuthModal,
     welcomeState, setWelcomeState,
     pendingNotificationCount, unreadNotifications,
@@ -157,10 +158,9 @@ function AppShell({ children }) {
     return initKeyboardInsetTracking();
   }, []);
 
-  // The three overlays this component renders inline. Each registers with
+  // The two overlays this component renders inline. Each registers with
   // the dismiss stack so the back gesture closes it rather than navigating
   // the page out from under it.
-  useDismissable(showMigrationPrompt, handleSkipMigration, { id: 'migration-prompt' });
   useDismissable(showGuestPrompt, () => setShowGuestPrompt(false), { id: 'guest-prompt' });
   useDismissable(!!welcomeState, () => setWelcomeState(null), { id: 'welcome-modal' });
 
@@ -305,33 +305,6 @@ function AppShell({ children }) {
   return (
     <SwipeBackLayer>
     <div className="min-h-dscreen bg-base text-primary">
-      {/* Migration Prompt Modal */}
-      {showMigrationPrompt && (
-        <div className="fixed inset-0 md:left-sidebar bg-sidebar/50 backdrop-blur-xl flex items-center justify-center p-safe-gutter [--gutter:0.75rem] md:[--gutter:1rem] md:[--safe-left:0px] z-[60]">
-          <div className="bg-elevated border border-subtle rounded-2xl md:rounded-3xl max-w-[95vw] sm:max-w-md w-full p-4 md:p-6 shadow-2xl">
-            <h2 className="text-lg md:text-xl font-bold mb-4 text-primary">Import Existing Shows?</h2>
-            <p className="text-secondary mb-4">
-              We found {localShowsToMigrate.length} show{localShowsToMigrate.length !== 1 ? 's' : ''} saved locally on this device.
-              Would you like to import them to your account?
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={handleMigrateData}
-                className="flex-1 px-4 py-2.5 bg-gradient-to-r from-brand to-amber hover:from-brand hover:to-amber text-primary rounded-xl font-medium transition-all shadow-lg shadow-brand/20"
-              >
-                Import Shows
-              </button>
-              <button
-                onClick={handleSkipMigration}
-                className="px-4 py-2.5 bg-hover hover:bg-hover text-secondary rounded-xl font-medium transition-colors"
-              >
-                Skip
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Guest Mode Account Prompt */}
       {showGuestPrompt && (
         <div className="fixed inset-0 md:left-sidebar bg-sidebar/50 backdrop-blur-xl flex items-center justify-center p-safe-gutter md:[--safe-left:0px] z-[60]">
@@ -444,6 +417,11 @@ function AppShell({ children }) {
           measures. */}
       <div className="md:pl-64 min-h-dscreen pt-header md:pt-safe-top">
         <div data-content-column className="w-full max-w-[1200px] mx-auto px-4 md:px-8 py-6 md:py-10">
+          <GuestRescueBanner
+            guestMode={guestMode}
+            showCount={guestMode ? (shows?.length || 0) : 0}
+            onCreateAccount={() => openAuthModal('signup')}
+          />
           {children}
         </div>
       </div>

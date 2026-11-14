@@ -55,6 +55,7 @@ import { signInLeavesRoute } from '@/lib/deepLinks';
 import { toIsoDate, showYear, utcIsoDate } from '@/lib/showDate';
 import { mintShowId, buildShowDoc } from '@/lib/showDoc';
 import { countVenues, venueCountKey } from '@/lib/venueCount';
+import { mergeGuestShows, mergeMessage, readLocalShows } from '@/lib/guestMerge';
 import { findDuplicate, showMatchKey, setlistIsOnShowDate } from '@/lib/showIdentity';
 
 // Gap between writes in a bulk tour add. Enough to keep a 40-night
@@ -235,8 +236,6 @@ export function AppProvider({ children }) {
   // Auth state
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
-  const [showMigrationPrompt, setShowMigrationPrompt] = useState(false);
-  const [localShowsToMigrate, setLocalShowsToMigrate] = useState([]);
   const [authModal, setAuthModal] = useState(null); // null | 'login' | 'signup' | 'forgot-password'
   const [guestMode, setGuestMode] = useState(() => !!storage.get(STORAGE_KEYS.GUEST_SESSION));
   const [showGuestPrompt, setShowGuestPrompt] = useState(false);
@@ -782,21 +781,6 @@ export function AppProvider({ children }) {
     return unsub;
   }, [user, guestMode]);
 
-  // ── Local data migration check ──────────────────────────────────────
-  const checkForLocalData = useCallback(() => {
-    try {
-      const stored = storage.get(STORAGE_KEYS.LEGACY_SHOWS);
-      if (stored) {
-        const localShows = JSON.parse(stored);
-        if (localShows && localShows.length > 0) {
-          setLocalShowsToMigrate(localShows);
-          setShowMigrationPrompt(true);
-        }
-      }
-    } catch (error) {
-      console.log('No local data to migrate');
-    }
-  }, []);
 
   // ── Rank calculation ────────────────────────────────────────────────
   const calculateUserRank = useCallback(async (userId) => {
@@ -1073,17 +1057,8 @@ export function AppProvider({ children }) {
         }
 
         setGuestMode(false);
-        checkForLocalData();
-
-        // Also check for guest shows to migrate
-        const guestStored = storage.get(STORAGE_KEYS.GUEST_SHOWS);
-        if (guestStored) {
-          const guestShows = JSON.parse(guestStored);
-          if (guestShows && guestShows.length > 0) {
-            setLocalShowsToMigrate(prev => [...prev, ...guestShows]);
-            setShowMigrationPrompt(true);
-          }
-        }
+        // Shows saved on this device as a guest move into the account in
+        // rescueLocalShows below, once this user is in state.
         loadShows(currentUser.uid);
         loadFestivals(currentUser.uid);
         loadInviteStats(currentUser.uid);
@@ -1148,46 +1123,62 @@ export function AppProvider({ children }) {
       clearTimeout(authTimeout);
       unsubscribe();
     };
-  }, [checkForLocalData, loadShows, guestMode, loadGuestShows]);
+  }, [loadShows, guestMode, loadGuestShows]);
 
-  // ── Data migration ──────────────────────────────────────────────────
-  const handleMigrateData = async () => {
-    if (!user || localShowsToMigrate.length === 0) return;
-
-    // Shows the account already had, not counting the ones being migrated:
-    // right after a guest signs up, `shows` can still hold their guest
-    // shows until loadShows() replaces them.
-    const migratingIds = new Set(localShowsToMigrate.map(s => s.id));
-    const prevCount = latestShows.current.filter(s => !migratingIds.has(s.id)).length;
-
+  // ── Guest rescue (5.59.10) ──────────────────────────────────────────
+  // Shows a guest saved on this device ('guest-shows', or the very old
+  // 'concert-shows') move into the account on sign-up or sign-in, through
+  // buildShowDoc, skipping any the account already has (lib/guestMerge.js).
+  // A device copy is removed only after its Firestore write is confirmed;
+  // whatever fails stays on the device and is tried again on the next
+  // launch, because this runs every time a signed-in user is set.
+  //
+  // Until 5.59.10 an "Import Existing Shows?" dialog did this, and its Skip
+  // button (and Escape / back) deleted the shows for good.
+  const rescueRunning = useRef(false);
+  const rescueLocalShows = async (uid) => {
+    const local = [
+      ...readLocalShows(storage.get(STORAGE_KEYS.GUEST_SHOWS)),
+      ...readLocalShows(storage.get(STORAGE_KEYS.LEGACY_SHOWS)),
+    ];
+    if (!local.length || rescueRunning.current) return;
+    rescueRunning.current = true;
     try {
-      for (const show of localShowsToMigrate) {
-        const showRef = doc(db, 'users', user.uid, 'shows', show.id);
-        await setDoc(showRef, {
-          ...show,
-          createdAt: show.createdAt || serverTimestamp(),
-          migratedFromLocal: true,
-        });
+      let accountShows;
+      try {
+        const snap = await getDocs(collection(db, 'users', uid, 'shows'));
+        accountShows = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      } catch (error) {
+        // Can't check for duplicates, so don't write; next launch tries again.
+        console.warn('[guest rescue] account shows unreadable; keeping local shows:', error?.message);
+        return;
       }
-      noteShowsAdded(prevCount, localShowsToMigrate);
+      // How many shows the account had before, for the welcome email.
+      const prevCount = accountShows.length;
+      const result = await mergeGuestShows({
+        localShows: local,
+        accountShows,
+        writeShow: async (show) => { await writeShowDoc(uid, show); },
+      });
+      // Only the failures stay on the device, all under 'guest-shows'.
+      if (result.failed.length) storage.set(STORAGE_KEYS.GUEST_SHOWS, JSON.stringify(result.failed));
+      else storage.remove(STORAGE_KEYS.GUEST_SHOWS);
       storage.remove(STORAGE_KEYS.LEGACY_SHOWS);
-      storage.remove(STORAGE_KEYS.GUEST_SHOWS);
-      setShowMigrationPrompt(false);
-      setLocalShowsToMigrate([]);
-      loadShows(user.uid);
-    } catch (error) {
-      console.error('Failed to migrate data:', error);
-      alert('Failed to migrate data. Please try again.');
+      if (result.saved.length) {
+        noteShowsAdded(prevCount, result.saved);
+        loadShows(uid);
+      }
+      const note = mergeMessage(result);
+      if (note) setToast(note.type === 'error' ? note : note.message);
+    } finally {
+      rescueRunning.current = false;
     }
   };
 
-  const handleSkipMigration = () => {
-    setShowMigrationPrompt(false);
-    setLocalShowsToMigrate([]);
-    // Clear guest shows so the modal doesn't reappear on next login
-    storage.remove(STORAGE_KEYS.GUEST_SHOWS);
-    storage.remove(STORAGE_KEYS.LEGACY_SHOWS);
-  };
+  useEffect(() => {
+    if (user?.uid && !guestMode) rescueLocalShows(user.uid);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.uid, guestMode]);
 
   // ── Auth handlers ───────────────────────────────────────────────────
   const handleLogin = async () => {
@@ -1334,10 +1325,10 @@ export function AppProvider({ children }) {
   // ── Welcome email (5.55.0) ────────────────────────────────────────
   // The one place a show write asks for the welcome email. Each of the
   // four functions that write shows (addShow, addShowsFromTour,
-  // importShowsToFestival, handleMigrateData) calls this after its write
+  // importShowsToFestival, rescueLocalShows) calls this after its write
   // succeeds, with how many shows the account had before it. A guest has
   // no account and no address; their shows reach this through
-  // handleMigrateData once they sign up. Fire-and-forget: the save never
+  // rescueLocalShows once they sign up. Fire-and-forget: the save never
   // waits on it. See lib/welcomeEmailTrigger.js and
   // netlify/functions/lib/welcomeEmail.js, which decides for itself.
   const noteShowsAdded = (prevCount, addedShows = []) => {
@@ -3777,8 +3768,6 @@ export function AppProvider({ children }) {
     setGuestMode,
     showGuestPrompt,
     setShowGuestPrompt,
-    showMigrationPrompt,
-    localShowsToMigrate,
     handleLogin,
     handleLogout,
     openAuthModal,
@@ -3787,8 +3776,6 @@ export function AppProvider({ children }) {
     handleAuthSuccess,
     enterGuestMode,
     exitGuestMode,
-    handleMigrateData,
-    handleSkipMigration,
 
     // Admin
     isAdmin,
