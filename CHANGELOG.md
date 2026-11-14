@@ -4,6 +4,27 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.59.11] — 2026-11-13
+
+Ships in iOS 3.13.11 (`MARKETING_VERSION` 3.13.10 → 3.13.11). No app
+change; the version moves because every PR bumps it.
+
+**`scripts/normalize-show-dates.js` no longer stops on a failed setlist.fm
+lookup.** The first dry run after 5.59.10 aborted on the first ambiguous
+date, because the key had come from `netlify env:get`, which prints a
+secret masked (`****…`), and setlist.fm answered 403.
+
+- A failed lookup (setlist.fm down, a timeout, a refused key) sends that
+  show to the review list and the run carries on. The summary says how
+  many lookups failed so they can be retried.
+- After a 401/403 the key counts as refused: later shows go straight to
+  review instead of repeating the same refused request.
+- A masked key is recognized and treated as no key, with a message saying
+  to paste the real one from the Netlify UI.
+- Tests in `lib/__tests__/showDate.test.js` (now 25).
+
+---
+
 ## [5.59.10] — 2026-11-13
 
 Ships in iOS 3.13.10 (`MARKETING_VERSION` 3.13.9 → 3.13.10).

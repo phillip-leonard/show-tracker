@@ -73,7 +73,9 @@ async function loadShowDate() {
  *   { action: 'fix', shape, to }
  *   { action: 'review', shape, reason }
  * lookupSetlistDate(setlistfmId) → ISO date from setlist.fm, '' when not
- * found, or null when it can't be asked (no key).
+ * found, or null when it can't be asked (no key). If it throws (setlist.fm
+ * down, refused the key, timed out), that show goes to the review list and
+ * the run carries on: one failed lookup never stops the others.
  */
 async function planDateFix(show, { lookupSetlistDate } = {}) {
   const { storedDateShape, toIsoDate } = await loadShowDate();
@@ -92,7 +94,12 @@ async function planDateFix(show, { lookupSetlistDate } = {}) {
   const monthFirst = `${y}-${a.padStart(2, '0')}-${b.padStart(2, '0')}`;
   if (!show.setlistfmId) return { action: 'review', shape, reason: 'ambiguous, no setlist.fm id to check' };
   if (!lookupSetlistDate) return { action: 'review', shape, reason: 'ambiguous, setlist.fm not asked' };
-  const truth = await lookupSetlistDate(show.setlistfmId);
+  let truth;
+  try {
+    truth = await lookupSetlistDate(show.setlistfmId);
+  } catch (error) {
+    return { action: 'review', shape, reason: `ambiguous, setlist.fm lookup failed (${error && error.message ? error.message : 'error'})` };
+  }
   if (truth === null) return { action: 'review', shape, reason: 'ambiguous, SETLISTFM_API_KEY not set' };
   if (truth === dayFirst || truth === monthFirst) return { action: 'fix', shape, to: truth };
   return { action: 'review', shape, reason: truth ? 'ambiguous, setlist.fm date matches neither reading' : 'ambiguous, setlist.fm id not found' };
@@ -105,7 +112,11 @@ function httpsGetJson(url, headers) {
       res.on('data', (c) => { body += c; });
       res.on('end', () => {
         if (res.statusCode === 404) return resolve(null);
-        if (res.statusCode !== 200) return reject(new Error(`setlist.fm ${res.statusCode}`));
+        if (res.statusCode !== 200) {
+          const err = new Error(`setlist.fm ${res.statusCode}`);
+          err.status = res.statusCode;
+          return reject(err);
+        }
         try { resolve(JSON.parse(body)); } catch (e) { reject(e); }
       });
     });
@@ -114,16 +125,37 @@ function httpsGetJson(url, headers) {
   });
 }
 
-function setlistfmLookup() {
-  const key = process.env.SETLISTFM_API_KEY;
-  if (!key) return async () => null;
+/**
+ * A masked value is what `netlify env:get` prints for a secret
+ * ("****************abcd"), not the key. Sending it gets a 403 for every
+ * show, so it counts as no key at all.
+ */
+function usableKey(key) {
+  return !!key && !String(key).includes('*');
+}
+
+/**
+ * setlistfmLookup(key, { get, delayMs }) → the lookup planDateFix calls.
+ * After setlist.fm refuses the key once (401 or 403) it stops asking: every
+ * later ambiguous show fails straight to the review list instead of
+ * spending another request on the same refusal.
+ */
+function setlistfmLookup(key = process.env.SETLISTFM_API_KEY, { get = httpsGetJson, delayMs = SETLISTFM_DELAY_MS } = {}) {
+  if (!usableKey(key)) return async () => null;
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  let refused = null;
   return async (id) => {
-    await sleep(SETLISTFM_DELAY_MS);
+    if (refused) throw new Error(`${refused}, not asked again`);
+    if (delayMs) await sleep(delayMs);
     const { fromSetlistfmDate } = await loadShowDate();
-    const data = await httpsGetJson(`https://api.setlist.fm/rest/1.0/setlist/${encodeURIComponent(id)}`,
-      { 'x-api-key': key, Accept: 'application/json' });
-    return data ? fromSetlistfmDate(data.eventDate) : '';
+    try {
+      const data = await get(`https://api.setlist.fm/rest/1.0/setlist/${encodeURIComponent(id)}`,
+        { 'x-api-key': key, Accept: 'application/json' });
+      return data ? fromSetlistfmDate(data.eventDate) : '';
+    } catch (error) {
+      if (error && (error.status === 401 || error.status === 403)) refused = `setlist.fm ${error.status}: the key was refused`;
+      throw error;
+    }
   };
 }
 
@@ -146,7 +178,9 @@ async function main() {
   const lookup = setlistfmLookup();
 
   console.log(apply ? 'APPLY: writing fixes' : 'DRY RUN: nothing is written (pass --apply to write)');
-  if (!process.env.SETLISTFM_API_KEY) console.log('SETLISTFM_API_KEY is not set: ambiguous dates are only counted.');
+  const rawKey = process.env.SETLISTFM_API_KEY;
+  if (!rawKey) console.log('SETLISTFM_API_KEY is not set: ambiguous dates are only counted.');
+  else if (!usableKey(rawKey)) console.log('SETLISTFM_API_KEY is masked (netlify env:get hides secrets): paste the real key from the Netlify UI. Ambiguous dates are only counted.');
 
   const snap = await db.collectionGroup('shows').get();
   const docs = snap.docs.filter((d) => /^users\/[^/]+\/shows\/[^/]+$/.test(d.ref.path));
@@ -182,6 +216,8 @@ async function main() {
   console.log('Before, by stored format:', JSON.stringify(before));
   console.log(`After${apply ? '' : ' (if applied)'}, by stored format:`, JSON.stringify(after));
   console.log(`To rewrite: ${fixes.length}. Need a person: ${review.length}${review.length ? ' ' + JSON.stringify(reasons) : ''}.`);
+  const lookupFailures = Object.entries(reasons).filter(([r]) => r.includes('lookup failed')).reduce((n, [, c]) => n + c, 0);
+  if (lookupFailures) console.log(`setlist.fm lookups failed for ${lookupFailures} show(s); they're in the review list. Run again later to retry them.`);
   console.log(`Same night logged twice once dates agree: ${duplicates} (not merged; shown as duplicates in the app).`);
 
   if (review.length) {
@@ -203,7 +239,7 @@ async function main() {
   console.log(`Wrote ${written} dates.`);
 }
 
-module.exports = { planDateFix, loadShowDate };
+module.exports = { planDateFix, loadShowDate, setlistfmLookup, usableKey };
 
 if (require.main === module) {
   main().catch((e) => { console.error(e.message); process.exit(1); });
