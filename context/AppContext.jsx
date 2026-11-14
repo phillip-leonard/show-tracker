@@ -126,6 +126,11 @@ async function updateUserProfile(user, shows = []) {
   // listener, and changed only through saveDisplayName(); firestore.rules
   // now rejects a client write that changes either field.
   const profileData = {
+    // The owner's uid under its correct name, and under the misspelled
+    // name older builds wrote (B-03). Nothing reads either from the
+    // profile (the doc id is the uid); both are written until the old
+    // name is dropped everywhere.
+    userId: user.uid,
     odubleserId: user.uid,
     // No `email` (5.59.7, S-01): every signed-in user can read profiles.
     // The address lives in Firebase Auth; the server reads it from there.

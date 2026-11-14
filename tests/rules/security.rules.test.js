@@ -104,6 +104,8 @@ async function main() {
 
   await test('S-01: the app’s profile writes still go through, on old and new profiles', async () => {
     await assertSucceeds(as(MALLORY).doc(`userProfiles/${MALLORY}`).set({ showCount: 0, lastLogin: ts() }));
+    // Both id names, as the app writes them since 5.59.10 (B-03).
+    await assertSucceeds(as(MALLORY).doc(`userProfiles/${MALLORY}`).set({ userId: MALLORY, odubleserId: MALLORY }, { merge: true }));
     await assertSucceeds(as(ALICE).doc(`userProfiles/${ALICE}`).set({ showCount: 2 }, { merge: true }));
     await assertSucceeds(as(BOB).doc(`userProfiles/${BOB}`).set({ showCount: 2 }, { merge: true }));
   });

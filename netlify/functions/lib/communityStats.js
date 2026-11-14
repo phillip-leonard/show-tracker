@@ -10,9 +10,11 @@
 // every profile and every user's shows from the client. It now runs here
 // with the Admin SDK and the rule is `allow write: if false`.
 //
-// The output is field-for-field what the client wrote, including the
-// misspelled `odubleserId` key that components/CommunityStatsView.jsx
-// reads (see scripts/seed-review-account.js for the history of that name).
+// Each leaderboard entry carries the user's id twice (5.59.10, B-03):
+// `userId`, the correct name new builds read, and the misspelled
+// `odubleserId` that components/CommunityStatsView.jsx read until then and
+// that iOS 3.13.9 and earlier still read. Drop `odubleserId` only once
+// those builds are retired (the minimum-version banner).
 //
 // Test users. Profiles flagged `isTestUser` are left out, with their shows,
 // the same way the admin Stats tab leaves them out by default
@@ -27,7 +29,7 @@ function topProfilesBy(profiles, field) {
   return [...profiles]
     .sort((a, b) => (b[field] || 0) - (a[field] || 0))
     .slice(0, TOP_N)
-    .map((p) => ({ odubleserId: p.id, firstName: p.firstName, photoURL: p.photoURL, count: p[field] || 0 }));
+    .map((p) => ({ userId: p.id, odubleserId: p.id, firstName: p.firstName, photoURL: p.photoURL, count: p[field] || 0 }));
 }
 
 /**
