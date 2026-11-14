@@ -14,6 +14,9 @@ import BlockedAccountsSection from '@/components/moderation/BlockedAccountsSecti
 import NotificationSettings from '@/components/notifications/NotificationSettings';
 import { forgetPushToken } from '@/lib/pushAlerts';
 import { appleTokenForDeletion, appleProviderUid } from '@/lib/appleRevocation';
+import { performSignOut } from '@/lib/signOutFlow';
+import { nativeSignOut } from '@/lib/native-auth';
+import { clearSignedInHint } from '@/lib/signedInHint';
 import TourInfoModal from '@/components/TourInfoModal';
 import FollowBandButton from '@/components/artists/FollowBandButton';
 import { compareShowDates, showYear, formatDate as formatShowDay } from '@/lib/showDate';
@@ -314,11 +317,18 @@ export default function ProfileView({ user, shows, userRank, onProfileUpdate, on
         throw new Error(data.error || 'Deletion failed');
       }
 
-      // The server already deleted this device's pushTokens doc with the
-      // account; this drops the FCM token on the phone too.
-      await forgetPushToken();
-      await signOut(auth);
-      window.location.href = '/';
+      // The account is gone on the server. Sign out here the same way
+      // Logout does (lib/signOutFlow.js): every step time-limited and
+      // best-effort, so this always ends on the signed-out screen. Until
+      // 5.59.14 the push cleanup never settled on iOS and the screen stayed
+      // on "Deleting…" after a successful deletion.
+      await performSignOut({
+        beforeSignOut: () => forgetPushToken(),
+        webSignOut: () => signOut(auth),
+        nativeSignOut: () => nativeSignOut(),
+        clearLocal: () => clearSignedInHint(),
+        navigate: () => { window.location.href = '/'; },
+      });
     } catch (err) {
       console.error('Account deletion failed:', err);
       setDeleteError(err.message || 'Failed to delete account. Please try again.');

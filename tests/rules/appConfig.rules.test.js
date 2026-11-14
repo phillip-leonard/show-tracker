@@ -93,6 +93,16 @@ async function main() {
     await assertFails(admin().doc('config/app').set({ ...GOOD, reason: 'x'.repeat(281) }));
   });
 
+  await test('iosPushOfferEnabled: the admin sets it as a boolean; anyone reads it; nobody else writes it', async () => {
+    await assertSucceeds(admin().doc('config/app').set({ ...GOOD, iosPushOfferEnabled: true }));
+    await assertSucceeds(admin().doc('config/app').update({ iosPushOfferEnabled: false }));
+    await assertFails(admin().doc('config/app').set({ ...GOOD, iosPushOfferEnabled: 'yes' }));
+    await assertFails(alice().doc('config/app').update({ iosPushOfferEnabled: true }));
+    await assertFails(anon().doc('config/app').update({ iosPushOfferEnabled: true }));
+    const snap = await anon().doc('config/app').get();
+    if (snap.data().iosPushOfferEnabled !== false) throw new Error('readable by anyone, as set');
+  });
+
   await test('nobody deletes it from a client', async () => {
     await assertFails(admin().doc('config/app').delete());
     await assertFails(alice().doc('config/app').delete());

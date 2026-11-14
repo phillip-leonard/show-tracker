@@ -6,6 +6,7 @@ import { db, requestNotificationPermission } from '@/lib/firebase';
 import { isNativePlatform } from '@/lib/native-auth';
 import { alertChannels, withChannel } from '@/lib/alertChannels';
 import { pushPermission, requestPushPermission } from '@/lib/pushAlerts';
+import { pushOfferEnabled } from '@/lib/appConfig';
 import { openAppSettings } from '@/lib/nativePermissions';
 import OnsaleAlertSettings from '@/components/notifications/OnsaleAlertSettings';
 import Button from '@/components/ui/Button';
@@ -97,11 +98,14 @@ function AlertPrefs({ preferences, onChange, pushReady, userId }) {
  * to do when iOS has it switched off. Asking happens here or on the first
  * follow, never at launch.
  */
-function PushAlertsCard({ userId, state, onState }) {
+function PushAlertsCard({ userId, state, onState, offerEnabled }) {
   const [busy, setBusy] = useState(false);
   const [declined, setDeclined] = useState(false);
 
   if (!state || state === 'unsupported') return null;
+  // Not asked yet, and the offer is off in config/app (5.59.14): nothing to
+  // show. Someone who already allowed or refused push still sees that.
+  if (state === 'prompt' && !offerEnabled) return null;
 
   const turnOn = async () => {
     setBusy(true);
@@ -160,6 +164,7 @@ export default function NotificationSettings({ userId }) {
   const [fcmToken, setFcmToken] = useState(null);
   // iOS push permission: null until checked, then lib/pushAlerts.js's state.
   const [pushState, setPushState] = useState(null);
+  const [pushOfferOn, setPushOfferOn] = useState(false);
   const [preferences, setPreferences] = useState({
     showReminders: true,
     newFeatures: true,
@@ -208,6 +213,7 @@ export default function NotificationSettings({ userId }) {
     let handle = null;
     const check = () => pushPermission().then((s) => { if (live) setPushState(s); });
     check();
+    pushOfferEnabled().then((on) => { if (live) setPushOfferOn(on); });
     import('@capacitor/app')
       .then(({ App }) => App.addListener('appStateChange', ({ isActive }) => { if (isActive) check(); }))
       .then((h) => { if (live) handle = h; else h.remove(); })
@@ -298,7 +304,7 @@ export default function NotificationSettings({ userId }) {
           </div>
         )}
 
-        <PushAlertsCard userId={userId} state={pushState} onState={setPushState} />
+        <PushAlertsCard userId={userId} state={pushState} onState={setPushState} offerEnabled={pushOfferOn} />
         <AlertPrefs preferences={preferences} onChange={handlePreferenceChange} pushReady={pushState === 'granted'} userId={userId} />
       </div>
     );
