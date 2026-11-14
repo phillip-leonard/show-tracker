@@ -108,4 +108,26 @@ test('parity report: stale counters, definition changes and rank changes are tol
   assert.strictEqual(report.rank['now unranked: no shows'], 1);
 });
 
+test('leaderboard opt-out: off the boards on the rebuild, still ranked; off at once on recompute (5.60.1)', async () => {
+  const db = seed();
+  await rebuildAllStats(db);
+  assert.ok(db._get('communityStats/global').topShowsAttended.some((u) => u.userId === 'bob'));
+  // Bob turns the setting off; his own recompute takes him off now.
+  db._put('userProfiles/bob', { firstName: 'Bob', showOnLeaderboard: false });
+  const bob = await recomputeUserStats(db, 'bob');
+  assert.strictEqual(bob.rank, 1, 'rank unchanged');
+  const now = db._get('communityStats/global');
+  for (const k of ['topShowsAttended', 'topSongsRated', 'topVenuesVisited']) {
+    assert.ok(!(now[k] || []).some((u) => u.userId === 'bob'), k);
+  }
+  // The next rebuild leaves him off too, and still ranks him.
+  await rebuildAllStats(db);
+  assert.ok(!db._get('communityStats/global').topShowsAttended.some((u) => u.userId === 'bob'));
+  assert.strictEqual(db._get('userStats/bob').rank, 1);
+  // Back on: listed again on the next rebuild.
+  db._put('userProfiles/bob', { firstName: 'Bob', showOnLeaderboard: true });
+  await rebuildAllStats(db);
+  assert.ok(db._get('communityStats/global').topShowsAttended.some((u) => u.userId === 'bob'));
+});
+
 run('Server stats (5.59.15)');

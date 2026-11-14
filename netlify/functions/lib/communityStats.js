@@ -32,6 +32,9 @@
 const { normalizeSongTitle } = require('./bandSetlistMergeRule');
 const { computeUserStats, isRanked } = require('../../../lib/stats');
 
+/** On the community boards unless the profile opted out (5.60.1). */
+const onLeaderboard = (profile) => !(profile && profile.showOnLeaderboard === false);
+
 const TOP_N = 5;
 
 function topProfilesBy(ranked, field) {
@@ -54,7 +57,11 @@ function buildCommunityStats(allProfiles, showsByUid, statsByUid = null) {
   const allSongs = {};
   const allVenues = {};
   const withStats = profiles.map((profile) => ({ profile, stats: statsFor(profile.id) }));
+  // The boards list ranked accounts that haven't opted out (Profile →
+  // "Show me on the community leaderboard", userProfiles.showOnLeaderboard,
+  // 5.60.1; missing means on). Opting out leaves your rank as it is.
   const ranked = withStats.filter(({ profile, stats }) => isRanked(profile, stats));
+  const listed = ranked.filter(({ profile }) => onLeaderboard(profile));
   const totalShows = withStats.reduce((acc, { stats }) => acc + stats.showCount, 0);
   const totalSongs = withStats.reduce((acc, { stats }) => acc + stats.songCount, 0);
 
@@ -105,9 +112,9 @@ function buildCommunityStats(allProfiles, showsByUid, statsByUid = null) {
     totalUsers: profiles.length,
     totalShows,
     totalSongs,
-    topShowsAttended: topProfilesBy(ranked, 'showCount'),
-    topSongsRated: topProfilesBy(ranked, 'ratedSongCount'),
-    topVenuesVisited: topProfilesBy(ranked, 'venueCount'),
+    topShowsAttended: topProfilesBy(listed, 'showCount'),
+    topSongsRated: topProfilesBy(listed, 'ratedSongCount'),
+    topVenuesVisited: topProfilesBy(listed, 'venueCount'),
     rankedCount: ranked.length,
     topSongsBySightings,
     topSongsByRating,
@@ -141,4 +148,4 @@ async function rebuildCommunityStats(db, { serverTimestamp }) {
   return stats;
 }
 
-module.exports = { buildCommunityStats, rebuildCommunityStats };
+module.exports = { buildCommunityStats, rebuildCommunityStats, onLeaderboard };

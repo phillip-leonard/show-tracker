@@ -17,8 +17,14 @@ import { bandKey, alsoSee } from '@/lib/recommendations';
 import { loadAffinity } from '@/lib/discover';
 import useMyBands from '@/hooks/useMyBands';
 import BandSuggestionRow from './BandSuggestionRow';
+import { useApp } from '@/context/AppContext';
+import { shouldShowUserCount } from '@/lib/userCount';
 
 export default function FansAlsoSee({ name, limit = 10, showEmpty = true, className = '' }) {
+  // How many fans see a band is a user count: shown only from 1,000 users
+  // (lib/userCount.js); below that the line names the fans, no number.
+  const { communityStats } = useApp();
+  const showFanCounts = shouldShowUserCount(communityStats?.totalUsers);
   const { uid, bands } = useMyBands();
   const key = bandKey(name);
   const [state, setState] = useState({ key: null, doc: null, error: false });
@@ -65,7 +71,7 @@ export default function FansAlsoSee({ name, limit = 10, showEmpty = true, classN
               <BandSuggestionRow
                 key={c.key}
                 name={c.name}
-                detail={`${c.co} ${name} fans see them often`}
+                detail={showFanCounts ? `${c.co} ${name} fans see them often` : `${name} fans see them often`}
                 compact
               />
             ))}

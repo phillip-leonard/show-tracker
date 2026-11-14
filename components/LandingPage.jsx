@@ -12,6 +12,7 @@ import './LandingPage.css';
 import packageJson from '../package.json';
 import publicArtists from '../config/public-artists.json';
 import { COMPARE_PAGES, comparePageClick } from '@/lib/comparePages';
+import { shouldShowUserCount } from '@/lib/userCount';
 
 function PickSimple({ size = 20 }) {
   return (
@@ -20,8 +21,6 @@ function PickSimple({ size = 20 }) {
     </svg>
   );
 }
-
-const COMMUNITY_COUNTS_MIN_USERS = 1000;
 
 // Footer links to the public band pages. Those pages are Netlify functions
 // (/artist/<slug>/), not app routes, so they're plain <a> tags and exist on
@@ -40,7 +39,8 @@ export default function LandingPage({ onSignUp, onSignIn, onGuest, communityStat
   // stats strip and the "fans tracking" line stay hidden until then. No
   // stand-in numbers in the meantime: the old "3.2M shows indexed" badge
   // and the 180K artists / 42K venues tiles were never measured.
-  const showCommunityCounts = totalUsers >= COMMUNITY_COUNTS_MIN_USERS;
+  // The shared rule (lib/userCount.js): no user count until 1,000 users.
+  const showCommunityCounts = shouldShowUserCount(totalUsers);
   // Known only after mount. This page is pre-rendered (it is the static
   // HTML of `/`), where the platform is unknown, and on iOS reading it
   // during render would make the first client render disagree with that
@@ -444,7 +444,10 @@ export default function LandingPage({ onSignUp, onSignIn, onGuest, communityStat
             {isWeb && (
               <a href="https://buymeacoffee.com/phillipd" target="_blank" rel="noopener noreferrer">Support this project</a>
             )}
-            <Link href="/community">Community</Link>
+            {/* Signed out, /community shows this landing page again, so the
+                link used to loop. It starts guest mode (read-only) and opens
+                the board (5.60.1). */}
+            <Link href="/community" onClick={() => onGuest?.()}>Community</Link>
           </div>
           {!isNative && (
             <div className="lp-footer-col">

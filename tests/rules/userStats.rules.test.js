@@ -91,6 +91,14 @@ async function main() {
     await assertSucceeds(as('alice').doc('userProfiles/alice').set({ showCount: 3, songCount: 20, ratedSongCount: 4, venueCount: 2 }, { merge: true }));
   });
 
+  await test('leaderboard opt-out: the owner sets showOnLeaderboard, only as a boolean (5.60.1)', async () => {
+    await assertSucceeds(as('carol').doc('userProfiles/carol').set({ showOnLeaderboard: false }));
+    await assertSucceeds(as('carol').doc('userProfiles/carol').update({ showOnLeaderboard: true }));
+    await assertFails(as('carol').doc('userProfiles/carol').update({ showOnLeaderboard: 'no' }));
+    await assertFails(as('dave').doc('userProfiles/dave').set({ showOnLeaderboard: 0 }));
+    await assertFails(as('bob').doc('userProfiles/carol').update({ showOnLeaderboard: false }));
+  });
+
   await testEnv.cleanup();
   console.log(`\n${passed} passed, ${failed} failed\n`);
   if (failed > 0) process.exit(1);

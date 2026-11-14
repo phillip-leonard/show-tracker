@@ -5,7 +5,7 @@ import { Button, Card, Badge, Input, Modal } from '@/components/ui';
 import { doc, updateDoc, getDoc } from 'firebase/firestore';
 import { updateProfile, signOut } from 'firebase/auth';
 import { db, auth } from '@/lib/firebase';
-import { apiUrl } from '@/lib/api';
+import { apiUrl, authedFetch } from '@/lib/api';
 import { artistColor, parseDate } from '@/lib/utils';
 import { claimHandle, handleFormatError, normalizeHandle, saveDisplayName } from '@/lib/handles';
 import { contentProblem } from '@/lib/contentFilter';
@@ -22,8 +22,9 @@ import FollowBandButton from '@/components/artists/FollowBandButton';
 import { compareShowDates, showYear, formatDate as formatShowDay } from '@/lib/showDate';
 import { countVenues } from '@/lib/venueCount';
 import { computeUserStats } from '@/lib/stats';
+import { shouldShowUserCount } from '@/lib/userCount';
 
-export default function ProfileView({ user, shows, userRank, headlineStats = null, onProfileUpdate, onViewShow, friends = [], favoriteArtists = [], onToggleFavoriteArtist }) {
+export default function ProfileView({ user, shows, userRank, headlineStats = null, totalUsers = null, onProfileUpdate, onViewShow, friends = [], favoriteArtists = [], onToggleFavoriteArtist }) {
   const [isEditing, setIsEditing] = useState(false);
   const [displayName, setDisplayName] = useState('');
   const [photoURL, setPhotoURL] = useState('');
@@ -47,6 +48,10 @@ export default function ProfileView({ user, shows, userRank, headlineStats = nul
   // Read/written in lib/activityFeed.js's logActivity() before every write.
   const [shareActivity, setShareActivity] = useState(true);
   const [shareActivityLoading, setShareActivityLoading] = useState(false);
+  // On the community leaderboard unless turned off (5.60.1); a profile
+  // without the field is on, which is how every account behaved before.
+  const [showOnLeaderboard, setShowOnLeaderboard] = useState(true);
+  const [leaderboardLoading, setLeaderboardLoading] = useState(false);
   const [handleInput, setHandleInput] = useState('');
   const [handleSaving, setHandleSaving] = useState(false);
   const [handleError, setHandleError] = useState('');
@@ -81,6 +86,7 @@ export default function ProfileView({ user, shows, userRank, headlineStats = nul
           setHandle(profile.data().handle || null);
           setPublicProfile(profile.data().publicProfile || false);
           setShareActivity(profile.data().shareActivity !== false);
+          setShowOnLeaderboard(profile.data().showOnLeaderboard !== false);
         }
       };
       loadProfile();
@@ -272,6 +278,24 @@ export default function ProfileView({ user, shows, userRank, headlineStats = nul
       console.error('Failed to update activity sharing setting:', err);
     } finally {
       setShareActivityLoading(false);
+    }
+  };
+
+  // Off: the server takes you off the community boards at once (via
+  // recompute-my-stats) and leaves you off every rebuild. On: you're back
+  // on the next rebuild (every 6 hours). Your own rank is unchanged.
+  const handleLeaderboardToggle = async () => {
+    if (!user?.uid) return;
+    setLeaderboardLoading(true);
+    const newValue = !showOnLeaderboard;
+    try {
+      await updateDoc(doc(db, 'userProfiles', user.uid), { showOnLeaderboard: newValue });
+      setShowOnLeaderboard(newValue);
+      authedFetch('/.netlify/functions/recompute-my-stats', { method: 'POST' }).catch(() => {});
+    } catch (err) {
+      console.error('Failed to update leaderboard setting:', err);
+    } finally {
+      setLeaderboardLoading(false);
     }
   };
 
@@ -472,7 +496,7 @@ export default function ProfileView({ user, shows, userRank, headlineStats = nul
         <StatCard icon={<Star className="w-5 h-5" />} label="Songs Rated" value={stats.ratedSongs} color="amber" />
         <StatCard icon={<MapPin className="w-5 h-5" />} label="Venues" value={stats.uniqueVenues} color="cyan" />
         <StatCard icon={<User className="w-5 h-5" />} label="Artists" value={stats.uniqueArtists} color="purple" />
-        <StatCard icon={<Trophy className="w-5 h-5" />} label="Rank" value={userRank ? `#${userRank.rank}` : '-'} subtext={userRank ? `of ${userRank.total}` : ''} color="amber" />
+        <StatCard icon={<Trophy className="w-5 h-5" />} label="Rank" value={userRank ? `#${userRank.rank}` : '-'} subtext={userRank && shouldShowUserCount(totalUsers) ? `of ${userRank.total}` : ''} color="amber" />
       </div>
 
       {/* Average Rating */}
@@ -754,6 +778,30 @@ export default function ProfileView({ user, shows, userRank, headlineStats = nul
           </span>
         </label>
         {shareActivityLoading && <p className="text-muted text-xs mt-2">Saving...</p>}
+      </Card>
+
+      {/* Community leaderboard opt-out (5.60.1) — on by default, as before. */}
+      <Card padding="md">
+        <h3 className="text-lg font-semibold text-primary mb-2 flex items-center gap-2">
+          <Trophy className="w-5 h-5 text-brand" />
+          Community Leaderboard
+        </h3>
+        <p className="text-secondary text-sm mb-4">
+          The Community page lists the people with the most shows and the most rated songs, by first name. Turn this off to leave those lists. You can still see the page, and your own rank stays on your profile.
+        </p>
+        <label className="flex items-start gap-3 cursor-pointer group">
+          <input
+            type="checkbox"
+            checked={showOnLeaderboard}
+            onChange={handleLeaderboardToggle}
+            disabled={leaderboardLoading}
+            className="mt-1 w-4 h-4 rounded border-active bg-hover text-brand focus:ring-brand/50 focus:ring-offset-0 cursor-pointer"
+          />
+          <span className="text-primary text-sm font-medium group-hover:text-brand transition-colors">
+            Show me on the community leaderboard
+          </span>
+        </label>
+        {leaderboardLoading && <p className="text-muted text-xs mt-2">Saving...</p>}
       </Card>
 
       {/* Public Profile Preview Modal — exactly what the fields above claim: shows,

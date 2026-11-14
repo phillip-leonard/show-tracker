@@ -13,6 +13,16 @@ const STREAMING_MENTION = /spotify|apple\s*music/i;
 function ReleaseNotesView() {
   const releases = [
     {
+      version: '5.60.1',
+      date: 'November 14, 2026',
+      title: 'Community Is Back',
+      changes: [
+        'Community is back in the menu, right under Stats',
+        'Tap a name on the leaderboard to view, report or block that person',
+        'New in Profile: choose whether you appear on the community leaderboard',
+      ]
+    },
+    {
       version: '5.59.15',
       date: 'November 14, 2026',
       title: 'Stats You Can Count On',

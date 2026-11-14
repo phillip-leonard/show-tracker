@@ -21,10 +21,14 @@ import { recommend, becauseText, MAX_SEED_READS } from '@/lib/recommendations';
 import { loadAffinityDocs } from '@/lib/discover';
 import useMyBands from '@/hooks/useMyBands';
 import BandSuggestionRow from './BandSuggestionRow';
+import { shouldShowUserCount } from '@/lib/userCount';
 
 export default function DiscoverView() {
   const router = useRouter();
-  const { setShowForm } = useApp();
+  const { setShowForm, communityStats } = useApp();
+  // How many fans see a band is a user count: shown only from 1,000 users
+  // (lib/userCount.js); below that the line names the fans, no number.
+  const showFanCounts = shouldShowUserCount(communityStats?.totalUsers);
   const { uid, ready, bands, seeds, dismissed, dismiss, undismiss } = useMyBands();
   const [docs, setDocs] = useState(null);
   const [error, setError] = useState(false);
@@ -111,7 +115,7 @@ export default function DiscoverView() {
                 key={r.key}
                 name={r.name}
                 reason={becauseText(r.because)}
-                detail={`${r.topCo} ${r.topSeed} fans see them often`}
+                detail={showFanCounts ? `${r.topCo} ${r.topSeed} fans see them often` : `${r.topSeed} fans see them often`}
                 onDismiss={() => dismiss(r.key)}
               />
             ))}
