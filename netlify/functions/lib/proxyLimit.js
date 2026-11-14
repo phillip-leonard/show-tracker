@@ -35,11 +35,15 @@ const { takeDailyQuota, clientIp, ipHash } = require('./rateLimit');
 // Per IP per UTC day. A spreadsheet import searches setlist.fm once per
 // row (lib/importMatch.js), so `setlists` allows a 1,000-row import with
 // room to spare. Each can be changed without a deploy of code by setting
-// PROXY_LIMIT_SETLISTS / PROXY_LIMIT_TICKETMASTER / PROXY_LIMIT_SEATGEEK.
+// PROXY_LIMIT_SETLISTS / PROXY_LIMIT_TICKETMASTER / PROXY_LIMIT_SEATGEEK /
+// PROXY_LIMIT_HEARDSHARE / PROXY_LIMIT_METADATA.
 const DEFAULT_LIMITS = {
   setlists: 2000,     // setlist.fm and the band sources behind band-setlist
   ticketmaster: 500,
   seatgeek: 500,
+  // 5.59.12 (#398 follow-ups):
+  heardshare: 50,     // heard-share stores (POST) from one network
+  metadata: 300,      // cache misses that reach MusicBrainz / Discogs / Wikipedia / relisten
 };
 
 function limitFor(service) {

@@ -495,9 +495,21 @@ function createHeardApp(Heard, boot, Paging) {
     if (stored.code === code) return stored.id;
     const res = await fetch(boot.shareApi, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ slug: boot.slug, code }) });
     const json = await res.json().catch(() => ({}));
-    if (!res.ok || !json.id) throw new Error('share failed');
+    if (!res.ok || !json.id) {
+      const e = new Error('share failed');
+      e.status = res.status;
+      throw e;
+    }
     stored = { code, id: json.id };
     return json.id;
+  }
+
+  // What to say when storing a long selection fails (heard-share.js, 5.59.12).
+  function shareErrorText(e, fallback) {
+    if (e && e.status === 429) return 'You\'ve made a lot of links today. Please try again tomorrow.';
+    if (e && e.status === 413) return 'That selection is too large to save as a link.';
+    if (e && e.status === 400) return 'That selection couldn\'t be saved as a link.';
+    return fallback;
   }
 
   const shareUrl = (code) => `${location.origin}${boot.toolPath}r/${code}/`;
@@ -536,7 +548,7 @@ function createHeardApp(Heard, boot, Paging) {
       if (done) said = await done;
       document.getElementById('h-share-msg').textContent = said;
     } catch (e) {
-      box.innerHTML = '<p class="h-msg err">Couldn\'t make a link just now. Please try again.</p>';
+      box.innerHTML = `<p class="h-msg err">${esc(shareErrorText(e, 'Couldn\'t make a link just now. Please try again.'))}</p>`;
     } finally {
       btn.disabled = false;
     }
@@ -615,7 +627,7 @@ function createHeardApp(Heard, boot, Paging) {
       window.location.href = `${boot.saveUrl}${encodeURIComponent(`${boot.slug}.${code}`)}`;
     } catch (e) {
       btn.disabled = false;
-      btn.insertAdjacentHTML('afterend', '<p class="h-msg err">Something went wrong. Please try again.</p>');
+      btn.insertAdjacentHTML('afterend', `<p class="h-msg err">${esc(shareErrorText(e, 'Something went wrong. Please try again.'))}</p>`);
     }
   }
 
