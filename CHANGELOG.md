@@ -4,6 +4,43 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.59.15] — 2026-11-14
+
+Ships in **iOS 3.13.15** (`MARKETING_VERSION` 3.13.14 → 3.13.15): the app
+needs this build to read server stats and stop writing counts.
+
+**Server-side stats and rank (B-05, SCOPING §7.2).** The last
+prerequisite before the SwiftUI app: one server-side implementation of
+the numbers people see. One commit per part.
+
+- **`lib/stats`**: pure, documented definitions (show, song, band,
+  venue, years) used by the functions and the web app; golden tests.
+  `lib/showDate.js` is now CommonJS so the functions share it.
+- **`userStats/{uid}`** (owner and admin read) and **`publicUserStats/{uid}`**
+  (signed-in read), written only by the server: `recompute-my-stats`
+  after the web app changes shows (debounced, rate-limited), and the
+  existing 6-hourly `community-stats` job for everyone (the safety net for
+  iOS 3.13.14 and earlier). `scripts/backfill-user-stats.js` (dry run
+  with a parity report, `--apply`).
+- **Rank is one document read** (B-05 fixed): no client reads every
+  profile. Ranked accounts only (no test users, no banned, at least one
+  show); ties share a rank.
+- **Leaderboards and community totals** from server numbers only;
+  blocked users are hidden in your copy; "Updated <time>" shown.
+- **The web app writes no counts to `userProfiles`** and reads other
+  users' counts from `publicUserStats` (Friends list, profile sheet).
+  Headline numbers come from `userStats` (or `lib/stats` until it exists).
+- **Definitions (approved):** bands by `artistNameKeyLoose` (2 accounts
+  change), unique songs by `songTitleKey` (2 change; 8 more lose a blank
+  setlist entry the old header counted), leaderboard venues by name +
+  city (3 change); stale stored counts corrected (1 show count, 3 song
+  counts).
+- Rules: `userStats` and `publicUserStats` deny every client write;
+  emulator tests. Account deletion purges both documents.
+- Housekeeping: `.netlify/` and `docs/prompts/` ignored.
+
+---
+
 ## [5.59.14] — 2026-11-14
 
 Ships in **iOS 3.13.14** (`MARKETING_VERSION` 3.13.13 → 3.13.14).

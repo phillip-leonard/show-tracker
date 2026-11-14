@@ -54,8 +54,9 @@ A Capacitor plugin (`FirebaseMessaging`, `FirebaseAuthentication`, `App`, …) i
 
 - **Show dates go through `lib/showDate.js`.** Stored as ISO `YYYY-MM-DD`; readers accept the legacy `DD-MM-YYYY`. No `.slice(0, 4)`, `.split('-')`, `new Date(show.date)` or `toISOString().slice(0, 10)` on a show date or for "today" (`today()` is the device's local day). `lib/__tests__/localToday.test.js` fails if the UTC idiom comes back.
 - **A show document is made only by `buildShowDoc` with `mintShowId`** (`lib/showDoc.js`), and "the same show" is decided only by `lib/showIdentity.js`.
-- **A venue count uses `countVenues`** (`lib/venueCount.js`), except the leaderboard's `userProfiles.venueCount`, which the server-side stats PR replaces.
+- **A venue count uses `countVenues`** (`lib/venueCount.js`), or `lib/stats`, which counts with the same key.
 - **Guest shows leave the device only after their Firestore write is confirmed** (`lib/guestMerge.js`).
+- **The numbers people see are computed on the server** (5.59.15): `lib/stats` (one definition, CommonJS, golden-tested) → `userStats/{uid}` and `publicUserStats/{uid}` (rules: no client writes), via `recompute-my-stats` and the 6-hourly `community-stats` job. Never read the `showCount`/`songCount`/`ratedSongCount`/`venueCount` fields on `userProfiles`: old iOS builds still write them and nothing trusts them. No client code reads every profile.
 
 ## Security invariants (5.59.6 to 5.59.12)
 
