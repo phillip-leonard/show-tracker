@@ -143,10 +143,21 @@ function AdminView() {
   const loadUsers = useCallback(async () => {
     setLoading(true);
     try {
-      const profilesSnapshot = await getDocs(collection(db, 'userProfiles'));
+      // Counts from the server's userStats (5.59.15), laid over the profile:
+      // the showCount/songCount/… a client wrote to its own profile are
+      // not trusted any more. Admins can read every userStats doc.
+      const [profilesSnapshot, statsSnapshot] = await Promise.all([
+        getDocs(collection(db, 'userProfiles')),
+        getDocs(collection(db, 'userStats')).catch(() => ({ docs: [] })),
+      ]);
+      const countsByUid = new Map(statsSnapshot.docs.map(d => {
+        const x = d.data();
+        return [d.id, { showCount: x.showCount ?? 0, songCount: x.songCount ?? 0, ratedSongCount: x.ratedSongCount ?? 0, venueCount: x.venueCount ?? 0 }];
+      }));
       const loadedUsers = profilesSnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
+        ...(countsByUid.get(doc.id) || { showCount: 0, songCount: 0, ratedSongCount: 0, venueCount: 0 }),
         // null, not today: an undated account must not land in every
         // date range. The Users tab prefers Auth's date anyway.
         createdAt: doc.data().createdAt?.toDate?.() || null,

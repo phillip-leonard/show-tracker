@@ -57,7 +57,9 @@ import { performSignOut } from '@/lib/signOutFlow';
 import { pushOfferEnabled } from '@/lib/appConfig';
 import { clearSpotifySession } from '@/lib/spotify';
 import { mintShowId, buildShowDoc } from '@/lib/showDoc';
-import { countVenues, venueCountKey } from '@/lib/venueCount';
+import { venueCountKey } from '@/lib/venueCount';
+import { computeUserStats, STATS_VERSION } from '@/lib/stats';
+import { bandKey, songKey } from '@/lib/stats/keys';
 import { mergeGuestShows, mergeMessage, readLocalShows } from '@/lib/guestMerge';
 import { findDuplicate, showMatchKey, setlistIsOnShowDate } from '@/lib/showIdentity';
 
@@ -115,9 +117,6 @@ async function updateUserProfile(user, shows = []) {
   if (!user) return;
 
   const profileRef = doc(db, 'userProfiles', user.uid);
-  const uniqueVenues = new Set(shows.map(s => s.venue)).size;
-  const totalSongs = shows.reduce((acc, s) => acc + (s.setlist || []).length, 0);
-  const ratedSongs = shows.reduce((acc, s) => acc + (s.setlist || []).filter(song => song.rating).length, 0);
 
   // displayName and firstName are deliberately NOT written here any more.
   //
@@ -141,10 +140,10 @@ async function updateUserProfile(user, shows = []) {
     // The address lives in Firebase Auth; the server reads it from there.
     photoURL: user.photoURL || '',
     lastLogin: serverTimestamp(),
-    showCount: shows.length,
-    songCount: totalSongs,
-    ratedSongCount: ratedSongs,
-    venueCount: uniqueVenues,
+    // No counts since 5.59.15 (B-05): showCount, songCount, ratedSongCount
+    // and venueCount are computed on the server into userStats and
+    // publicUserStats. iOS 3.13.14 and earlier still write them here; the
+    // rules allow it and nothing reads them.
   };
 
   const existingProfile = await getDoc(profileRef);
@@ -562,14 +561,15 @@ export function AppProvider({ children }) {
       const snapshot = await getDocs(friendsRef);
       const friendDocs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
 
-      // Enrich with each friend's live show count from their profile
-      // (the friend subcollection doc never stores showCount itself).
-      const profileSnaps = await Promise.all(
-        friendDocs.map(f => getDoc(doc(db, 'userProfiles', f.friendUid)))
+      // Each friend's show count, from the server's publicUserStats
+      // (5.59.15), never the count their own app wrote to their profile.
+      // null until the server has computed it.
+      const statSnaps = await Promise.all(
+        friendDocs.map(f => getDoc(doc(db, 'publicUserStats', f.friendUid)).catch(() => null))
       );
       const enriched = friendDocs.map((f, i) => ({
         ...f,
-        showCount: profileSnaps[i].exists() ? (profileSnaps[i].data().showCount || 0) : 0,
+        showCount: statSnaps[i] && statSnaps[i].exists() ? (statSnaps[i].data().showCount ?? null) : null,
       }));
 
       setFriends(enriched);
@@ -3515,19 +3515,24 @@ export function AppProvider({ children }) {
   // lib/songCounts.js.
   const getSongStats = (showList = shows) => buildSongStats(showList);
 
+  // One row per band by the lib/stats band key (5.59.15): "Goose" and
+  // "goose (US)" are one band, shown under the first spelling, the same
+  // band the headline count counts.
   const getArtistStats = (showList = shows) => {
     const artistMap = {};
     showList.forEach(show => {
-      if (!artistMap[show.artist]) {
-        artistMap[show.artist] = { count: 0, ratings: [], uniqueSongs: new Set() };
+      const key = bandKey(show.artist);
+      if (!key) return;
+      if (!artistMap[key]) {
+        artistMap[key] = { name: show.artist, count: 0, ratings: [], uniqueSongs: new Set() };
       }
-      artistMap[show.artist].count++;
-      (show.setlist || []).forEach(song => artistMap[show.artist].uniqueSongs.add((song.name || '').toLowerCase().trim()));
-      if (show.rating) artistMap[show.artist].ratings.push(show.rating);
+      artistMap[key].count++;
+      (show.setlist || []).forEach(song => { const k = songKey(song && song.name); if (k) artistMap[key].uniqueSongs.add(k); });
+      if (show.rating) artistMap[key].ratings.push(show.rating);
     });
-    return Object.entries(artistMap)
-      .map(([name, data]) => ({
-        name,
+    return Object.values(artistMap)
+      .map((data) => ({
+        name: data.name,
         count: data.count,
         totalSongs: data.uniqueSongs.size,
         avgRating: data.ratings.length ?
@@ -3772,19 +3777,23 @@ export function AppProvider({ children }) {
     });
   }, [sortedFilteredShows, sortBy]);
 
-  const summaryStats = useMemo(() => {
-    const uniqueSongs = new Set();
-    shows.forEach(s => (s.setlist || []).forEach(song => uniqueSongs.add((song.name || '').toLowerCase().trim())));
-    const uniqueSongCount = uniqueSongs.size;
+  // The headline numbers (5.59.15): the server's userStats/{uid} when it
+  // matches the shows on screen, otherwise the same lib/stats computed
+  // here (a new account, or the seconds between a change and the server's
+  // recompute). One definition either way.
+  const localStats = useMemo(() => computeUserStats(shows), [shows]);
+  const headlineStats = useMemo(() => (
+    serverStats && serverStats.statsVersion === STATS_VERSION && serverStats.showCount === shows.length
+      ? serverStats
+      : localStats
+  ), [serverStats, localStats, shows.length]);
 
-    const ratedShows = shows.filter(s => s.rating);
-    const avgRating = ratedShows.length
-      ? (ratedShows.reduce((a, s) => a + s.rating, 0) / ratedShows.length).toFixed(1)
-      : null;
-    const uniqueArtists = new Set(shows.map(s => s.artist)).size;
-    const uniqueVenues = countVenues(shows);
-    return { totalSongs: uniqueSongCount, avgRating, uniqueArtists, uniqueVenues };
-  }, [shows]);
+  const summaryStats = useMemo(() => ({
+    totalSongs: headlineStats.uniqueSongCount,
+    avgRating: headlineStats.avgShowRating,
+    uniqueArtists: headlineStats.bandCount,
+    uniqueVenues: headlineStats.venueCount,
+  }), [headlineStats]);
 
   // ── Context value ───────────────────────────────────────────────────
   const value = {
@@ -4017,6 +4026,7 @@ export function AppProvider({ children }) {
     sortedFilteredShows,
     artistGroups,
     summaryStats,
+    headlineStats,
   };
 
   return (
