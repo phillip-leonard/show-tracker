@@ -8,6 +8,7 @@ import { useDismissable } from '@/context/DismissStackContext';
 import useSheetDrag from '@/hooks/useSheetDrag';
 import useIsMobile from '@/hooks/useIsMobile';
 import { SetlistfmCreditFor } from '@/components/shows/SetlistfmAttribution';
+import { compareShowDates } from '@/lib/showDate';
 
 function SongHistoryModal({ songName, artistName, allShows, onClose, onViewShow }) {
   useDismissable(true, onClose, { id: 'song-history' });
@@ -40,7 +41,7 @@ function SongHistoryModal({ songName, artistName, allShows, onClose, onViewShow 
         }
       });
     // Sort chronologically (oldest first)
-    results.sort((a, b) => new Date(a.date) - new Date(b.date));
+    results.sort((a, b) => compareShowDates(a.date, b.date));
     return results;
   }, [songName, artistName, allShows]);
 

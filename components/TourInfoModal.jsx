@@ -6,6 +6,7 @@ import { Button, Card, Badge, Input } from '@/components/ui';
 import { apiUrl } from '@/lib/api';
 import { artistColor } from '@/lib/utils';
 import { useDismissable } from '@/context/DismissStackContext';
+import { formatDate, fromSetlistfmDate } from '@/lib/showDate';
 
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
@@ -32,20 +33,11 @@ function setCache(key, data) {
 // which reads a bare ISO date as UTC midnight and renders the day before
 // in any negative-offset timezone.
 function formatTourDate(dateStr) {
-  if (!dateStr) return '';
-  const iso = String(dateStr).match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  const d = iso
-    ? new Date(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3]))
-    : new Date(dateStr);
-  return isNaN(d) ? dateStr : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  return formatDate(dateStr, { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
 function formatSetlistFmDate(dateStr) {
-  if (!dateStr) return '';
-  const [day, month, year] = dateStr.split('-');
-  try {
-    return new Date(`${year}-${month}-${day}`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  } catch { return dateStr; }
+  return formatDate(fromSetlistfmDate(dateStr) || dateStr, { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
 export default function TourInfoModal({ artistName, mbid, onClose }) {

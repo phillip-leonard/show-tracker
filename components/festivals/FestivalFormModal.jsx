@@ -31,6 +31,7 @@ import { isSeededFestival } from '@/lib/festivalCatalog';
 import { festivalWhenLabel, isYearOnly } from '@/lib/festivalDates';
 import { Modal, Button, Input, Textarea, Card, Spinner } from '@/components/ui';
 import { useApp } from '@/context/AppContext';
+import { showYear } from '@/lib/showDate';
 
 // Wait this long after the last keystroke before looking for matches, so
 // typing "Bonnaroo" is one lookup rather than eight.
@@ -115,7 +116,7 @@ export default function FestivalFormModal({ open, onClose, onSubmit, onJoin, fes
   // picked, so ticking the box never loses what was typed.
   const toggleYearOnly = (checked) => {
     setYearOnly(checked);
-    if (checked && !year && startDate) setYear(startDate.slice(0, 4));
+    if (checked && !year && startDate) setYear(showYear(startDate));
     setError('');
   };
 

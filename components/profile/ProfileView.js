@@ -16,6 +16,7 @@ import { forgetPushToken } from '@/lib/pushAlerts';
 import { appleTokenForDeletion, appleProviderUid } from '@/lib/appleRevocation';
 import TourInfoModal from '@/components/TourInfoModal';
 import FollowBandButton from '@/components/artists/FollowBandButton';
+import { compareShowDates, showYear, formatDate as formatShowDay } from '@/lib/showDate';
 
 export default function ProfileView({ user, shows, userRank, onProfileUpdate, onViewShow, friends = [], favoriteArtists = [], onToggleFavoriteArtist }) {
   const [isEditing, setIsEditing] = useState(false);
@@ -132,11 +133,7 @@ export default function ProfileView({ user, shows, userRank, onProfileUpdate, on
         }
       });
     });
-    comments.sort((a, b) => {
-      const dateA = a.date ? new Date(a.date) : new Date(0);
-      const dateB = b.date ? new Date(b.date) : new Date(0);
-      return dateB - dateA;
-    });
+    comments.sort((a, b) => compareShowDates(b.date, a.date));
     return comments;
   }, [shows]);
 
@@ -333,18 +330,13 @@ export default function ProfileView({ user, shows, userRank, onProfileUpdate, on
     return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
   };
 
-  const formatShowDate = (dateStr) => {
-    if (!dateStr) return '';
-    try {
-      return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-    } catch { return dateStr; }
-  };
+  const formatShowDate = (dateStr) => formatShowDay(dateStr, { month: 'short', day: 'numeric', year: 'numeric' });
 
   // Compute stats per favorite artist
   const favoriteArtistStats = useMemo(() => {
     return favoriteArtists.map(fav => {
       const artistShows = shows.filter(s => s.artist === fav.name);
-      const lastShow = artistShows.sort((a, b) => (b.date || '').localeCompare(a.date || ''))[0];
+      const lastShow = artistShows.sort((a, b) => compareShowDates(b.date, a.date))[0];
       return {
         ...fav,
         showCount: artistShows.length,
@@ -361,7 +353,7 @@ export default function ProfileView({ user, shows, userRank, onProfileUpdate, on
   // "preview as strangers would see it" is honest, not decorative. Notes,
   // photos, wishlists, and friend lists never enter this computation.
   const publicPreview = useMemo(() => {
-    const years = new Set(shows.map(s => (s.date || '').slice(0, 4)).filter(Boolean));
+    const years = new Set(shows.map(s => showYear(s.date)).filter(Boolean));
     const sorted = shows.slice().sort((a, b) => parseDate(b.date) - parseDate(a.date));
     return {
       showCount: shows.length,

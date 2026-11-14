@@ -11,6 +11,7 @@ import { Card, Button } from '@/components/ui';
 import {
   PERMISSION_KIND, requestNativePermission, openAppSettings,
 } from '@/lib/nativePermissions';
+import { formatDate, fromSetlistfmDate } from '@/lib/showDate';
 
 // The server's cap (netlify/functions/lib/aiScan.js MAX_TICKET_IMAGES).
 const MAX_TICKETS_PER_SCAN = 10;
@@ -262,13 +263,7 @@ function TicketScanner({ onImport, importedIds, existingShows }) {
 
   const isAlreadyImported = (setlistId) => importedIds.has(setlistId);
 
-  const formatSetlistDate = (dateStr) => {
-    const parts = dateStr.split('-');
-    if (parts.length === 3) {
-      return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0])).toLocaleDateString();
-    }
-    return dateStr;
-  };
+  const formatSetlistDate = (dateStr) => formatDate(fromSetlistfmDate(dateStr) || dateStr);
 
   const reset = () => {
     setFiles([]);
@@ -409,7 +404,7 @@ function TicketScanner({ onImport, importedIds, existingShows }) {
                     </div>
                     {show.date && (
                       <div className="text-sm text-muted mt-1">
-                        {(() => { try { return new Date(show.date).toLocaleDateString(); } catch { return show.date; } })()}
+                        {formatDate(show.date)}
                       </div>
                     )}
                   </div>

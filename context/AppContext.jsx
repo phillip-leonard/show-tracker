@@ -52,6 +52,8 @@ import { callFriends } from '@/lib/friendsApi';
 import { isFirstShowTransition, requestWelcomeEmail } from '@/lib/welcomeEmailTrigger';
 import { sweepExpiredSetlistfmCaches } from '@/lib/setlistfmLocalCache';
 import { signInLeavesRoute } from '@/lib/deepLinks';
+import { toIsoDate, showYear } from '@/lib/showDate';
+import { findDuplicate, showMatchKey, setlistIsOnShowDate } from '@/lib/showIdentity';
 
 // Gap between writes in a bulk tour add. Enough to keep a 40-night
 // selection from arriving at Firestore as one burst, small enough that a
@@ -85,6 +87,9 @@ function buildShowDoc(showData, id) {
   return {
     ...showData,
     id,
+    // Stored as ISO 'YYYY-MM-DD' only (lib/showDate.js); a date that can't
+    // be read is kept as given rather than dropped.
+    date: toIsoDate(showData.date) || showData.date || '',
     setlist: showData.setlist || [],
     createdAt: new Date().toISOString(),
     // `isManual` means "nobody but the user wrote this setlist", and it is
@@ -112,6 +117,7 @@ function isBandSourced(showData) {
 // in-memory copy carries until the next load).
 async function writeShowDoc(uid, show) {
   const { id, ...showData } = show;
+  if (showData.date) showData.date = toIsoDate(showData.date) || showData.date;
   await setDoc(doc(db, 'users', uid, 'shows', id), { ...showData, createdAt: serverTimestamp() });
 }
 
@@ -1313,6 +1319,7 @@ export function AppProvider({ children }) {
     try {
       const showRef = doc(db, 'users', user.uid, 'shows', updatedShow.id);
       const { id, ...showData } = updatedShow;
+      if (showData.date) showData.date = toIsoDate(showData.date) || showData.date;
       await setDoc(showRef, showData, { merge: true });
     } catch (error) {
       console.error('Failed to save show:', error);
@@ -1321,12 +1328,8 @@ export function AppProvider({ children }) {
 
   // ── Duplicate detection helper ─────────────────────────────────────
   const findDuplicateShow = (showData) => {
-    if (!showData.artist || !showData.date) return null;
-    return latestShows.current.find(s =>
-      s.artist?.toLowerCase().trim() === showData.artist?.toLowerCase().trim() &&
-      s.venue?.toLowerCase().trim() === (showData.venue || '').toLowerCase().trim() &&
-      s.date === showData.date
-    ) || null;
+    // Same artist, venue and calendar day in any stored format (B-07).
+    return findDuplicate(latestShows.current, showData);
   };
 
   // Merge friend tag data into an existing show (comments, tags, etc.)
@@ -1570,7 +1573,11 @@ export function AppProvider({ children }) {
     return { added: createdThisRun, skipped, failed };
   };
 
-  const updateShowData = async (showId, updates) => {
+  const updateShowData = async (showId, rawUpdates) => {
+    // A changed date is stored as ISO, like every other write.
+    const updates = rawUpdates && rawUpdates.date
+      ? { ...rawUpdates, date: toIsoDate(rawUpdates.date) || rawUpdates.date }
+      : rawUpdates;
     if (guestMode) {
       const updatedShows = shows.map(s => s.id === showId ? { ...s, ...updates } : s);
       setShows(updatedShows);
@@ -1608,10 +1615,9 @@ export function AppProvider({ children }) {
         if (!data.setlist || data.setlist.length === 0) return null;
 
         const match = data.setlist.find(s => {
-          if (!s.eventDate) return false;
-          const parts = s.eventDate.split('-');
-          if (parts.length !== 3) return false;
-          return `${parts[2]}-${parts[1]}-${parts[0]}` === date;
+          // setlist.fm's DD-MM-YYYY against the show's date in any stored
+          // format (B-06).
+          return setlistIsOnShowDate(s.eventDate, date);
         });
 
         if (match) return match;
@@ -1662,7 +1668,10 @@ export function AppProvider({ children }) {
       const show = showsWithoutSetlists[i];
       try {
         if (!show.artist || !show.date) continue;
-        const year = show.date.split('-')[0];
+        // The year from any stored format: a DD-MM-YYYY show used to search
+        // setlist.fm for year "23" (B-06).
+        const year = showYear(show.date);
+        if (!year) continue;
 
         // One request instead of up to nine, where the artist has a band
         // source. A failure here falls through to the setlist.fm path
@@ -2868,7 +2877,7 @@ export function AppProvider({ children }) {
   // artist's shows that year, newest first, a few pages deep: a show that
   // has just happened is on page one.
   const findSetlistForUpcomingShow = async (show) => {
-    const year = (show.date || '').slice(0, 4);
+    const year = showYear(show.date);
     if (!show.artist || !year) return null;
     for (let page = 1; page <= 3; page++) {
       try {
@@ -2919,8 +2928,9 @@ export function AppProvider({ children }) {
     ]);
     const myShows = mySnap.docs.map(d => ({ id: d.id, ...d.data() }));
     const theirShows = theirSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-    const norm = s => (s || '').trim().toLowerCase();
-    const key = s => s.setlistfmId || `${norm(s.artist)}|${norm(s.venue)}|${norm(s.date)}`;
+    // Dates compared as calendar days, so "28-05-2025" and "2025-05-28"
+    // are the same night (B-08).
+    const key = showMatchKey;
     const theirMap = {};
     theirShows.forEach(s => { theirMap[key(s)] = s; });
     return myShows
@@ -2931,8 +2941,7 @@ export function AppProvider({ children }) {
   // === SHOW SUGGESTIONS ===
 
   const normalizeShowKey = (show) => {
-    const norm = v => (v || '').trim().toLowerCase();
-    return show.setlistfmId || `${norm(show.artist)}|${norm(show.venue)}|${norm(show.date)}`;
+    return showMatchKey(show);
   };
 
   const buildSuggestionDocId = (uid1raw, uid2raw, showKey) => {

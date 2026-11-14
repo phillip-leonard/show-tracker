@@ -22,6 +22,7 @@ import { useApp } from '@/context/AppContext';
 import { listBucketList, removeFromBucketList, addToBucketList } from '@/lib/bucketList';
 import MeetupCard from '@/components/meetups/MeetupCard';
 import VenueBucketListSection from '@/components/bucketlist/VenueBucketListSection';
+import { today as localToday, toIsoDate, compareShowDates } from '@/lib/showDate';
 
 function formatDate(iso) {
   if (!iso) return '';
@@ -166,18 +167,18 @@ export default function BucketListView() {
 
   useEffect(() => { refresh(); }, [refresh]);
 
-  const today = useMemo(() => new Date().toISOString().split('T')[0], []);
+  const today = useMemo(() => localToday(), []);
 
   const filtered = useMemo(() => {
     const q = filterText.trim().toLowerCase();
-    let list = items.filter((i) => i.date >= today);
+    let list = items.filter((i) => toIsoDate(i.date) >= today);
     if (q) {
       list = list.filter((i) =>
         (i.artist || '').toLowerCase().includes(q) || (i.venue || '').toLowerCase().includes(q)
       );
     }
     return [...list].sort((a, b) =>
-      sortBy === 'artist' ? a.artist.localeCompare(b.artist) : a.date.localeCompare(b.date)
+      sortBy === 'artist' ? a.artist.localeCompare(b.artist) : compareShowDates(a.date, b.date)
     );
   }, [items, filterText, sortBy, today]);
 

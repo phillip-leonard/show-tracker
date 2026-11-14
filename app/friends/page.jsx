@@ -4,6 +4,7 @@ import FriendsView from '@/components/FriendsView';
 import { PageHeader, Button } from '@/components/ui';
 import { UserPlus } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
+import { showYear } from '@/lib/showDate';
 
 export default function FriendsPage() {
   const {
@@ -29,7 +30,7 @@ export default function FriendsPage() {
   const thisYear = new Date().getFullYear();
   const sharedThisYear = (shows || []).filter(s => {
     if (!s.taggedFriendUids?.length) return false;
-    try { return new Date(s.date).getFullYear() === thisYear; } catch { return false; }
+    return showYear(s.date) === String(thisYear);
   }).length;
 
   const subtitleParts = [

@@ -16,6 +16,7 @@ import { getSavedSearches, addSavedSearch, deleteSavedSearch, getSearchHistory, 
 import { Card, Button, Input, Select, PageHeader, EmptyState } from '@/components/ui';
 import ShowCard from '@/components/shows/ShowCard';
 import { showHref } from '@/lib/showRouting';
+import { today as localToday, compareShowDates } from '@/lib/showDate';
 
 const MATCH_LABELS = {
   notes: 'matched your notes',
@@ -24,7 +25,7 @@ const MATCH_LABELS = {
 };
 
 function todayISO() {
-  return new Date().toISOString().slice(0, 10);
+  return localToday();
 }
 
 function startOfYearISO(yearOffset = 0) {
@@ -112,10 +113,10 @@ export default function AdvancedSearchView() {
     const matched = filterShows(shows, filters, { tourShowIds, festivalShowIds });
     const sorted = matched.slice();
     sorted.sort((a, b) => {
-      if (sortBy === 'date-asc') return a.show.date.localeCompare(b.show.date);
+      if (sortBy === 'date-asc') return compareShowDates(a.show.date, b.show.date);
       if (sortBy === 'rating-desc') return (b.show.rating || 0) - (a.show.rating || 0);
       if (sortBy === 'artist') return a.show.artist.localeCompare(b.show.artist);
-      return b.show.date.localeCompare(a.show.date); // date-desc default
+      return compareShowDates(b.show.date, a.show.date); // date-desc default
     });
     return sorted;
   }, [active, shows, filters, tourShowIds, festivalShowIds, sortBy]);

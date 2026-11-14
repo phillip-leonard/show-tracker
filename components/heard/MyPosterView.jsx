@@ -29,6 +29,7 @@ import { formatDate } from '@/lib/utils';
 import { Button, Card, StatFigure } from '@/components/ui';
 import { Section, RowList, Row } from '@/components/bands/BandParts';
 import { PosterImages, PosterShareLink } from '@/components/heard/PosterShare';
+import { showYear } from '@/lib/showDate';
 
 const SORTS = [['count', 'Most heard'], ['name', 'A–Z'], ['first', 'First heard'], ['last', 'Last heard']];
 
@@ -136,7 +137,7 @@ export default function MyPosterView({ artist }) {
   }
 
   const span = record.firstShow
-    ? (record.firstShow.date.slice(0, 4) === record.lastShow.date.slice(0, 4) ? record.firstShow.date.slice(0, 4) : `${record.firstShow.date.slice(0, 4)}–${record.lastShow.date.slice(0, 4)}`)
+    ? (showYear(record.firstShow.date) === showYear(record.lastShow.date) ? showYear(record.firstShow.date) : `${showYear(record.firstShow.date)}–${showYear(record.lastShow.date)}`)
     : '';
   const enough = record.showsWithSetlist >= MIN_SHOWS_WITH_SETLIST;
 

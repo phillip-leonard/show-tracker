@@ -16,6 +16,7 @@ import { Card, StatFigure } from '@/components/ui';
 import { formatDate, humanizeGapDuration } from '@/lib/utils';
 import SongPerformanceRow from '@/components/songs/SongPerformanceRow';
 import { showHref } from '@/lib/showRouting';
+import { showYear } from '@/lib/showDate';
 
 function venueLabel({ venue, city }) {
   if (!venue) return null;
@@ -61,8 +62,8 @@ function positionBreakdown(performances) {
 function PerformancesByYear({ performances }) {
   const counts = new Map();
   performances.forEach(p => {
-    const year = (p.date || '').slice(0, 4);
-    if (!/^\d{4}$/.test(year)) return;
+    const year = showYear(p.date);
+    if (!year) return;
     counts.set(year, (counts.get(year) || 0) + 1);
   });
   const years = [...counts.keys()].sort();

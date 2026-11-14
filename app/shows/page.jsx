@@ -40,6 +40,7 @@ import {
   Bell, ChevronRight, ChevronLeft, Calendar, MapPin, Check, Tag, Sparkles, ArrowLeft,
   Bookmark,
 } from 'lucide-react';
+import { compareShowDates } from '@/lib/showDate';
 
 export default function ShowsPage() {
   const router = useRouter();
@@ -205,7 +206,7 @@ export default function ShowsPage() {
       festivalShowIds: activeFestivalShowIds,
     })
       .map(r => r.show)
-      .sort((a, b) => b.date.localeCompare(a.date));
+      .sort((a, b) => compareShowDates(b.date, a.date));
   }, [activeSavedSearch, shows, activeTourShowIds, activeFestivalShowIds]);
   // What the list actually renders — the saved search's richer filter when
   // one is active, otherwise the simple searchTerm/year/date filter from
