@@ -8,7 +8,7 @@ import { PageHeader, Button, Card, StatTile } from '@/components/ui';
 import ShareYearInReview from '@/components/yearInReview/ShareYearInReview';
 import YearSelector from '@/components/yearInReview/YearSelector';
 import {
-  computeYearInReview, showYear, saveYearInReview, getYearInReview, setYearInReviewPrivacy,
+  computeYearInReview, showYear, getYearInReview, setYearInReviewPrivacy,
 } from '@/lib/yearInReview';
 import { SetlistfmCredit, SetlistfmCreditFor } from '@/components/shows/SetlistfmAttribution';
 import { yearInReviewHref } from '@/lib/showRouting';
@@ -22,14 +22,8 @@ export default function YearInReviewClient({ userId, year }) {
   const [remoteDoc, setRemoteDoc] = useState(undefined); // undefined = loading, null = not found
   const [privacy, setPrivacy] = useState('private');
 
-  // The cached stats only; the stored privacy choice is never overwritten
-  // here (see saveYearInReview).
-  useEffect(() => {
-    if (isOwner && ownStats) {
-      saveYearInReview(userId, year, ownStats).catch((err) => console.error('Failed to cache year-in-review:', err));
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOwner, ownStats]);
+  // The owner's numbers are computed here and never written: the copy a
+  // visitor reads is the server's (lib/yearInReview.js, 5.60.4).
 
   // The stored doc: a visitor's stats, and everyone's privacy choice. The
   // owner used to start at 'private' every visit whatever was stored.

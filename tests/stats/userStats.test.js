@@ -12,6 +12,9 @@ const { createFakeDb, createFakeAuth } = require('../email/fakeFirestore');
 const { __setTestFirebase } = require('../../netlify/functions/lib/firebaseAdmin');
 const { rebuildAllStats, recomputeUserStats } = require('../../netlify/functions/lib/userStats');
 const { parityReport } = require('../../scripts/backfill-user-stats');
+const { parityReport: yearInReviewParity } = require('../../scripts/year-in-review-parity');
+const { computeYearInReview } = require('../../lib/yearInReviewStats');
+const { showsWithIdsByUser } = require('../../netlify/functions/lib/userStats');
 
 function seed() {
   const db = createFakeDb();
@@ -130,4 +133,80 @@ test('leaderboard opt-out: off the boards on the rebuild, still ranked; off at o
   assert.ok(db._get('communityStats/global').topShowsAttended.some((u) => u.userId === 'bob'));
 });
 
-run('Server stats (5.59.15)');
+// ── Year in Review: the public copy is the server's (5.60.4) ──────────
+
+test('rebuildAllStats: every existing review gets the server\'s numbers; no review is created', async () => {
+  const db = seed();
+  // A review alice's old client wrote, with its own (forged or stale) numbers.
+  db._put('yearInReviews/alice_2025', { userId: 'alice', year: 2025, privacy: 'public', stats: { totalShows: 99, totalArtists: 99 } });
+  const r = await rebuildAllStats(db);
+  const stored = db._get('yearInReviews/alice_2025');
+  assert.strictEqual(stored.privacy, 'public', 'privacy is the owner\'s and untouched');
+  assert.strictEqual(stored.stats.totalShows, 2);
+  assert.strictEqual(stored.stats.totalArtists, 1, '"Goose" and "goose (US)" are one band');
+  assert.deepStrictEqual(stored.stats, JSON.parse(JSON.stringify(computeYearInReview([
+    { id: '1', ...db._get('users/alice/shows/1') }, { id: '2', ...db._get('users/alice/shows/2') }, { id: '3', ...db._get('users/alice/shows/3') },
+  ], 2025))));
+  assert.ok(stored.statsComputedAt);
+  assert.deepStrictEqual(r.yearInReviews, { docs: 1, changed: 1, written: 1 });
+  assert.strictEqual(db._get('yearInReviews/bob_2024'), undefined, 'no review is created for anyone');
+});
+
+test('rebuildAllStats: a second run changes nothing (idempotent)', async () => {
+  const db = seed();
+  db._put('yearInReviews/alice_2025', { userId: 'alice', year: 2025, privacy: 'public' });
+  await rebuildAllStats(db);
+  const writes = db._writes.filter(([, p]) => p.startsWith('yearInReviews/')).length;
+  const r = await rebuildAllStats(db);
+  assert.strictEqual(r.yearInReviews.changed, 0);
+  assert.strictEqual(db._writes.filter(([, p]) => p.startsWith('yearInReviews/')).length, writes);
+});
+
+test('rebuildAllStats: a review filed under someone else\'s id is never filled in', async () => {
+  const db = seed();
+  db._put('yearInReviews/bob_2025', { userId: 'alice', year: 2025, privacy: 'public', stats: { totalShows: 1 } });
+  const r = await rebuildAllStats(db);
+  assert.deepStrictEqual(db._get('yearInReviews/bob_2025').stats, { totalShows: 1 });
+  assert.strictEqual(r.yearInReviews.changed, 0);
+});
+
+test('rebuildAllStats: a year with no shows left gets stats: null; write:false writes no review', async () => {
+  const db = seed();
+  db._put('yearInReviews/carol_2019', { userId: 'carol', year: 2019, privacy: 'public', stats: { totalShows: 4 } });
+  const dry = await rebuildAllStats(db, { write: false });
+  assert.strictEqual(dry.yearInReviews.changed, 1);
+  assert.deepStrictEqual(db._get('yearInReviews/carol_2019').stats, { totalShows: 4 }, 'the dry run wrote nothing');
+  await rebuildAllStats(db);
+  assert.strictEqual(db._get('yearInReviews/carol_2019').stats, null);
+});
+
+test('recomputeUserStats: refreshes the caller\'s own reviews, and only theirs', async () => {
+  const db = seed();
+  db._put('yearInReviews/bob_2024', { userId: 'bob', year: 2024, privacy: 'public', stats: { totalShows: 1 } });
+  db._put('yearInReviews/alice_2025', { userId: 'alice', year: 2025, privacy: 'public', stats: { totalShows: 99 } });
+  db._put('users/bob/shows/4', { artist: 'Phish', venue: 'MSG', date: '2024-12-28', city: 'New York' });
+  await recomputeUserStats(db, 'bob');
+  assert.strictEqual(db._get('yearInReviews/bob_2024').stats.totalShows, 4);
+  assert.strictEqual(db._get('yearInReviews/alice_2025').stats.totalShows, 99, 'someone else\'s waits for their own recompute');
+});
+
+test('a show with no city never puts an undefined into a review', async () => {
+  const db = seed();
+  db._put('yearInReviews/bob_2024', { userId: 'bob', year: 2024, privacy: 'public' });
+  db._put('users/bob/shows/9', { artist: 'Phish', venue: 'MSG', date: '2024-12-31', rating: 9 });
+  await recomputeUserStats(db, 'bob');
+  const walk = (v) => (v && typeof v === 'object' ? Object.values(v).forEach(walk) : assert.notStrictEqual(v, undefined));
+  walk(db._get('yearInReviews/bob_2024').stats);
+});
+
+test('year-in-review parity report: one merged spelling counts one band fewer, and the recap agrees after', () => {
+  const db = seed();
+  const byUid = showsWithIdsByUser({ docs: [...db._store.keys()].filter((p) => /^users\/[^/]+\/shows\/[^/]+$/.test(p)).map((p) => ({ id: p.split('/').pop(), ref: { path: p }, data: () => db._get(p) })) });
+  const r = yearInReviewParity(byUid);
+  assert.strictEqual(r.users, 4);
+  assert.strictEqual(r.bandCount.fewer, 1, 'alice 2025: "Goose" and "goose (US)"');
+  assert.strictEqual(r.recapDisagreedBefore, 1);
+  assert.strictEqual(r.recapDisagreesAfter, 0);
+});
+
+run('Server stats (5.59.15, Year in Review 5.60.4)');

@@ -1,0 +1,250 @@
+{
+  "name": "basic-year",
+  "description": "A plain year: four shows, two bands, three venues, ratings, setlists. The numbers every screen agrees on.",
+  "year": 2025,
+  "shows": [
+    {
+      "id": "1700000000001",
+      "artist": "Goose",
+      "venue": "Red Rocks Amphitheatre",
+      "city": "Morrison",
+      "date": "2025-06-20",
+      "country": "United States",
+      "state": "CO",
+      "rating": 9,
+      "setlist": [
+        {
+          "id": "s1",
+          "name": "Arcadia",
+          "set": "Set I"
+        },
+        {
+          "id": "s2",
+          "name": "Hot Tea",
+          "set": "Set I"
+        },
+        {
+          "id": "s3",
+          "name": "Madhuvan",
+          "set": "Encore"
+        }
+      ]
+    },
+    {
+      "id": "1700000000002",
+      "artist": "Goose",
+      "venue": "Red Rocks Amphitheatre",
+      "city": "Morrison",
+      "date": "2025-06-21",
+      "country": "United States",
+      "state": "CO",
+      "rating": 8,
+      "setlist": [
+        {
+          "id": "s4",
+          "name": "Arcadia",
+          "set": "Set I"
+        },
+        {
+          "id": "s5",
+          "name": "Tumble",
+          "set": "Set I"
+        }
+      ]
+    },
+    {
+      "id": "1700000000003",
+      "artist": "Phish",
+      "venue": "Madison Square Garden",
+      "city": "New York",
+      "date": "2025-12-30",
+      "country": "United States",
+      "state": "NY",
+      "rating": 10,
+      "setlist": [
+        {
+          "id": "s6",
+          "name": "Tweezer",
+          "set": "Set I"
+        },
+        {
+          "id": "s7",
+          "name": "Harry Hood",
+          "set": "Set I"
+        }
+      ]
+    },
+    {
+      "id": "1700000000004",
+      "artist": "Phish",
+      "venue": "Dick's Sporting Goods Park",
+      "city": "Commerce City",
+      "date": "2025-08-31",
+      "country": "United States",
+      "state": "CO",
+      "setlist": [
+        {
+          "id": "s8",
+          "name": "Tweezer",
+          "set": "Set I"
+        }
+      ]
+    }
+  ],
+  "expected": {
+    "yearInReview": {
+      "year": 2025,
+      "totalShows": 4,
+      "totalArtists": 2,
+      "totalVenues": 3,
+      "countriesVisited": [
+        "United States"
+      ],
+      "statesVisited": [
+        "CO",
+        "NY"
+      ],
+      "topArtist": {
+        "name": "Goose",
+        "showCount": 2,
+        "avgRating": 8.5
+      },
+      "topRatedShows": [
+        {
+          "showId": "1700000000003",
+          "artist": "Phish",
+          "venue": "Madison Square Garden",
+          "city": "New York",
+          "date": "2025-12-30",
+          "rating": 10
+        },
+        {
+          "showId": "1700000000001",
+          "artist": "Goose",
+          "venue": "Red Rocks Amphitheatre",
+          "city": "Morrison",
+          "date": "2025-06-20",
+          "rating": 9
+        },
+        {
+          "showId": "1700000000002",
+          "artist": "Goose",
+          "venue": "Red Rocks Amphitheatre",
+          "city": "Morrison",
+          "date": "2025-06-21",
+          "rating": 8
+        }
+      ],
+      "favoriteVenue": {
+        "name": "Red Rocks Amphitheatre",
+        "city": "Morrison",
+        "frequency": 2
+      },
+      "mostSeenSong": {
+        "name": "Arcadia",
+        "count": 2
+      },
+      "highestRatedArtist": {
+        "name": "Phish",
+        "avgRating": 10
+      },
+      "longestConsecutiveStreak": 2,
+      "achievements": [
+        {
+          "title": "New Country",
+          "description": "First time seeing shows in United States."
+        }
+      ],
+      "shareableQuote": "In 2025 I saw 4 shows by 2 bands at 3 venues."
+    },
+    "recap": {
+      "year": 2025,
+      "totalShows": 4,
+      "totalBands": 2,
+      "totalVenues": 3,
+      "totalCities": 3,
+      "songsHeard": 6,
+      "newBands": 2,
+      "newBandNames": [
+        "Goose",
+        "Phish"
+      ],
+      "newVenues": 3,
+      "topBands": [
+        {
+          "name": "Goose",
+          "shows": 2
+        },
+        {
+          "name": "Phish",
+          "shows": 2
+        }
+      ],
+      "topSongs": [
+        {
+          "name": "Arcadia",
+          "artist": "Goose",
+          "count": 2
+        },
+        {
+          "name": "Tweezer",
+          "artist": "Phish",
+          "count": 2
+        },
+        {
+          "name": "Harry Hood",
+          "artist": "Phish",
+          "count": 1
+        },
+        {
+          "name": "Hot Tea",
+          "artist": "Goose",
+          "count": 1
+        },
+        {
+          "name": "Madhuvan",
+          "artist": "Goose",
+          "count": 1
+        },
+        {
+          "name": "Tumble",
+          "artist": "Goose",
+          "count": 1
+        }
+      ],
+      "noSetlist": [],
+      "showsWithSetlist": 4,
+      "highlights": {
+        "firstShow": {
+          "id": "1700000000001",
+          "artist": "Goose",
+          "venue": "Red Rocks Amphitheatre",
+          "city": "Morrison",
+          "date": "2025-06-20"
+        },
+        "latestShow": {
+          "id": "1700000000003",
+          "artist": "Phish",
+          "venue": "Madison Square Garden",
+          "city": "New York",
+          "date": "2025-12-30"
+        },
+        "busiestMonth": {
+          "month": 5,
+          "name": "June",
+          "shows": 2
+        },
+        "longestRun": {
+          "key": "goose:red-rocks-amphitheatre:2025-06-20",
+          "artist": "Goose",
+          "venue": "Red Rocks Amphitheatre",
+          "city": "Morrison",
+          "nights": 2,
+          "start": "2025-06-20",
+          "end": "2025-06-21"
+        }
+      },
+      "updatedThrough": "2025-12-30"
+    }
+  }
+}

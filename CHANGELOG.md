@@ -4,6 +4,59 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.60.4] — 2026-11-14
+
+Ships in **iOS 3.13.20** (`MARKETING_VERSION` 3.13.19 → 3.13.20). Needs
+to be in the iOS build submitted for the Dec 2 Year in Review launch.
+
+**Year in Review counts bands and songs the same way everywhere, and the
+public copy's numbers are the server's** (pre-native server moves, Part 4).
+
+- **One definition.** `/year-in-review` (`lib/yearInReviewStats.js`)
+  counted a band by its lowercased name, so "Goose" and "Goose (US)", or
+  "The Band" and "Band", were two bands there and one in the recap, Stats
+  and the leaderboard. It now uses `lib/stats/keys.js` (`bandKey`,
+  `songKey`), like `lib/stats` and the 2026 recap (`lib/yearRecap.js`,
+  which now imports the same keys; its numbers can't change). A song title
+  with no a–z/0–9 characters ("東京") now counts as a song there too, as
+  it always did in the recap. Once-per-show song counting moved to
+  `lib/stats/perShow.js`; `lib/songCounts.js` re-exports it.
+- **Production parity (counts only, every user):** 234 user-years with
+  shows. One user-year has one fewer band and a different top band (two
+  spellings merged); nothing else changes: highest-rated band 0, most-heard
+  song 0. The page and the recap disagreed on the band count in 1
+  user-year before and 0 after. The recap, banner and Stats card are
+  unchanged.
+- **The public copy is the server's.** `lib/yearInReviewStats.js` is
+  CommonJS now, and `netlify/functions/lib/userStats.js` writes
+  `yearInReviews/{uid}_{year}.stats` (and `statsComputedAt`) on every
+  existing review: after a show change (`recompute-my-stats`) and every 6
+  hours (`community-stats`). Only when the numbers differ; never creates a
+  review. The app no longer writes `stats`: the owner's page computes its
+  own on the device, as before, and making a review public creates the
+  document and waits for the server to fill it in. iOS 3.13.19 and earlier
+  still write `stats` on every visit; the next recompute or rebuild
+  replaces them.
+- **Rules:** a review can only be filed under its owner's own
+  `{uid}_{year}` id, and `userId` and `year` never change. Until now anyone
+  signed in could create `{someoneElse}_{year}` with their own numbers,
+  shown at the other person's public address. Every app build writes the
+  right id, so nothing in the field breaks. Production: 0 misfiled.
+  Refusing client-written `stats` waits for `minSupportedIosVersion`.
+- **Golden fixtures** in `fixtures/year-in-review/` (seven cases: band
+  spellings, legacy and New Year dates, songs once per show, milestones,
+  venues by city, an empty year), each with the exact output of both
+  calculators, for the Swift app's contract tests. Checked in three time
+  zones by `lib/__tests__/yearInReviewFixtures.test.js`; see
+  `fixtures/README.md`.
+- `scripts/year-in-review-parity.js`: the report above, and `--apply` to
+  write the server numbers now instead of waiting for the 6-hourly run.
+- Tests: `tests/stats/userStats.test.js` (reviews refreshed, idempotent,
+  misfiled ignored, no `undefined`, parity report),
+  `tests/rules/yearInReviews.rules.test.js` (new).
+
+---
+
 ## [5.60.3] — 2026-11-14
 
 Ships in **iOS 3.13.19** (`MARKETING_VERSION` 3.13.18 → 3.13.19). Server

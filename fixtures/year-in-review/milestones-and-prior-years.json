@@ -1,0 +1,732 @@
+{
+  "name": "milestones-and-prior-years",
+  "description": "History before the year: the 25th show ever lands this year (milestone), a first show abroad (new country), the biggest year so far, and bands and venues new to the user (recap newBands / newVenues).",
+  "year": 2024,
+  "shows": [
+    {
+      "id": "1700000000100",
+      "artist": "Goose",
+      "venue": "Brooklyn Bowl",
+      "city": "Brooklyn",
+      "date": "2023-01-01",
+      "country": "United States",
+      "setlist": []
+    },
+    {
+      "id": "1700000000101",
+      "artist": "Goose",
+      "venue": "Brooklyn Bowl",
+      "city": "Brooklyn",
+      "date": "2023-02-02",
+      "country": "United States",
+      "setlist": []
+    },
+    {
+      "id": "1700000000102",
+      "artist": "Goose",
+      "venue": "Brooklyn Bowl",
+      "city": "Brooklyn",
+      "date": "2023-03-03",
+      "country": "United States",
+      "setlist": []
+    },
+    {
+      "id": "1700000000103",
+      "artist": "Goose",
+      "venue": "Brooklyn Bowl",
+      "city": "Brooklyn",
+      "date": "2023-04-04",
+      "country": "United States",
+      "setlist": []
+    },
+    {
+      "id": "1700000000104",
+      "artist": "Goose",
+      "venue": "Brooklyn Bowl",
+      "city": "Brooklyn",
+      "date": "2023-05-05",
+      "country": "United States",
+      "setlist": []
+    },
+    {
+      "id": "1700000000105",
+      "artist": "Goose",
+      "venue": "Brooklyn Bowl",
+      "city": "Brooklyn",
+      "date": "2023-06-06",
+      "country": "United States",
+      "setlist": []
+    },
+    {
+      "id": "1700000000106",
+      "artist": "Goose",
+      "venue": "Brooklyn Bowl",
+      "city": "Brooklyn",
+      "date": "2023-07-07",
+      "country": "United States",
+      "setlist": []
+    },
+    {
+      "id": "1700000000107",
+      "artist": "Goose",
+      "venue": "Brooklyn Bowl",
+      "city": "Brooklyn",
+      "date": "2023-08-08",
+      "country": "United States",
+      "setlist": []
+    },
+    {
+      "id": "1700000000108",
+      "artist": "Goose",
+      "venue": "Brooklyn Bowl",
+      "city": "Brooklyn",
+      "date": "2023-09-09",
+      "country": "United States",
+      "setlist": []
+    },
+    {
+      "id": "1700000000109",
+      "artist": "Goose",
+      "venue": "Brooklyn Bowl",
+      "city": "Brooklyn",
+      "date": "2023-10-10",
+      "country": "United States",
+      "setlist": []
+    },
+    {
+      "id": "1700000000110",
+      "artist": "Goose",
+      "venue": "Brooklyn Bowl",
+      "city": "Brooklyn",
+      "date": "2023-11-11",
+      "country": "United States",
+      "setlist": []
+    },
+    {
+      "id": "1700000000111",
+      "artist": "Goose",
+      "venue": "Brooklyn Bowl",
+      "city": "Brooklyn",
+      "date": "2023-12-12",
+      "country": "United States",
+      "setlist": []
+    },
+    {
+      "id": "1700000000112",
+      "artist": "Goose",
+      "venue": "Brooklyn Bowl",
+      "city": "Brooklyn",
+      "date": "2023-01-13",
+      "country": "United States",
+      "setlist": []
+    },
+    {
+      "id": "1700000000113",
+      "artist": "Goose",
+      "venue": "Brooklyn Bowl",
+      "city": "Brooklyn",
+      "date": "2023-02-14",
+      "country": "United States",
+      "setlist": []
+    },
+    {
+      "id": "1700000000114",
+      "artist": "Goose",
+      "venue": "Brooklyn Bowl",
+      "city": "Brooklyn",
+      "date": "2023-03-15",
+      "country": "United States",
+      "setlist": []
+    },
+    {
+      "id": "1700000000115",
+      "artist": "Goose",
+      "venue": "Brooklyn Bowl",
+      "city": "Brooklyn",
+      "date": "2023-04-16",
+      "country": "United States",
+      "setlist": []
+    },
+    {
+      "id": "1700000000116",
+      "artist": "Goose",
+      "venue": "Brooklyn Bowl",
+      "city": "Brooklyn",
+      "date": "2023-05-17",
+      "country": "United States",
+      "setlist": []
+    },
+    {
+      "id": "1700000000117",
+      "artist": "Goose",
+      "venue": "Brooklyn Bowl",
+      "city": "Brooklyn",
+      "date": "2023-06-18",
+      "country": "United States",
+      "setlist": []
+    },
+    {
+      "id": "1700000000118",
+      "artist": "Goose",
+      "venue": "Brooklyn Bowl",
+      "city": "Brooklyn",
+      "date": "2023-07-19",
+      "country": "United States",
+      "setlist": []
+    },
+    {
+      "id": "1700000000119",
+      "artist": "Goose",
+      "venue": "Brooklyn Bowl",
+      "city": "Brooklyn",
+      "date": "2023-08-20",
+      "country": "United States",
+      "setlist": []
+    },
+    {
+      "id": "1700000000120",
+      "artist": "Goose",
+      "venue": "Brooklyn Bowl",
+      "city": "Brooklyn",
+      "date": "2023-09-21",
+      "country": "United States",
+      "setlist": []
+    },
+    {
+      "id": "1700000000121",
+      "artist": "Goose",
+      "venue": "Brooklyn Bowl",
+      "city": "Brooklyn",
+      "date": "2023-10-22",
+      "country": "United States",
+      "setlist": []
+    },
+    {
+      "id": "1700000000122",
+      "artist": "Goose",
+      "venue": "Brooklyn Bowl",
+      "city": "Brooklyn",
+      "date": "2023-11-23",
+      "country": "United States",
+      "setlist": []
+    },
+    {
+      "id": "1700000000123",
+      "artist": "Goose",
+      "venue": "Brooklyn Bowl",
+      "city": "Brooklyn",
+      "date": "2023-12-24",
+      "country": "United States",
+      "setlist": []
+    },
+    {
+      "id": "1700000000001",
+      "artist": "Goose",
+      "venue": "Brooklyn Bowl",
+      "city": "Brooklyn",
+      "date": "2024-02-01",
+      "country": "United States",
+      "setlist": []
+    },
+    {
+      "id": "1700000000002",
+      "artist": "King Gizzard & The Lizard Wizard",
+      "venue": "Alexandra Palace",
+      "city": "London",
+      "date": "2024-05-10",
+      "country": "United Kingdom",
+      "setlist": []
+    },
+    {
+      "id": "1700000000003",
+      "artist": "King Gizzard & The Lizard Wizard",
+      "venue": "Alexandra Palace",
+      "city": "London",
+      "date": "2024-05-11",
+      "country": "United Kingdom",
+      "setlist": []
+    },
+    {
+      "id": "1700000000200",
+      "artist": "Phish",
+      "venue": "Madison Square Garden",
+      "city": "New York",
+      "date": "2024-07-01",
+      "country": "United States",
+      "setlist": []
+    },
+    {
+      "id": "1700000000201",
+      "artist": "Phish",
+      "venue": "Madison Square Garden",
+      "city": "New York",
+      "date": "2024-07-02",
+      "country": "United States",
+      "setlist": []
+    },
+    {
+      "id": "1700000000202",
+      "artist": "Phish",
+      "venue": "Madison Square Garden",
+      "city": "New York",
+      "date": "2024-07-03",
+      "country": "United States",
+      "setlist": []
+    },
+    {
+      "id": "1700000000203",
+      "artist": "Phish",
+      "venue": "Madison Square Garden",
+      "city": "New York",
+      "date": "2024-07-04",
+      "country": "United States",
+      "setlist": []
+    },
+    {
+      "id": "1700000000204",
+      "artist": "Phish",
+      "venue": "Madison Square Garden",
+      "city": "New York",
+      "date": "2024-07-05",
+      "country": "United States",
+      "setlist": []
+    },
+    {
+      "id": "1700000000205",
+      "artist": "Phish",
+      "venue": "Madison Square Garden",
+      "city": "New York",
+      "date": "2024-07-06",
+      "country": "United States",
+      "setlist": []
+    },
+    {
+      "id": "1700000000206",
+      "artist": "Phish",
+      "venue": "Madison Square Garden",
+      "city": "New York",
+      "date": "2024-07-07",
+      "country": "United States",
+      "setlist": []
+    },
+    {
+      "id": "1700000000207",
+      "artist": "Phish",
+      "venue": "Madison Square Garden",
+      "city": "New York",
+      "date": "2024-07-08",
+      "country": "United States",
+      "setlist": []
+    },
+    {
+      "id": "1700000000208",
+      "artist": "Phish",
+      "venue": "Madison Square Garden",
+      "city": "New York",
+      "date": "2024-07-09",
+      "country": "United States",
+      "setlist": []
+    },
+    {
+      "id": "1700000000209",
+      "artist": "Phish",
+      "venue": "Madison Square Garden",
+      "city": "New York",
+      "date": "2024-07-10",
+      "country": "United States",
+      "setlist": []
+    },
+    {
+      "id": "1700000000210",
+      "artist": "Phish",
+      "venue": "Madison Square Garden",
+      "city": "New York",
+      "date": "2024-07-11",
+      "country": "United States",
+      "setlist": []
+    },
+    {
+      "id": "1700000000211",
+      "artist": "Phish",
+      "venue": "Madison Square Garden",
+      "city": "New York",
+      "date": "2024-07-12",
+      "country": "United States",
+      "setlist": []
+    },
+    {
+      "id": "1700000000212",
+      "artist": "Phish",
+      "venue": "Madison Square Garden",
+      "city": "New York",
+      "date": "2024-07-13",
+      "country": "United States",
+      "setlist": []
+    },
+    {
+      "id": "1700000000213",
+      "artist": "Phish",
+      "venue": "Madison Square Garden",
+      "city": "New York",
+      "date": "2024-07-14",
+      "country": "United States",
+      "setlist": []
+    },
+    {
+      "id": "1700000000214",
+      "artist": "Phish",
+      "venue": "Madison Square Garden",
+      "city": "New York",
+      "date": "2024-07-15",
+      "country": "United States",
+      "setlist": []
+    },
+    {
+      "id": "1700000000215",
+      "artist": "Phish",
+      "venue": "Madison Square Garden",
+      "city": "New York",
+      "date": "2024-07-16",
+      "country": "United States",
+      "setlist": []
+    },
+    {
+      "id": "1700000000216",
+      "artist": "Phish",
+      "venue": "Madison Square Garden",
+      "city": "New York",
+      "date": "2024-07-17",
+      "country": "United States",
+      "setlist": []
+    },
+    {
+      "id": "1700000000217",
+      "artist": "Phish",
+      "venue": "Madison Square Garden",
+      "city": "New York",
+      "date": "2024-07-18",
+      "country": "United States",
+      "setlist": []
+    },
+    {
+      "id": "1700000000218",
+      "artist": "Phish",
+      "venue": "Madison Square Garden",
+      "city": "New York",
+      "date": "2024-07-19",
+      "country": "United States",
+      "setlist": []
+    },
+    {
+      "id": "1700000000219",
+      "artist": "Phish",
+      "venue": "Madison Square Garden",
+      "city": "New York",
+      "date": "2024-07-20",
+      "country": "United States",
+      "setlist": []
+    },
+    {
+      "id": "1700000000220",
+      "artist": "Phish",
+      "venue": "Madison Square Garden",
+      "city": "New York",
+      "date": "2024-07-21",
+      "country": "United States",
+      "setlist": []
+    },
+    {
+      "id": "1700000000221",
+      "artist": "Phish",
+      "venue": "Madison Square Garden",
+      "city": "New York",
+      "date": "2024-07-22",
+      "country": "United States",
+      "setlist": []
+    }
+  ],
+  "expected": {
+    "yearInReview": {
+      "year": 2024,
+      "totalShows": 25,
+      "totalArtists": 3,
+      "totalVenues": 3,
+      "countriesVisited": [
+        "United States",
+        "United Kingdom"
+      ],
+      "statesVisited": [],
+      "topArtist": {
+        "name": "Phish",
+        "showCount": 22,
+        "avgRating": null
+      },
+      "topRatedShows": [],
+      "favoriteVenue": {
+        "name": "Madison Square Garden",
+        "city": "New York",
+        "frequency": 22
+      },
+      "mostSeenSong": null,
+      "highestRatedArtist": null,
+      "longestConsecutiveStreak": 22,
+      "achievements": [
+        {
+          "title": "25th Show Milestone",
+          "description": "You hit your 25th show ever this year!"
+        },
+        {
+          "title": "New Country",
+          "description": "First time seeing shows in United Kingdom."
+        },
+        {
+          "title": "Concert Streak",
+          "description": "22 consecutive days catching shows."
+        },
+        {
+          "title": "Your Biggest Year Yet",
+          "description": "2024 was your most-attended year with 25 shows."
+        }
+      ],
+      "shareableQuote": "In 2024 I saw 25 shows by 3 bands at 3 venues across 2 countries."
+    },
+    "recap": {
+      "year": 2024,
+      "totalShows": 25,
+      "totalBands": 3,
+      "totalVenues": 3,
+      "totalCities": 3,
+      "songsHeard": 0,
+      "newBands": 2,
+      "newBandNames": [
+        "King Gizzard & The Lizard Wizard",
+        "Phish"
+      ],
+      "newVenues": 2,
+      "topBands": [
+        {
+          "name": "Phish",
+          "shows": 22
+        },
+        {
+          "name": "King Gizzard & The Lizard Wizard",
+          "shows": 2
+        },
+        {
+          "name": "Goose",
+          "shows": 1
+        }
+      ],
+      "topSongs": [],
+      "noSetlist": [
+        {
+          "id": "1700000000001",
+          "artist": "Goose",
+          "venue": "Brooklyn Bowl",
+          "city": "Brooklyn",
+          "date": "2024-02-01"
+        },
+        {
+          "id": "1700000000002",
+          "artist": "King Gizzard & The Lizard Wizard",
+          "venue": "Alexandra Palace",
+          "city": "London",
+          "date": "2024-05-10"
+        },
+        {
+          "id": "1700000000003",
+          "artist": "King Gizzard & The Lizard Wizard",
+          "venue": "Alexandra Palace",
+          "city": "London",
+          "date": "2024-05-11"
+        },
+        {
+          "id": "1700000000200",
+          "artist": "Phish",
+          "venue": "Madison Square Garden",
+          "city": "New York",
+          "date": "2024-07-01"
+        },
+        {
+          "id": "1700000000201",
+          "artist": "Phish",
+          "venue": "Madison Square Garden",
+          "city": "New York",
+          "date": "2024-07-02"
+        },
+        {
+          "id": "1700000000202",
+          "artist": "Phish",
+          "venue": "Madison Square Garden",
+          "city": "New York",
+          "date": "2024-07-03"
+        },
+        {
+          "id": "1700000000203",
+          "artist": "Phish",
+          "venue": "Madison Square Garden",
+          "city": "New York",
+          "date": "2024-07-04"
+        },
+        {
+          "id": "1700000000204",
+          "artist": "Phish",
+          "venue": "Madison Square Garden",
+          "city": "New York",
+          "date": "2024-07-05"
+        },
+        {
+          "id": "1700000000205",
+          "artist": "Phish",
+          "venue": "Madison Square Garden",
+          "city": "New York",
+          "date": "2024-07-06"
+        },
+        {
+          "id": "1700000000206",
+          "artist": "Phish",
+          "venue": "Madison Square Garden",
+          "city": "New York",
+          "date": "2024-07-07"
+        },
+        {
+          "id": "1700000000207",
+          "artist": "Phish",
+          "venue": "Madison Square Garden",
+          "city": "New York",
+          "date": "2024-07-08"
+        },
+        {
+          "id": "1700000000208",
+          "artist": "Phish",
+          "venue": "Madison Square Garden",
+          "city": "New York",
+          "date": "2024-07-09"
+        },
+        {
+          "id": "1700000000209",
+          "artist": "Phish",
+          "venue": "Madison Square Garden",
+          "city": "New York",
+          "date": "2024-07-10"
+        },
+        {
+          "id": "1700000000210",
+          "artist": "Phish",
+          "venue": "Madison Square Garden",
+          "city": "New York",
+          "date": "2024-07-11"
+        },
+        {
+          "id": "1700000000211",
+          "artist": "Phish",
+          "venue": "Madison Square Garden",
+          "city": "New York",
+          "date": "2024-07-12"
+        },
+        {
+          "id": "1700000000212",
+          "artist": "Phish",
+          "venue": "Madison Square Garden",
+          "city": "New York",
+          "date": "2024-07-13"
+        },
+        {
+          "id": "1700000000213",
+          "artist": "Phish",
+          "venue": "Madison Square Garden",
+          "city": "New York",
+          "date": "2024-07-14"
+        },
+        {
+          "id": "1700000000214",
+          "artist": "Phish",
+          "venue": "Madison Square Garden",
+          "city": "New York",
+          "date": "2024-07-15"
+        },
+        {
+          "id": "1700000000215",
+          "artist": "Phish",
+          "venue": "Madison Square Garden",
+          "city": "New York",
+          "date": "2024-07-16"
+        },
+        {
+          "id": "1700000000216",
+          "artist": "Phish",
+          "venue": "Madison Square Garden",
+          "city": "New York",
+          "date": "2024-07-17"
+        },
+        {
+          "id": "1700000000217",
+          "artist": "Phish",
+          "venue": "Madison Square Garden",
+          "city": "New York",
+          "date": "2024-07-18"
+        },
+        {
+          "id": "1700000000218",
+          "artist": "Phish",
+          "venue": "Madison Square Garden",
+          "city": "New York",
+          "date": "2024-07-19"
+        },
+        {
+          "id": "1700000000219",
+          "artist": "Phish",
+          "venue": "Madison Square Garden",
+          "city": "New York",
+          "date": "2024-07-20"
+        },
+        {
+          "id": "1700000000220",
+          "artist": "Phish",
+          "venue": "Madison Square Garden",
+          "city": "New York",
+          "date": "2024-07-21"
+        },
+        {
+          "id": "1700000000221",
+          "artist": "Phish",
+          "venue": "Madison Square Garden",
+          "city": "New York",
+          "date": "2024-07-22"
+        }
+      ],
+      "showsWithSetlist": 0,
+      "highlights": {
+        "firstShow": {
+          "id": "1700000000001",
+          "artist": "Goose",
+          "venue": "Brooklyn Bowl",
+          "city": "Brooklyn",
+          "date": "2024-02-01"
+        },
+        "latestShow": {
+          "id": "1700000000221",
+          "artist": "Phish",
+          "venue": "Madison Square Garden",
+          "city": "New York",
+          "date": "2024-07-22"
+        },
+        "busiestMonth": {
+          "month": 6,
+          "name": "July",
+          "shows": 22
+        },
+        "longestRun": {
+          "key": "phish:madison-square-garden:2024-07-01",
+          "artist": "Phish",
+          "venue": "Madison Square Garden",
+          "city": "New York",
+          "nights": 22,
+          "start": "2024-07-01",
+          "end": "2024-07-22"
+        }
+      },
+      "updatedThrough": "2024-07-22"
+    }
+  }
+}

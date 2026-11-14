@@ -1,0 +1,190 @@
+{
+  "name": "dates-legacy-and-new-year",
+  "description": "Dates in every stored format: ISO, legacy DD-MM-YYYY (day above 12 included), and New Year's Eve / Day on the right side of the year. A show with an unreadable date belongs to no year. The streak runs across formats.",
+  "year": 2025,
+  "shows": [
+    {
+      "id": "1700000000001",
+      "artist": "Phish",
+      "venue": "Madison Square Garden",
+      "city": "New York",
+      "date": "29-12-2025",
+      "setlist": []
+    },
+    {
+      "id": "1700000000002",
+      "artist": "Phish",
+      "venue": "Madison Square Garden",
+      "city": "New York",
+      "date": "2025-12-30",
+      "setlist": []
+    },
+    {
+      "id": "1700000000003",
+      "artist": "Phish",
+      "venue": "Madison Square Garden",
+      "city": "New York",
+      "date": "31-12-2025",
+      "rating": 10,
+      "setlist": []
+    },
+    {
+      "id": "1700000000004",
+      "artist": "Phish",
+      "venue": "Madison Square Garden",
+      "city": "New York",
+      "date": "2026-01-01",
+      "setlist": []
+    },
+    {
+      "id": "1700000000005",
+      "artist": "Goose",
+      "venue": "Brooklyn Bowl",
+      "city": "Brooklyn",
+      "date": "15-03-2025",
+      "setlist": []
+    },
+    {
+      "id": "1700000000006",
+      "artist": "Goose",
+      "venue": "Brooklyn Bowl",
+      "city": "Brooklyn",
+      "date": "sometime in 2025",
+      "setlist": []
+    }
+  ],
+  "expected": {
+    "yearInReview": {
+      "year": 2025,
+      "totalShows": 4,
+      "totalArtists": 2,
+      "totalVenues": 2,
+      "countriesVisited": [],
+      "statesVisited": [],
+      "topArtist": {
+        "name": "Phish",
+        "showCount": 3,
+        "avgRating": 10
+      },
+      "topRatedShows": [
+        {
+          "showId": "1700000000003",
+          "artist": "Phish",
+          "venue": "Madison Square Garden",
+          "city": "New York",
+          "date": "31-12-2025",
+          "rating": 10
+        }
+      ],
+      "favoriteVenue": {
+        "name": "Madison Square Garden",
+        "city": "New York",
+        "frequency": 3
+      },
+      "mostSeenSong": null,
+      "highestRatedArtist": {
+        "name": "Phish",
+        "avgRating": 10
+      },
+      "longestConsecutiveStreak": 3,
+      "achievements": [
+        {
+          "title": "Concert Streak",
+          "description": "3 consecutive days catching shows."
+        },
+        {
+          "title": "Your Biggest Year Yet",
+          "description": "2025 was your most-attended year with 4 shows."
+        }
+      ],
+      "shareableQuote": "In 2025 I saw 4 shows by 2 bands at 2 venues."
+    },
+    "recap": {
+      "year": 2025,
+      "totalShows": 4,
+      "totalBands": 2,
+      "totalVenues": 2,
+      "totalCities": 2,
+      "songsHeard": 0,
+      "newBands": 2,
+      "newBandNames": [
+        "Goose",
+        "Phish"
+      ],
+      "newVenues": 2,
+      "topBands": [
+        {
+          "name": "Phish",
+          "shows": 3
+        },
+        {
+          "name": "Goose",
+          "shows": 1
+        }
+      ],
+      "topSongs": [],
+      "noSetlist": [
+        {
+          "id": "1700000000005",
+          "artist": "Goose",
+          "venue": "Brooklyn Bowl",
+          "city": "Brooklyn",
+          "date": "2025-03-15"
+        },
+        {
+          "id": "1700000000001",
+          "artist": "Phish",
+          "venue": "Madison Square Garden",
+          "city": "New York",
+          "date": "2025-12-29"
+        },
+        {
+          "id": "1700000000002",
+          "artist": "Phish",
+          "venue": "Madison Square Garden",
+          "city": "New York",
+          "date": "2025-12-30"
+        },
+        {
+          "id": "1700000000003",
+          "artist": "Phish",
+          "venue": "Madison Square Garden",
+          "city": "New York",
+          "date": "2025-12-31"
+        }
+      ],
+      "showsWithSetlist": 0,
+      "highlights": {
+        "firstShow": {
+          "id": "1700000000005",
+          "artist": "Goose",
+          "venue": "Brooklyn Bowl",
+          "city": "Brooklyn",
+          "date": "2025-03-15"
+        },
+        "latestShow": {
+          "id": "1700000000003",
+          "artist": "Phish",
+          "venue": "Madison Square Garden",
+          "city": "New York",
+          "date": "2025-12-31"
+        },
+        "busiestMonth": {
+          "month": 11,
+          "name": "December",
+          "shows": 3
+        },
+        "longestRun": {
+          "key": "phish:madison-square-garden:29-12-2025",
+          "artist": "Phish",
+          "venue": "Madison Square Garden",
+          "city": "New York",
+          "nights": 3,
+          "start": "2025-12-29",
+          "end": "2025-12-31"
+        }
+      },
+      "updatedThrough": "2025-12-31"
+    }
+  }
+}
