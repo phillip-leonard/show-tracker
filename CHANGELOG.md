@@ -4,6 +4,46 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.59.12] — 2026-11-13
+
+Ships in iOS 3.13.12 (`MARKETING_VERSION` 3.13.11 → 3.13.12).
+
+**Netlify function hardening (the #398 follow-ups).** One commit per part.
+Every change works with iOS 3.13.7 and later as they are; no new
+enforcement flag is needed.
+
+- **heard-share:** stays anonymous (a signed-out public tool) but takes
+  exactly `{ slug, code }` (400), at most the longest code plus 4 KB
+  (413), and 50 stores per network per day (429). The heard page says why
+  a link failed.
+- **Cache writers** (enrich-artist, get-entity-info,
+  archival-audio-lookup): input validated before it becomes a cache key;
+  only good upstream answers cached, at most 100 KB; cache misses count
+  against a `metadata` network limit of 300 a day. The setlist cache
+  skips responses over 800 KB. **get-artist-stats is deleted** (nothing
+  called it, and each anonymous request read every user's shows).
+- **my-poster:** 100 images and 20 shares per user per day. Its SVGs
+  reference nothing external, so there is no URL fetch to abuse (now
+  tested).
+- **create-shared-collection:** the server builds the public snapshot
+  from the caller's own shows (the request body is ignored); the owner's
+  name is their display name, never the email; 5 per day, 50 in total.
+- **Spotify functions:** sign-in required (the feature is switched off,
+  so no shipped build calls them).
+- **One admin check:** `isAdmin(decoded)` in `lib/firebaseAdmin.js` (the
+  `admin` custom claim, or the allowlisted address with a verified email)
+  replaces 15 inlined copies that skipped `email_verified`; the Firestore
+  and Storage rules say the same. `scripts/set-admin-claim.js` sets the
+  claim.
+- **ESLint:** `eslint.config.js`, `npm run lint` and a Lint workflow that
+  fails on errors only. It found two real bugs, fixed: a hook after an
+  early return on the profile page, and a `window.name` read in the Stats
+  venue list. 72 warnings remain as a backlog.
+- `apiErrorMessage` gives friendly wording for 400 and 413 too, and never
+  shows a machine code.
+
+---
+
 ## [5.59.11] — 2026-11-13
 
 Ships in iOS 3.13.11 (`MARKETING_VERSION` 3.13.10 → 3.13.11). No app
