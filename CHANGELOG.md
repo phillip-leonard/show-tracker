@@ -4,6 +4,44 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.59.14] — 2026-11-14
+
+Ships in **iOS 3.13.14** (`MARKETING_VERSION` 3.13.13 → 3.13.14).
+
+**Logout works on iOS again.** Broken since iOS 3.11 (#377): every build
+from 3.11 to 3.13.13 has it.
+
+- **Root cause.** `lib/pushAlerts.js` `messaging()` was an async function
+  that returned the Capacitor `FirebaseMessaging` plugin. The plugin is a
+  Proxy that answers every property, `then` included, so awaiting the
+  function called `FirebaseMessaging.then(resolve, reject)`; Capacitor sent
+  that to iOS as a method call, rejected it ("FirebaseMessaging.then() is
+  not implemented on ios") and never resolved. `handleLogout` awaited the
+  push cleanup before `signOut`, so on iOS it stopped there: Logout
+  highlighted and nothing happened. Web was unaffected (no plugin).
+- `messaging()` returns `{ fm }`, so every push call settles. This also
+  repairs push on iOS, which had never worked since 3.11 (no offer, no
+  token, taps didn't navigate).
+- `lib/signOutFlow.js` `performSignOut`: push cleanup, web signOut,
+  native `FirebaseAuthentication.signOut()` (new, clears the Keychain
+  session and Google/Apple SDK state), local state, then navigation; each
+  step time-limited and best-effort, so no cleanup can block sign-out.
+  Logout and account deletion both use it (deletion used to stop on
+  "Deleting…" on iOS after a successful delete).
+- `resetUserState()` clears every per-account list on logout and whenever
+  the session ends, so a second account never sees the first one's data.
+- The iOS push **offer** (first-follow explainer, "Turn on push alerts")
+  waits for `config/app.iosPushOfferEnabled` (default false; Admin → Tools
+  → App versions; rules allow admin-only boolean writes). Token sync and
+  notification taps for people who already allowed push run regardless;
+  logout and deletion never read it.
+- Tests: `lib/__tests__/signOut.test.js` (the sequence with mocked
+  plugins, a throwing and a never-settling step, the Capacitor proxy on a
+  simulated iOS bridge, and a guard against returning a plugin),
+  `appVersion.test.js` (+3), `appConfig.rules.test.js` (+1).
+
+---
+
 ## [5.59.13] — 2026-11-14
 
 Ships in iOS 3.13.13 (`MARKETING_VERSION` 3.13.12 → 3.13.13). No app

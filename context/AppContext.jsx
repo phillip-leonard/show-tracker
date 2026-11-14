@@ -4,7 +4,7 @@ import React, { createContext, useContext, useState, useEffect, useMemo, useCall
 import { useRouter, usePathname } from 'next/navigation';
 import SearchParamsListener from '@/components/SearchParamsListener';
 import { signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
-import { nativeOAuthSignIn, isNativePlatform } from '@/lib/native-auth';
+import { nativeOAuthSignIn, isNativePlatform, nativeSignOut } from '@/lib/native-auth';
 import {
   collection, doc, setDoc, getDoc, getDocs, deleteDoc, updateDoc,
   serverTimestamp, onSnapshot, query, where, addDoc, writeBatch, limit,
@@ -53,6 +53,9 @@ import { isFirstShowTransition, requestWelcomeEmail } from '@/lib/welcomeEmailTr
 import { sweepExpiredSetlistfmCaches } from '@/lib/setlistfmLocalCache';
 import { signInLeavesRoute } from '@/lib/deepLinks';
 import { toIsoDate, showYear, utcIsoDate } from '@/lib/showDate';
+import { performSignOut } from '@/lib/signOutFlow';
+import { pushOfferEnabled } from '@/lib/appConfig';
+import { clearSpotifySession } from '@/lib/spotify';
 import { mintShowId, buildShowDoc } from '@/lib/showDoc';
 import { countVenues, venueCountKey } from '@/lib/venueCount';
 import { mergeGuestShows, mergeMessage, readLocalShows } from '@/lib/guestMerge';
@@ -1114,9 +1117,10 @@ export function AppProvider({ children }) {
       } else {
         setTermsAccepted(null);
         setIsSuspended(null);
-        setShows([]);
+        // However the session ended (logout, expiry, deletion elsewhere),
+        // nothing from it stays in memory (5.59.14).
+        resetUserState();
         setIsLoading(false);
-        setFestivalsLoading(false);
       }
     });
 
@@ -1200,20 +1204,64 @@ export function AppProvider({ children }) {
     }
   };
 
+  // Everything one account loaded, back to empty (5.59.14). The per-user
+  // effects below return early when there is no user and don't reset
+  // their state, so without this a second account could briefly, or after
+  // a failed read for good, see the first one's friends, tags or alerts.
+  const resetUserState = () => {
+    setShows([]);
+    latestShows.current = [];
+    setShowsLoadedFor(null);
+    setFestivals([]);
+    setFestivalsLoading(false);
+    setSelectedShow(null);
+    setSelectedArtist(null);
+    setBulkAdd(null);
+    setUserCreatedAt(null);
+    setUserRank(null);
+    setFriends([]);
+    setPendingFriendRequests([]);
+    setSentFriendRequests([]);
+    setPendingShowTags([]);
+    setUpcomingShows([]);
+    setUpcomingLoaded(false);
+    setTagFriendsShow(null);
+    setShowSuggestions([]);
+    setPendingInvites([]);
+    setInviteStats(null);
+    setSentPendingEmailTags([]);
+    setBlockedUserIds([]);
+    setFavoriteArtists([]);
+    setFavoritesLoaded(false);
+    setUnreadNotifications([]);
+    setPendingTagsForReview([]);
+    setWelcomeState(null);
+    setPushOffer(null);
+    setVenueRatingShow(null);
+    setSetlistScanning(false);
+    setSetlistScanProgress({ current: 0, total: 0, found: 0 });
+  };
+
+  // Logout (5.59.14). Until then the push cleanup was awaited before
+  // signOut, and on iOS that await never settled (lib/pushAlerts.js
+  // messaging()), so Logout did nothing from 3.11 to 3.13.13.
+  // lib/signOutFlow.js runs each step time-limited and best-effort, in an
+  // order that can't leave a session behind: the push token (needs the
+  // session), the web session, the native session, then local state.
   const handleLogout = async () => {
-    try {
-      // While still signed in, so this device's pushTokens doc can go.
-      await forgetPushToken();
-      await signOut(auth);
-      clearSignedInHint();
-      rememberHeardShows(null);
-      setShows([]);
-      setFestivals([]);
-      setFestivalsLoading(false);
-      router.push('/');
-    } catch (error) {
-      console.error('Logout failed:', error);
-    }
+    await performSignOut({
+      beforeSignOut: () => forgetPushToken(),
+      webSignOut: () => signOut(auth),
+      nativeSignOut: () => nativeSignOut(),
+      clearLocal: () => {
+        resetUserState();
+        // Each on its own: one failing must not skip the others.
+        for (const clear of [clearSignedInHint, () => rememberHeardShows(null), clearSpotifySession]) {
+          try { clear(); } catch (error) { console.warn('[sign-out] local cleanup step failed', error?.message); }
+        }
+      },
+      navigate: () => router.push('/'),
+    });
   };
 
   /**
@@ -3506,8 +3554,9 @@ export function AppProvider({ children }) {
         const cityNudge = noCity ? { href: '/profile/', actionLabel: 'Add city' } : {};
         const cityLine = noCity ? ' Add your city to get on-sale alerts.' : '';
         // The first follow on an iPhone that has never been asked offers
-        // push, with an explainer before iOS's own prompt.
-        if (await shouldOfferPush()) {
+        // push, with an explainer before iOS's own prompt, once the offer
+        // is switched on in config/app (iosPushOfferEnabled, 5.59.14).
+        if ((await pushOfferEnabled()) && await shouldOfferPush()) {
           markPushOffered();
           setPushOffer(artistName.trim());
         } else if ((await pushPermission()) === 'granted') {

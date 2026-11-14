@@ -46,6 +46,10 @@ The public band pages (`/artist/...`) read a snapshot from Netlify Blobs, writte
 
 Deploy previews always carry `X-Robots-Tag: noindex` (Netlify adds it). Lighthouse's `is-crawlable` and the Rich Results Test's "Indexing allowed?" fail there for that reason alone.
 
+## Capacitor plugins: never return one from an async function
+
+A Capacitor plugin (`FirebaseMessaging`, `FirebaseAuthentication`, `App`, …) is a Proxy that answers every property, `then` included. Returning one from an `async` function, or resolving a promise with it, makes JavaScript call `plugin.then(resolve, reject)`, which Capacitor sends to iOS as a method call: it rejects ("….then() is not implemented on ios") and the `await` never settles. This hung iOS logout from 3.11 to 3.13.13. Destructure and call (`const { X } = await import(…); await X.method()`) or return it wrapped (`return { fm }`). `lib/__tests__/signOut.test.js` fails if a plugin is returned. Sign-out goes through `performSignOut` (`lib/signOutFlow.js`), where no cleanup step can block it.
+
 ## Show data rules (5.59.10)
 
 - **Show dates go through `lib/showDate.js`.** Stored as ISO `YYYY-MM-DD`; readers accept the legacy `DD-MM-YYYY`. No `.slice(0, 4)`, `.split('-')`, `new Date(show.date)` or `toISOString().slice(0, 10)` on a show date or for "today" (`today()` is the device's local day). `lib/__tests__/localToday.test.js` fails if the UTC idiom comes back.

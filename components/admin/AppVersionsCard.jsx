@@ -18,6 +18,7 @@ export default function AppVersionsCard() {
   const [min, setMin] = useState('');
   const [latest, setLatest] = useState('');
   const [reason, setReason] = useState('');
+  const [pushOffer, setPushOffer] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
@@ -29,6 +30,7 @@ export default function AppVersionsCard() {
       setMin(data.minSupportedIosVersion || '');
       setLatest(data.latestIosVersion || '');
       setReason(data.reason || '');
+      setPushOffer(data.iosPushOfferEnabled === true);
     }).catch((e) => setMessage(`Couldn't load: ${e.message}`));
   }, []);
 
@@ -46,6 +48,7 @@ export default function AppVersionsCard() {
         minSupportedIosVersion: min.trim(),
         latestIosVersion: latest.trim(),
         reason: reason.trim().slice(0, 280),
+        iosPushOfferEnabled: pushOffer === true,
         updatedAt: serverTimestamp(),
         updatedBy: auth.currentUser?.uid || '',
       };
@@ -79,6 +82,14 @@ export default function AppVersionsCard() {
       </div>
       <label className="block text-sm text-secondary mb-4">Reason shown on the update screen (optional, 280 characters)
         <input className={input} value={reason} maxLength={280} onChange={(e) => setReason(e.target.value)} />
+      </label>
+      <label className="flex items-start gap-2 text-sm text-secondary mb-4">
+        <input type="checkbox" className="mt-1" checked={pushOffer} onChange={(e) => setPushOffer(e.target.checked)} />
+        <span>
+          <strong className="text-primary">Offer push alerts on iOS</strong> (3.13.14 and later): the explainer on a
+          first follow and the &quot;Turn on push alerts&quot; button. Off until push is tested on TestFlight. People who
+          already allowed push keep getting alerts either way.
+        </span>
       </label>
       {confirming && (
         <p className="text-sm text-danger mb-3" role="alert">
