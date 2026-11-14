@@ -15,11 +15,20 @@
 import React, { useEffect, useState } from 'react';
 import { Download, Share2, Link2, Sparkles, Copy } from 'lucide-react';
 import { auth } from '@/lib/firebase';
-import { apiUrl } from '@/lib/api';
+import { apiUrl, apiErrorMessage } from '@/lib/api';
 import { isNativePlatform } from '@/lib/platform';
 import { Button } from '@/components/ui';
 
 export const POSTER_KINDS = [['feed', 'Feed, 1080×1350'], ['story', 'Story, 1080×1920']];
+
+// What to tell someone when a poster request fails: the limits (429),
+// size (413), sign-in (401) and a bad request (400) get their own words.
+function posterError(e, fallback) {
+  if (!e || !e.status) return fallback;
+  return apiErrorMessage({ status: e.status }, e.data, fallback, {
+    rateLimited: 'You’ve made a lot of posters today. Try again tomorrow.',
+  });
+}
 
 export async function postPoster(body) {
   const user = auth.currentUser;
@@ -30,7 +39,13 @@ export async function postPoster(body) {
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
     body: JSON.stringify(body),
   });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  if (!res.ok) {
+    const data = await res.json().catch(() => null);
+    const err = new Error(`HTTP ${res.status}`);
+    err.status = res.status;
+    err.data = data;
+    throw err;
+  }
   return res;
 }
 
@@ -65,8 +80,8 @@ export function PosterImages({ request, requestKey, fileBase, shareTitle, alt, d
         return { kind, label, blob: blobs[i], file, url: URL.createObjectURL(blobs[i]), shareable: !!file && canShareFiles && navigator.canShare({ files: [file] }) };
       });
       setState({ status: 'ready', posters });
-    } catch {
-      setState({ status: 'error' });
+    } catch (e) {
+      setState({ status: 'error', message: posterError(e, 'Couldn’t draw that just now. Please try again.') });
     }
   };
 
@@ -91,7 +106,7 @@ export function PosterImages({ request, requestKey, fileBase, shareTitle, alt, d
           {state.status === 'drawing' ? drawingLabel : drawLabel}
         </Button>
       )}
-      {state.status === 'error' && <p className="text-sm text-danger mt-2">Couldn&apos;t draw that just now. Please try again.</p>}
+      {state.status === 'error' && <p className="text-sm text-danger mt-2">{state.message}</p>}
       {state.status === 'ready' && (
         <div className="grid grid-cols-2 gap-3">
           {state.posters.map((p) => (
@@ -129,8 +144,8 @@ export function PosterShareLink({ request, requestKey, title, note }) {
       const json = await (await postPoster({ ...request, action: 'share' })).json();
       if (!json.url) throw new Error('no url');
       setState({ status: 'ready', url: json.url });
-    } catch {
-      setState({ status: 'error' });
+    } catch (e) {
+      setState({ status: 'error', message: posterError(e, 'Couldn’t make a link just now. Please try again.') });
     }
   };
 
@@ -146,7 +161,7 @@ export function PosterShareLink({ request, requestKey, title, note }) {
       <div>
         <Button variant="secondary" icon={Link2} onClick={make} loading={state.status === 'saving'}>Get a share link</Button>
         {note && <p className="text-xs text-muted mt-2">{note}</p>}
-        {state.status === 'error' && <p className="text-sm text-danger mt-2">Couldn&apos;t make a link just now. Please try again.</p>}
+        {state.status === 'error' && <p className="text-sm text-danger mt-2">{state.message}</p>}
       </div>
     );
   }

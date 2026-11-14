@@ -156,5 +156,50 @@ test('setlist cache: an oversize response is not written', async () => {
   assert.ok(db._get('setlistCache/ok'));
 });
 
+// ── my-poster ─────────────────────────────────────────────────────────
+
+const { createFakeAuth } = require('../email/fakeFirestore');
+const RECORD = { name: 'Goose', shows: 3, venues: 2, years: 1, songs: [{ name: 'Arcadia', count: 2 }], firstShow: { date: '2025-06-01', venue: 'Red Rocks', city: 'Morrison' } };
+const posterCall = (token, body) => require(path.join(FN, 'my-poster.js')).handler({
+  httpMethod: 'POST',
+  headers: token ? { authorization: `Bearer ${token}`, origin: 'capacitor://localhost' } : {},
+  body: JSON.stringify(body),
+});
+function posterSetup() {
+  const db = createFakeDb();
+  __setTestFirebase({ db, auth: createFakeAuth({ tokens: { alice: { uid: 'aliceUid', email: 'a@example.com', email_verified: true } } }) });
+  return db;
+}
+
+test('my-poster: a signed-in image request draws a PNG and counts once', async () => {
+  const db = posterSetup();
+  const r = await posterCall('alice', { action: 'image', kind: 'feed', record: RECORD });
+  assert.strictEqual(r.statusCode, 200);
+  assert.strictEqual(r.headers['Content-Type'], 'image/png');
+  const counters = [...db._store.keys()].filter((k) => k.startsWith('rateLimits/poster_image_aliceUid_'));
+  assert.strictEqual(counters.length, 1);
+  assert.strictEqual(db._get(counters[0]).uid, 'aliceUid', 'purged with the account');
+});
+
+test('my-poster: signed out is 401, an unknown action is 400', async () => {
+  posterSetup();
+  assert.strictEqual((await posterCall(null, { action: 'image', kind: 'feed', record: RECORD })).statusCode, 401);
+  assert.strictEqual((await posterCall('forged', { action: 'image', kind: 'feed', record: RECORD })).statusCode, 401);
+  assert.strictEqual((await posterCall('alice', { action: 'print', record: RECORD })).statusCode, 400);
+});
+
+test('my-poster: 100 images and 20 shares a day per user, then 429 with CORS', async () => {
+  const db = posterSetup();
+  const day = new Date().toISOString().slice(0, 10);
+  db._put(`rateLimits/poster_image_aliceUid_${day}`, { count: 100, uid: 'aliceUid' });
+  db._put(`rateLimits/poster_share_aliceUid_${day}`, { count: 20, uid: 'aliceUid' });
+  for (const body of [{ action: 'image', kind: 'feed', record: RECORD }, { action: 'share', record: RECORD }]) {
+    const r = await posterCall('alice', body);
+    assert.strictEqual(r.statusCode, 429, body.action);
+    assert.deepStrictEqual(JSON.parse(r.body), { ok: false, error: 'rate_limited' });
+    assert.strictEqual(r.headers['Access-Control-Allow-Origin'], 'capacitor://localhost');
+  }
+});
+
 module.exports = { run };
 if (require.main === module) run('Function hardening (5.59.12)');

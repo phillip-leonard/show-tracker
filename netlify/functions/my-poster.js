@@ -27,12 +27,22 @@ const { verifyUser, getDb } = require('./lib/firebaseAdmin');
 const { openPosterStore, storeRecord, storeRecap, posterPath } = require('./lib/myPosters');
 const { withBuddy, firestoreBuddyLookup, recapSvg } = require('./lib/yearRecapCard');
 const { SITE_URL } = require('./lib/publicPageHtml');
+const { takeDailyQuota } = require('./lib/rateLimit');
 
 const CORS = {
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 const IMAGE_KINDS = new Set(['feed', 'story']);
+// Per user per UTC day (5.59.12, #398 follow-ups). Drawing is CPU on every
+// call; a share is stored for good. Far above real use: a poster screen
+// draws two images, and sharing is one tap.
+const DAILY_LIMITS = { image: 100, share: 20 };
+
+// The poster drawing never fetches anything: posterSvg / recapSvg emit
+// text and shapes only (no <image>, no href, no url()), and resvg runs
+// without a resource resolver, so there is no URL to abuse
+// (tests/public-pages/heard.test.js, yearRecapCard.test.js).
 // Every song a long-time fan has heard, as JSON, is well under this.
 const MAX_BODY = 512 * 1024;
 
@@ -52,6 +62,20 @@ exports.handler = async function (event) {
     if ((event.body || '').length > MAX_BODY) return reply(413, { ok: false, error: 'too_large' });
     let body;
     try { body = JSON.parse(event.body || '{}'); } catch { return reply(400, { ok: false, error: 'bad_request' }); }
+
+    // One counter per user per action; a refused request writes nothing.
+    if (!DAILY_LIMITS[body && body.action]) return reply(400, { ok: false, error: 'bad_request' });
+    let quota = { allowed: true };
+    try {
+      quota = await takeDailyQuota(getDb(), `poster_${body.action}_${decoded.uid}`, DAILY_LIMITS[body.action], { uid: decoded.uid });
+    } catch (err) {
+      // A counter that can't be read never stops a poster.
+      console.error('my-poster limit check failed, allowing:', err && err.message);
+    }
+    if (!quota.allowed) {
+      const limited = reply(429, { ok: false, error: 'rate_limited' });
+      return { ...limited, headers: { ...limited.headers, 'Retry-After': '3600' } };
+    }
 
     if (body && body.recap) return await handleRecap(event, body, decoded);
 
