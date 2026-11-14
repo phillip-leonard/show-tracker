@@ -33,13 +33,14 @@ test.describe('Playlists Integration Tests', () => {
     expect([200, 204]).toContain(res.status());
   });
 
-  test('spotify-token POST without code returns 400', async ({ request }) => {
+  test('spotify-token POST without sign-in returns 401', async ({ request }) => {
+    // Signed-in users only since 5.59.12; no token is refused before the
+    // request is read.
     const res = await request.post(
       `${BASE}/.netlify/functions/spotify-token`,
       { data: {} }
     );
-    // Missing authorization code → 400 or 500 (config missing)
-    expect([400, 500]).toContain(res.status());
+    expect(res.status()).toBe(401);
   });
 
   // ---------------------------------------------------------------------------

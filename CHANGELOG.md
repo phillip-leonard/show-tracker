@@ -4,6 +4,21 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.59.13] — 2026-11-14
+
+Ships in iOS 3.13.13 (`MARKETING_VERSION` 3.13.12 → 3.13.13). No app
+change; the version moves because every PR bumps it.
+
+**Integration tests brought in line with 5.59.12.** Two checks failed on
+`main` after #404, both expecting the old behavior:
+- `spotify-token` without sign-in now answers 401 (it required sign-in in
+  5.59.12); the test expected 400/500.
+- `get-artist-stats` was deleted; a missing function path falls through
+  Netlify's catch-all and returns the app's HTML with a 200, not a 404. The
+  test now checks that no JSON comes back.
+
+---
+
 ## [5.59.12] — 2026-11-13
 
 Ships in iOS 3.13.12 (`MARKETING_VERSION` 3.13.11 → 3.13.12).

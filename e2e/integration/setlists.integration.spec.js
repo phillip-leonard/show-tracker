@@ -119,8 +119,11 @@ test.describe('Setlists Integration Tests', () => {
   // anonymous request read every user's shows.
   // ---------------------------------------------------------------------------
   test('get-artist-stats is gone', async ({ request }) => {
+    // A function path that no longer exists falls through Netlify's
+    // catch-all (/* -> /index.html), so the answer is the app's HTML, not
+    // a 404. What matters is that no stats JSON comes back.
     const res = await request.get(`${BASE}/.netlify/functions/get-artist-stats?slug=radiohead`);
-    expect(res.status()).toBe(404);
+    expect(res.headers()['content-type'] || '').not.toContain('application/json');
   });
 
   test('get-artist-tours returns tours for Radiohead', async ({ request }) => {
