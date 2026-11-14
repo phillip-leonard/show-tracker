@@ -32,7 +32,6 @@ import { Modal, Button, Input, Spinner, Badge, Card } from '@/components/ui';
 import { useApp } from '@/context/AppContext';
 import { apiUrl } from '@/lib/api';
 import { formatDate } from '@/lib/utils';
-import { extractSongsFromSetlist } from '@/lib/setlistParser';
 import { tourHref, tourKeyFor } from '@/lib/runIndex';
 import {
   splitCandidates,
@@ -392,20 +391,11 @@ export default function TourBrowseModal({
 
   // Shaped exactly the way SearchView's setlist.fm import shapes a show,
   // so a bulk-added night is indistinguishable from one added by hand.
-  const toCandidate = (s) => ({
-    artist: s.artist,
-    venue: s.venue,
-    city: s.city,
-    country: s.country,
-    date: s.date,
-    // get-tour-shows passes setlist.fm's `sets` through untouched, so this
-    // is the same parse the normal search import runs. A night with no
-    // setlist yet parses to [] and is still added, flagged as pending.
-    setlist: extractSongsFromSetlist({ sets: s.sets }),
-    setlistfmId: s.setlistfmId,
-    setlistfmUrl: s.url || null,
-    tour: s.tour || tour?.name || null,
-  });
+  // The row as normalize-show takes it (lib/showInputs.js
+  // showDataFromSetlistfmRow): get-tour-shows passes setlist.fm's `sets`
+  // through untouched, so the setlist is the same parse the search import
+  // runs. A night with no setlist yet parses to [] and is still added.
+  const toCandidate = (s) => ({ kind: 'setlistfm', row: { ...s, tour: s.tour || tour?.name || null } });
 
   const submit = async (idsOverride = null) => {
     const ids = idsOverride || Array.from(selected);
@@ -437,7 +427,7 @@ export default function TourBrowseModal({
 
   const retryFailed = () => {
     if (!result?.failed?.length) return;
-    submit(result.failed.map(f => f.candidate.setlistfmId));
+    submit(result.failed.map(f => f.candidate.row.setlistfmId));
   };
 
   const handleClose = () => {
@@ -621,8 +611,8 @@ export default function TourBrowseModal({
                       <>
                         <ul className="text-xs text-danger list-disc list-inside mb-2">
                           {result.failed.map(f => (
-                            <li key={f.candidate.setlistfmId}>
-                              {formatDate(f.candidate.date)} — {f.candidate.venue}: {f.reason}
+                            <li key={f.candidate.row.setlistfmId}>
+                              {formatDate(f.candidate.row.date)} — {f.candidate.row.venue}: {f.reason}
                             </li>
                           ))}
                         </ul>

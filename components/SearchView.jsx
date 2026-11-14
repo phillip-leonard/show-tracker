@@ -6,7 +6,6 @@ import { Search, X, ChevronDown, ChevronLeft, ChevronRight, Check, Download, Plu
 import Tip from '@/components/ui/Tip';
 import { Card, Button, Input, EmptyState, Modal, Spinner } from '@/components/ui';
 import { apiUrl } from '@/lib/api';
-import { extractSongsFromSetlist } from '@/lib/setlistParser';
 import {
   hasSearchTarget, setlistToShowData, fetchAllSetlistPages, groupShowsByVenue, MAX_ADD_ALL_PAGES,
 } from '@/lib/setlistSearch';
@@ -217,7 +216,7 @@ function SearchView({ onImport, onImportMany, bulkAddProgress, existingShows = [
   };
 
   const importSetlist = (setlist) => {
-    onImport(setlistToShowData(setlist, extractSongsFromSetlist));
+    onImport({ kind: 'setlistfm', setlist });
     setImported(prev => new Set([...prev, setlist.id]));
   };
 
@@ -252,7 +251,9 @@ function SearchView({ onImport, onImportMany, bulkAddProgress, existingShows = [
         },
         { onProgress: (progress) => setAddAll({ phase: 'loading', progress }) }
       );
-      const shows = setlists.map(sl => setlistToShowData(sl, extractSongsFromSetlist));
+      // The show data for the review (grouped by venue, checked against what
+      // the account has) and, with each, the input normalize-show takes.
+      const shows = setlists.map(sl => ({ ...setlistToShowData(sl), input: { kind: 'setlistfm', setlist: sl } }));
       setAddAll({ phase: 'review', shows, total, truncated });
     } catch (err) {
       console.error('Add all: fetching pages failed:', err);
@@ -286,7 +287,7 @@ function SearchView({ onImport, onImportMany, bulkAddProgress, existingShows = [
   const confirmAddAll = async () => {
     if (toAdd.length === 0) return;
     setAddAll({ phase: 'adding' });
-    const outcome = await onImportMany(toAdd);
+    const outcome = await onImportMany(toAdd.map(show => show.input));
     setAddAll({ phase: 'done', outcome });
   };
 

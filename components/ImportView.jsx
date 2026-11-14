@@ -23,7 +23,7 @@ import { authedFetch, apiErrorMessage } from '@/lib/api';
 import GuestScanPrompt from '@/components/GuestScanPrompt';
 import {
   IMPORT_COLUMNS, detectColumns, headerSignature, inferDateOrder, buildRows, planShows,
-  showKey, summaryLine, unmatchedCsv,
+  summaryLine, unmatchedCsv,
 } from '@/lib/importSheet';
 import { createMatchContext, matchShow, importShows } from '@/lib/importMatch';
 
@@ -230,7 +230,8 @@ function ImportView({ onImport, existingShows = [], onNavigate, guestMode = fals
   // session's imports and earlier rows.
   const shows = useMemo(() => planShows(rows, {
     split: splitRows,
-    existingKeys: new Set([...existingShows.map((s) => showKey(s.artist, s.date)), ...importedKeys.current]),
+    existingShows,
+    existingKeys: new Set(importedKeys.current),
   }), [rows, splitRows, existingShows, step]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const isPicked = useCallback((s) => {
@@ -279,7 +280,9 @@ function ImportView({ onImport, existingShows = [], onNavigate, guestMode = fals
       isPicked,
       matches,
       match: (s) => matchShow({ artist: s.artist, date: s.date, venue: s.venue }, matchCtx.current),
-      save: (data) => onImport(data, { silent: true }),
+      // A possible duplicate (same band and day, another venue) is skipped
+      // and counted, not asked about once per row.
+      save: (data) => onImport({ kind: 'csv-row', ...data }, { silent: true, onPossible: 'skip' }),
       shouldStop: () => stopImport.current,
       onProgress: (done) => setProgress({ done, total, label: 'Saving shows' }),
       artistColumn: mapping.artist,

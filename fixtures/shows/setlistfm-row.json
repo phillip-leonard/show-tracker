@@ -1,0 +1,88 @@
+{
+  "name": "setlistfm-row",
+  "description": "A row from the app's own setlist.fm lists (the tour browser, the festival lineup search): already flattened, the date already ISO, setlist.fm's sets passed through.",
+  "now": "2026-11-14T12:00:00.000Z",
+  "input": {
+    "kind": "setlistfm",
+    "row": {
+      "setlistfmId": "73b5e2a1",
+      "url": "https://www.setlist.fm/setlist/73b5e2a1.html",
+      "date": "2024-07-20",
+      "artist": "Phish",
+      "artistMbid": "e01646f2-2a04-450d-8bf2-0d993082e058",
+      "venue": "Deer Creek",
+      "city": "Noblesville",
+      "country": "United States",
+      "tour": "Summer Tour 2024",
+      "sets": {
+        "set": [
+          {
+            "song": [
+              {
+                "name": "Chalk Dust Torture"
+              },
+              {
+                "name": "Bathtub Gin"
+              }
+            ]
+          },
+          {
+            "encore": 1,
+            "song": [
+              {
+                "name": "Character Zero"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "showId": "1763121600000"
+  },
+  "context": {},
+  "expected": {
+    "show": {
+      "artist": "Phish",
+      "venue": "Deer Creek",
+      "city": "Noblesville",
+      "country": "United States",
+      "date": "2024-07-20",
+      "setlist": [
+        {
+          "id": "song-1",
+          "name": "Chalk Dust Torture",
+          "set": "Set I",
+          "cover": null,
+          "tape": false
+        },
+        {
+          "id": "song-2",
+          "name": "Bathtub Gin",
+          "set": "Set I",
+          "cover": null,
+          "tape": false
+        },
+        {
+          "id": "song-3",
+          "name": "Character Zero",
+          "set": "Encore",
+          "cover": null,
+          "tape": false
+        }
+      ],
+      "setlistfmId": "73b5e2a1",
+      "setlistfmUrl": "https://www.setlist.fm/setlist/73b5e2a1.html",
+      "artistMbid": "e01646f2-2a04-450d-8bf2-0d993082e058",
+      "tour": "Summer Tour 2024",
+      "setlistSource": "setlistfm",
+      "id": "1763121600000",
+      "createdAt": "2026-11-14T12:00:00.000Z",
+      "isManual": false,
+      "normalizedVersion": 1
+    },
+    "duplicate": null,
+    "band": {
+      "reason": "no-show"
+    }
+  }
+}

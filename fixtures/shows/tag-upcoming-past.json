@@ -1,0 +1,51 @@
+{
+  "name": "tag-upcoming-past",
+  "description": "A friend tagged the user on an upcoming show, and the user accepts after its date: an ordinary show with no setlist yet, crediting the friend.",
+  "now": "2026-11-14T12:00:00.000Z",
+  "input": {
+    "kind": "tag",
+    "tagId": "tag2",
+    "asPastShow": true,
+    "showId": "1763121600000"
+  },
+  "context": {
+    "showTags": {
+      "tag2": {
+        "fromUid": "friendUid0001",
+        "fromName": "Sam",
+        "toUid": "me",
+        "status": "pending",
+        "showData": {
+          "artist": "Goose",
+          "venue": "Red Rocks Amphitheatre",
+          "date": "2024-06-21",
+          "city": "Morrison",
+          "time": "19:00",
+          "ticketUrl": null,
+          "upcoming": true
+        }
+      }
+    }
+  },
+  "expected": {
+    "show": {
+      "artist": "Goose",
+      "venue": "Red Rocks Amphitheatre",
+      "date": "2024-06-21",
+      "city": "Morrison",
+      "setlist": [],
+      "taggedBy": "Sam",
+      "taggedByUid": "friendUid0001",
+      "setlistSource": "setlistfm",
+      "tour": null,
+      "id": "1763121600000",
+      "createdAt": "2026-11-14T12:00:00.000Z",
+      "isManual": true,
+      "normalizedVersion": 1
+    },
+    "duplicate": null,
+    "band": {
+      "reason": "no-show"
+    }
+  }
+}
