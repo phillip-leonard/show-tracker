@@ -4,6 +4,40 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.60.1] — 2026-11-14
+
+Ships in **iOS 3.13.17** (`MARKETING_VERSION` 3.13.16 → 3.13.17).
+
+**Community is back in the sidebar, with Guideline 1.2 controls and a
+leaderboard opt-out.**
+
+- **Sidebar:** "Community" (`Users` icon, the one it had) right after
+  Stats, on the desktop sidebar and the phone/iOS drawer; guests see it
+  too. It fell out in the March brand refresh (`2ed5bba`), not for App
+  Review. Every sidebar item is now a 44pt target on touch
+  (`min-h-[44px] md:fine:min-h-0`). Its back control goes to Stats.
+- **Report and block:** each name on Top Show-Goers and Top Raters opens
+  the existing profile sheet (`UserLink` → Report, Block). Blocked users
+  stay hidden (#407).
+- **Opt-out:** Profile → "Show me on the community leaderboard", on by
+  default (`userProfiles.showOnLeaderboard`; the rules require a boolean).
+  Off takes you off the boards at once (recompute) and on every rebuild;
+  your own rank is unchanged.
+- **Guests** can view Community; "Add" opens sign-up and names aren't
+  tappable. The landing footer link starts guest mode instead of looping
+  back to the landing page. Empty boards say so.
+- **No user counts until 1,000 users** (decision, 2026-11-14): one helper,
+  `lib/userCount.js` `shouldShowUserCount(totalUsers)`, on the threshold
+  the landing page has used since `00e2a82`. Below it the number is hidden
+  entirely. Routed through it: the Community "Total Users" tile, the
+  landing "N+ fans" line and stats strip, the Profile rank card's "of N",
+  and Discover's "N <band> fans see them often" (twice). Checked and free
+  of user counts: public band, song and heard pages, emails, share images
+  and posters, Year in Review, How to Use, meta descriptions and JSON-LD.
+  Admin is exempt.
+
+---
+
 ## [5.60.0] — 2026-11-14
 
 Ships in **iOS 3.13.16** (`MARKETING_VERSION` 3.13.15 → 3.13.16). 5.59.15

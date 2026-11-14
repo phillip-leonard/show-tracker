@@ -25,7 +25,7 @@
 // earlier still write them, and nothing trusts them any more.
 
 const { computeUserStats, publicStats, isRanked, rankUsers } = require('../../../lib/stats');
-const { buildCommunityStats } = require('./communityStats');
+const { buildCommunityStats, onLeaderboard } = require('./communityStats');
 
 const BATCH = 400;
 
@@ -131,7 +131,26 @@ async function recomputeUserStats(db, uid, { serverTimestamp = () => new Date() 
     db.collection('userStats').doc(uid).set(docs.full),
     db.collection('publicUserStats').doc(uid).set(docs.public),
   ]);
+  // Opted out of the leaderboard (5.60.1): leave the boards now rather
+  // than at the next rebuild. Opting back in shows on the next rebuild.
+  if (!onLeaderboard(profile)) await removeFromBoards(db, uid);
   return docs.full;
 }
 
-module.exports = { rebuildAllStats, recomputeUserStats, userStatsDocs, showsByUser };
+/** Takes a user off communityStats/global's lists, in a transaction. */
+async function removeFromBoards(db, uid) {
+  const ref = db.collection('communityStats').doc('global');
+  await db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists) return;
+    const data = snap.data();
+    const lists = ['topShowsAttended', 'topSongsRated', 'topVenuesVisited'];
+    const isMe = (e) => e && (e.userId === uid || e.odubleserId === uid);
+    if (!lists.some((k) => (data[k] || []).some(isMe))) return;
+    const update = {};
+    for (const k of lists) update[k] = (data[k] || []).filter((e) => !isMe(e));
+    tx.update(ref, update);
+  });
+}
+
+module.exports = { rebuildAllStats, recomputeUserStats, userStatsDocs, showsByUser, removeFromBoards };

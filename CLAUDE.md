@@ -56,6 +56,7 @@ A Capacitor plugin (`FirebaseMessaging`, `FirebaseAuthentication`, `App`, …) i
 - **A show document is made only by `buildShowDoc` with `mintShowId`** (`lib/showDoc.js`), and "the same show" is decided only by `lib/showIdentity.js`.
 - **A venue count uses `countVenues`** (`lib/venueCount.js`), or `lib/stats`, which counts with the same key.
 - **Guest shows leave the device only after their Firestore write is confirmed** (`lib/guestMerge.js`).
+- **No user count is shown anywhere outside the admin portal until there are 1,000 users** (decision 2026-11-14): every display goes through `shouldShowUserCount(totalUsers)` (`lib/userCount.js`), and below the threshold the number is hidden entirely, with no vague wording in its place. `lib/__tests__/userCount.test.js` lists the displays.
 - **The numbers people see are computed on the server** (5.59.15): `lib/stats` (one definition, CommonJS, golden-tested) → `userStats/{uid}` and `publicUserStats/{uid}` (rules: no client writes), via `recompute-my-stats` and the 6-hourly `community-stats` job. Never read the `showCount`/`songCount`/`ratedSongCount`/`venueCount` fields on `userProfiles`: old iOS builds still write them and nothing trusts them. No client code reads every profile.
 
 ## Security invariants (5.59.6 to 5.59.12)

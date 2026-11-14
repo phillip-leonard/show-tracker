@@ -170,7 +170,9 @@ service cloud.firestore {
                     && request.resource.data.get('banned', false) == false
                     && !request.resource.data.keys().hasAny(
                          ['displayName', 'firstName', 'handle', 'handleLower', 'isTestUser', 'welcomeEmail',
-                          'email', 'invitedByEmail']);
+                          'email', 'invitedByEmail'])
+                    // The leaderboard opt-out (5.60.1) is a boolean when set.
+                    && request.resource.data.get('showOnLeaderboard', true) is bool;
       // `welcomeEmail` (5.55.0) is the server's record of the one welcome
       // email (netlify/functions/lib/welcomeEmail.js). Server-only: an
       // owner who could clear it could have it sent again.
@@ -182,6 +184,7 @@ service cloud.firestore {
                        == resource.data.get('isTestUser', false)
                     && !request.resource.data.diff(resource.data).affectedKeys()
                          .hasAny(['welcomeEmail', 'email', 'invitedByEmail'])
+                    && request.resource.data.get('showOnLeaderboard', true) is bool
                     && textFieldsUnchanged();
       // The admin may flip isTestUser on anyone's profile, and nothing
       // else: the admin's client is no more trusted with the rest of a

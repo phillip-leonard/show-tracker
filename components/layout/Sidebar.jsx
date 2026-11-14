@@ -18,7 +18,7 @@ import { usePathname } from 'next/navigation';
 import {
   Search, List, BarChart3, Shield, Coffee,
   LogOut, User, X, Heart, HelpCircle, ScrollText,
-  Bookmark, GalleryVertical, Tent, Map, MessageSquare, Compass,
+  Bookmark, GalleryVertical, Tent, Map, MessageSquare, Compass, Users,
 } from 'lucide-react';
 import Pick from '../brand/Pick';
 import Wordmark, { BRAND_LOCKUP } from '../brand/Wordmark';
@@ -72,6 +72,10 @@ export default function Sidebar({
   const primary = [
     { id: 'shows', label: 'My Shows', icon: List, href: '/' },
     { id: 'stats', label: 'Stats', icon: BarChart3, href: '/stats' },
+    // Back in the sidebar in 5.60.1: it fell out in the March brand
+    // refresh (2ed5bba), leaving only a landing-page footer link. Guests
+    // see it too (read-only; adding a friend asks them to sign up).
+    { id: 'community', label: 'Community', icon: Users, href: '/community' },
     !isGuest && { id: 'discover', label: 'Discover', icon: Compass, href: '/discover' },
     !isGuest && { id: 'tours', label: 'Tours', icon: Map, href: '/tours' },
     !isGuest && { id: 'festivals', label: 'Festivals', icon: Tent, href: '/festivals' },
@@ -93,7 +97,9 @@ export default function Sidebar({
         href={href}
         onClick={onClose}
         className={[
-          'relative group w-full flex items-center gap-3 px-4 py-2.5 rounded-lg',
+          // 44pt on touch (iPhone, iPad, the drawer); the desktop look is
+          // unchanged with a mouse (fine:, tailwind.config.js).
+          'relative group w-full flex items-center gap-3 px-4 py-2.5 rounded-lg min-h-[44px] md:fine:min-h-0',
           'text-[14px] font-semibold transition-colors outline-none',
           'focus-visible:ring-2 focus-visible:ring-brand/40',
           active ? 'bg-white/10' : 'hover:bg-white/[0.06]',

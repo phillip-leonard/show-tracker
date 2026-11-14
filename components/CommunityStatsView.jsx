@@ -3,6 +3,8 @@
 import React from 'react';
 import { Star, Users, User, Building2, TrendingUp, Trophy, UserPlus } from 'lucide-react';
 import Tip from '@/components/ui/Tip';
+import UserLink from '@/components/moderation/UserLink';
+import { shouldShowUserCount } from '@/lib/userCount';
 import { Card, SectionHeader, StatTile, SpinnerBlock } from '@/components/ui';
 
 // A leaderboard entry's user id: `userId` since 5.59.10, falling back to
@@ -17,6 +19,12 @@ function updatedLabel(updatedAt, now = new Date()) {
   if (!d || Number.isNaN(d.getTime())) return '';
   const sameDay = d.toDateString() === now.toDateString();
   return `Updated ${sameDay ? d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }) : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`;
+}
+
+// A board with nobody on it yet (a brand-new community, or everyone
+// listed has been blocked or opted out).
+function EmptyBoard() {
+  return <p className="text-sm text-muted">No one on the board yet. Log your shows to be the first.</p>;
 }
 
 function CommunityStatsView({ communityStats, onAddFriend, currentUserUid, currentFriendUids, blockedUserIds = [] }) {
@@ -41,6 +49,7 @@ function CommunityStatsView({ communityStats, onAddFriend, currentUserUid, curre
             <SectionHeader title="Top Show-Goers" className="mb-0" />
           </div>
           <div className="space-y-3">
+            {visible(communityStats.topShowsAttended).length === 0 && <EmptyBoard />}
             {visible(communityStats.topShowsAttended).slice(0, 5).map((user, i) => (
               <div key={entryUid(user)} className="flex items-center gap-3">
                 <span className={`text-lg font-bold w-6 ${i === 0 ? 'text-brand' : i === 1 ? 'text-secondary' : i === 2 ? 'text-brand' : 'text-muted'}`}>
@@ -49,10 +58,14 @@ function CommunityStatsView({ communityStats, onAddFriend, currentUserUid, curre
                 <div className="w-8 h-8 rounded-full bg-brand flex items-center justify-center">
                   <User className="w-4 h-4 text-white" />
                 </div>
-                <span className="text-secondary flex-1">{user.firstName}</span>
+                {/* Tapping a name opens the profile sheet with Report and
+                    Block (Guideline 1.2), as on comments and photos. Plain
+                    text for guests and for your own name. */}
+                <UserLink uid={entryUid(user)} name={user.firstName} className="text-secondary flex-1 min-w-0 truncate" />
                 {onAddFriend && entryUid(user) !== currentUserUid && !(currentFriendUids || []).includes(entryUid(user)) && (
                   <Tip text="Add friend">
                     <button
+                      type="button"
                       onClick={() => onAddFriend(entryUid(user), user.firstName, '')}
                       className="px-2 py-1 bg-brand-subtle text-brand rounded-lg text-xs font-medium hover:bg-brand/30 transition-colors"
                     >
@@ -78,6 +91,7 @@ function CommunityStatsView({ communityStats, onAddFriend, currentUserUid, curre
             <SectionHeader title="Top Raters" className="mb-0" />
           </div>
           <div className="space-y-3">
+            {visible(communityStats.topSongsRated).length === 0 && <EmptyBoard />}
             {visible(communityStats.topSongsRated).slice(0, 5).map((user, i) => (
               <div key={entryUid(user)} className="flex items-center gap-3">
                 <span className={`text-lg font-bold w-6 ${i === 0 ? 'text-amber' : i === 1 ? 'text-secondary' : i === 2 ? 'text-amber' : 'text-muted'}`}>
@@ -86,10 +100,14 @@ function CommunityStatsView({ communityStats, onAddFriend, currentUserUid, curre
                 <div className="w-8 h-8 rounded-full bg-danger flex items-center justify-center">
                   <User className="w-4 h-4 text-white" />
                 </div>
-                <span className="text-secondary flex-1">{user.firstName}</span>
+                {/* Tapping a name opens the profile sheet with Report and
+                    Block (Guideline 1.2), as on comments and photos. Plain
+                    text for guests and for your own name. */}
+                <UserLink uid={entryUid(user)} name={user.firstName} className="text-secondary flex-1 min-w-0 truncate" />
                 {onAddFriend && entryUid(user) !== currentUserUid && !(currentFriendUids || []).includes(entryUid(user)) && (
                   <Tip text="Add friend">
                     <button
+                      type="button"
                       onClick={() => onAddFriend(entryUid(user), user.firstName, '')}
                       className="px-2 py-1 bg-brand-subtle text-brand rounded-lg text-xs font-medium hover:bg-brand/30 transition-colors"
                     >
@@ -166,8 +184,12 @@ function CommunityStatsView({ communityStats, onAddFriend, currentUserUid, curre
       </div>
 
       {/* Overall Stats */}
-      <div className="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-        <StatTile value={communityStats.totalUsers || 0} label="Total Users" tone="brand" />
+      {/* No user count until 1,000 users (lib/userCount.js); the show and
+          song totals always show. */}
+      <div className={`mt-8 grid grid-cols-1 gap-3.5 ${shouldShowUserCount(communityStats.totalUsers) ? 'sm:grid-cols-3' : 'sm:grid-cols-2'}`}>
+        {shouldShowUserCount(communityStats.totalUsers) && (
+          <StatTile value={communityStats.totalUsers} label="Total Users" tone="brand" />
+        )}
         <StatTile value={communityStats.totalShows || 0} label="Total Shows" tone="amber" />
         <StatTile value={communityStats.totalSongs || 0} label="Total Songs" tone="brand" />
       </div>

@@ -5,9 +5,11 @@ import { PageHeader } from '@/components/ui';
 import { useApp } from '@/context/AppContext';
 
 export default function CommunityPage() {
-  const { communityStats, sendFriendRequest, user, guestMode, friendUids, blockedUserIds } = useApp();
+  const { communityStats, sendFriendRequest, user, guestMode, friendUids, blockedUserIds, openAuthModal } = useApp();
 
-  if (guestMode) return null;
+  // Guests can look (5.60.1); adding a friend needs an account, so for
+  // them "Add" opens sign-up. Names are plain text for guests (UserLink).
+  const onAddFriend = guestMode ? () => openAuthModal('signup') : sendFriendRequest;
 
   return (
     <>
@@ -18,7 +20,7 @@ export default function CommunityPage() {
       />
       <CommunityStatsView
         communityStats={communityStats}
-        onAddFriend={sendFriendRequest}
+        onAddFriend={onAddFriend}
         currentUserUid={user?.uid}
         currentFriendUids={friendUids}
         blockedUserIds={blockedUserIds}

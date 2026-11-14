@@ -14,7 +14,7 @@ import { compareShowDates } from '@/lib/showDate';
 
 export default function ProfilePage() {
   const {
-    user, guestMode, shows, userRank, friends, headlineStats,
+    user, guestMode, shows, userRank, friends, headlineStats, communityStats,
     favoriteArtists, toggleFavoriteArtist,
     pendingNotificationCount, unreadNotifications,
   } = useApp();
@@ -153,6 +153,7 @@ export default function ProfilePage() {
         shows={shows}
         userRank={userRank}
         headlineStats={headlineStats}
+        totalUsers={communityStats?.totalUsers ?? null}
         onProfileUpdate={() => {}}
         onViewShow={(show) => {
           router.push(showHref(show.id));
