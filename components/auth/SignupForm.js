@@ -12,6 +12,8 @@ import AuthDivider from './AuthDivider';
 import PasswordInput from './PasswordInput';
 import { Input, Button } from '@/components/ui';
 import { contentProblem } from '@/lib/contentFilter';
+// The same rules the reset page and complete-password-reset check.
+import { validatePassword } from '@/lib/passwordRules';
 
 export default function SignupForm({ onSuccess, onSwitchToLogin, agreed = true }) {
   const [displayName, setDisplayName] = useState('');
@@ -20,14 +22,6 @@ export default function SignupForm({ onSuccess, onSwitchToLogin, agreed = true }
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-
-  const validatePassword = (pwd) => {
-    if (pwd.length < 8) return 'Password must be at least 8 characters';
-    if (!/[A-Z]/.test(pwd)) return 'Password must contain an uppercase letter';
-    if (!/[a-z]/.test(pwd)) return 'Password must contain a lowercase letter';
-    if (!/[0-9]/.test(pwd)) return 'Password must contain a number';
-    return null;
-  };
 
   const handleEmailSignup = async (e) => {
     e.preventDefault();

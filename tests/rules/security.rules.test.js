@@ -14,7 +14,8 @@
  *   S-03  shows: owner, the owner's friends and the admin only
  *   S-04  friends lists: only the owner adds; either party removes
  *   S-02  friendRequests, ticketCache, pendingEmailTags, invites,
- *         adminAuditLog, and the server-only rateLimits / emailSends
+ *         adminAuditLog, and the server-only rateLimits / emailSends /
+ *         passwordResetTokens
  *   S-05  guestSessions, roadmapItems, feedback
  */
 
@@ -194,6 +195,17 @@ async function main() {
     await assertFails(as(ALICE).doc(`rateLimits/ai_user_${ALICE}_2026-11-13`).set({ count: 0 }));
     await assertFails(as(ALICE).doc('emailSends/tag_x').set({ uid: ALICE }));
     await assertFails(as(ALICE).doc('emailSends/tag_x').get());
+  });
+
+  await test('password reset tokens have no client access, not even to your own (5.60.0)', async () => {
+    await testEnv.withSecurityRulesDisabled((ctx) => ctx.firestore().doc('passwordResetTokens/abc123').set({ uid: ALICE, email: 'alice@example.com', used: false }));
+    await assertFails(as(ALICE).doc('passwordResetTokens/abc123').get());
+    await assertFails(as(ALICE).collection('passwordResetTokens').where('uid', '==', ALICE).get());
+    await assertFails(as(ALICE).doc('passwordResetTokens/abc123').update({ used: false }));
+    await assertFails(as(ALICE).doc('passwordResetTokens/new').set({ uid: ALICE, used: false }));
+    await assertFails(as(ALICE).doc('passwordResetTokens/abc123').delete());
+    await assertFails(anon().doc('passwordResetTokens/abc123').get());
+    await assertFails(admin().doc('passwordResetTokens/abc123').get());
   });
 
   // ── S-02: pending email tags ────────────────────────────────────────

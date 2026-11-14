@@ -14,6 +14,9 @@
  *   ai_anon_global            scans without a token, everyone together
  *   ai_anon_ip_{hash}         scans without a token, per client IP (hashed, never stored raw)
  *   email_{type}_{uid}        send-email, per sender per email type
+ *   pwreset_ip_{hash}         send-password-reset, per client IP (hourly)
+ *   pwreset_email_{hash}      send-password-reset, per address, hashed (hourly)
+ *   pwreset_done_ip_{hash}    complete-password-reset, per client IP (hourly)
  */
 
 const crypto = require('crypto');
@@ -50,6 +53,30 @@ async function takeDailyQuota(db, key, limit, { now = Date.now(), cost = 1, uid 
   });
 }
 
+/**
+ * takeHourlyQuota(db, key, limit) → { allowed, count, limit }
+ * The same counter for a fixed UTC hour, in rateLimits/{key}_{YYYY-MM-DDTHH}
+ * (5.60.0, the password reset functions). Expires two hours later.
+ */
+async function takeHourlyQuota(db, key, limit, { now = Date.now(), uid = null } = {}) {
+  const hour = new Date(now).toISOString().slice(0, 13);
+  const ref = db.doc(`rateLimits/${String(key).replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 300)}_${hour.replace(':', '')}`);
+  return db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    const count = snap.exists ? Number(snap.data().count) || 0 : 0;
+    if (count + 1 > limit) return { allowed: false, count, limit };
+    tx.set(ref, {
+      key: String(key),
+      uid: uid || null,
+      hour,
+      count: count + 1,
+      updatedAt: new Date(now),
+      expiresAt: new Date(now + 2 * 60 * 60 * 1000),
+    });
+    return { allowed: true, count: count + 1, limit };
+  });
+}
+
 /** Today's count for a key, without taking anything. */
 async function peekDailyQuota(db, key, { now = Date.now() } = {}) {
   const snap = await db.doc(`rateLimits/${docId(key, now)}`).get();
@@ -73,4 +100,4 @@ function ipHash(ip) {
   return crypto.createHmac('sha256', key).update(String(ip || 'unknown')).digest('hex').slice(0, 32);
 }
 
-module.exports = { takeDailyQuota, peekDailyQuota, clientIp, ipHash, utcDay };
+module.exports = { takeDailyQuota, takeHourlyQuota, peekDailyQuota, clientIp, ipHash, utcDay };

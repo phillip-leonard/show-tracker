@@ -9,7 +9,11 @@ export default function PasswordInput({
   placeholder = 'Password',
   disabled = false,
   showStrength = false,
-  required = true
+  required = true,
+  // Overrides the default below; the reset page's confirm field is a new
+  // password too.
+  autoComplete,
+  autoFocus = false,
 }) {
   const [visible, setVisible] = useState(false);
 
@@ -40,7 +44,8 @@ export default function PasswordInput({
         // keyboard defaults and let iOS capitalise the first character of a
         // revealed password. `showStrength` is only set on the signup form,
         // which is where a new-password hint belongs.
-        autoComplete={showStrength ? 'new-password' : 'current-password'}
+        autoComplete={autoComplete || (showStrength ? 'new-password' : 'current-password')}
+        autoFocus={autoFocus}
         autoCapitalize="none"
         autoCorrect="off"
         spellCheck={false}

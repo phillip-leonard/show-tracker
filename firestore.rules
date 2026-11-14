@@ -1023,6 +1023,12 @@ service cloud.firestore {
     match /emailSends/{docId} {
       allow read, write: if false;
     }
+    // Password reset links (5.60.0): the SHA-256 of each token, its uid,
+    // address and expiry. Only send-password-reset and
+    // complete-password-reset touch it, through the Admin SDK.
+    match /passwordResetTokens/{tokenHash} {
+      allow read, write: if false;
+    }
 
     // ── NEW: Year in Review (v5.23.0) ──────────────────────────────────────
     // One doc per user per year (docId `${uid}_${year}`). Owner always

@@ -108,3 +108,15 @@
 # extension and needs it served as JSON, not as the default octet-stream.
 /.well-known/apple-app-site-association
   Content-Type: application/json
+
+# The password reset page (5.60.0, app/reset): /reset/?token=… carries a
+# one-use token in the URL. Kept out of search results by the default above
+# (and its own robots meta tag); never sent on as a Referer, and never
+# cached, so a shared machine's back button can't replay a stale form.
+/reset
+  Referrer-Policy: no-referrer
+  Cache-Control: no-store
+
+/reset/*
+  Referrer-Policy: no-referrer
+  Cache-Control: no-store
