@@ -3,12 +3,15 @@
 import React, { useState } from 'react';
 import { Tag, ChevronDown, Check } from 'lucide-react';
 import { Button, Card, Input, Badge } from '@/components/ui';
+import { defaultShowDate } from '@/lib/showDate';
 
 function ShowForm({ onSubmit, onCancel, friends = [], onTagFriends, initialData }) {
   const [formData, setFormData] = useState({
     artist: initialData?.artist || '',
     venue: initialData?.venue || '',
-    date: initialData?.date || new Date().toISOString().split('T')[0]
+    // Today on this device, not in UTC: at 8pm Pacific UTC is already
+    // tomorrow (B-02).
+    date: initialData?.date || defaultShowDate()
   });
   const [tagOpen, setTagOpen] = useState(false);
   const [selectedTagFriends, setSelectedTagFriends] = useState(new Set());

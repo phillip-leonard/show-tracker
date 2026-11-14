@@ -9,6 +9,7 @@ import { useApp } from '@/context/AppContext';
 import SetlistEditor from '@/components/SetlistEditor';
 import Tip from '@/components/ui/Tip';
 import { formatDate, parseDate, artistColor, avgSongRating, parseCSV, parseImportDate, autoDetectMapping } from '@/lib/utils';
+import { today as localToday } from '@/lib/showDate';
 import { IMPORT_FIELDS } from '@/lib/constants';
 import { apiUrl } from '@/lib/api';
 import ModerationQueue from '@/components/admin/ModerationQueue';
@@ -1922,7 +1923,7 @@ function AdminView() {
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement('a');
                     a.href = url;
-                    a.download = `converted-users-${new Date().toISOString().slice(0, 10)}.csv`;
+                    a.download = `converted-users-${localToday()}.csv`;
                     a.click();
                     URL.revokeObjectURL(url);
                   }}
@@ -2121,7 +2122,7 @@ function AdminView() {
                   const url = URL.createObjectURL(blob);
                   const a = document.createElement('a');
                   a.href = url;
-                  a.download = `referral-data-${new Date().toISOString().split('T')[0]}.csv`;
+                  a.download = `referral-data-${localToday()}.csv`;
                   a.click();
                   URL.revokeObjectURL(url);
                 }}

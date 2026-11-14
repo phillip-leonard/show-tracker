@@ -52,7 +52,7 @@ import { callFriends } from '@/lib/friendsApi';
 import { isFirstShowTransition, requestWelcomeEmail } from '@/lib/welcomeEmailTrigger';
 import { sweepExpiredSetlistfmCaches } from '@/lib/setlistfmLocalCache';
 import { signInLeavesRoute } from '@/lib/deepLinks';
-import { toIsoDate, showYear } from '@/lib/showDate';
+import { toIsoDate, showYear, utcIsoDate } from '@/lib/showDate';
 import { findDuplicate, showMatchKey, setlistIsOnShowDate } from '@/lib/showIdentity';
 
 // Gap between writes in a bulk tour add. Enough to keep a 40-night
@@ -2092,8 +2092,8 @@ export function AppProvider({ children }) {
       if (draft.startDate && !Number.isNaN(from.getTime()) && !Number.isNaN(to.getTime())) {
         collect(await getDocs(query(
           collection(db, 'festivals'),
-          where('startDate', '>=', from.toISOString().slice(0, 10)),
-          where('startDate', '<=', to.toISOString().slice(0, 10)),
+          where('startDate', '>=', utcIsoDate(from)),
+          where('startDate', '<=', utcIsoDate(to)),
           limit(FESTIVAL_CANDIDATE_LIMIT),
         )));
       }
