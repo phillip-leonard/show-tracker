@@ -80,10 +80,20 @@ function buildEntry({ response, ttlHours, queryParams = {} }, now = Date.now()) 
 }
 
 /** Writes one entry. Resolves either way; a failed write is only logged. */
+// A cached response bigger than this isn't written (5.59.12): well under
+// Firestore's 1 MiB document limit, and far above a real setlist.fm page
+// (20 setlists) or a tour's merged show list.
+const MAX_RESPONSE_BYTES = 800 * 1024;
+
 function writeEntry(db, key, fields, now = Date.now()) {
   if (!db) return Promise.resolve();
+  const response = fields && fields.response;
+  if (typeof response === 'string' && Buffer.byteLength(response, 'utf8') > MAX_RESPONSE_BYTES) {
+    console.warn(`[CACHE] Not cached: response for ${key} is over ${MAX_RESPONSE_BYTES} bytes`);
+    return Promise.resolve();
+  }
   return db.collection(COLLECTION).doc(key).set(buildEntry(fields, now))
     .catch((e) => console.warn('[CACHE] Write error:', e.message));
 }
 
-module.exports = { COLLECTION, MAX_TTL_HOURS, clampTtlHours, isFresh, readFresh, buildEntry, writeEntry };
+module.exports = { COLLECTION, MAX_TTL_HOURS, MAX_RESPONSE_BYTES, clampTtlHours, isFresh, readFresh, buildEntry, writeEntry };

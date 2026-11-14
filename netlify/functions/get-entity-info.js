@@ -1,4 +1,6 @@
 const { withCors } = require('./lib/cors');
+const { checkProxyLimit } = require('./lib/proxyLimit');
+const { cacheName, cacheable } = require('./lib/cacheGuard');
 const https = require('https');
 
 const CORS_HEADERS = {
@@ -148,22 +150,16 @@ exports.handler = async function (event) {
     };
   }
 
-  // Parameter extraction
-  const { name, type } = event.queryStringParameters || {};
+  // Parameter extraction. The name is validated before it becomes part of
+  // the cache key (lib/cacheGuard.js, 5.59.12).
+  const { type } = event.queryStringParameters || {};
+  const name = cacheName((event.queryStringParameters || {}).name);
 
-  if (!name) {
+  if (!name || (type && type !== 'artist' && type !== 'venue')) {
     return {
       statusCode: 400,
       headers: CORS_HEADERS,
-      body: JSON.stringify({ error: 'Missing name parameter' }),
-    };
-  }
-
-  if (type && type !== 'artist' && type !== 'venue') {
-    return {
-      statusCode: 400,
-      headers: CORS_HEADERS,
-      body: JSON.stringify({ error: 'type must be "artist" or "venue"' }),
+      body: JSON.stringify({ error: 'bad_request' }),
     };
   }
 
@@ -192,6 +188,11 @@ exports.handler = async function (event) {
       }
     }
 
+    // A miss reaches Wikipedia: counted against the network's daily
+    // `metadata` limit (lib/proxyLimit.js).
+    const refused = await checkProxyLimit(event, 'metadata');
+    if (refused) return { ...refused, headers: { ...CORS_HEADERS, ...refused.headers } };
+
     // Artists get the collision-aware resolver (a same-titled non-band page
     // or disambiguation page triggers a search-based second pass); venues
     // keep the plain direct title match.
@@ -214,7 +215,7 @@ exports.handler = async function (event) {
       return {
         statusCode: 502,
         headers: CORS_HEADERS,
-        body: JSON.stringify({ error: `Wikipedia API returned ${statusCode}` }),
+        body: JSON.stringify({ error: 'upstream_error' }),
       };
     }
 
@@ -245,7 +246,8 @@ exports.handler = async function (event) {
     const responseBody = JSON.stringify(result);
 
     // Write to Firestore cache (fire-and-forget)
-    if (db) {
+    // Only a successful answer, and only when it is a sane size.
+    if (db && cacheable(responseBody)) {
       const { Timestamp } = require('firebase-admin/firestore');
       db.collection('wikiCache').doc(cacheKey).set({
         response: responseBody,
@@ -265,7 +267,7 @@ exports.handler = async function (event) {
     return {
       statusCode: 500,
       headers: CORS_HEADERS,
-      body: JSON.stringify({ error: 'Internal server error' }),
+      body: JSON.stringify({ error: 'server_error' }),
     };
   }
 };

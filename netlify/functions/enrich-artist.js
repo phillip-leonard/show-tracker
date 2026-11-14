@@ -1,4 +1,6 @@
 const { withCors } = require('./lib/cors');
+const { checkProxyLimit } = require('./lib/proxyLimit');
+const { cacheName, cacheable } = require('./lib/cacheGuard');
 const https = require('https');
 
 const CORS_HEADERS = {
@@ -195,13 +197,14 @@ exports.handler = async function (event) {
     };
   }
 
-  const { name } = event.queryStringParameters || {};
+  // Validated before it becomes part of the cache key (lib/cacheGuard.js).
+  const name = cacheName((event.queryStringParameters || {}).name);
 
   if (!name) {
     return {
       statusCode: 400,
       headers: CORS_HEADERS,
-      body: JSON.stringify({ error: 'Missing name parameter' }),
+      body: JSON.stringify({ error: 'bad_request' }),
     };
   }
 
@@ -228,6 +231,11 @@ exports.handler = async function (event) {
         // Cache read failed — continue to APIs
       }
     }
+
+    // A miss reaches MusicBrainz and Discogs: counted against the network's
+    // daily `metadata` limit (lib/proxyLimit.js, 5.59.12).
+    const refused = await checkProxyLimit(event, 'metadata');
+    if (refused) return { ...refused, headers: { ...CORS_HEADERS, ...refused.headers } };
 
     // Fetch from both sources in parallel
     const [mbResult, discogsResult] = await Promise.allSettled([
@@ -267,8 +275,10 @@ exports.handler = async function (event) {
 
     const responseBody = JSON.stringify(result);
 
-    // Fire-and-forget cache write
-    if (db) {
+    // Fire-and-forget cache write, only when at least one source answered
+    // (until 5.59.12 a moment when both were down was cached as "nothing
+    // known" for 7 days) and the result is a sane size.
+    if (db && (mb || discogs) && cacheable(responseBody)) {
       const { Timestamp } = require('firebase-admin/firestore');
       db.collection('artistEnrichCache').doc(cacheKey).set({
         response: responseBody,
@@ -287,7 +297,7 @@ exports.handler = async function (event) {
     return {
       statusCode: 500,
       headers: CORS_HEADERS,
-      body: JSON.stringify({ error: 'Internal server error' }),
+      body: JSON.stringify({ error: 'server_error' }),
     };
   }
 };

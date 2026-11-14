@@ -35,6 +35,11 @@
 // rules change is needed, same as artistEnrichCache.
 
 const { withCors } = require('./lib/cors');
+const { checkProxyLimit } = require('./lib/proxyLimit');
+const { cacheName, isoDay, cacheable } = require('./lib/cacheGuard');
+
+// More recordings than any real show has; keeps a cached entry bounded.
+const MAX_RECORDINGS = 50;
 const https = require('https');
 
 const CORS_HEADERS = {
@@ -88,7 +93,7 @@ function artistKeyFor(name) {
 
 // --- Artist slug resolution (cached separately, longer) ────────────────
 
-async function resolveArtistSlug(db, artistName) {
+async function resolveArtistSlug(db, artistName, beforeFetch = async () => {}) {
   const key = artistKeyFor(artistName);
 
   if (db) {
@@ -107,6 +112,7 @@ async function resolveArtistSlug(db, artistName) {
   }
 
   let relistenSlug = null;
+  await beforeFetch();
   try {
     const res = await httpsGetJson('https://api.relisten.net/api/v3/artists');
     if (res.statusCode === 200 && Array.isArray(res.body)) {
@@ -114,6 +120,9 @@ async function resolveArtistSlug(db, artistName) {
       const match = res.body.find(a => (a.name || '').toLowerCase().trim() === target)
         || res.body.find(a => (a.slug || '').toLowerCase() === target.replace(/\s+/g, '-'));
       relistenSlug = match?.slug || null;
+    } else {
+      // relisten answered, but not with the list: not cached (5.59.12).
+      return null;
     }
   } catch (_) {
     // Network/API failure — treat as "not resolvable right now", not cached
@@ -153,7 +162,7 @@ function normalizeSource(source) {
 
 // --- Show lookup (cached) ────────────────────────────────────────────────
 
-async function lookupShow(db, relistenSlug, date) {
+async function lookupShow(db, relistenSlug, date, beforeFetch = async () => {}) {
   const cacheKey = `${relistenSlug}_${date}`;
 
   if (db) {
@@ -173,12 +182,17 @@ async function lookupShow(db, relistenSlug, date) {
   }
 
   let result;
+  await beforeFetch();
   try {
     const res = await httpsGetJson(`https://api.relisten.net/api/v2/artists/${relistenSlug}/shows/${date}`);
     if (res.statusCode === 200 && Array.isArray(res.body?.sources) && res.body.sources.length > 0) {
-      result = { found: true, recordings: res.body.sources.map(normalizeSource) };
-    } else {
+      result = { found: true, recordings: res.body.sources.slice(0, MAX_RECORDINGS).map(normalizeSource) };
+    } else if (res.statusCode === 200 || res.statusCode === 404) {
       result = { found: false, recordings: [] };
+    } else {
+      // Any other answer is relisten having trouble: not a 7-day negative
+      // (5.59.12).
+      return { found: false, recordings: [] };
     }
   } catch (_) {
     // API unreachable — degrade to "not found" rather than surfacing an
@@ -187,7 +201,7 @@ async function lookupShow(db, relistenSlug, date) {
     return { found: false, recordings: [] };
   }
 
-  if (db) {
+  if (db && cacheable(JSON.stringify(result))) {
     const { Timestamp } = require('firebase-admin/firestore');
     db.collection('archivalAudioShowCache').doc(cacheKey).set({
       ...result,
@@ -217,14 +231,28 @@ exports.handler = async function (event) {
     return { statusCode: 405, headers: CORS_HEADERS, body: JSON.stringify({ error: 'Method not allowed' }) };
   }
 
-  const { artist, date } = event.queryStringParameters || {};
-  if (!artist || !date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-    return { statusCode: 400, headers: CORS_HEADERS, body: JSON.stringify({ error: 'Missing or invalid artist/date parameter' }) };
+  // Validated before either becomes part of a cache key (lib/cacheGuard.js).
+  const q = event.queryStringParameters || {};
+  const artist = cacheName(q.artist);
+  const date = isoDay(q.date);
+  if (!artist || !date) {
+    return { statusCode: 400, headers: CORS_HEADERS, body: JSON.stringify({ error: 'bad_request' }) };
   }
+
+  // Each request that reaches relisten counts against the network's daily
+  // `metadata` limit (lib/proxyLimit.js, 5.59.12); cache hits don't.
+  const beforeFetch = async () => {
+    const refused = await checkProxyLimit(event, 'metadata');
+    if (refused) {
+      const e = new Error('limited');
+      e.response = { ...refused, headers: { ...CORS_HEADERS, ...refused.headers } };
+      throw e;
+    }
+  };
 
   try {
     const db = getDb();
-    const relistenSlug = await resolveArtistSlug(db, artist);
+    const relistenSlug = await resolveArtistSlug(db, artist, beforeFetch);
 
     if (!relistenSlug) {
       return {
@@ -234,13 +262,14 @@ exports.handler = async function (event) {
       };
     }
 
-    const result = await lookupShow(db, relistenSlug, date);
+    const result = await lookupShow(db, relistenSlug, date, beforeFetch);
     return {
       statusCode: 200,
       headers: CORS_HEADERS,
       body: JSON.stringify(result),
     };
   } catch (err) {
+    if (err && err.response) return err.response;
     console.error('archival-audio-lookup error:', err);
     // Degrade to the no-audio state rather than surfacing an error — a
     // source being down shouldn't read as a broken feature.
