@@ -21,6 +21,7 @@ import StatsTab from '@/components/admin/StatsTab';
 import ArchiveDryRunCard from '@/components/admin/ArchiveDryRunCard';
 import WelcomeEmailCard from '@/components/admin/WelcomeEmailCard';
 import FestivalSeedCard from '@/components/admin/FestivalSeedCard';
+import AppVersionsCard from '@/components/admin/AppVersionsCard';
 import FestivalLineupSeedCard from '@/components/admin/FestivalLineupSeedCard';
 import { buildUserRows } from '@/lib/adminUsers';
 import { sendNotification } from '@/lib/email';
@@ -2454,6 +2455,7 @@ function AdminView() {
       {/* Tools Tab */}
       {adminTab === 'tools' && (
         <div className="space-y-6">
+          <AppVersionsCard />
           <div className="bg-hover backdrop-blur-xl border border-subtle rounded-2xl p-6">
             <h3 className="text-lg font-semibold text-primary mb-1">Find Missing Setlists</h3>
             <p className="text-secondary text-sm mb-4">

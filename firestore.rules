@@ -285,6 +285,25 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // config/app (5.59.10): the iOS versions the app compares itself with
+    // (components/layout/VersionGate.jsx, lib/appVersion.js). Anyone can
+    // read it, signed in or not, so an unsupported build is told so before
+    // sign-in. Only the admin writes it (Admin → App versions), and only
+    // in this shape. Never deleted from a client.
+    match /config/app {
+      allow read: if true;
+      allow create, update: if isAdmin()
+        && request.resource.data.keys().hasOnly(
+             ['minSupportedIosVersion', 'latestIosVersion', 'reason', 'updatedAt', 'updatedBy'])
+        && request.resource.data.minSupportedIosVersion is string
+        && request.resource.data.minSupportedIosVersion.matches('^[0-9]+([.][0-9]+){0,3}$')
+        && request.resource.data.latestIosVersion is string
+        && request.resource.data.latestIosVersion.matches('^[0-9]+([.][0-9]+){0,3}$')
+        && (!('reason' in request.resource.data)
+            || (request.resource.data.reason is string && request.resource.data.reason.size() <= 280));
+      allow delete: if false;
+    }
+
     // Friend requests. Until 5.59.7 any signed-in user could read, write
     // or delete any request (S-02). Now:
     //   read    either party (the app queries `to ==` / `from ==` itself)

@@ -28,6 +28,7 @@ import { publicBandUrl } from '@/lib/bandScreens';
 // but a lazy chunk here means the first paint is empty again.
 import LandingPage from '@/components/LandingPage';
 import GuestRescueBanner from '@/components/GuestRescueBanner';
+import VersionGate from '@/components/layout/VersionGate';
 
 // Code-split: each of these only renders behind a runtime condition (a
 // modal opened, a venue being rated, a gate after sign-in) that's never
@@ -122,6 +123,9 @@ export default function AppProviderWrapper({ children }) {
         {/* Outside AppShell so it is mounted through every auth state: a
             link that cold-launches the app arrives while auth resolves. */}
         <DeepLinkListener />
+        {/* Outside AppShell too: an unsupported build is told so whether
+            or not anyone is signed in (native only). */}
+        <VersionGate />
         <AppShell>{children}</AppShell>
       </DismissStackProvider>
     </AppProvider>
