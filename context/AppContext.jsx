@@ -15,7 +15,7 @@ import { parseDate } from '@/lib/utils';
 import { isAdminUser } from '@/lib/adminAccess';
 import { storage, STORAGE_KEYS } from '@/lib/storage';
 import { setSignedInHint, clearSignedInHint } from '@/lib/signedInHint';
-import { apiUrl, apiErrorMessage } from '@/lib/api';
+import { apiUrl, apiErrorMessage, authedFetch } from '@/lib/api';
 import { loadAlertSettings } from '@/lib/alertSettings';
 import { showHref, upcomingShowHref } from '@/lib/showRouting';
 import { setlistToShowData } from '@/lib/setlistSearch';
@@ -786,18 +786,43 @@ export function AppProvider({ children }) {
   }, [user, guestMode]);
 
 
-  // ── Rank calculation ────────────────────────────────────────────────
-  const calculateUserRank = useCallback(async (userId) => {
-    try {
-      const profilesSnapshot = await getDocs(collection(db, 'userProfiles'));
-      const profiles = profilesSnapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-      const sorted = profiles.sort((a, b) => (b.showCount || 0) - (a.showCount || 0));
-      const rank = sorted.findIndex(p => p.id === userId) + 1;
-      setUserRank({ rank, total: profiles.length });
-    } catch (error) {
-      console.error('Failed to calculate rank:', error);
-    }
+  // ── Server stats and rank (5.59.15, B-05) ───────────────────────────
+  // Rank and the headline numbers are computed on the server from the
+  // shows (netlify/functions/lib/userStats.js, lib/stats) into
+  // userStats/{uid}; this reads that one document. Until 5.59.15 rank read
+  // every userProfiles document on every load and every add.
+  //
+  // After a change to the shows, requestStatsRecompute asks the server to
+  // recompute this user's numbers (recompute-my-stats), debounced so a bulk
+  // add is one request. The scheduled rebuild every 6 hours catches
+  // anything this misses.
+  const [serverStats, setServerStats] = useState(null); // userStats/{uid} data, or null
+  const recomputeTimer = useRef(null);
+  const requestStatsRecompute = useCallback(() => {
+    if (recomputeTimer.current) clearTimeout(recomputeTimer.current);
+    recomputeTimer.current = setTimeout(() => {
+      recomputeTimer.current = null;
+      authedFetch('/.netlify/functions/recompute-my-stats', { method: 'POST' })
+        .catch((err) => console.warn('[stats] recompute request failed; the scheduled run will catch up', err?.message));
+    }, 3000);
   }, []);
+
+  useEffect(() => {
+    setServerStats(null);
+    setUserRank(null);
+    if (!user?.uid || guestMode) return undefined;
+    let askedOnce = false;
+    const unsub = onSnapshot(doc(db, 'userStats', user.uid), (snap) => {
+      const data = snap.exists() ? snap.data() : null;
+      setServerStats(data);
+      setUserRank(data && data.ranked ? { rank: data.rank, total: data.rankedOf } : null);
+      // No stats yet (a new account, or before the backfill): ask once.
+      if (!data && !askedOnce) { askedOnce = true; requestStatsRecompute(); }
+    }, (error) => {
+      console.warn('[stats] userStats listener failed:', error.message);
+    });
+    return () => unsub();
+  }, [user?.uid, guestMode, requestStatsRecompute]);
 
   // ── Load shows from Firestore ───────────────────────────────────────
   const loadShows = useCallback(async (userId) => {
@@ -813,7 +838,6 @@ export function AppProvider({ children }) {
 
       if (auth.currentUser) {
         await updateUserProfile(auth.currentUser, loadedShows);
-          calculateUserRank(userId);
         runRetroactiveSuggestionScan().catch(() => {});
       }
     } catch (error) {
@@ -822,7 +846,7 @@ export function AppProvider({ children }) {
       setIsLoading(false);
       setShowsLoadedFor(userId);
     }
-  }, [calculateUserRank]);
+  }, []);
 
   // ── Load festivals from Firestore ────────────────────────────────────
   // Two reads per festival: the user's own attendance record
@@ -1172,6 +1196,7 @@ export function AppProvider({ children }) {
       if (result.saved.length) {
         noteShowsAdded(prevCount, result.saved);
         loadShows(uid);
+        requestStatsRecompute();
       }
       const note = mergeMessage(result);
       if (note) setToast(note.type === 'error' ? note : note.message);
@@ -1325,6 +1350,7 @@ export function AppProvider({ children }) {
       const { id, ...showData } = updatedShow;
       if (showData.date) showData.date = toIsoDate(showData.date) || showData.date;
       await setDoc(showRef, showData, { merge: true });
+      requestStatsRecompute();
     } catch (error) {
       console.error('Failed to save show:', error);
     }
@@ -1453,7 +1479,7 @@ export function AppProvider({ children }) {
       noteShowsAdded(prevCount, [newShow]);
 
       await updateUserProfile(user, updatedShows);
-      calculateUserRank(user.uid, updatedShows.length);
+      requestStatsRecompute();
 
       // Background suggestion check — non-blocking
       checkShowSuggestionsForNewShow(newShow).catch(() => {});
@@ -1559,7 +1585,7 @@ export function AppProvider({ children }) {
       // render-time `shows`.
       const updatedShows = [...shows, ...createdThisRun];
       updateUserProfile(user, updatedShows).catch(() => {});
-      calculateUserRank(user.uid, updatedShows.length);
+      requestStatsRecompute();
     }
 
     setBulkAdd({ total: candidates.length, completed: candidates.length, added: createdThisRun.length, running: false });
@@ -1593,6 +1619,7 @@ export function AppProvider({ children }) {
       const showRef = doc(db, 'users', user.uid, 'shows', showId);
       await updateDoc(showRef, updates);
       setShows(prev => prev.map(s => s.id === showId ? { ...s, ...updates } : s));
+      requestStatsRecompute();
     } catch (error) {
       console.error('Failed to update show data:', error);
     }
@@ -1955,7 +1982,7 @@ export function AppProvider({ children }) {
       if (selectedShow?.id === showId) setSelectedShow(null);
 
       await updateUserProfile(user, updatedShows);
-      calculateUserRank(user.uid, updatedShows.length);
+      requestStatsRecompute();
       setToast('Show deleted.');
     } catch (error) {
       console.error('Failed to delete show:', error);
@@ -2493,7 +2520,7 @@ export function AppProvider({ children }) {
     if (toCreate.length > 0) {
       const updatedShows = [...shows, ...toCreate];
       await updateUserProfile(user, updatedShows);
-      calculateUserRank(user.uid, updatedShows.length);
+      requestStatsRecompute();
     }
 
     return { success: true, created: toCreate.length, attached: existingIds.length, conflicts: [] };
