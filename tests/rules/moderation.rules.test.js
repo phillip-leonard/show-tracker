@@ -61,7 +61,7 @@ async function test(name, fn) {
 // tests need to exercise.
 const alice = () => testEnv.authenticatedContext(ALICE).firestore();
 const banned = () => testEnv.authenticatedContext(BANNED).firestore();
-const admin = () => testEnv.authenticatedContext(ADMIN, { email: ADMIN_EMAIL }).firestore();
+const admin = () => testEnv.authenticatedContext(ADMIN, { email: ADMIN_EMAIL, email_verified: true }).firestore();
 const anon = () => testEnv.unauthenticatedContext().firestore();
 
 async function main() {

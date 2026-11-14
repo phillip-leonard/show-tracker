@@ -39,7 +39,7 @@ async function test(name, fn) {
   }
 }
 
-const admin = () => testEnv.authenticatedContext('uid_admin', { email: ADMIN_EMAIL }).firestore();
+const admin = () => testEnv.authenticatedContext('uid_admin', { email: ADMIN_EMAIL, email_verified: true }).firestore();
 const alice = () => testEnv.authenticatedContext('uid_alice', { email: 'alice@example.com' }).firestore();
 const anon = () => testEnv.unauthenticatedContext().firestore();
 const ts = () => firebase.firestore.FieldValue.serverTimestamp();

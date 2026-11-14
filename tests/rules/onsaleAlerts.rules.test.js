@@ -45,7 +45,7 @@ async function test(name, fn) {
 const alice = () => testEnv.authenticatedContext(ALICE).firestore();
 const bob = () => testEnv.authenticatedContext(BOB).firestore();
 const anon = () => testEnv.unauthenticatedContext().firestore();
-const admin = () => testEnv.authenticatedContext('uid_admin', { email: ADMIN_EMAIL }).firestore();
+const admin = () => testEnv.authenticatedContext('uid_admin', { email: ADMIN_EMAIL, email_verified: true }).firestore();
 
 const settings = (uid, over = {}) => ({
   uid,

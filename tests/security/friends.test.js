@@ -20,7 +20,7 @@ const { signReferral, readReferral } = require('../../netlify/functions/lib/refe
 const { authorizeEmail } = require('../../netlify/functions/lib/emailAuthorization');
 const { emailsForUids, withAccountEmails } = require('../../netlify/functions/lib/accountEmails');
 
-const ADMIN = { uid: 'adminUid000001', email: 'phillip.leonard@gmail.com' };
+const ADMIN = { uid: 'adminUid000001', email: 'phillip.leonard@gmail.com', email_verified: true };
 const ALICE = { uid: 'aliceUid000001', email: 'alice@example.com', metadata: { creationTime: new Date().toUTCString() } };
 const BOB = { uid: 'bobUid00000001', email: 'bob@example.com', metadata: { creationTime: new Date(Date.now() - 90 * 864e5).toUTCString() } };
 const MALLORY = { uid: 'malloryUid0001', email: 'mallory@example.com', metadata: { creationTime: new Date().toUTCString() } };

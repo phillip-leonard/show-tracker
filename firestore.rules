@@ -16,9 +16,16 @@ service cloud.firestore {
     // not a hole — but an error is harder to read in the emulator logs
     // than a false, and it means a rule that ORs this with another
     // condition would fail instead of falling through to it.
+    //
+    // The same rule as isAdmin() in netlify/functions/lib/firebaseAdmin.js
+    // (5.59.12): the custom claim `admin`, or the allowlisted address with
+    // a verified email. An unverified token can carry any address its
+    // holder typed.
     function isAdmin() {
       return request.auth != null
-             && request.auth.token.get('email', '') == 'phillip.leonard@gmail.com';
+             && (request.auth.token.get('admin', false) == true
+                 || (request.auth.token.get('email_verified', false) == true
+                     && request.auth.token.get('email', '') == 'phillip.leonard@gmail.com'));
     }
 
     // A banned account keeps its data and its reads; what it loses is the

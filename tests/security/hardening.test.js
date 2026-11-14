@@ -286,5 +286,64 @@ test('lib/spotify.js sends the Firebase token on every call', () => {
   assert.strictEqual((src.match(/authedFetch\('\/\.netlify\/functions\/spotify-(token|api)'/g) || []).length, 3);
 });
 
+// ── One admin check ───────────────────────────────────────────────────
+
+const { isAdmin, isAdminClaims } = require('../../netlify/functions/lib/firebaseAdmin');
+const { requireAdmin } = require('../../netlify/functions/lib/requestAuth');
+const { nextClaims } = require('../../scripts/set-admin-claim');
+const ADMIN = { uid: 'adminUid', email: 'phillip.leonard@gmail.com', email_verified: true };
+
+test('isAdmin: the claim, or the allowlisted address only when verified', () => {
+  assert.strictEqual(isAdmin(ADMIN), true);
+  assert.strictEqual(isAdmin({ uid: 'x', email: 'someone@example.com', admin: true }), true, 'claim');
+  assert.strictEqual(isAdmin({ ...ADMIN, email_verified: false }), false, 'unverified address');
+  assert.strictEqual(isAdmin({ uid: 'x', email: 'phillip.leonard@gmail.com' }), false, 'no email_verified');
+  assert.strictEqual(isAdmin({ uid: 'x', email: 'alice@example.com', email_verified: true }), false);
+  assert.strictEqual(isAdmin({ uid: 'x', admin: 'true' }), false, 'only boolean true');
+  assert.strictEqual(isAdmin(null), false);
+  assert.strictEqual(isAdminClaims, isAdmin, 'one function under both names');
+});
+
+test('requireAdmin: admin allowed, non-admin 403, forged or missing token 401', async () => {
+  __setTestFirebase({ db: createFakeDb(), auth: createFakeAuth({ tokens: {
+    admin: ADMIN,
+    impostor: { uid: 'imp', email: 'phillip.leonard@gmail.com', email_verified: false },
+    alice: { uid: 'aliceUid', email: 'alice@example.com', email_verified: true },
+  } }) });
+  const ev = (t) => ({ headers: t ? { authorization: `Bearer ${t}` } : {} });
+  assert.strictEqual((await requireAdmin(ev('admin'))).uid, 'adminUid');
+  assert.strictEqual((await requireAdmin(ev('impostor'))).response.statusCode, 403, 'unverified admin address');
+  assert.strictEqual((await requireAdmin(ev('alice'))).response.statusCode, 403);
+  assert.strictEqual((await requireAdmin(ev('forged'))).response.statusCode, 401);
+  assert.strictEqual((await requireAdmin(ev(null))).response.statusCode, 401);
+});
+
+test('a forged admin request to an admin function is refused', async () => {
+  __setTestFirebase({ db: createFakeDb(), auth: createFakeAuth({ tokens: {
+    impostor: { uid: 'imp', email: 'phillip.leonard@gmail.com', email_verified: false },
+  } }) });
+  const r = await require(path.join(FN, 'admin-list-unsubscribes.js')).handler({ httpMethod: 'GET', headers: { authorization: 'Bearer impostor' } });
+  assert.strictEqual(r.statusCode, 403);
+});
+
+test('no function carries its own admin list or check', () => {
+  for (const f of fs.readdirSync(FN).filter((n) => n.endsWith('.js'))) {
+    const src = fs.readFileSync(path.join(FN, f), 'utf8');
+    assert.ok(!/ADMIN_EMAILS\.includes\(/.test(src), `${f} checks admin inline`);
+    assert.ok(!/const ADMIN_EMAILS\s*=/.test(src) || f === 'report-content.js' || f === 'moderation-sla-reminder.js' || f === 'notify-block.js', `${f} keeps its own list`);
+  }
+  const rules = fs.readFileSync(path.join(__dirname, '../../firestore.rules'), 'utf8');
+  assert.ok(rules.includes("request.auth.token.get('admin', false) == true"));
+  assert.ok(rules.includes("request.auth.token.get('email_verified', false) == true"));
+  const storage = fs.readFileSync(path.join(__dirname, '../../storage.rules'), 'utf8');
+  assert.ok(storage.includes("request.auth.token.get('email_verified', false) == true"));
+});
+
+test('set-admin-claim keeps existing claims and does nothing twice', () => {
+  assert.deepStrictEqual(nextClaims(undefined), { admin: true });
+  assert.deepStrictEqual(nextClaims({ beta: true }), { beta: true, admin: true });
+  assert.strictEqual(nextClaims({ admin: true }), null);
+});
+
 module.exports = { run };
 if (require.main === module) run('Function hardening (5.59.12)');

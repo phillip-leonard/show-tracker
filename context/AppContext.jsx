@@ -12,7 +12,7 @@ import {
 } from 'firebase/firestore';
 import { auth, db, googleProvider, browserPopupRedirectResolver } from '@/lib/firebase';
 import { parseDate } from '@/lib/utils';
-import { ADMIN_EMAILS } from '@/lib/constants';
+import { isAdminUser } from '@/lib/adminAccess';
 import { storage, STORAGE_KEYS } from '@/lib/storage';
 import { setSignedInHint, clearSignedInHint } from '@/lib/signedInHint';
 import { apiUrl, apiErrorMessage } from '@/lib/api';
@@ -458,7 +458,8 @@ export function AppProvider({ children }) {
   const [unreadNotifications, setUnreadNotifications] = useState([]);
 
   // Admin
-  const isAdmin = user && ADMIN_EMAILS.includes(user.email);
+  // UI gating only; the server and the rules enforce (lib/adminAccess.js).
+  const isAdmin = isAdminUser(user);
 
   // Derived friends data. Blocked users are stripped here, at the one
   // place friendUids is derived, so every consumer of it — the activity

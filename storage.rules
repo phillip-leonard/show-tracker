@@ -20,7 +20,9 @@ service firebase.storage {
             || request.resource.contentType == 'video/mp4');
       allow delete: if request.auth != null
         && (request.auth.uid == uid
-            || request.auth.token.email == 'phillip.leonard@gmail.com');
+            || request.auth.token.get('admin', false) == true
+            || (request.auth.token.get('email_verified', false) == true
+                && request.auth.token.get('email', '') == 'phillip.leonard@gmail.com'));
     }
 
     // Venue verification proof documents (business license, tax ID, etc.)
