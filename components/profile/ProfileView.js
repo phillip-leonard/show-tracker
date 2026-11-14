@@ -21,8 +21,9 @@ import TourInfoModal from '@/components/TourInfoModal';
 import FollowBandButton from '@/components/artists/FollowBandButton';
 import { compareShowDates, showYear, formatDate as formatShowDay } from '@/lib/showDate';
 import { countVenues } from '@/lib/venueCount';
+import { computeUserStats } from '@/lib/stats';
 
-export default function ProfileView({ user, shows, userRank, onProfileUpdate, onViewShow, friends = [], favoriteArtists = [], onToggleFavoriteArtist }) {
+export default function ProfileView({ user, shows, userRank, headlineStats = null, onProfileUpdate, onViewShow, friends = [], favoriteArtists = [], onToggleFavoriteArtist }) {
   const [isEditing, setIsEditing] = useState(false);
   const [displayName, setDisplayName] = useState('');
   const [photoURL, setPhotoURL] = useState('');
@@ -100,16 +101,16 @@ export default function ProfileView({ user, shows, userRank, onProfileUpdate, on
     }
   }, [user]);
 
-  // Calculate stats from shows
+  // The headline numbers: the server's userStats when the page passes it
+  // in, else lib/stats over the same shows. One definition (5.59.15).
+  const headline = headlineStats || computeUserStats(shows);
   const stats = {
-    totalShows: shows.length,
-    totalSongs: shows.reduce((acc, s) => acc + (s.setlist?.length || 0), 0),
-    ratedSongs: shows.reduce((acc, s) => acc + (s.setlist?.filter(song => song.rating)?.length || 0), 0),
-    uniqueVenues: countVenues(shows),
-    uniqueArtists: new Set(shows.map(s => s.artist)).size,
-    avgShowRating: shows.filter(s => s.rating).length > 0
-      ? (shows.filter(s => s.rating).reduce((a, s) => a + s.rating, 0) / shows.filter(s => s.rating).length).toFixed(1)
-      : null
+    totalShows: headline.showCount,
+    totalSongs: headline.songCount,
+    ratedSongs: headline.ratedSongCount,
+    uniqueVenues: headline.venueCount,
+    uniqueArtists: headline.bandCount,
+    avgShowRating: headline.avgShowRating,
   };
 
   // Extract all user's comments (show notes + song notes)

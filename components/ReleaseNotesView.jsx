@@ -13,6 +13,16 @@ const STREAMING_MENTION = /spotify|apple\s*music/i;
 function ReleaseNotesView() {
   const releases = [
     {
+      version: '5.59.15',
+      date: 'November 14, 2026',
+      title: 'Stats You Can Count On',
+      changes: [
+        'Your show, song, band and venue counts are now worked out on our servers, so they match everywhere, on every device',
+        'Your rank now counts only real collectors with at least one show, and people with the same number of shows share a rank',
+        'The community leaderboard shows when it was last updated, and hides anyone you have blocked',
+      ]
+    },
+    {
       version: '5.59.10',
       date: 'November 13, 2026',
       title: 'Keep Your Shows',

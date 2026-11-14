@@ -12,7 +12,7 @@ import ShowFilters from '@/components/shows/ShowFilters';
 import useShowFilters from '@/hooks/useShowFilters';
 import { SetlistfmCreditFor } from '@/components/shows/SetlistfmAttribution';
 import RecapStatsCard from '@/components/yearInReview/RecapStatsCard';
-import { countVenues } from '@/lib/venueCount';
+import { computeUserStats } from '@/lib/stats';
 
 export default function StatsPage() {
   const {
@@ -46,20 +46,16 @@ export default function StatsPage() {
     return counts;
   }, [periodShows]);
 
-  const totalSongs = useMemo(() =>
-    periodShows.reduce((acc, s) => acc + (s.setlist?.length || 0), 0),
-  [periodShows]);
+  // The period's numbers through lib/stats (5.59.15): the same definitions
+  // as the server's userStats, applied to the shows in this period.
+  const periodStats = useMemo(() => computeUserStats(periodShows), [periodShows]);
+  const totalSongs = periodStats.songCount;
 
   // Estimate hours of live music (~2h avg per show) — good enough without duration data
   const estimatedHours = useMemo(() => Math.round(periodShows.length * 2), [periodShows]);
 
-  const uniqueArtists = useMemo(() =>
-    new Set(periodShows.map(s => s.artist)).size,
-  [periodShows]);
-
-  const uniqueVenues = useMemo(() =>
-    countVenues(periodShows),
-  [periodShows]);
+  const uniqueArtists = periodStats.bandCount;
+  const uniqueVenues = periodStats.venueCount;
 
   return (
     <>

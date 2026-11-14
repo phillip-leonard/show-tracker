@@ -16,20 +16,29 @@
 // that iOS 3.13.9 and earlier still read. Drop `odubleserId` only once
 // those builds are retired (the minimum-version banner).
 //
+// Server numbers (5.59.15, B-05). The leaderboards and the totals come
+// from lib/stats computed here from the shows, never from the counts
+// clients write to userProfiles (iOS 3.13.14 and earlier still write them;
+// nothing reads them). The leaderboards list only ranked accounts
+// (lib/stats isRanked: not a test user, not banned, at least one show).
+// The job that writes this doc is lib/userStats.js rebuildAllStats, run by
+// community-stats.js, which also writes every user's userStats doc.
+//
 // Test users. Profiles flagged `isTestUser` are left out, with their shows,
 // the same way the admin Stats tab leaves them out by default
 // (computeTotals in lib/adminUsers.js). The landing page's "N fans, M shows"
 // comes from this doc, so it should count the same people the admin does.
 
 const { normalizeSongTitle } = require('./bandSetlistMergeRule');
+const { computeUserStats, isRanked } = require('../../../lib/stats');
 
 const TOP_N = 5;
 
-function topProfilesBy(profiles, field) {
-  return [...profiles]
-    .sort((a, b) => (b[field] || 0) - (a[field] || 0))
+function topProfilesBy(ranked, field) {
+  return [...ranked]
+    .sort((a, b) => (b.stats[field] || 0) - (a.stats[field] || 0) || String(a.profile.id).localeCompare(String(b.profile.id)))
     .slice(0, TOP_N)
-    .map((p) => ({ userId: p.id, odubleserId: p.id, firstName: p.firstName, photoURL: p.photoURL, count: p[field] || 0 }));
+    .map(({ profile: p, stats }) => ({ userId: p.id, odubleserId: p.id, firstName: p.firstName, photoURL: p.photoURL, count: stats[field] || 0 }));
 }
 
 /**
@@ -37,14 +46,17 @@ function topProfilesBy(profiles, field) {
  * a Map (or object) of uid -> array of show docs. Returns every field of
  * communityStats/global except `updatedAt`.
  */
-function buildCommunityStats(allProfiles, showsByUid) {
+function buildCommunityStats(allProfiles, showsByUid, statsByUid = null) {
   const profiles = allProfiles.filter((p) => p.isTestUser !== true);
   const showsFor = (uid) => (showsByUid instanceof Map ? showsByUid.get(uid) : showsByUid[uid]) || [];
+  const statsFor = (uid) => (statsByUid && statsByUid.get(uid)) || computeUserStats(showsFor(uid));
 
   const allSongs = {};
   const allVenues = {};
-  const totalShows = profiles.reduce((acc, p) => acc + (p.showCount || 0), 0);
-  const totalSongs = profiles.reduce((acc, p) => acc + (p.songCount || 0), 0);
+  const withStats = profiles.map((profile) => ({ profile, stats: statsFor(profile.id) }));
+  const ranked = withStats.filter(({ profile, stats }) => isRanked(profile, stats));
+  const totalShows = withStats.reduce((acc, { stats }) => acc + stats.showCount, 0);
+  const totalSongs = withStats.reduce((acc, { stats }) => acc + stats.songCount, 0);
 
   for (const profile of profiles) {
     for (const show of showsFor(profile.id)) {
@@ -93,9 +105,10 @@ function buildCommunityStats(allProfiles, showsByUid) {
     totalUsers: profiles.length,
     totalShows,
     totalSongs,
-    topShowsAttended: topProfilesBy(profiles, 'showCount'),
-    topSongsRated: topProfilesBy(profiles, 'ratedSongCount'),
-    topVenuesVisited: topProfilesBy(profiles, 'venueCount'),
+    topShowsAttended: topProfilesBy(ranked, 'showCount'),
+    topSongsRated: topProfilesBy(ranked, 'ratedSongCount'),
+    topVenuesVisited: topProfilesBy(ranked, 'venueCount'),
+    rankedCount: ranked.length,
     topSongsBySightings,
     topSongsByRating,
     topVenues,

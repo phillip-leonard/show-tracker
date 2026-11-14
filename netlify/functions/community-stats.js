@@ -1,20 +1,23 @@
 // netlify/functions/community-stats.js
 //
-// Scheduled function (netlify.toml): rebuilds the community leaderboard,
-// communityStats/global, with the Admin SDK. The work is in
-// lib/communityStats.js. Clients only read the doc; firestore.rules
-// denies every client write.
+// Scheduled function (netlify.toml, every 6 hours): since 5.59.15 it
+// rebuilds every user's numbers, userStats/{uid} and publicUserStats/{uid}
+// with rank, and the community leaderboard, communityStats/global, from
+// the shows (lib/userStats.js rebuildAllStats, lib/stats). It is the safety
+// net for every change the app doesn't report through recompute-my-stats,
+// including every iOS build up to 3.13.14. Clients only read these docs;
+// firestore.rules denies every client write. Logs counts only.
 
 const { getDb } = require('./lib/firebaseAdmin');
-const { rebuildCommunityStats } = require('./lib/communityStats');
+const { rebuildAllStats } = require('./lib/userStats');
 
 exports.handler = async function () {
   try {
     const db = getDb();
     const { FieldValue } = require('firebase-admin/firestore');
-    const stats = await rebuildCommunityStats(db, { serverTimestamp: () => FieldValue.serverTimestamp() });
-    console.log(`[community-stats] ${stats.totalUsers} users, ${stats.totalShows} shows, ${stats.topVenues.length} top venues`);
-    return { statusCode: 200, body: JSON.stringify({ totalUsers: stats.totalUsers, totalShows: stats.totalShows }) };
+    const run = await rebuildAllStats(db, { serverTimestamp: () => FieldValue.serverTimestamp() });
+    console.log(`[community-stats] ${run.users} users (${run.ranked} ranked), ${run.shows} shows, ${run.written} stats docs written`);
+    return { statusCode: 200, body: JSON.stringify({ users: run.users, ranked: run.ranked, shows: run.shows }) };
   } catch (error) {
     console.error('[community-stats] rebuild failed:', error);
     return { statusCode: 500, body: JSON.stringify({ error: 'rebuild failed' }) };

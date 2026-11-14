@@ -56,9 +56,17 @@ export default function UserProfileSheet({ open, onClose, uid, fallbackName = ''
     let cancelled = false;
     setLoading(true);
     setConfirmingBlock(false);
-    getDoc(doc(db, 'userProfiles', uid))
-      .then((snap) => {
-        if (!cancelled) setProfile(snap.exists() ? snap.data() : {});
+    // The counts come from the server's publicUserStats (5.59.15), not the
+    // numbers the person's own app wrote to their profile.
+    Promise.all([
+      getDoc(doc(db, 'userProfiles', uid)),
+      getDoc(doc(db, 'publicUserStats', uid)).catch(() => null),
+    ])
+      .then(([snap, statsSnap]) => {
+        if (cancelled) return;
+        const data = snap.exists() ? snap.data() : {};
+        const counts = statsSnap && statsSnap.exists() ? statsSnap.data() : {};
+        setProfile({ ...data, showCount: counts.showCount ?? null, venueCount: counts.venueCount ?? null });
       })
       .catch((err) => {
         console.error('[moderation] Could not load profile:', err);
@@ -126,11 +134,11 @@ export default function UserProfileSheet({ open, onClose, uid, fallbackName = ''
             <div className="flex gap-5 text-sm">
               <span className="flex items-center gap-1.5 text-secondary">
                 <CalendarDays size={14} className="text-brand" />
-                {profile.showCount || 0} shows
+                {profile.showCount ?? '—'} shows
               </span>
               <span className="flex items-center gap-1.5 text-secondary">
                 <MapPin size={14} className="text-brand" />
-                {profile.venueCount || 0} venues
+                {profile.venueCount ?? '—'} venues
               </span>
             </div>
           )}

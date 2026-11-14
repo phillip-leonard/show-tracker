@@ -292,6 +292,23 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Server stats (5.59.15, B-05). Written only by Netlify functions with
+    // the Admin SDK (lib/userStats.js: recompute-my-stats and the 6-hourly
+    // rebuild), from the user's shows. No client writes, ever: these are
+    // the numbers other people see and rank by.
+    //   userStats/{uid}        everything, including rank: the owner and
+    //                          the admin read
+    //   publicUserStats/{uid}  the four counts and rank: any signed-in
+    //                          user reads, as userProfiles today
+    match /userStats/{uid} {
+      allow read: if request.auth != null && (request.auth.uid == uid || isAdmin());
+      allow write: if false;
+    }
+    match /publicUserStats/{uid} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
     // config/app (5.59.10): the iOS versions the app compares itself with
     // (components/layout/VersionGate.jsx, lib/appVersion.js). Anyone can
     // read it, signed in or not, so an unsupported build is told so before

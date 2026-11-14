@@ -9,7 +9,7 @@
  *   2. Validate target user exists in userProfiles/{targetUid}
  *   3. Fetch existing shows from users/{targetUid}/shows for duplicate detection
  *   4. Batch-write new (non-duplicate) shows to users/{targetUid}/shows/{showId}
- *   5. Increment userProfiles/{targetUid}.showCount
+ *   5. Recompute userStats/{targetUid} (lib/userStats.js)
  *   6. Write audit log to adminAuditLog
  *
  * Response:    { success, imported, duplicatesSkipped, targetUid }
@@ -18,6 +18,7 @@
 const { withCors } = require('./lib/cors');
 // The one admin check: custom claim or verified allowlisted address (5.59.12).
 const { isAdmin } = require('./lib/firebaseAdmin');
+const { recomputeUserStats } = require('./lib/userStats');
 const CORS_HEADERS = {
   'Content-Type': 'application/json',
   'Access-Control-Allow-Headers': 'Authorization, Content-Type',
@@ -153,11 +154,13 @@ exports.handler = async function (event) {
       await batch.commit();
     }
 
-    // ── Step 5: Update user profile showCount ─────────────────────────────────
+    // ── Step 5: Recompute the user's server stats (5.59.15) ─────────────────
+    // userStats/{uid} from their shows (lib/userStats.js), rather than
+    // bumping the profile's client-written showCount, which nothing reads
+    // any more. Best-effort: the scheduled rebuild catches a failure.
     if (toImport.length > 0) {
-      await db.doc(`userProfiles/${targetUid}`).update({
-        showCount: FieldValue.increment(toImport.length),
-      });
+      await recomputeUserStats(db, targetUid, { serverTimestamp: () => FieldValue.serverTimestamp() })
+        .catch((err) => console.warn('[admin-bulk-import] stats recompute failed; the scheduled run will catch up:', err.message));
     }
 
     // ── Step 6: Write audit log ───────────────────────────────────────────────

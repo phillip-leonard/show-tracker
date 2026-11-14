@@ -51,6 +51,8 @@ const NOT_USER_OWNED = {
   userBlocks: 'Handled explicitly — the user\'s own doc is deleted, and they are removed from everyone else\'s.',
   users: 'The parent of the per-user subtree; removed with recursiveDelete.',
   userProfiles: 'Deleted explicitly, last, after everything that reads it.',
+  userStats: 'Server-written stats keyed by uid (5.59.15). Deleted explicitly with the profile.',
+  publicUserStats: 'Server-written public counts keyed by uid (5.59.15). Deleted explicitly with the profile.',
   venues: 'Shared venue records. Only verifiedOwnerUid is user-linked, and it is tombstoned.',
   voters: 'Subcollection of roadmapItems, keyed by uid. Handled explicitly.',
   wikiCache: 'Cache of Wikipedia lookups.',

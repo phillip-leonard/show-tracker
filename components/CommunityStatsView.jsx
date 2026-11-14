@@ -9,10 +9,25 @@ import { Card, SectionHeader, StatTile, SpinnerBlock } from '@/components/ui';
 // the misspelled `odubleserId` that older communityStats docs carry (B-03).
 const entryUid = (entry) => entry?.userId || entry?.odubleserId;
 
-function CommunityStatsView({ communityStats, onAddFriend, currentUserUid, currentFriendUids }) {
+// When the server last rebuilt the boards (every 6 hours, 5.59.15), as
+// "Updated 3:50 PM" today or "Updated Nov 14" before. '' when unknown.
+function updatedLabel(updatedAt, now = new Date()) {
+  const d = updatedAt && typeof updatedAt.toDate === 'function' ? updatedAt.toDate()
+    : typeof updatedAt?.seconds === 'number' ? new Date(updatedAt.seconds * 1000) : null;
+  if (!d || Number.isNaN(d.getTime())) return '';
+  const sameDay = d.toDateString() === now.toDateString();
+  return `Updated ${sameDay ? d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }) : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`;
+}
+
+function CommunityStatsView({ communityStats, onAddFriend, currentUserUid, currentFriendUids, blockedUserIds = [] }) {
   if (!communityStats) {
     return <SpinnerBlock label="Loading community stats..." />;
   }
+  // The boards are the same for everyone (server-built from the shows,
+  // 5.59.15); someone you've blocked is left out of your copy.
+  const blocked = new Set(blockedUserIds || []);
+  const visible = (list) => (list || []).filter((entry) => !blocked.has(entryUid(entry)));
+  const updated = updatedLabel(communityStats.updatedAt);
 
   return (
     <div>
@@ -26,7 +41,7 @@ function CommunityStatsView({ communityStats, onAddFriend, currentUserUid, curre
             <SectionHeader title="Top Show-Goers" className="mb-0" />
           </div>
           <div className="space-y-3">
-            {(communityStats.topShowsAttended || []).slice(0, 5).map((user, i) => (
+            {visible(communityStats.topShowsAttended).slice(0, 5).map((user, i) => (
               <div key={entryUid(user)} className="flex items-center gap-3">
                 <span className={`text-lg font-bold w-6 ${i === 0 ? 'text-brand' : i === 1 ? 'text-secondary' : i === 2 ? 'text-brand' : 'text-muted'}`}>
                   {i + 1}
@@ -63,7 +78,7 @@ function CommunityStatsView({ communityStats, onAddFriend, currentUserUid, curre
             <SectionHeader title="Top Raters" className="mb-0" />
           </div>
           <div className="space-y-3">
-            {(communityStats.topSongsRated || []).slice(0, 5).map((user, i) => (
+            {visible(communityStats.topSongsRated).slice(0, 5).map((user, i) => (
               <div key={entryUid(user)} className="flex items-center gap-3">
                 <span className={`text-lg font-bold w-6 ${i === 0 ? 'text-amber' : i === 1 ? 'text-secondary' : i === 2 ? 'text-amber' : 'text-muted'}`}>
                   {i + 1}
@@ -156,6 +171,7 @@ function CommunityStatsView({ communityStats, onAddFriend, currentUserUid, curre
         <StatTile value={communityStats.totalShows || 0} label="Total Shows" tone="amber" />
         <StatTile value={communityStats.totalSongs || 0} label="Total Songs" tone="brand" />
       </div>
+      {updated && <p className="mt-3 text-xs text-muted text-center">{updated}. Your own numbers update as you log shows.</p>}
     </div>
   );
 }

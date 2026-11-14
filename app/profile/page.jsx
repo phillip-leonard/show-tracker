@@ -11,11 +11,10 @@ import { SectionHeader, Card, Button } from '@/components/ui';
 import { formatDate } from '@/lib/utils';
 import { showHref } from '@/lib/showRouting';
 import { compareShowDates } from '@/lib/showDate';
-import { countVenues } from '@/lib/venueCount';
 
 export default function ProfilePage() {
   const {
-    user, guestMode, shows, userRank, friends,
+    user, guestMode, shows, userRank, friends, headlineStats,
     favoriteArtists, toggleFavoriteArtist,
     pendingNotificationCount, unreadNotifications,
   } = useApp();
@@ -32,10 +31,12 @@ export default function ProfilePage() {
 
   if (guestMode || !user) return null;
 
+  // The headline numbers from the server's userStats (or lib/stats here
+  // until it exists): one definition everywhere (5.59.15).
   const stats = {
-    shows: shows.length,
-    artists: new Set(shows.map(s => s.artist)).size,
-    venues: countVenues(shows),
+    shows: headlineStats.showCount,
+    artists: headlineStats.bandCount,
+    venues: headlineStats.venueCount,
     friends: friends.length,
   };
 
@@ -151,6 +152,7 @@ export default function ProfilePage() {
         user={user}
         shows={shows}
         userRank={userRank}
+        headlineStats={headlineStats}
         onProfileUpdate={() => {}}
         onViewShow={(show) => {
           router.push(showHref(show.id));
