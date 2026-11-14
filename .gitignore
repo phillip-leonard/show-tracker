@@ -59,3 +59,7 @@ e2e/.auth/
 firestore-debug.log
 firebase-debug.log
 scripts/output/
+
+# Local Netlify CLI state and private prompt drafts (5.59.15).
+.netlify/
+docs/prompts/
