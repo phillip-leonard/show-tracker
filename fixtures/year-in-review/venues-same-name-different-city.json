@@ -1,0 +1,147 @@
+{
+  "name": "venues-same-name-different-city",
+  "description": "A venue is name + city (lib/venueCount.js): two \"The Fillmore\"s in different cities are two venues; case and spacing differences in one city are one.",
+  "year": 2025,
+  "shows": [
+    {
+      "id": "1700000000001",
+      "artist": "Goose",
+      "venue": "The Fillmore",
+      "city": "San Francisco",
+      "date": "2025-04-01",
+      "setlist": []
+    },
+    {
+      "id": "1700000000002",
+      "artist": "Goose",
+      "venue": "the fillmore ",
+      "city": "san francisco",
+      "date": "2025-04-02",
+      "setlist": []
+    },
+    {
+      "id": "1700000000003",
+      "artist": "Goose",
+      "venue": "The Fillmore",
+      "city": "Philadelphia",
+      "date": "2025-04-10",
+      "setlist": []
+    },
+    {
+      "id": "1700000000004",
+      "artist": "Goose",
+      "venue": "",
+      "city": "Philadelphia",
+      "date": "2025-04-11",
+      "setlist": []
+    }
+  ],
+  "expected": {
+    "yearInReview": {
+      "year": 2025,
+      "totalShows": 4,
+      "totalArtists": 1,
+      "totalVenues": 2,
+      "countriesVisited": [],
+      "statesVisited": [],
+      "topArtist": {
+        "name": "Goose",
+        "showCount": 4,
+        "avgRating": null
+      },
+      "topRatedShows": [],
+      "favoriteVenue": {
+        "name": "The Fillmore",
+        "city": "San Francisco",
+        "frequency": 2
+      },
+      "mostSeenSong": null,
+      "highestRatedArtist": null,
+      "longestConsecutiveStreak": 2,
+      "achievements": [],
+      "shareableQuote": "In 2025 I saw 4 shows by 1 band at 2 venues."
+    },
+    "recap": {
+      "year": 2025,
+      "totalShows": 4,
+      "totalBands": 1,
+      "totalVenues": 2,
+      "totalCities": 2,
+      "songsHeard": 0,
+      "newBands": 1,
+      "newBandNames": [
+        "Goose"
+      ],
+      "newVenues": 2,
+      "topBands": [
+        {
+          "name": "Goose",
+          "shows": 4
+        }
+      ],
+      "topSongs": [],
+      "noSetlist": [
+        {
+          "id": "1700000000001",
+          "artist": "Goose",
+          "venue": "The Fillmore",
+          "city": "San Francisco",
+          "date": "2025-04-01"
+        },
+        {
+          "id": "1700000000002",
+          "artist": "Goose",
+          "venue": "the fillmore",
+          "city": "san francisco",
+          "date": "2025-04-02"
+        },
+        {
+          "id": "1700000000003",
+          "artist": "Goose",
+          "venue": "The Fillmore",
+          "city": "Philadelphia",
+          "date": "2025-04-10"
+        },
+        {
+          "id": "1700000000004",
+          "artist": "Goose",
+          "venue": "",
+          "city": "Philadelphia",
+          "date": "2025-04-11"
+        }
+      ],
+      "showsWithSetlist": 0,
+      "highlights": {
+        "firstShow": {
+          "id": "1700000000001",
+          "artist": "Goose",
+          "venue": "The Fillmore",
+          "city": "San Francisco",
+          "date": "2025-04-01"
+        },
+        "latestShow": {
+          "id": "1700000000004",
+          "artist": "Goose",
+          "venue": "",
+          "city": "Philadelphia",
+          "date": "2025-04-11"
+        },
+        "busiestMonth": {
+          "month": 3,
+          "name": "April",
+          "shows": 4
+        },
+        "longestRun": {
+          "key": "goose:the-fillmore:2025-04-01",
+          "artist": "Goose",
+          "venue": "The Fillmore",
+          "city": "San Francisco",
+          "nights": 2,
+          "start": "2025-04-01",
+          "end": "2025-04-02"
+        }
+      },
+      "updatedThrough": "2025-04-11"
+    }
+  }
+}

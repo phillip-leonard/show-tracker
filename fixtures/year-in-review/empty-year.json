@@ -1,0 +1,19 @@
+{
+  "name": "empty-year",
+  "description": "No shows in the year: both calculators return null.",
+  "year": 2022,
+  "shows": [
+    {
+      "id": "1700000000001",
+      "artist": "Goose",
+      "venue": "Brooklyn Bowl",
+      "city": "Brooklyn",
+      "date": "2023-05-01",
+      "setlist": []
+    }
+  ],
+  "expected": {
+    "yearInReview": null,
+    "recap": null
+  }
+}

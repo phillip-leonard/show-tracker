@@ -1,0 +1,192 @@
+{
+  "name": "songs-once-per-show",
+  "description": "A song played twice at one show (a sandwich) was heard at one show. \"Ashes//Dust\" and \"Ashes // Dust\" are one song. A title with no a-z/0-9 characters is still a song (its trimmed title is its key). Blank entries are not songs.",
+  "year": 2024,
+  "shows": [
+    {
+      "id": "1700000000001",
+      "artist": "Phish",
+      "venue": "Madison Square Garden",
+      "city": "New York",
+      "date": "2024-12-28",
+      "setlist": [
+        {
+          "id": "s1",
+          "name": "Tweezer",
+          "set": "Set I"
+        },
+        {
+          "id": "s2",
+          "name": "Ghost",
+          "set": "Set I"
+        },
+        {
+          "id": "s3",
+          "name": "Tweezer",
+          "set": "Set I"
+        },
+        {
+          "id": "s4",
+          "name": "東京",
+          "set": "Set I"
+        },
+        {
+          "id": "s5",
+          "name": "  ",
+          "set": "Set I"
+        }
+      ]
+    },
+    {
+      "id": "1700000000002",
+      "artist": "Phish",
+      "venue": "Madison Square Garden",
+      "city": "New York",
+      "date": "2024-12-29",
+      "setlist": [
+        {
+          "id": "s6",
+          "name": "Tweezer",
+          "set": "Set I"
+        },
+        {
+          "id": "s7",
+          "name": "東京",
+          "set": "Set I"
+        },
+        {
+          "id": "s8",
+          "name": "Ashes//Dust",
+          "set": "Set I"
+        }
+      ]
+    },
+    {
+      "id": "1700000000003",
+      "artist": "Phish",
+      "venue": "Madison Square Garden",
+      "city": "New York",
+      "date": "2024-12-30",
+      "setlist": [
+        {
+          "id": "s9",
+          "name": "東京",
+          "set": "Set I"
+        },
+        {
+          "id": "s10",
+          "name": "Ashes // Dust",
+          "set": "Set I"
+        }
+      ]
+    }
+  ],
+  "expected": {
+    "yearInReview": {
+      "year": 2024,
+      "totalShows": 3,
+      "totalArtists": 1,
+      "totalVenues": 1,
+      "countriesVisited": [],
+      "statesVisited": [],
+      "topArtist": {
+        "name": "Phish",
+        "showCount": 3,
+        "avgRating": null
+      },
+      "topRatedShows": [],
+      "favoriteVenue": {
+        "name": "Madison Square Garden",
+        "city": "New York",
+        "frequency": 3
+      },
+      "mostSeenSong": {
+        "name": "東京",
+        "count": 3
+      },
+      "highestRatedArtist": null,
+      "longestConsecutiveStreak": 3,
+      "achievements": [
+        {
+          "title": "Concert Streak",
+          "description": "3 consecutive days catching shows."
+        }
+      ],
+      "shareableQuote": "In 2024 I saw 3 shows by 1 band at 1 venue."
+    },
+    "recap": {
+      "year": 2024,
+      "totalShows": 3,
+      "totalBands": 1,
+      "totalVenues": 1,
+      "totalCities": 1,
+      "songsHeard": 4,
+      "newBands": 1,
+      "newBandNames": [
+        "Phish"
+      ],
+      "newVenues": 1,
+      "topBands": [
+        {
+          "name": "Phish",
+          "shows": 3
+        }
+      ],
+      "topSongs": [
+        {
+          "name": "東京",
+          "artist": "Phish",
+          "count": 3
+        },
+        {
+          "name": "Ashes // Dust",
+          "artist": "Phish",
+          "count": 2
+        },
+        {
+          "name": "Tweezer",
+          "artist": "Phish",
+          "count": 2
+        },
+        {
+          "name": "Ghost",
+          "artist": "Phish",
+          "count": 1
+        }
+      ],
+      "noSetlist": [],
+      "showsWithSetlist": 3,
+      "highlights": {
+        "firstShow": {
+          "id": "1700000000001",
+          "artist": "Phish",
+          "venue": "Madison Square Garden",
+          "city": "New York",
+          "date": "2024-12-28"
+        },
+        "latestShow": {
+          "id": "1700000000003",
+          "artist": "Phish",
+          "venue": "Madison Square Garden",
+          "city": "New York",
+          "date": "2024-12-30"
+        },
+        "busiestMonth": {
+          "month": 11,
+          "name": "December",
+          "shows": 3
+        },
+        "longestRun": {
+          "key": "phish:madison-square-garden:2024-12-28",
+          "artist": "Phish",
+          "venue": "Madison Square Garden",
+          "city": "New York",
+          "nights": 3,
+          "start": "2024-12-28",
+          "end": "2024-12-30"
+        }
+      },
+      "updatedThrough": "2024-12-30"
+    }
+  }
+}

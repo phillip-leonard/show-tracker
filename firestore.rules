@@ -1082,14 +1082,27 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Year in Review (5.60.4). The page reads yearInReviews/{uid}_{year},
+    // so a review may only be filed under its owner's own id: until 5.60.4
+    // anyone could create {someoneElse}_{year} with their own userId, and
+    // a public one showed their numbers at the other person's address.
+    // userId and year never change once written. The `stats` a visitor
+    // sees are written by the server (netlify/functions/lib/userStats.js);
+    // the owner's client may still write them because iOS 3.13.19 and
+    // earlier do, and the server replaces them. Refusing client `stats`
+    // waits for minSupportedIosVersion to pass those builds.
     match /yearInReviews/{docId} {
       allow read:   if request.auth != null
                     && (resource.data.userId == request.auth.uid
                         || resource.data.privacy == 'public');
       allow create: if request.auth != null
-                    && request.resource.data.userId == request.auth.uid;
+                    && request.resource.data.userId == request.auth.uid
+                    && docId == request.auth.uid + '_' + string(request.resource.data.year);
       allow update: if request.auth != null
-                    && resource.data.userId == request.auth.uid;
+                    && resource.data.userId == request.auth.uid
+                    && docId == request.auth.uid + '_' + string(resource.data.year)
+                    && request.resource.data.userId == resource.data.userId
+                    && request.resource.data.year == resource.data.year;
       allow delete: if false;
     }
   }
