@@ -147,7 +147,10 @@ exports.handler = async function (event) {
           setlist: [],
           createdAt: FieldValue.serverTimestamp(),
           isManual: true,
-          importedByAdmin: adminDecoded.email,
+          // A flag, not who: show documents are readable by the owner's
+          // friends, so no email address may go on one (5.60.3). Who ran
+          // the import is in adminAuditLog (performedByUid, below).
+          importedByAdmin: true,
         });
       });
 
