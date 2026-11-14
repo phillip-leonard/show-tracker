@@ -1,0 +1,39 @@
+{
+  "name": "manual-typed",
+  "description": "Typed in: spaces trimmed, a legacy DD-MM-YYYY date read as ISO, an empty country and tour left out (tour null), the rating and comment kept. No setlist, no band source: isManual.",
+  "now": "2026-11-14T12:00:00.000Z",
+  "input": {
+    "kind": "manual",
+    "artist": "  Billy Strings ",
+    "venue": "The Ryman ",
+    "city": "Nashville",
+    "country": "",
+    "date": "28-05-2025",
+    "tour": "",
+    "rating": 9,
+    "comment": "  Best bluegrass night ever. ",
+    "showId": "1763121600000"
+  },
+  "context": {},
+  "expected": {
+    "show": {
+      "artist": "Billy Strings",
+      "venue": "The Ryman",
+      "city": "Nashville",
+      "date": "2025-05-28",
+      "tour": null,
+      "rating": 9,
+      "comment": "Best bluegrass night ever.",
+      "setlistSource": "setlistfm",
+      "setlist": [],
+      "id": "1763121600000",
+      "createdAt": "2026-11-14T12:00:00.000Z",
+      "isManual": true,
+      "normalizedVersion": 1
+    },
+    "duplicate": null,
+    "band": {
+      "reason": "not-a-band-source"
+    }
+  }
+}

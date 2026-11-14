@@ -1,0 +1,67 @@
+{
+  "name": "tag",
+  "description": "A friend's tag, accepted: the event and the songs' names and sets, never the tagger's ratings or comments, and who tagged it.",
+  "now": "2026-11-14T12:00:00.000Z",
+  "input": {
+    "kind": "tag",
+    "tagId": "tag1",
+    "showId": "1763121600000"
+  },
+  "context": {
+    "showTags": {
+      "tag1": {
+        "fromUid": "friendUid0001",
+        "fromName": "Sam",
+        "toUid": "me",
+        "status": "pending",
+        "showData": {
+          "artist": "Phish",
+          "venue": "Madison Square Garden",
+          "date": "2024-12-31",
+          "city": "New York",
+          "tour": "",
+          "setlistfmId": "63de4613",
+          "setlistfmUrl": null,
+          "isManual": false,
+          "setlist": [
+            {
+              "id": "t1",
+              "name": "Tweezer",
+              "set": "Set I",
+              "rating": 10,
+              "comment": "the tagger's"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "expected": {
+    "show": {
+      "artist": "Phish",
+      "venue": "Madison Square Garden",
+      "date": "2024-12-31",
+      "city": "New York",
+      "tour": null,
+      "setlistfmId": "63de4613",
+      "setlist": [
+        {
+          "id": "t1",
+          "name": "Tweezer",
+          "set": "Set I"
+        }
+      ],
+      "taggedBy": "Sam",
+      "taggedByUid": "friendUid0001",
+      "setlistSource": "setlistfm",
+      "id": "1763121600000",
+      "createdAt": "2026-11-14T12:00:00.000Z",
+      "isManual": false,
+      "normalizedVersion": 1
+    },
+    "duplicate": null,
+    "band": {
+      "reason": "no-show"
+    }
+  }
+}

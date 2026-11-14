@@ -5,6 +5,40 @@ contract tests both read. Each file is plain JSON so any test runner can load
 it. Change one only on purpose: a changed expected value is a number users
 see change.
 
+## `shows/`
+
+The show document every app writes, from each way of adding a show
+(`lib/normalizeShow.js`, served by `netlify/functions/normalize-show.js`).
+Each file is one case:
+
+| Field | What it is |
+|---|---|
+| `name`, `description` | What the case pins down |
+| `now` | The clock (`createdAt`, `setlistFetchedAt`) |
+| `input` | What the app sends normalize-show: `kind` and its fields, with a client-minted `showId` |
+| `context.setlistfm` | setlist.fm's setlist JSON by id, as the server would fetch it |
+| `context.bandSetlist` | `/api/band-setlist`'s JSON for the night. Absent means the band source has no show that night (`{ ok: false, songs: [], shows: [] }`); it's only asked about bands that have a source |
+| `context.showTags`, `pendingEmailTags`, `upcomingShows` | The documents a `tag`, `email-tag` or `upcoming` input reads |
+| `context.existingShows` | The user's shows, for the duplicate verdict |
+| `expected.show` | The document, with `id` (the document id, not a stored field) |
+| `expected.duplicate` | `null`, or `{ showId, rule }`, rule one of `setlistfm-id`, `same-show`, `possible` (only ever a question for the user) |
+| `expected.band` | `{ reason }`: `ok`, `no-show`, `not-a-band-source`, … |
+| `expected.error` | For an input that is refused: its code (`bad-input`, `bad-kind`, `tag-not-found`, …) |
+
+Song ids in the fixtures are `song-1`, `song-2`, … (the test's `idFor`);
+in production they are the app's random ids. Compare documents as JSON
+values, not as text: key order isn't part of the contract.
+
+The canonical shape (which fields are always present, which are absent
+when empty) is documented at the top of `lib/showInputs.js`. The web side
+checks these in `lib/__tests__/normalizeShow.test.js`, which also checks
+that the web app's current add path builds the same document. To
+regenerate after a deliberate change:
+
+```
+UPDATE_FIXTURES=1 node --experimental-loader ./lib/__tests__/alias-loader.mjs lib/__tests__/normalizeShow.test.js
+```
+
 ## `year-in-review/`
 
 Each file is one case:

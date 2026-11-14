@@ -110,6 +110,25 @@ test('bulk import: still admin-only', async () => {
   assert.strictEqual(db._list(`users/${ALICE.uid}/shows`).length, 0);
 });
 
+test('bulk import: builds shows as every add path does (5.60.5): ISO date, minted ids, the one duplicate rule', async () => {
+  setup();
+  db._put(`users/${ALICE.uid}/shows/1700000000001`, { artist: 'Phish', venue: 'MSG', date: '2024-12-31', setlist: [] });
+  const res = await post(bulkImport, 'admin-token', {
+    targetUid: ALICE.uid,
+    shows: [
+      { artist: 'phish', venue: 'M.S.G.', date: '31-12-2024' },            // the same show: skipped
+      { artist: 'Phish', venue: 'Madison Square Garden', date: '2024-12-31' }, // possible: imported, as before
+      { artist: ' Goose ', venue: 'Red Rocks', date: '21-06-2024', rating: 8, tour: '' },
+      { artist: 'Goose', venue: 'Red Rocks', date: '2024-06-21' },          // repeats a row above: skipped
+    ],
+  });
+  assert.strictEqual(res.statusCode, 200, res.body);
+  assert.deepStrictEqual([json(res).imported, json(res).duplicatesSkipped], [2, 2]);
+  const goose = db._list(`users/${ALICE.uid}/shows`).find((x) => x.artist === 'Goose');
+  assert.deepStrictEqual([goose.date, goose.rating, goose.tour, goose.isManual, goose.setlistSource, goose.normalizedVersion], ['2024-06-21', 8, null, true, 'setlistfm', 1]);
+  assert.match(goose.id, /^\d{13}$/);
+});
+
 // ── scripts/scrub-show-admin-emails.js ────────────────────────────────
 
 test('scrub plan: finds address-valued importedByAdmin, counts flagged ones, reports other fields', () => {

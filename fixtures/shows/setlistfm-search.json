@@ -1,0 +1,129 @@
+{
+  "name": "setlistfm-search",
+  "description": "A setlist.fm search result (the search, \"Add all\", tour bulk add, a ticket scan that found its setlist). No band source for Phish: the setlist.fm setlist stands and the show says so. setlist.fm's DD-MM-YYYY becomes ISO; the artist's mbid is stored.",
+  "now": "2026-11-14T12:00:00.000Z",
+  "input": {
+    "kind": "setlistfm",
+    "setlistfmId": "63de4613",
+    "showId": "1763121600000"
+  },
+  "context": {
+    "setlistfm": {
+      "63de4613": {
+        "id": "63de4613",
+        "eventDate": "31-12-2024",
+        "artist": {
+          "mbid": "e01646f2-2a04-450d-8bf2-0d993082e058",
+          "name": "Phish"
+        },
+        "venue": {
+          "name": "Madison Square Garden",
+          "city": {
+            "name": "New York",
+            "country": {
+              "name": "United States"
+            }
+          }
+        },
+        "sets": {
+          "set": [
+            {
+              "song": [
+                {
+                  "name": "Tweezer"
+                },
+                {
+                  "name": "Ghost"
+                }
+              ]
+            },
+            {
+              "song": [
+                {
+                  "name": "Harry Hood"
+                },
+                {
+                  "name": "Tweezer Reprise"
+                }
+              ]
+            },
+            {
+              "encore": 1,
+              "song": [
+                {
+                  "name": "Loving Cup",
+                  "cover": {
+                    "name": "The Rolling Stones"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        "url": "https://www.setlist.fm/setlist/63de4613.html",
+        "tour": {
+          "name": "New Year’s Run 2024"
+        }
+      }
+    }
+  },
+  "expected": {
+    "show": {
+      "artist": "Phish",
+      "venue": "Madison Square Garden",
+      "city": "New York",
+      "country": "United States",
+      "date": "2024-12-31",
+      "setlist": [
+        {
+          "id": "song-1",
+          "name": "Tweezer",
+          "set": "Set I",
+          "cover": null,
+          "tape": false
+        },
+        {
+          "id": "song-2",
+          "name": "Ghost",
+          "set": "Set I",
+          "cover": null,
+          "tape": false
+        },
+        {
+          "id": "song-3",
+          "name": "Harry Hood",
+          "set": "Set II",
+          "cover": null,
+          "tape": false
+        },
+        {
+          "id": "song-4",
+          "name": "Tweezer Reprise",
+          "set": "Set II",
+          "cover": null,
+          "tape": false
+        },
+        {
+          "id": "song-5",
+          "name": "Loving Cup",
+          "set": "Encore",
+          "cover": "The Rolling Stones",
+          "tape": false
+        }
+      ],
+      "setlistfmId": "63de4613",
+      "setlistfmUrl": "https://www.setlist.fm/setlist/63de4613.html",
+      "artistMbid": "e01646f2-2a04-450d-8bf2-0d993082e058",
+      "tour": "New Year’s Run 2024",
+      "setlistSource": "setlistfm",
+      "id": "1763121600000",
+      "createdAt": "2026-11-14T12:00:00.000Z",
+      "isManual": false,
+      "normalizedVersion": 1
+    },
+    "duplicate": null,
+    "band": {
+      "reason": "no-show"
+    }
+  }
+}

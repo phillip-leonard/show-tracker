@@ -70,6 +70,8 @@
  */
 
 const { withCors } = require('./lib/cors');
+// A stored show date in any format -> ISO, the app's own rule (lib/showDate.js, 5.60.5).
+const { toIsoDate } = require('../../lib/showDate');
 const { withProxyLimit } = require('./lib/proxyLimit');
 const crypto = require('crypto');
 
@@ -165,26 +167,6 @@ function getDb() {
     console.warn('[CACHE] Firebase init failed:', e.message);
     return null;
   }
-}
-
-// ── toIsoDate, mirrored from lib/utils.js ─────────────────────────────
-// Same two accepted spellings and the same reading of an ambiguous
-// DD-MM-YYYY (setlist.fm's format, which is where these come from), so the
-// date this function asks an archive about is the date the app displays.
-function toIsoDate(value) {
-  const str = String(value == null ? '' : value).trim();
-  if (!str) return '';
-
-  const ddmmyyyy = str.match(/^(\d{2})-(\d{2})-(\d{4})$/);
-  if (ddmmyyyy) return `${ddmmyyyy[3]}-${ddmmyyyy[2]}-${ddmmyyyy[1]}`;
-
-  const iso = str.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (iso) return str;
-
-  const d = new Date(str);
-  if (Number.isNaN(d.getTime())) return '';
-  const pad = (n) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
 // --- Cache helpers ---

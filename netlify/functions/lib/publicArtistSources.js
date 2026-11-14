@@ -40,7 +40,7 @@
 const https = require('https');
 const { fetchSongfishJson, readEnvelope: readSongfishEnvelope } = require('./songfishAdapter');
 const { fetchPhishnetJson, readEnvelope: readPhishnetEnvelope, splitSetCode } = require('./phishnetAdapter');
-const { normalizeSongTitle } = require('./bandSetlistMergeRule');
+const { normalizeSongTitle } = require('../../../lib/stats/keys');
 const { isoDate } = require('./publicPageHtml');
 const { slugify } = require('./artistSnapshotStats');
 const { pickSetLabel, setSortKey } = require('./bandSetlistShape');

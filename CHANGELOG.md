@@ -4,6 +4,64 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.60.5] — 2026-11-14
+
+Ships in **iOS 3.13.21** (`MARKETING_VERSION` 3.13.20 → 3.13.21). Server and
+shared-module changes only: nothing the app does changes, so no new iOS
+build is needed for this one.
+
+**`normalize-show`: every new show, built on the server** (pre-native
+server moves, Part 1a). The web app moves onto it in Part 1b; the Swift app
+starts on it.
+
+- **The endpoint.** `POST /.netlify/functions/normalize-show`, signed in,
+  `{ mode: 'preview' | 'commit', input }` or up to 25 `inputs`. Input kinds:
+  `setlistfm` (by id or setlist), `manual`, `csv-row`, `festival-row`, `tag`,
+  `email-tag`, `upcoming`. It returns the canonical document, the duplicate
+  verdict and what the band source said; `commit` writes it in a
+  transaction. A tag must be addressed to the caller, an email tag sent to
+  the caller's own address, an upcoming show the caller's own. Per-user
+  daily quota and the per-IP setlist.fm limit.
+- **One duplicate rule** (`lib/showIdentity.js` `classifyDuplicate`):
+  setlist.fm id, then artist + venue + calendar day (case and punctuation
+  ignored), else a `possible` match, which never writes until the user
+  confirms. A tag for a show already logged credits the friend on it.
+- **Offline.** A show the app writes on the device with
+  `needsNormalization` and its input is normalized in place under the same
+  id when the app (or the hourly sweep) commits it, keeping the user's
+  rating, comment and song notes (the merge rule and the ratings guard).
+  Firestore's offline cache stays off; the device outbox is Part 1b.
+- **The sweep.** `normalize-shows-sweep` (hourly): pending shows from their
+  saved input; once a day, every show's date format, `isManual` and a
+  missing setlist, and nothing a user wrote. `scripts/normalize-shows.js`
+  runs it by hand (dry run by default, `--apply`). Needs the new
+  collection-group index on `shows.needsNormalization`
+  (`firestore.indexes.json`, deployed with the rules).
+- **Production (read-only):** 0 of 1,498 shows need a stored fix. 205
+  differ from the canonical shape only in how they spell empty (`city`
+  absent, `tour: ''` vs `null`, empty `country`/`comment`), and 15 setlists
+  have untitled entries; none of that is rewritten.
+- **Golden fixtures** in `fixtures/shows/` (twelve cases, every kind, the
+  band source, all three duplicate rules, a refused input) for the Swift
+  contract tests. `lib/__tests__/normalizeShow.test.js` also checks the web
+  app's add path builds the same documents.
+- **One implementation, shared.** `lib/showDoc.js`, `lib/showIdentity.js`,
+  `lib/setlistParser.js`, `lib/setlistSources.js` and
+  `lib/bandSetlistMerge.js` are CommonJS, and the rules with no network in
+  them move from `lib/bandSetlist.js` to `lib/bandSetlistRules.js`; new
+  `lib/showInputs.js` and `lib/normalizeShow.js`. Gone:
+  `netlify/functions/lib/bandSetlistMergeRule.js` and its parity test, and
+  the hand-copied date and name rules in `band-setlist`, `get-tour-shows`,
+  `get-artist-tours`, `search-festival-lineup` and `admin-resync-setlists`.
+  `normalizeSongTitle` and the venue matchers each have one definition.
+- **`admin-bulk-import`** builds its shows the same way (ISO date, minted
+  ids, the duplicate rule, `setlistSource`), not by hand.
+- **Song ids and the clock** are seams (`extractSongsFromSetlist`'s
+  `idFor`, `buildShowDoc`'s and `bandSetlistShowFields`'s `now`); production
+  ids are unchanged.
+
+---
+
 ## [5.60.4] — 2026-11-14
 
 Ships in **iOS 3.13.20** (`MARKETING_VERSION` 3.13.19 → 3.13.20). Needs

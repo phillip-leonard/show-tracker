@@ -1,0 +1,136 @@
+{
+  "name": "setlistfm-band-source",
+  "description": "A Goose show found on setlist.fm, where El Goose has the night: the band source's setlist is merged in (footnotes, segues, the encore) and the show credits it. The setlist.fm tour name stays.",
+  "now": "2026-11-14T12:00:00.000Z",
+  "input": {
+    "kind": "setlistfm",
+    "setlistfmId": "2bd6e8f6",
+    "showId": "1763121600000"
+  },
+  "context": {
+    "setlistfm": {
+      "2bd6e8f6": {
+        "id": "2bd6e8f6",
+        "eventDate": "21-06-2024",
+        "artist": {
+          "mbid": "b4b2b6c6-1d4f-4e66-9a3b-5c2d6a0e8b11",
+          "name": "Goose"
+        },
+        "venue": {
+          "name": "Red Rocks Amphitheatre",
+          "city": {
+            "name": "Morrison",
+            "country": {
+              "name": "United States"
+            }
+          }
+        },
+        "sets": {
+          "set": [
+            {
+              "song": [
+                {
+                  "name": "Arcadia"
+                },
+                {
+                  "name": "Hot Tea"
+                }
+              ]
+            }
+          ]
+        },
+        "url": "https://www.setlist.fm/setlist/2bd6e8f6.html",
+        "tour": {
+          "name": "Summer Tour 2024"
+        }
+      }
+    },
+    "bandSetlist": {
+      "ok": true,
+      "songs": [
+        {
+          "id": "eg1",
+          "name": "Arcadia",
+          "set": "Set I",
+          "tape": false,
+          "transitionMark": ">",
+          "footnote": ""
+        },
+        {
+          "id": "eg2",
+          "name": "Hot Tea",
+          "set": "Set I",
+          "tape": false,
+          "transitionMark": "",
+          "footnote": "with a Tumble tease"
+        },
+        {
+          "id": "eg3",
+          "name": "Madhuvan",
+          "set": "Encore",
+          "tape": false,
+          "transitionMark": "",
+          "footnote": ""
+        }
+      ],
+      "sourceShowId": "1717",
+      "sourcePermalink": "https://elgoose.net/setlists/goose-june-21-2024-red-rocks.html",
+      "setlistNotes": "Night 1 of 2.",
+      "tour": "Summer Tour",
+      "selection": "only",
+      "contested": []
+    }
+  },
+  "expected": {
+    "show": {
+      "artist": "Goose",
+      "venue": "Red Rocks Amphitheatre",
+      "city": "Morrison",
+      "country": "United States",
+      "date": "2024-06-21",
+      "setlist": [
+        {
+          "id": "song-1",
+          "name": "Arcadia",
+          "set": "Set I",
+          "tape": false,
+          "transitionMark": ">",
+          "footnote": ""
+        },
+        {
+          "id": "song-2",
+          "name": "Hot Tea",
+          "set": "Set I",
+          "tape": false,
+          "transitionMark": "",
+          "footnote": "with a Tumble tease"
+        },
+        {
+          "id": "eg3",
+          "name": "Madhuvan",
+          "set": "Encore",
+          "tape": false,
+          "transitionMark": "",
+          "footnote": ""
+        }
+      ],
+      "setlistfmId": "2bd6e8f6",
+      "setlistfmUrl": "https://www.setlist.fm/setlist/2bd6e8f6.html",
+      "artistMbid": "b4b2b6c6-1d4f-4e66-9a3b-5c2d6a0e8b11",
+      "tour": "Summer Tour 2024",
+      "setlistSource": "elgoose",
+      "sourceShowId": "1717",
+      "sourcePermalink": "https://elgoose.net/setlists/goose-june-21-2024-red-rocks.html",
+      "setlistNotes": "Night 1 of 2.",
+      "setlistFetchedAt": "2026-11-14T12:00:00.000Z",
+      "isManual": false,
+      "id": "1763121600000",
+      "createdAt": "2026-11-14T12:00:00.000Z",
+      "normalizedVersion": 1
+    },
+    "duplicate": null,
+    "band": {
+      "reason": "ok"
+    }
+  }
+}

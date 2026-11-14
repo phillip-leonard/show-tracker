@@ -1,0 +1,98 @@
+{
+  "name": "manual-band-source",
+  "description": "Typed in for a band with a source (a ticket-scan row, or the form): the band source fills the setlist, so it isn't manual.",
+  "now": "2026-11-14T12:00:00.000Z",
+  "input": {
+    "kind": "manual",
+    "artist": "Goose",
+    "venue": "Red Rocks Amphitheatre",
+    "city": "Morrison",
+    "date": "2024-06-21",
+    "showId": "1763121600000"
+  },
+  "context": {
+    "bandSetlist": {
+      "ok": true,
+      "songs": [
+        {
+          "id": "eg1",
+          "name": "Arcadia",
+          "set": "Set I",
+          "tape": false,
+          "transitionMark": ">",
+          "footnote": ""
+        },
+        {
+          "id": "eg2",
+          "name": "Hot Tea",
+          "set": "Set I",
+          "tape": false,
+          "transitionMark": "",
+          "footnote": "with a Tumble tease"
+        },
+        {
+          "id": "eg3",
+          "name": "Madhuvan",
+          "set": "Encore",
+          "tape": false,
+          "transitionMark": "",
+          "footnote": ""
+        }
+      ],
+      "sourceShowId": "1717",
+      "sourcePermalink": "https://elgoose.net/setlists/goose-june-21-2024-red-rocks.html",
+      "setlistNotes": "Night 1 of 2.",
+      "tour": "Summer Tour",
+      "selection": "only",
+      "contested": []
+    }
+  },
+  "expected": {
+    "show": {
+      "artist": "Goose",
+      "venue": "Red Rocks Amphitheatre",
+      "city": "Morrison",
+      "date": "2024-06-21",
+      "setlistSource": "elgoose",
+      "setlist": [
+        {
+          "id": "eg1",
+          "name": "Arcadia",
+          "set": "Set I",
+          "tape": false,
+          "transitionMark": ">",
+          "footnote": ""
+        },
+        {
+          "id": "eg2",
+          "name": "Hot Tea",
+          "set": "Set I",
+          "tape": false,
+          "transitionMark": "",
+          "footnote": "with a Tumble tease"
+        },
+        {
+          "id": "eg3",
+          "name": "Madhuvan",
+          "set": "Encore",
+          "tape": false,
+          "transitionMark": "",
+          "footnote": ""
+        }
+      ],
+      "sourceShowId": "1717",
+      "sourcePermalink": "https://elgoose.net/setlists/goose-june-21-2024-red-rocks.html",
+      "setlistNotes": "Night 1 of 2.",
+      "setlistFetchedAt": "2026-11-14T12:00:00.000Z",
+      "isManual": false,
+      "tour": "Summer Tour",
+      "id": "1763121600000",
+      "createdAt": "2026-11-14T12:00:00.000Z",
+      "normalizedVersion": 1
+    },
+    "duplicate": null,
+    "band": {
+      "reason": "ok"
+    }
+  }
+}

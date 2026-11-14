@@ -1,0 +1,63 @@
+{
+  "name": "csv-row",
+  "description": "A spreadsheet row after the importer matched it on setlist.fm: rating and comment from the file, an invalid rating dropped, the setlist kept with its source.",
+  "now": "2026-11-14T12:00:00.000Z",
+  "input": {
+    "kind": "csv-row",
+    "artist": "Phish",
+    "venue": "Madison Square Garden",
+    "city": "New York",
+    "state": "NY",
+    "country": "United States",
+    "date": "2024-12-31",
+    "rating": 11,
+    "comment": "NYE",
+    "tour": "",
+    "setlist": [
+      {
+        "id": "c1",
+        "name": "Tweezer",
+        "set": "Set I"
+      },
+      {
+        "id": "c2",
+        "name": "  "
+      }
+    ],
+    "setlistSource": "setlistfm",
+    "setlistfmId": "63de4613",
+    "setlistfmUrl": "https://www.setlist.fm/setlist/63de4613.html",
+    "showId": "1763121600000"
+  },
+  "context": {},
+  "expected": {
+    "show": {
+      "artist": "Phish",
+      "venue": "Madison Square Garden",
+      "city": "New York",
+      "country": "United States",
+      "state": "NY",
+      "date": "2024-12-31",
+      "tour": null,
+      "setlist": [
+        {
+          "id": "c1",
+          "name": "Tweezer",
+          "set": "Set I"
+        }
+      ],
+      "comment": "NYE",
+      "setlistSource": "setlistfm",
+      "setlistfmId": "63de4613",
+      "setlistfmUrl": "https://www.setlist.fm/setlist/63de4613.html",
+      "id": "1763121600000",
+      "createdAt": "2026-11-14T12:00:00.000Z",
+      "isManual": false,
+      "normalizedVersion": 1
+    },
+    "duplicate": null,
+    "band": {
+      "reason": "no-show"
+    }
+  }
+}

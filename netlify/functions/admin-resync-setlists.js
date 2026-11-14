@@ -92,7 +92,7 @@ const https = require('https');
 
 const archiveAdapter = require('./lib/archiveAdapter');
 const archiveConfig = require('../../config/internet-archive.json');
-const { mergeBandSetlist, describeSummary, titleAliasesFor } = require('./lib/bandSetlistMergeRule');
+const { mergeBandSetlist, describeSummary, titleAliasesFor } = require('../../lib/bandSetlistMerge');
 
 // The one admin check: custom claim or verified allowlisted address (5.59.12).
 const { isAdmin } = require('./lib/firebaseAdmin');
@@ -149,10 +149,12 @@ const MAX_ARTISTS_REPORTED = 40;
 
 // ── The artist → source registry, mirrored for CommonJS ───────────────
 //
-// lib/setlistSources.js is the registry, but it is an ESM module written
-// against the `@/lib` alias and this is a Netlify function with no build
-// step to resolve it — the same situation festivalMatchRule.js exists for.
-// This is deliberately the *minimum* mirror: the name keys and nothing
+// lib/setlistSources.js is the registry, and since 5.60.5 it is CommonJS
+// this function could require (it already takes the name keys from it,
+// below). The mirror stays until the resync moves into the shared setlist
+// operations (pre-native server moves, Part 2), because the walk's
+// Internet Archive switch is read through archiveAdapter here. It is
+// deliberately the *minimum* mirror: the name keys and nothing
 // else, because that is all a server-side walk over show documents needs
 // (show docs store a plain artist string with no mbid, so the mbid branch
 // of resolveSource can never fire here).
@@ -186,56 +188,13 @@ function bandSourceNameKeys(archiveEnabled = archiveAdapter.isEnabled()) {
   };
 }
 
-// artistKeyFor's name branch, from lib/wishlist.js, with the same
-// leading trim artistNameKey in lib/setlistSources.js applies — and for the
-// same reason: artistKeyFor collapses whitespace to hyphens *before* it
-// trims, so an untrimmed "  Goose  " becomes "-goose-" and matches nothing.
-function artistNameKey(name) {
-  return String(name || '')
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9\s-]/g, '')
-    .replace(/\s+/g, '-')
-    .trim();
-}
-
-// The loose second pass, mirroring artistNameKeyLoose in
-// lib/setlistSources.js: bracketed qualifiers and a leading article
-// removed, so "Goose (US)" and "The Goose" reach El Goose too. See that
-// file for why this exists — an exact-only key is what made a stored
-// artist string of "Goose (US)" resolve to setlist.fm and every part of
-// this feature quietly do nothing.
-function artistNameKeyLoose(name) {
-  return artistNameKey(
-    String(name || '')
-      .replace(/[([{][^)\]}]*[)\]}]/g, ' ')
-      .trim()
-      .replace(/^the\s+/i, '')
-  );
-}
-
-// ── toIsoDate, mirrored from lib/utils.js ─────────────────────────────
-// Show documents do not all store dates the same way: the ticket scanner
-// saved setlist.fm's DD-MM-YYYY verbatim while every other add path
-// reversed it into YYYY-MM-DD. parseDate reads both, so such a show
-// displays correctly in the app — and then this walk asked the archive
-// about "28-05-2025", which no archive has. Normalized before the request,
-// with the same reading of an ambiguous DD-MM-YYYY the app uses.
-function toIsoDate(value) {
-  const str = String(value == null ? '' : value).trim();
-  if (!str) return '';
-
-  const ddmmyyyy = str.match(/^(\d{2})-(\d{2})-(\d{4})$/);
-  if (ddmmyyyy) return `${ddmmyyyy[3]}-${ddmmyyyy[2]}-${ddmmyyyy[1]}`;
-
-  const iso = str.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (iso) return str;
-
-  const d = new Date(str);
-  if (Number.isNaN(d.getTime())) return '';
-  const pad = (n) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
+// The app's own name keys and date rule (5.60.5), rather than copies kept
+// in step by hand: artistNameKey / artistNameKeyLoose from
+// lib/setlistSources.js and toIsoDate from lib/showDate.js. A stored
+// "28-05-2025" is asked about as 2025-05-28; a date the app can't read is
+// '' here too.
+const { artistNameKey, artistNameKeyLoose } = require('../../lib/setlistSources');
+const { toIsoDate } = require('../../lib/showDate');
 
 function resolveBandSource(artist, nameKeys = bandSourceNameKeys()) {
   const BAND_SOURCE_NAME_KEYS = nameKeys;
