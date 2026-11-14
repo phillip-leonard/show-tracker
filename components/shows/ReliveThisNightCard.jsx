@@ -14,6 +14,7 @@ import ShowCard from '@/components/shows/ShowCard';
 import { dismissReliveShow } from '@/lib/reliveThisNight';
 import { showHref } from '@/lib/showRouting';
 import { localIsoDate, toIsoDate } from '@/lib/utils';
+import { showYear } from '@/lib/showDate';
 
 const GREEN = '#34D399';
 const ORANGE = '#FB923C';
@@ -23,7 +24,7 @@ export default function ReliveThisNightCard({ show, friends, runInfo, tourHref, 
   const [dismissed, setDismissed] = useState(false);
   if (!show || dismissed) return null;
 
-  const yearsAgo = Number(localIsoDate().slice(0, 4)) - Number(toIsoDate(show.date).slice(0, 4));
+  const yearsAgo = Number(showYear(localIsoDate())) - Number(showYear(show.date));
 
   return (
     <section

@@ -18,6 +18,7 @@
 const { escapeHtml, page, notFoundPage, CACHE_HEADERS, USER_PAGE_ROBOTS, SITE_URL, isoDate, formatShowDate } = require('./lib/publicPageHtml');
 const { routeParams } = require('./lib/publicRouteParams');
 const { isSetlistfmShow, creditHtml } = require('./lib/setlistfmSetlist');
+const { countVenues } = require('../../lib/venueCount');
 
 function getDb() {
   const privateKey = (process.env.FIREBASE_PRIVATE_KEY || '').replace(/\\n/g, '\n');
@@ -71,7 +72,9 @@ exports.handler = async function (event) {
       .sort((a, b) => (isoDate(b.date) || b.date || '').localeCompare(isoDate(a.date) || a.date || ''));
 
     const artistCount = new Set(shows.map(s => s.artist)).size;
-    const venueCount = new Set(shows.map(s => s.venue)).size;
+    // The app's venue rule (lib/venueCount.js), so this page shows the
+    // number the owner's Profile preview promised.
+    const venueCount = countVenues(shows);
     const years = new Set(shows.map(s => isoDate(s.date).slice(0, 4)).filter(Boolean));
 
     const totalPages = Math.max(1, Math.ceil(shows.length / PAGE_SIZE));

@@ -52,6 +52,11 @@ import { callFriends } from '@/lib/friendsApi';
 import { isFirstShowTransition, requestWelcomeEmail } from '@/lib/welcomeEmailTrigger';
 import { sweepExpiredSetlistfmCaches } from '@/lib/setlistfmLocalCache';
 import { signInLeavesRoute } from '@/lib/deepLinks';
+import { toIsoDate, showYear, utcIsoDate } from '@/lib/showDate';
+import { mintShowId, buildShowDoc } from '@/lib/showDoc';
+import { countVenues, venueCountKey } from '@/lib/venueCount';
+import { mergeGuestShows, mergeMessage, readLocalShows } from '@/lib/guestMerge';
+import { findDuplicate, showMatchKey, setlistIsOnShowDate } from '@/lib/showIdentity';
 
 // Gap between writes in a bulk tour add. Enough to keep a 40-night
 // selection from arriving at Firestore as one burst, small enough that a
@@ -59,59 +64,20 @@ import { signInLeavesRoute } from '@/lib/deepLinks';
 const BULK_ADD_DELAY_MS = 120;
 
 // ── Helper: mint a show document id ─────────────────────────────────────
-// Show ids have always been millisecond timestamps as strings, and every
-// existing document in Firestore is keyed that way, so the format is fixed.
-// The counter is what makes it safe to mint several in a row: `Date.now()`
-// alone returns the same value for every call inside the same millisecond,
-// which is exactly what a bulk add does. Monotonic, so ids still sort by
-// creation order.
-let lastMintedShowId = 0;
-
 // Where a sign-in from the Songs I've heard tool may return to: a band's
 // poster, nothing else (see pendingNext below).
 const HEARD_NEXT = /^\/heard\/[a-z0-9-]+\/\?mine=1$/;
-function mintShowId() {
-  const now = Date.now();
-  lastMintedShowId = now > lastMintedShowId ? now : lastMintedShowId + 1;
-  return String(lastMintedShowId);
-}
 
-// ── Helper: the one place a show document's shape is defined ────────────
-// Both the single add (addShow) and the bulk tour add (addShowsFromTour)
-// build their documents here, so a bulk-added show is byte-for-byte the
-// same shape as a hand-added one — setlist, venue, artist, tour name, all
-// of it. Change the shape here or not at all.
-function buildShowDoc(showData, id) {
-  return {
-    ...showData,
-    id,
-    setlist: showData.setlist || [],
-    createdAt: new Date().toISOString(),
-    // `isManual` means "nobody but the user wrote this setlist", and it is
-    // what admin-populate-setlist.js checks before it refuses to overwrite.
-    // It used to be derived from setlistfmId alone, which was the same
-    // question back when setlist.fm was the only source. A band-sourced
-    // show (El Goose, Phish.net — see lib/setlistSources.js) has no
-    // setlistfmId and is emphatically not manual, so the source id counts
-    // too.
-    isManual: !showData.setlistfmId && !isBandSourced(showData),
-  };
-}
-
-// True when this show's setlist came from a band source rather than from
-// setlist.fm or the user. Reads the stored `setlistSource` field rather than
-// sniffing for the presence of `footnote`/`transitionMark`: a Goose show
-// where nobody wrote any footnotes is still a Goose show from El Goose.
-function isBandSourced(showData) {
-  const id = showData?.setlistSource;
-  return !!id && id !== 'setlistfm';
-}
+// mintShowId and buildShowDoc, the one place a show document's shape is
+// defined, live in lib/showDoc.js (5.59.10) so the festival import and the
+// guest merge build shows exactly as addShow does, and tests can reach them.
 
 // The Firestore half of the same path. `createdAt` is replaced with a
 // server timestamp on the way in (the local ISO string above is what the
 // in-memory copy carries until the next load).
 async function writeShowDoc(uid, show) {
   const { id, ...showData } = show;
+  if (showData.date) showData.date = toIsoDate(showData.date) || showData.date;
   await setDoc(doc(db, 'users', uid, 'shows', id), { ...showData, createdAt: serverTimestamp() });
 }
 
@@ -162,6 +128,11 @@ async function updateUserProfile(user, shows = []) {
   // listener, and changed only through saveDisplayName(); firestore.rules
   // now rejects a client write that changes either field.
   const profileData = {
+    // The owner's uid under its correct name, and under the misspelled
+    // name older builds wrote (B-03). Nothing reads either from the
+    // profile (the doc id is the uid); both are written until the old
+    // name is dropped everywhere.
+    userId: user.uid,
     odubleserId: user.uid,
     // No `email` (5.59.7, S-01): every signed-in user can read profiles.
     // The address lives in Firebase Auth; the server reads it from there.
@@ -265,8 +236,6 @@ export function AppProvider({ children }) {
   // Auth state
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
-  const [showMigrationPrompt, setShowMigrationPrompt] = useState(false);
-  const [localShowsToMigrate, setLocalShowsToMigrate] = useState([]);
   const [authModal, setAuthModal] = useState(null); // null | 'login' | 'signup' | 'forgot-password'
   const [guestMode, setGuestMode] = useState(() => !!storage.get(STORAGE_KEYS.GUEST_SESSION));
   const [showGuestPrompt, setShowGuestPrompt] = useState(false);
@@ -812,21 +781,6 @@ export function AppProvider({ children }) {
     return unsub;
   }, [user, guestMode]);
 
-  // ── Local data migration check ──────────────────────────────────────
-  const checkForLocalData = useCallback(() => {
-    try {
-      const stored = storage.get(STORAGE_KEYS.LEGACY_SHOWS);
-      if (stored) {
-        const localShows = JSON.parse(stored);
-        if (localShows && localShows.length > 0) {
-          setLocalShowsToMigrate(localShows);
-          setShowMigrationPrompt(true);
-        }
-      }
-    } catch (error) {
-      console.log('No local data to migrate');
-    }
-  }, []);
 
   // ── Rank calculation ────────────────────────────────────────────────
   const calculateUserRank = useCallback(async (userId) => {
@@ -1103,17 +1057,8 @@ export function AppProvider({ children }) {
         }
 
         setGuestMode(false);
-        checkForLocalData();
-
-        // Also check for guest shows to migrate
-        const guestStored = storage.get(STORAGE_KEYS.GUEST_SHOWS);
-        if (guestStored) {
-          const guestShows = JSON.parse(guestStored);
-          if (guestShows && guestShows.length > 0) {
-            setLocalShowsToMigrate(prev => [...prev, ...guestShows]);
-            setShowMigrationPrompt(true);
-          }
-        }
+        // Shows saved on this device as a guest move into the account in
+        // rescueLocalShows below, once this user is in state.
         loadShows(currentUser.uid);
         loadFestivals(currentUser.uid);
         loadInviteStats(currentUser.uid);
@@ -1178,46 +1123,62 @@ export function AppProvider({ children }) {
       clearTimeout(authTimeout);
       unsubscribe();
     };
-  }, [checkForLocalData, loadShows, guestMode, loadGuestShows]);
+  }, [loadShows, guestMode, loadGuestShows]);
 
-  // ── Data migration ──────────────────────────────────────────────────
-  const handleMigrateData = async () => {
-    if (!user || localShowsToMigrate.length === 0) return;
-
-    // Shows the account already had, not counting the ones being migrated:
-    // right after a guest signs up, `shows` can still hold their guest
-    // shows until loadShows() replaces them.
-    const migratingIds = new Set(localShowsToMigrate.map(s => s.id));
-    const prevCount = latestShows.current.filter(s => !migratingIds.has(s.id)).length;
-
+  // ── Guest rescue (5.59.10) ──────────────────────────────────────────
+  // Shows a guest saved on this device ('guest-shows', or the very old
+  // 'concert-shows') move into the account on sign-up or sign-in, through
+  // buildShowDoc, skipping any the account already has (lib/guestMerge.js).
+  // A device copy is removed only after its Firestore write is confirmed;
+  // whatever fails stays on the device and is tried again on the next
+  // launch, because this runs every time a signed-in user is set.
+  //
+  // Until 5.59.10 an "Import Existing Shows?" dialog did this, and its Skip
+  // button (and Escape / back) deleted the shows for good.
+  const rescueRunning = useRef(false);
+  const rescueLocalShows = async (uid) => {
+    const local = [
+      ...readLocalShows(storage.get(STORAGE_KEYS.GUEST_SHOWS)),
+      ...readLocalShows(storage.get(STORAGE_KEYS.LEGACY_SHOWS)),
+    ];
+    if (!local.length || rescueRunning.current) return;
+    rescueRunning.current = true;
     try {
-      for (const show of localShowsToMigrate) {
-        const showRef = doc(db, 'users', user.uid, 'shows', show.id);
-        await setDoc(showRef, {
-          ...show,
-          createdAt: show.createdAt || serverTimestamp(),
-          migratedFromLocal: true,
-        });
+      let accountShows;
+      try {
+        const snap = await getDocs(collection(db, 'users', uid, 'shows'));
+        accountShows = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      } catch (error) {
+        // Can't check for duplicates, so don't write; next launch tries again.
+        console.warn('[guest rescue] account shows unreadable; keeping local shows:', error?.message);
+        return;
       }
-      noteShowsAdded(prevCount, localShowsToMigrate);
+      // How many shows the account had before, for the welcome email.
+      const prevCount = accountShows.length;
+      const result = await mergeGuestShows({
+        localShows: local,
+        accountShows,
+        writeShow: async (show) => { await writeShowDoc(uid, show); },
+      });
+      // Only the failures stay on the device, all under 'guest-shows'.
+      if (result.failed.length) storage.set(STORAGE_KEYS.GUEST_SHOWS, JSON.stringify(result.failed));
+      else storage.remove(STORAGE_KEYS.GUEST_SHOWS);
       storage.remove(STORAGE_KEYS.LEGACY_SHOWS);
-      storage.remove(STORAGE_KEYS.GUEST_SHOWS);
-      setShowMigrationPrompt(false);
-      setLocalShowsToMigrate([]);
-      loadShows(user.uid);
-    } catch (error) {
-      console.error('Failed to migrate data:', error);
-      alert('Failed to migrate data. Please try again.');
+      if (result.saved.length) {
+        noteShowsAdded(prevCount, result.saved);
+        loadShows(uid);
+      }
+      const note = mergeMessage(result);
+      if (note) setToast(note.type === 'error' ? note : note.message);
+    } finally {
+      rescueRunning.current = false;
     }
   };
 
-  const handleSkipMigration = () => {
-    setShowMigrationPrompt(false);
-    setLocalShowsToMigrate([]);
-    // Clear guest shows so the modal doesn't reappear on next login
-    storage.remove(STORAGE_KEYS.GUEST_SHOWS);
-    storage.remove(STORAGE_KEYS.LEGACY_SHOWS);
-  };
+  useEffect(() => {
+    if (user?.uid && !guestMode) rescueLocalShows(user.uid);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.uid, guestMode]);
 
   // ── Auth handlers ───────────────────────────────────────────────────
   const handleLogin = async () => {
@@ -1313,6 +1274,7 @@ export function AppProvider({ children }) {
     try {
       const showRef = doc(db, 'users', user.uid, 'shows', updatedShow.id);
       const { id, ...showData } = updatedShow;
+      if (showData.date) showData.date = toIsoDate(showData.date) || showData.date;
       await setDoc(showRef, showData, { merge: true });
     } catch (error) {
       console.error('Failed to save show:', error);
@@ -1321,12 +1283,8 @@ export function AppProvider({ children }) {
 
   // ── Duplicate detection helper ─────────────────────────────────────
   const findDuplicateShow = (showData) => {
-    if (!showData.artist || !showData.date) return null;
-    return latestShows.current.find(s =>
-      s.artist?.toLowerCase().trim() === showData.artist?.toLowerCase().trim() &&
-      s.venue?.toLowerCase().trim() === (showData.venue || '').toLowerCase().trim() &&
-      s.date === showData.date
-    ) || null;
+    // Same artist, venue and calendar day in any stored format (B-07).
+    return findDuplicate(latestShows.current, showData);
   };
 
   // Merge friend tag data into an existing show (comments, tags, etc.)
@@ -1367,10 +1325,10 @@ export function AppProvider({ children }) {
   // ── Welcome email (5.55.0) ────────────────────────────────────────
   // The one place a show write asks for the welcome email. Each of the
   // four functions that write shows (addShow, addShowsFromTour,
-  // importShowsToFestival, handleMigrateData) calls this after its write
+  // importShowsToFestival, rescueLocalShows) calls this after its write
   // succeeds, with how many shows the account had before it. A guest has
   // no account and no address; their shows reach this through
-  // handleMigrateData once they sign up. Fire-and-forget: the save never
+  // rescueLocalShows once they sign up. Fire-and-forget: the save never
   // waits on it. See lib/welcomeEmailTrigger.js and
   // netlify/functions/lib/welcomeEmail.js, which decides for itself.
   const noteShowsAdded = (prevCount, addedShows = []) => {
@@ -1570,7 +1528,11 @@ export function AppProvider({ children }) {
     return { added: createdThisRun, skipped, failed };
   };
 
-  const updateShowData = async (showId, updates) => {
+  const updateShowData = async (showId, rawUpdates) => {
+    // A changed date is stored as ISO, like every other write.
+    const updates = rawUpdates && rawUpdates.date
+      ? { ...rawUpdates, date: toIsoDate(rawUpdates.date) || rawUpdates.date }
+      : rawUpdates;
     if (guestMode) {
       const updatedShows = shows.map(s => s.id === showId ? { ...s, ...updates } : s);
       setShows(updatedShows);
@@ -1608,10 +1570,9 @@ export function AppProvider({ children }) {
         if (!data.setlist || data.setlist.length === 0) return null;
 
         const match = data.setlist.find(s => {
-          if (!s.eventDate) return false;
-          const parts = s.eventDate.split('-');
-          if (parts.length !== 3) return false;
-          return `${parts[2]}-${parts[1]}-${parts[0]}` === date;
+          // setlist.fm's DD-MM-YYYY against the show's date in any stored
+          // format (B-06).
+          return setlistIsOnShowDate(s.eventDate, date);
         });
 
         if (match) return match;
@@ -1662,7 +1623,10 @@ export function AppProvider({ children }) {
       const show = showsWithoutSetlists[i];
       try {
         if (!show.artist || !show.date) continue;
-        const year = show.date.split('-')[0];
+        // The year from any stored format: a DD-MM-YYYY show used to search
+        // setlist.fm for year "23" (B-06).
+        const year = showYear(show.date);
+        if (!year) continue;
 
         // One request instead of up to nine, where the artist has a band
         // source. A failure here falls through to the setlist.fm path
@@ -2083,8 +2047,8 @@ export function AppProvider({ children }) {
       if (draft.startDate && !Number.isNaN(from.getTime()) && !Number.isNaN(to.getTime())) {
         collect(await getDocs(query(
           collection(db, 'festivals'),
-          where('startDate', '>=', from.toISOString().slice(0, 10)),
-          where('startDate', '<=', to.toISOString().slice(0, 10)),
+          where('startDate', '>=', utcIsoDate(from)),
+          where('startDate', '<=', utcIsoDate(to)),
           limit(FESTIVAL_CANDIDATE_LIMIT),
         )));
       }
@@ -2417,24 +2381,23 @@ export function AppProvider({ children }) {
     const existingIds = [];
     const toCreate = [];
     const prevCount = latestShows.current.length;
-    let idSeed = Date.now();
+    const fresh = [];
 
+    // The same duplicate rule as every add path: a festival set already
+    // logged through search (any stored date format) is attached, not
+    // created again. A set picked twice in this import is created once.
     candidates.forEach(candidate => {
       const existing =
         (candidate.setlistfmId && bySetlistfmId.get(candidate.setlistfmId)) ||
-        findDuplicateShow(candidate);
+        findDuplicateShow(candidate) ||
+        findDuplicate(fresh, candidate);
       if (existing) {
-        existingIds.push(existing.id);
+        if (existing.id) existingIds.push(existing.id);
         return;
       }
-      toCreate.push({
-        ...candidate,
-        id: String(idSeed++),
-        setlist: candidate.setlist || [],
-        createdAt: new Date().toISOString(),
-        isManual: !candidate.setlistfmId,
-      });
+      fresh.push(candidate);
     });
+
 
     // Only already-logged shows can belong to another festival; the ones
     // about to be created obviously can't.
@@ -2444,6 +2407,15 @@ export function AppProvider({ children }) {
         .filter(s => s && s.festivalId && s.festivalId !== festivalId)
         .map(s => ({ showId: s.id, artist: s.artist, date: s.date, festivalId: s.festivalId }));
       if (conflicts.length > 0) return { success: false, created: 0, attached: 0, conflicts };
+    }
+
+    // After the conflict check, so a refused import spends no requests.
+    // Built exactly as addShow builds a show (B-13): the band-source
+    // setlist where the artist has one, then buildShowDoc with a minted id,
+    // so isManual, the date format and the id scheme are the same.
+    for (const candidate of fresh) {
+      const enriched = await enrichShowDataWithBandSetlist(candidate);
+      toCreate.push(buildShowDoc(enriched, mintShowId()));
     }
 
     try {
@@ -2868,7 +2840,7 @@ export function AppProvider({ children }) {
   // artist's shows that year, newest first, a few pages deep: a show that
   // has just happened is on page one.
   const findSetlistForUpcomingShow = async (show) => {
-    const year = (show.date || '').slice(0, 4);
+    const year = showYear(show.date);
     if (!show.artist || !year) return null;
     for (let page = 1; page <= 3; page++) {
       try {
@@ -2919,8 +2891,9 @@ export function AppProvider({ children }) {
     ]);
     const myShows = mySnap.docs.map(d => ({ id: d.id, ...d.data() }));
     const theirShows = theirSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-    const norm = s => (s || '').trim().toLowerCase();
-    const key = s => s.setlistfmId || `${norm(s.artist)}|${norm(s.venue)}|${norm(s.date)}`;
+    // Dates compared as calendar days, so "28-05-2025" and "2025-05-28"
+    // are the same night (B-08).
+    const key = showMatchKey;
     const theirMap = {};
     theirShows.forEach(s => { theirMap[key(s)] = s; });
     return myShows
@@ -2931,8 +2904,7 @@ export function AppProvider({ children }) {
   // === SHOW SUGGESTIONS ===
 
   const normalizeShowKey = (show) => {
-    const norm = v => (v || '').trim().toLowerCase();
-    return show.setlistfmId || `${norm(show.artist)}|${norm(show.venue)}|${norm(show.date)}`;
+    return showMatchKey(show);
   };
 
   const buildSuggestionDocId = (uid1raw, uid2raw, showKey) => {
@@ -3569,17 +3541,20 @@ export function AppProvider({ children }) {
 
   const getVenueStats = (showList = shows) => {
     const venueMap = {};
+    // Grouped by the shared venue rule (lib/venueCount.js, B-04); shown
+    // under the first spelling seen.
     showList.forEach(show => {
-      const key = show.venue + (show.city ? `, ${show.city}` : '');
+      const key = venueCountKey(show);
+      if (!key) return;
       if (!venueMap[key]) {
-        venueMap[key] = { count: 0, artists: new Set() };
+        venueMap[key] = { name: show.venue + (show.city ? `, ${show.city}` : ''), count: 0, artists: new Set() };
       }
       venueMap[key].count++;
       venueMap[key].artists.add(show.artist);
     });
-    return Object.entries(venueMap)
-      .map(([name, data]) => ({
-        name,
+    return Object.values(venueMap)
+      .map((data) => ({
+        name: data.name,
         count: data.count,
         artists: data.artists.size,
       }))
@@ -3738,7 +3713,7 @@ export function AppProvider({ children }) {
       ? (ratedShows.reduce((a, s) => a + s.rating, 0) / ratedShows.length).toFixed(1)
       : null;
     const uniqueArtists = new Set(shows.map(s => s.artist)).size;
-    const uniqueVenues = new Set(shows.map(s => s.venue)).size;
+    const uniqueVenues = countVenues(shows);
     return { totalSongs: uniqueSongCount, avgRating, uniqueArtists, uniqueVenues };
   }, [shows]);
 
@@ -3793,8 +3768,6 @@ export function AppProvider({ children }) {
     setGuestMode,
     showGuestPrompt,
     setShowGuestPrompt,
-    showMigrationPrompt,
-    localShowsToMigrate,
     handleLogin,
     handleLogout,
     openAuthModal,
@@ -3803,8 +3776,6 @@ export function AppProvider({ children }) {
     handleAuthSuccess,
     enterGuestMode,
     exitGuestMode,
-    handleMigrateData,
-    handleSkipMigration,
 
     // Admin
     isAdmin,

@@ -192,11 +192,9 @@ async function ensureUser(auth, { email, password, displayName }) {
 
 async function writeProfile(db, uid, who, counts) {
   await db.doc(`userProfiles/${uid}`).set({
-    // NOTE: `odubleserId` is not a typo here — it is the field name the app
-    // actually writes and reads (context/AppContext.jsx, CommunityStatsView).
-    // It looks like a botched find/replace of `userId` in production code.
-    // Seeding the real field name keeps this account behaving like any other;
-    // fixing the misspelling is a separate change, and this line moves with it.
+    // Both names, as the app writes them since 5.59.10 (B-03): `userId`,
+    // and the misspelled `odubleserId` older builds wrote.
+    userId: uid,
     odubleserId: uid,
     // No address on a profile (5.59.7, S-01): every signed-in user can read
     // profiles, and the app keeps email in Firebase Auth only. Deleted, not

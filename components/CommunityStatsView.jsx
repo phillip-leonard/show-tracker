@@ -5,6 +5,10 @@ import { Star, Users, User, Building2, TrendingUp, Trophy, UserPlus } from 'luci
 import Tip from '@/components/ui/Tip';
 import { Card, SectionHeader, StatTile, SpinnerBlock } from '@/components/ui';
 
+// A leaderboard entry's user id: `userId` since 5.59.10, falling back to
+// the misspelled `odubleserId` that older communityStats docs carry (B-03).
+const entryUid = (entry) => entry?.userId || entry?.odubleserId;
+
 function CommunityStatsView({ communityStats, onAddFriend, currentUserUid, currentFriendUids }) {
   if (!communityStats) {
     return <SpinnerBlock label="Loading community stats..." />;
@@ -23,7 +27,7 @@ function CommunityStatsView({ communityStats, onAddFriend, currentUserUid, curre
           </div>
           <div className="space-y-3">
             {(communityStats.topShowsAttended || []).slice(0, 5).map((user, i) => (
-              <div key={user.odubleserId} className="flex items-center gap-3">
+              <div key={entryUid(user)} className="flex items-center gap-3">
                 <span className={`text-lg font-bold w-6 ${i === 0 ? 'text-brand' : i === 1 ? 'text-secondary' : i === 2 ? 'text-brand' : 'text-muted'}`}>
                   {i + 1}
                 </span>
@@ -31,10 +35,10 @@ function CommunityStatsView({ communityStats, onAddFriend, currentUserUid, curre
                   <User className="w-4 h-4 text-white" />
                 </div>
                 <span className="text-secondary flex-1">{user.firstName}</span>
-                {onAddFriend && user.odubleserId !== currentUserUid && !(currentFriendUids || []).includes(user.odubleserId) && (
+                {onAddFriend && entryUid(user) !== currentUserUid && !(currentFriendUids || []).includes(entryUid(user)) && (
                   <Tip text="Add friend">
                     <button
-                      onClick={() => onAddFriend(user.odubleserId, user.firstName, '')}
+                      onClick={() => onAddFriend(entryUid(user), user.firstName, '')}
                       className="px-2 py-1 bg-brand-subtle text-brand rounded-lg text-xs font-medium hover:bg-brand/30 transition-colors"
                     >
                       <UserPlus className="w-3 h-3 inline mr-1" />
@@ -60,7 +64,7 @@ function CommunityStatsView({ communityStats, onAddFriend, currentUserUid, curre
           </div>
           <div className="space-y-3">
             {(communityStats.topSongsRated || []).slice(0, 5).map((user, i) => (
-              <div key={user.odubleserId} className="flex items-center gap-3">
+              <div key={entryUid(user)} className="flex items-center gap-3">
                 <span className={`text-lg font-bold w-6 ${i === 0 ? 'text-amber' : i === 1 ? 'text-secondary' : i === 2 ? 'text-amber' : 'text-muted'}`}>
                   {i + 1}
                 </span>
@@ -68,10 +72,10 @@ function CommunityStatsView({ communityStats, onAddFriend, currentUserUid, curre
                   <User className="w-4 h-4 text-white" />
                 </div>
                 <span className="text-secondary flex-1">{user.firstName}</span>
-                {onAddFriend && user.odubleserId !== currentUserUid && !(currentFriendUids || []).includes(user.odubleserId) && (
+                {onAddFriend && entryUid(user) !== currentUserUid && !(currentFriendUids || []).includes(entryUid(user)) && (
                   <Tip text="Add friend">
                     <button
-                      onClick={() => onAddFriend(user.odubleserId, user.firstName, '')}
+                      onClick={() => onAddFriend(entryUid(user), user.firstName, '')}
                       className="px-2 py-1 bg-brand-subtle text-brand rounded-lg text-xs font-medium hover:bg-brand/30 transition-colors"
                     >
                       <UserPlus className="w-3 h-3 inline mr-1" />

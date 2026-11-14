@@ -17,6 +17,7 @@ import { Download, RefreshCw, AlertTriangle, MailX } from 'lucide-react';
 import { Card, Button, Input, Select, Tabs, Badge, Spinner, EmptyState, StatTile, SearchField } from '@/components/ui';
 import { auth } from '@/lib/firebase';
 import { apiUrl } from '@/lib/api';
+import { today as localToday } from '@/lib/showDate';
 
 const METHOD_LABELS = { link: 'Link', 'one-click': 'Gmail one-click', profile: 'Profile', legacy: 'Legacy' };
 const LEVEL_LABELS = { all: 'All emails', announcements: 'Announcements only' };
@@ -136,7 +137,7 @@ export default function UnsubscribesTab({ initialSource = '' }) {
     [data, level, method, source, from, to, search]);
 
   const exportCsv = () => {
-    const stamp = new Date().toISOString().slice(0, 10);
+    const stamp = localToday();
     if (view === 'current') {
       downloadCsv(`unsubscribes-current-${stamp}.csv`,
         ['email', 'name', 'handle', 'level', 'date', 'method', 'source'],

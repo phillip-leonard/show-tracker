@@ -9,6 +9,7 @@ import { useApp } from '@/context/AppContext';
 import SetlistEditor from '@/components/SetlistEditor';
 import Tip from '@/components/ui/Tip';
 import { formatDate, parseDate, artistColor, avgSongRating, parseCSV, parseImportDate, autoDetectMapping } from '@/lib/utils';
+import { today as localToday } from '@/lib/showDate';
 import { IMPORT_FIELDS } from '@/lib/constants';
 import { apiUrl } from '@/lib/api';
 import ModerationQueue from '@/components/admin/ModerationQueue';
@@ -20,6 +21,7 @@ import StatsTab from '@/components/admin/StatsTab';
 import ArchiveDryRunCard from '@/components/admin/ArchiveDryRunCard';
 import WelcomeEmailCard from '@/components/admin/WelcomeEmailCard';
 import FestivalSeedCard from '@/components/admin/FestivalSeedCard';
+import AppVersionsCard from '@/components/admin/AppVersionsCard';
 import FestivalLineupSeedCard from '@/components/admin/FestivalLineupSeedCard';
 import { buildUserRows } from '@/lib/adminUsers';
 import { sendNotification } from '@/lib/email';
@@ -1922,7 +1924,7 @@ function AdminView() {
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement('a');
                     a.href = url;
-                    a.download = `converted-users-${new Date().toISOString().slice(0, 10)}.csv`;
+                    a.download = `converted-users-${localToday()}.csv`;
                     a.click();
                     URL.revokeObjectURL(url);
                   }}
@@ -2121,7 +2123,7 @@ function AdminView() {
                   const url = URL.createObjectURL(blob);
                   const a = document.createElement('a');
                   a.href = url;
-                  a.download = `referral-data-${new Date().toISOString().split('T')[0]}.csv`;
+                  a.download = `referral-data-${localToday()}.csv`;
                   a.click();
                   URL.revokeObjectURL(url);
                 }}
@@ -2453,6 +2455,7 @@ function AdminView() {
       {/* Tools Tab */}
       {adminTab === 'tools' && (
         <div className="space-y-6">
+          <AppVersionsCard />
           <div className="bg-hover backdrop-blur-xl border border-subtle rounded-2xl p-6">
             <h3 className="text-lg font-semibold text-primary mb-1">Find Missing Setlists</h3>
             <p className="text-secondary text-sm mb-4">

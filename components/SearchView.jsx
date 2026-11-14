@@ -13,6 +13,7 @@ import {
 import { buildExistingShowIndex, existingShowStatus } from '@/lib/tourBrowse';
 import { showHref } from '@/lib/showRouting';
 import { SetlistfmCredit } from '@/components/shows/SetlistfmAttribution';
+import { formatDate, fromSetlistfmDate } from '@/lib/showDate';
 
 // The artist is optional: a venue or a city, with or without a year, is a
 // search of its own. That's what makes "every show at Red Rocks in 2024"
@@ -331,13 +332,7 @@ function SearchView({ onImport, onImportMany, bulkAddProgress, existingShows = [
     );
   };
 
-  const formatSetlistDate = (dateStr) => {
-    const parts = dateStr.split('-');
-    if (parts.length === 3) {
-      return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0])).toLocaleDateString();
-    }
-    return dateStr;
-  };
+  const formatSetlistDate = (dateStr) => formatDate(fromSetlistfmDate(dateStr) || dateStr);
 
   return (
     <div>

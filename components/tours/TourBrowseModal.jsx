@@ -44,6 +44,7 @@ import {
   existingShowStatus,
 } from '@/lib/tourBrowse';
 import { SetlistfmCredit } from '@/components/shows/SetlistfmAttribution';
+import { toIsoDate } from '@/lib/showDate';
 
 // Selecting more nights than this at once is worth a word of warning
 // before it turns into that many sequential writes and setlist fetches.
@@ -53,7 +54,7 @@ const BULK_WARN_THRESHOLD = 20;
 const GROUP_BY_MONTH_THRESHOLD = 12;
 
 function monthLabel(isoDate) {
-  const [y, m] = (isoDate || '').split('-');
+  const [y, m] = toIsoDate(isoDate).split('-');
   if (!y || !m) return 'Unknown date';
   return new Date(Number(y), Number(m) - 1, 1)
     .toLocaleDateString('en-US', { month: 'long', year: 'numeric' });

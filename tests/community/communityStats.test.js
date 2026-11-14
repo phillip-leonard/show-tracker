@@ -40,8 +40,12 @@ test('produces every field the app reads, in the old shape', () => {
     'topShowsAttended', 'topSongsByRating', 'topSongsBySightings', 'topSongsRated',
     'topVenues', 'topVenuesVisited', 'totalShows', 'totalSongs', 'totalUsers',
   ]);
-  assert.deepStrictEqual(s.topShowsAttended[0], { odubleserId: 'alice', firstName: 'Alice', photoURL: 'a.jpg', count: 3 });
+  assert.deepStrictEqual(s.topShowsAttended[0], { userId: 'alice', odubleserId: 'alice', firstName: 'Alice', photoURL: 'a.jpg', count: 3 });
   assert.deepStrictEqual(s.topSongsRated.map((u) => u.odubleserId), ['alice', 'bob']);
+  // Both names, same value, on every entry (B-03): old builds read odubleserId.
+  for (const list of [s.topShowsAttended, s.topSongsRated, s.topVenuesVisited]) {
+    for (const u of list) assert.strictEqual(u.userId, u.odubleserId);
+  }
   assert.deepStrictEqual(s.topVenuesVisited.map((u) => u.count), [2, 1]);
 });
 
@@ -121,6 +125,12 @@ test('rebuild reads users/{uid}/shows only and writes communityStats/global', as
   assert.strictEqual(path, 'communityStats/global');
   assert.strictEqual(data.updatedAt, 'TS');
   assert.deepStrictEqual(data.topVenues, [{ venueName: 'Red Rocks, Morrison', showCount: 2, artistCount: 1 }]);
+});
+
+test('CommunityStatsView reads userId first and falls back to odubleserId', () => {
+  const src = require('fs').readFileSync(require('path').join(__dirname, '../../components/CommunityStatsView.jsx'), 'utf8');
+  assert.ok(src.includes('const entryUid = (entry) => entry?.userId || entry?.odubleserId;'));
+  assert.ok(!/user\.odubleserId/.test(src), 'every read goes through entryUid');
 });
 
 run('community leaderboard rebuild');

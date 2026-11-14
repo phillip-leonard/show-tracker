@@ -58,3 +58,4 @@ e2e/.auth/
 # Firestore emulator debug log, written by `npm run test:rules`
 firestore-debug.log
 firebase-debug.log
+scripts/output/

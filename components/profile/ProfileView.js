@@ -16,6 +16,8 @@ import { forgetPushToken } from '@/lib/pushAlerts';
 import { appleTokenForDeletion, appleProviderUid } from '@/lib/appleRevocation';
 import TourInfoModal from '@/components/TourInfoModal';
 import FollowBandButton from '@/components/artists/FollowBandButton';
+import { compareShowDates, showYear, formatDate as formatShowDay } from '@/lib/showDate';
+import { countVenues } from '@/lib/venueCount';
 
 export default function ProfileView({ user, shows, userRank, onProfileUpdate, onViewShow, friends = [], favoriteArtists = [], onToggleFavoriteArtist }) {
   const [isEditing, setIsEditing] = useState(false);
@@ -100,7 +102,7 @@ export default function ProfileView({ user, shows, userRank, onProfileUpdate, on
     totalShows: shows.length,
     totalSongs: shows.reduce((acc, s) => acc + (s.setlist?.length || 0), 0),
     ratedSongs: shows.reduce((acc, s) => acc + (s.setlist?.filter(song => song.rating)?.length || 0), 0),
-    uniqueVenues: new Set(shows.map(s => s.venue)).size,
+    uniqueVenues: countVenues(shows),
     uniqueArtists: new Set(shows.map(s => s.artist)).size,
     avgShowRating: shows.filter(s => s.rating).length > 0
       ? (shows.filter(s => s.rating).reduce((a, s) => a + s.rating, 0) / shows.filter(s => s.rating).length).toFixed(1)
@@ -132,11 +134,7 @@ export default function ProfileView({ user, shows, userRank, onProfileUpdate, on
         }
       });
     });
-    comments.sort((a, b) => {
-      const dateA = a.date ? new Date(a.date) : new Date(0);
-      const dateB = b.date ? new Date(b.date) : new Date(0);
-      return dateB - dateA;
-    });
+    comments.sort((a, b) => compareShowDates(b.date, a.date));
     return comments;
   }, [shows]);
 
@@ -333,18 +331,13 @@ export default function ProfileView({ user, shows, userRank, onProfileUpdate, on
     return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
   };
 
-  const formatShowDate = (dateStr) => {
-    if (!dateStr) return '';
-    try {
-      return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-    } catch { return dateStr; }
-  };
+  const formatShowDate = (dateStr) => formatShowDay(dateStr, { month: 'short', day: 'numeric', year: 'numeric' });
 
   // Compute stats per favorite artist
   const favoriteArtistStats = useMemo(() => {
     return favoriteArtists.map(fav => {
       const artistShows = shows.filter(s => s.artist === fav.name);
-      const lastShow = artistShows.sort((a, b) => (b.date || '').localeCompare(a.date || ''))[0];
+      const lastShow = artistShows.sort((a, b) => compareShowDates(b.date, a.date))[0];
       return {
         ...fav,
         showCount: artistShows.length,
@@ -361,12 +354,12 @@ export default function ProfileView({ user, shows, userRank, onProfileUpdate, on
   // "preview as strangers would see it" is honest, not decorative. Notes,
   // photos, wishlists, and friend lists never enter this computation.
   const publicPreview = useMemo(() => {
-    const years = new Set(shows.map(s => (s.date || '').slice(0, 4)).filter(Boolean));
+    const years = new Set(shows.map(s => showYear(s.date)).filter(Boolean));
     const sorted = shows.slice().sort((a, b) => parseDate(b.date) - parseDate(a.date));
     return {
       showCount: shows.length,
       artistCount: new Set(shows.map(s => s.artist)).size,
-      venueCount: new Set(shows.map(s => s.venue)).size,
+      venueCount: countVenues(shows),
       yearsActive: years.size,
       recentShows: sorted.slice(0, 5),
     };

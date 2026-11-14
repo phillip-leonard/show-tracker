@@ -18,6 +18,7 @@ import { ListChecks, Check } from 'lucide-react';
 import { Modal, Button } from '@/components/ui';
 import { formatDate } from '@/lib/utils';
 import SetlistProposalDiff, { proposalChangeCount } from './SetlistProposalDiff';
+import { compareShowDates } from '@/lib/showDate';
 
 function outcomeText(outcome) {
   if (!outcome) return '';
@@ -45,7 +46,7 @@ export default function ArchiveProposalReview({ shows = [], onAccept, onDecline 
   if (!onAccept || !onDecline || (n === 0 && !open)) return null;
 
   const start = () => {
-    setReviewing([...shows].sort((a, b) => String(a.date).localeCompare(String(b.date))));
+    setReviewing([...shows].sort((a, b) => compareShowDates(a.date, b.date)));
     setOutcomes({});
     setConfirmAll(false);
     setOpen(true);
