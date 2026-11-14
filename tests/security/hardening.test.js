@@ -201,5 +201,60 @@ test('my-poster: 100 images and 20 shares a day per user, then 429 with CORS', a
   }
 });
 
+// ── create-shared-collection ──────────────────────────────────────────
+
+const sharedCall = (token, body = { ownerName: 'evil@example.com', shows: [{ artist: '<b>spam</b>' }] }) =>
+  require(path.join(FN, 'create-shared-collection.js')).handler({
+    httpMethod: 'POST',
+    headers: token ? { authorization: `Bearer ${token}` } : {},
+    body: JSON.stringify(body),
+  });
+function sharedSetup() {
+  const db = createFakeDb();
+  __setTestFirebase({ db, auth: createFakeAuth({ tokens: {
+    alice: { uid: 'aliceUid', email: 'alice.secret@example.com', email_verified: true, name: 'Alice' },
+    noname: { uid: 'bobUid', email: 'bob@example.com', email_verified: true },
+  } }) });
+  db._put('users/aliceUid/shows/1', { artist: 'Goose', venue: 'Red Rocks', city: 'Morrison', date: '2025-06-01', rating: 9, notes: 'private', setlist: [{ name: 'Arcadia', rating: 10, note: 'x' }] });
+  db._put('users/aliceUid/shows/2', { artist: 'Phish', venue: 'MSG', date: '2024-12-31' });
+  db._put('users/bobUid/shows/1', { artist: 'Goose', date: '2025-01-01' });
+  return db;
+}
+
+test('create-shared-collection: built from the caller\'s own shows; the body is ignored', async () => {
+  const db = sharedSetup();
+  const r = await sharedCall('alice');
+  assert.strictEqual(r.statusCode, 200);
+  const { id } = JSON.parse(r.body);
+  const doc = db._get(`sharedCollections/${id}`);
+  assert.strictEqual(doc.ownerUid, 'aliceUid');
+  assert.strictEqual(doc.ownerName, 'Alice');
+  assert.deepStrictEqual(doc.shows.map((s) => s.artist), ['Goose', 'Phish']);
+  assert.ok(!JSON.stringify(doc).includes('spam'), 'request content never stored');
+  assert.ok(!JSON.stringify(doc).includes('private') && !JSON.stringify(doc).includes('secret'), 'no notes, no email');
+  assert.deepStrictEqual(doc.shows[0].setlist, [{ name: 'Arcadia', rating: 10 }]);
+});
+
+test('create-shared-collection: no email-derived name; signed out is 401', async () => {
+  const db = sharedSetup();
+  const { id } = JSON.parse((await sharedCall('noname')).body);
+  assert.strictEqual(db._get(`sharedCollections/${id}`).ownerName, 'A Fan');
+  assert.strictEqual((await sharedCall(null)).statusCode, 401);
+});
+
+test('create-shared-collection: 5 a day and 50 in total per user, then 429', async () => {
+  const db = sharedSetup();
+  for (let i = 0; i < 5; i++) assert.strictEqual((await sharedCall('alice')).statusCode, 200);
+  const sixth = await sharedCall('alice');
+  assert.strictEqual(sixth.statusCode, 429);
+  assert.match(JSON.parse(sixth.body).error, /up to 5 times a day/);
+  const db2 = sharedSetup();
+  for (let i = 0; i < 50; i++) db2._put(`sharedCollections/old${i}`, { ownerUid: 'aliceUid' });
+  const r = await sharedCall('alice');
+  assert.strictEqual(r.statusCode, 429);
+  assert.match(JSON.parse(r.body).error, /up to 50 shared collections/);
+  void db;
+});
+
 module.exports = { run };
 if (require.main === module) run('Function hardening (5.59.12)');
