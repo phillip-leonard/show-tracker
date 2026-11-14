@@ -14,6 +14,7 @@ import FollowBandButton from '@/components/artists/FollowBandButton';
 import HeardToolCard from '@/components/heard/HeardToolCard';
 import MakePosterButton from '@/components/heard/MakePosterButton';
 import BandStatsLink from '@/components/bands/BandStatsLink';
+import { venueCountKey } from '@/lib/venueCount';
 
 function StatsView({ shows, allShows = shows, songStats, artistStats, venueStats, topRatedShows, onRateSong, onRateShow, onCommentShow, onUpdateVenueRating, onDeleteShow, onAddSong, onReorderSetlist, onResyncSetlist, onProposeSetlist, onApplySetlist, onDeleteSong, onRestoreSong, initialTab, onTagFriends, onRateVenue, onToggleFavoriteArtist, isArtistFavorite, fetchVenueRatings, normalizeVenueKey, computeVenueAggregate, friends, user }) {
   const [tab, setTab] = useState(initialTab || 'years');
@@ -88,11 +89,15 @@ function StatsView({ shows, allShows = shows, songStats, artistStats, venueStats
   // Venue details: grouped by venue -> year -> shows
   const venueDetails = useMemo(() => {
     const details = {};
+    // Grouped by the shared venue rule (lib/venueCount.js, B-04), under
+    // the first spelling seen.
     shows.forEach(show => {
-      const venueName = show.venue + (show.city ? `, ${show.city}` : '');
-      if (!details[venueName]) {
-        details[venueName] = { years: {}, artistSet: new Set(), sampleShow: show };
+      const groupKey = venueCountKey(show);
+      if (!groupKey) return;
+      if (!details[groupKey]) {
+        details[groupKey] = { name: show.venue + (show.city ? `, ${show.city}` : ''), years: {}, artistSet: new Set(), sampleShow: show };
       }
+      const venueName = groupKey;
       const year = parseDate(show.date).getFullYear();
       if (!details[venueName].years[year]) {
         details[venueName].years[year] = [];
@@ -101,9 +106,9 @@ function StatsView({ shows, allShows = shows, songStats, artistStats, venueStats
       details[venueName].artistSet.add(show.artist);
     });
     // Convert to sorted array
-    return Object.entries(details)
-      .map(([name, data]) => ({
-        name,
+    return Object.values(details)
+      .map((data) => ({
+        name: data.name,
         venueKey: normalizeVenueKey ? normalizeVenueKey(data.sampleShow.venue, data.sampleShow.city) : name.toLowerCase(),
         sampleShow: data.sampleShow,
         showCount: Object.values(data.years).flat().length,

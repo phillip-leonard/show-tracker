@@ -12,6 +12,7 @@ import ShowFilters from '@/components/shows/ShowFilters';
 import useShowFilters from '@/hooks/useShowFilters';
 import { SetlistfmCreditFor } from '@/components/shows/SetlistfmAttribution';
 import RecapStatsCard from '@/components/yearInReview/RecapStatsCard';
+import { countVenues } from '@/lib/venueCount';
 
 export default function StatsPage() {
   const {
@@ -57,7 +58,7 @@ export default function StatsPage() {
   [periodShows]);
 
   const uniqueVenues = useMemo(() =>
-    new Set(periodShows.map(s => s.venue)).size,
+    countVenues(periodShows),
   [periodShows]);
 
   return (

@@ -17,6 +17,7 @@ import { appleTokenForDeletion, appleProviderUid } from '@/lib/appleRevocation';
 import TourInfoModal from '@/components/TourInfoModal';
 import FollowBandButton from '@/components/artists/FollowBandButton';
 import { compareShowDates, showYear, formatDate as formatShowDay } from '@/lib/showDate';
+import { countVenues } from '@/lib/venueCount';
 
 export default function ProfileView({ user, shows, userRank, onProfileUpdate, onViewShow, friends = [], favoriteArtists = [], onToggleFavoriteArtist }) {
   const [isEditing, setIsEditing] = useState(false);
@@ -101,7 +102,7 @@ export default function ProfileView({ user, shows, userRank, onProfileUpdate, on
     totalShows: shows.length,
     totalSongs: shows.reduce((acc, s) => acc + (s.setlist?.length || 0), 0),
     ratedSongs: shows.reduce((acc, s) => acc + (s.setlist?.filter(song => song.rating)?.length || 0), 0),
-    uniqueVenues: new Set(shows.map(s => s.venue)).size,
+    uniqueVenues: countVenues(shows),
     uniqueArtists: new Set(shows.map(s => s.artist)).size,
     avgShowRating: shows.filter(s => s.rating).length > 0
       ? (shows.filter(s => s.rating).reduce((a, s) => a + s.rating, 0) / shows.filter(s => s.rating).length).toFixed(1)
@@ -358,7 +359,7 @@ export default function ProfileView({ user, shows, userRank, onProfileUpdate, on
     return {
       showCount: shows.length,
       artistCount: new Set(shows.map(s => s.artist)).size,
-      venueCount: new Set(shows.map(s => s.venue)).size,
+      venueCount: countVenues(shows),
       yearsActive: years.size,
       recentShows: sorted.slice(0, 5),
     };

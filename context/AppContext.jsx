@@ -54,6 +54,7 @@ import { sweepExpiredSetlistfmCaches } from '@/lib/setlistfmLocalCache';
 import { signInLeavesRoute } from '@/lib/deepLinks';
 import { toIsoDate, showYear, utcIsoDate } from '@/lib/showDate';
 import { mintShowId, buildShowDoc } from '@/lib/showDoc';
+import { countVenues, venueCountKey } from '@/lib/venueCount';
 import { findDuplicate, showMatchKey, setlistIsOnShowDate } from '@/lib/showIdentity';
 
 // Gap between writes in a bulk tour add. Enough to keep a 40-night
@@ -3549,17 +3550,20 @@ export function AppProvider({ children }) {
 
   const getVenueStats = (showList = shows) => {
     const venueMap = {};
+    // Grouped by the shared venue rule (lib/venueCount.js, B-04); shown
+    // under the first spelling seen.
     showList.forEach(show => {
-      const key = show.venue + (show.city ? `, ${show.city}` : '');
+      const key = venueCountKey(show);
+      if (!key) return;
       if (!venueMap[key]) {
-        venueMap[key] = { count: 0, artists: new Set() };
+        venueMap[key] = { name: show.venue + (show.city ? `, ${show.city}` : ''), count: 0, artists: new Set() };
       }
       venueMap[key].count++;
       venueMap[key].artists.add(show.artist);
     });
-    return Object.entries(venueMap)
-      .map(([name, data]) => ({
-        name,
+    return Object.values(venueMap)
+      .map((data) => ({
+        name: data.name,
         count: data.count,
         artists: data.artists.size,
       }))
@@ -3718,7 +3722,7 @@ export function AppProvider({ children }) {
       ? (ratedShows.reduce((a, s) => a + s.rating, 0) / ratedShows.length).toFixed(1)
       : null;
     const uniqueArtists = new Set(shows.map(s => s.artist)).size;
-    const uniqueVenues = new Set(shows.map(s => s.venue)).size;
+    const uniqueVenues = countVenues(shows);
     return { totalSongs: uniqueSongCount, avgRating, uniqueArtists, uniqueVenues };
   }, [shows]);
 

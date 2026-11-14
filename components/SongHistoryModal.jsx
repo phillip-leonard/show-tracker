@@ -9,6 +9,7 @@ import useSheetDrag from '@/hooks/useSheetDrag';
 import useIsMobile from '@/hooks/useIsMobile';
 import { SetlistfmCreditFor } from '@/components/shows/SetlistfmAttribution';
 import { compareShowDates } from '@/lib/showDate';
+import { countVenues } from '@/lib/venueCount';
 
 function SongHistoryModal({ songName, artistName, allShows, onClose, onViewShow }) {
   useDismissable(true, onClose, { id: 'song-history' });
@@ -51,7 +52,7 @@ function SongHistoryModal({ songName, artistName, allShows, onClose, onViewShow 
     const avgRating = rated.length > 0
       ? (rated.reduce((sum, p) => sum + p.rating, 0) / rated.length).toFixed(1)
       : null;
-    const uniqueVenues = new Set(performances.map(p => `${p.venue}${p.city ? `, ${p.city}` : ''}`)).size;
+    const uniqueVenues = countVenues(performances);
     const best = rated.length > 0
       ? rated.reduce((best, p) => p.rating > best.rating ? p : best, rated[0])
       : null;

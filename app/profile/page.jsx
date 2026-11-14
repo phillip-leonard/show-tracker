@@ -11,6 +11,7 @@ import { SectionHeader, Card, Button } from '@/components/ui';
 import { formatDate } from '@/lib/utils';
 import { showHref } from '@/lib/showRouting';
 import { compareShowDates } from '@/lib/showDate';
+import { countVenues } from '@/lib/venueCount';
 
 export default function ProfilePage() {
   const {
@@ -26,7 +27,7 @@ export default function ProfilePage() {
   const stats = {
     shows: shows.length,
     artists: new Set(shows.map(s => s.artist)).size,
-    venues: new Set(shows.map(s => s.venue)).size,
+    venues: countVenues(shows),
     friends: friends.length,
   };
 
