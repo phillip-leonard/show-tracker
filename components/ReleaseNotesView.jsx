@@ -13,6 +13,18 @@ const STREAMING_MENTION = /spotify|apple\s*music/i;
 function ReleaseNotesView() {
   const releases = [
     {
+      version: '5.59.10',
+      date: 'November 13, 2026',
+      title: 'Keep Your Shows',
+      changes: [
+        'Trying the app without an account? Sign up and the shows you logged move into your account automatically',
+        'New shows default to today’s date, even late in the evening',
+        'Venue counts now match across My Shows, Profile, Stats and Year in Review',
+        'Shows added from a festival lineup are now recognized as the same show you added another way',
+        'Fixed: older shows with dates in a different format were missed when finding setlists and matching shows with friends',
+      ]
+    },
+    {
       version: '5.59.9',
       date: 'November 13, 2026',
       title: 'Cleaner Account Deletion',

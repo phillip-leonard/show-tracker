@@ -46,6 +46,13 @@ The public band pages (`/artist/...`) read a snapshot from Netlify Blobs, writte
 
 Deploy previews always carry `X-Robots-Tag: noindex` (Netlify adds it). Lighthouse's `is-crawlable` and the Rich Results Test's "Indexing allowed?" fail there for that reason alone.
 
+## Show data rules (5.59.10)
+
+- **Show dates go through `lib/showDate.js`.** Stored as ISO `YYYY-MM-DD`; readers accept the legacy `DD-MM-YYYY`. No `.slice(0, 4)`, `.split('-')`, `new Date(show.date)` or `toISOString().slice(0, 10)` on a show date or for "today" (`today()` is the device's local day). `lib/__tests__/localToday.test.js` fails if the UTC idiom comes back.
+- **A show document is made only by `buildShowDoc` with `mintShowId`** (`lib/showDoc.js`), and "the same show" is decided only by `lib/showIdentity.js`.
+- **A venue count uses `countVenues`** (`lib/venueCount.js`), except the leaderboard's `userProfiles.venueCount`, which the server-side stats PR replaces.
+- **Guest shows leave the device only after their Firestore write is confirmed** (`lib/guestMerge.js`).
+
 ## Security invariants (5.59.6 to 5.59.8)
 
 These closed real holes. `tests/rules/security.rules.test.js` and `tests/security/*.test.js` cover them; don't loosen them to make a feature easier.

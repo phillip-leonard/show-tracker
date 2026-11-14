@@ -4,6 +4,51 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.59.10] — 2026-11-13
+
+Ships in iOS 3.13.10 (`MARKETING_VERSION` 3.13.9 → 3.13.10).
+
+**Data correctness before the Swift app.** One commit per part; each can
+be reverted on its own. Every part is compatible with iOS 3.13.7 and
+later (details in the PR).
+
+- **One canonical show date (B-06 to B-09).** `lib/showDate.js` holds
+  every date rule: reading any stored format (ISO, `DD-MM-YYYY`,
+  unpadded, with a time, Date, Timestamp), formatting, comparing, the
+  year, the local "today", and the parser for typed dates. New writes are
+  ISO only. The setlist scan (B-06), the duplicate check (B-07) and Shows
+  Together (B-08) compare calendar days (`lib/showIdentity.js`). B-09:
+  the admin import's `new Date(s)` fallback saved the day before anywhere
+  east of UTC. `scripts/normalize-show-dates.js` rewrites stored dates
+  (dry run by default, `--apply`); ambiguous dates are checked against
+  setlist.fm, never guessed.
+- **Local "today" (B-02).** New shows default to today on the device, not
+  the UTC date (tomorrow, on a US evening). Bucket list, search, a song's
+  current gap and the importer use the local day too.
+- **Festival imports use the shared builder (B-13).** `mintShowId` and
+  `buildShowDoc` move to `lib/showDoc.js`; the festival import builds
+  shows through them, with the band-source setlist, like every other add.
+  No existing document needed re-keying (0 `isManual` mismatches).
+- **`odubleserId` → `userId` (B-03),** backward compatible: profiles and
+  `communityStats` carry both; the leaderboard view prefers `userId`.
+- **One venue-count definition (B-04).** `lib/venueCount.js`: distinct
+  name + city, trimmed, lowercased, whitespace collapsed. Used by every
+  screen and the public profile page; the leaderboard's own count waits
+  for the server-side stats PR (B-05).
+- **Guest rescue.** Guest shows move into the account automatically on
+  sign-up or sign-in, through the normal builder, skipping duplicates;
+  nothing is removed from the device until its write is confirmed, and a
+  failed write is retried next launch. The old import dialog, whose Skip
+  deleted the shows, is gone. A non-blocking banner asks guests with
+  shows to create an account (snoozed 7 days when dismissed).
+- **Minimum supported iOS version.** `config/app` (admin-only writes,
+  readable by all) with `minSupportedIosVersion` / `latestIosVersion`,
+  set from Admin → Tools → App versions. iOS 3.13.10+ shows an update
+  banner below the latest and a blocking update screen below the minimum,
+  with Profile (account deletion) always reachable. No-op on the web.
+
+---
+
 ## [5.59.9] — 2026-11-13
 
 Ships in iOS 3.13.9 (`MARKETING_VERSION` 3.13.8 → 3.13.9). Submit 3.13.9
