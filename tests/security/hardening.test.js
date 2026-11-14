@@ -256,5 +256,35 @@ test('create-shared-collection: 5 a day and 50 in total per user, then 429', asy
   void db;
 });
 
+// ── Spotify ───────────────────────────────────────────────────────────
+
+for (const fn of ['spotify-token.js', 'spotify-api.js']) {
+  test(`${fn}: signed out or forged token is 401; signed in reaches the function`, async () => {
+    process.env.SPOTIFY_CLIENT_ID = process.env.SPOTIFY_CLIENT_ID || 'test-client';
+    sharedSetup();
+    const call = (token) => require(path.join(FN, fn)).handler({
+      httpMethod: 'POST',
+      headers: token ? { authorization: `Bearer ${token}` } : {},
+      body: JSON.stringify({ action: 'nope' }),
+    });
+    for (const token of [null, 'forged']) {
+      const r = await call(token);
+      assert.strictEqual(r.statusCode, 401, String(token));
+      assert.strictEqual(JSON.parse(r.body).code, 'auth_required');
+    }
+    // Past sign-in: refused for the request itself (bad action, or no
+    // Spotify token), never for sign-in.
+    const signedIn = await call('alice');
+    assert.notStrictEqual(JSON.parse(signedIn.body).code, 'auth_required');
+    assert.ok([400, 401].includes(signedIn.statusCode));
+  });
+}
+
+test('lib/spotify.js sends the Firebase token on every call', () => {
+  const src = fs.readFileSync(path.join(__dirname, '../../lib/spotify.js'), 'utf8');
+  assert.ok(!/fetch\(apiUrl\(/.test(src));
+  assert.strictEqual((src.match(/authedFetch\('\/\.netlify\/functions\/spotify-(token|api)'/g) || []).length, 3);
+});
+
 module.exports = { run };
 if (require.main === module) run('Function hardening (5.59.12)');

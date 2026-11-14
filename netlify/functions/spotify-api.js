@@ -1,4 +1,5 @@
 const { withCors } = require('./lib/cors');
+const { requireUser } = require('./lib/requestAuth');
 const https = require('https');
 
 const CORS_HEADERS = {
@@ -74,6 +75,13 @@ exports.handler = async function (event) {
       body: JSON.stringify({ error: 'Method not allowed' }),
     };
   }
+
+  // Signed-in users only (5.59.12, #398 follow-ups). Playlist creation is
+  // switched off (PLAYLIST_CREATION_ENABLED in lib/constants.js), so no
+  // shipped build calls this; lib/spotify.js sends the token through
+  // authedFetch for when it is switched on.
+  const user = await requireUser(event, CORS_HEADERS);
+  if (user.response) return user.response;
 
   let parsed;
   try {
