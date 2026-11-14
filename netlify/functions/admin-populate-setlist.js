@@ -23,6 +23,8 @@ const { setlistfmKey, missingSetlistfmKey } = require('./lib/setlistfmKey');
 
 // The one admin check: custom claim or verified allowlisted address (5.59.12).
 const { isAdmin } = require('./lib/firebaseAdmin');
+// The "never lose ratings" check every setlist write runs (5.60.3).
+const { userNoteCounts, lostNotes, withoutUserNotes } = require('../../lib/setlistNotes');
 const CORS_HEADERS = {
   'Content-Type': 'application/json',
   'Access-Control-Allow-Headers': 'Authorization, Content-Type',
@@ -113,6 +115,35 @@ function extractSongs(match) {
   return songs;
 }
 
+// Why a populate must not write over this show, as a 409 response, or null.
+//
+//   - a setlist the user made by hand (`isManual`), as before 5.60.3
+//   - any setlist whose songs carry the user's ratings or comments, which a
+//     replacement would lose (5.60.3). Until then a setlist.fm show with
+//     rated songs (isManual: false) was simply overwritten.
+function refuseOverwrite(show, incoming = []) {
+  const existing = Array.isArray(show && show.setlist) ? show.setlist : [];
+  if (existing.length > 0 && show.isManual) {
+    return {
+      statusCode: 409,
+      headers: CORS_HEADERS,
+      body: JSON.stringify({ error: 'Show already has a user-created setlist. Skipping to preserve user data.', reason: 'manual-setlist' }),
+    };
+  }
+  if (lostNotes(existing, incoming)) {
+    return {
+      statusCode: 409,
+      headers: CORS_HEADERS,
+      body: JSON.stringify({
+        error: 'The show\u2019s setlist has the user\u2019s song ratings or comments. Replacing it would lose them, so nothing was written.',
+        reason: 'would-lose-notes',
+        before: userNoteCounts(existing),
+      }),
+    };
+  }
+  return null;
+}
+
 exports.handler = async function (event) {
   const missingKey = missingSetlistfmKey();
   if (missingKey) return missingKey;
@@ -155,14 +186,11 @@ exports.handler = async function (event) {
 
     const existingShow = showSnap.data();
 
-    // Don't overwrite user-created/modified setlists
-    if (existingShow.setlist && existingShow.setlist.length > 0 && existingShow.isManual) {
-      return {
-        statusCode: 409,
-        headers: CORS_HEADERS,
-        body: JSON.stringify({ error: 'Show already has a user-created setlist. Skipping to preserve user data.' }),
-      };
-    }
+    // Don't overwrite what the user wrote. Checked here, before any
+    // setlist.fm request is spent, and again inside the transaction below
+    // against the show as it is at write time.
+    const refusal = refuseOverwrite(existingShow);
+    if (refusal) return refusal;
 
     let songs = [];
     let setlistfmId = null;
@@ -241,9 +269,11 @@ exports.handler = async function (event) {
       return { statusCode: 404, headers: CORS_HEADERS, body: JSON.stringify({ error: 'Matched show has an empty setlist' }) };
     }
 
-    // Populate the show
+    // Populate the show. The songs never carry ratings or comments: a
+    // cross-reference copies another user's show, and those notes are
+    // theirs (until 5.60.3 they were copied along with the songs).
     const updates = {
-      setlist: songs,
+      setlist: songs.map(withoutUserNotes),
       isManual: false,
       populatedAt: new Date().toISOString(),
       populatedFrom,
@@ -252,7 +282,20 @@ exports.handler = async function (event) {
     if (setlistfmUrl) updates.setlistfmUrl = setlistfmUrl;
     if (tour) updates.tour = tour;
 
-    await showRef.update(updates);
+    // Read, check and write in one transaction, so a rating the user adds
+    // while the setlist.fm search runs is seen rather than overwritten.
+    const blocked = await db.runTransaction(async (tx) => {
+      const snap = await tx.get(showRef);
+      if (!snap.exists) {
+        return { statusCode: 404, headers: CORS_HEADERS, body: JSON.stringify({ error: 'Show not found' }) };
+      }
+      const current = snap.data();
+      const refused = refuseOverwrite(current, updates.setlist);
+      if (refused) return refused;
+      tx.update(showRef, updates);
+      return null;
+    });
+    if (blocked) return blocked;
 
     return {
       statusCode: 200,

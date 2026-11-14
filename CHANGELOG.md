@@ -4,6 +4,42 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.60.3] — 2026-11-14
+
+Ships in **iOS 3.13.19** (`MARKETING_VERSION` 3.13.18 → 3.13.19). Server
+and script changes only; nothing in the app changes, so no new iOS build
+is needed for this one.
+
+**Hotfix from the pre-native server-moves audit**
+(`docs/ios-native/SERVER-MOVES-AUDIT.md`, added here).
+
+- **No admin email on show documents.** `admin-bulk-import` stamped every
+  show it wrote with `importedByAdmin: <the admin's email>`, and show
+  documents are readable by the owner's friends. It now writes
+  `importedByAdmin: true`; who ran the import stays in `adminAuditLog`
+  (`performedByUid`). `scripts/scrub-show-admin-emails.js` replaces the
+  stored copies (dry run by default, `--apply`, idempotent, counts only).
+  Production before the fix: 49 of 1,498 show documents, and no other
+  show field holds an address.
+- **The ratings guard in `admin-populate-setlist`.** It refused only a
+  hand-made (`isManual`) setlist, so a setlist.fm show with rated or
+  commented songs could be overwritten. It now runs the shared guard
+  (`lib/setlistNotes.js`) before spending a setlist.fm request and again
+  inside a transaction at write time, and returns 409 `would-lose-notes`
+  with the counts. A cross-reference no longer copies the donor's ratings
+  and comments along with the songs.
+  Production: no show has ever been written by a populate (no show
+  carries `populatedAt`), so nothing was overwritten and nothing needs
+  restoring.
+- **One definition of the guard.** `userNoteCounts` and `lostNotes` move
+  to `lib/setlistNotes.js` (CommonJS, shared by the app and the
+  functions). `lib/bandSetlist.js` re-exports `userNoteCounts`;
+  `admin-resync-setlists.js` drops its private copies.
+- `tests/security/adminShowWrites.test.js` covers both functions and the
+  scrub plan.
+
+---
+
 ## [5.60.2] — 2026-11-14
 
 Ships in **iOS 3.13.18** (`MARKETING_VERSION` 3.13.17 → 3.13.18).

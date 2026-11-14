@@ -406,21 +406,9 @@ function isSourceOnly(summary, picked) {
     && summary.movedSet.length === 0 && summary.movedPosition.length === 0;
 }
 
-function noteCounts(setlist) {
-  const songs = Array.isArray(setlist) ? setlist : [];
-  return {
-    rated: songs.filter((x) => x && x.rating != null).length,
-    commented: songs.filter((x) => x && (typeof x.comment === 'string' ? x.comment.trim() !== '' : x.comment != null)).length,
-  };
-}
-
 // The stats check, server-side: the same rule as
-// AppContext.applySetlistProposal.
-function lostNotes(before, after) {
-  const a = noteCounts(before);
-  const b = noteCounts(after);
-  return b.rated < a.rated || b.commented < a.commented;
-}
+// AppContext.applySetlistProposal, from the one shared definition.
+const { lostNotes } = require('../../lib/setlistNotes');
 
 function sourceOnlyFields(show, setlist, picked, nowIso) {
   return {
