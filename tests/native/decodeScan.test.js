@@ -35,8 +35,9 @@ test('every stored show in fixtures/year-in-review passes', () => {
     const fx = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8'));
     for (const s of fx.shows) assert.deepStrictEqual(checkDocument(SCHEMAS.shows, s).failures, [], f);
     if (fx.expected.yearInReview) {
-      const r = checkDocument(SCHEMAS.yearInReviews, { userId: 'u', year: fx.year, stats: fx.expected.yearInReview });
-      assert.deepStrictEqual(r.failures, [], `${f} yearInReview`);
+      const r = checkDocument(SCHEMAS.yearInReviews, { userId: 'u', year: fx.year, stats: fx.expected.yearInReview, recap: fx.expected.recap });
+      assert.deepStrictEqual(r.failures, [], `${f} yearInReview and recap`);
+      assert.deepStrictEqual(r.unknown, [], `${f} nothing unread`);
     }
   }
 });

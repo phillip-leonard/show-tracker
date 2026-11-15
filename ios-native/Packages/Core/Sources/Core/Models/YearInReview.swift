@@ -10,12 +10,16 @@ public struct YearInReviewDocument: Decodable, Hashable, Sendable {
     public var privacy: String?
     /// `nil` when the year has no shows.
     public var stats: YearInReviewStats?
+    /// The 2026 recap for this year, written by the server next to `stats`
+    /// (5.60.16). `nil` for a year with no shows, and until the server has
+    /// filled in a document from before 5.60.16 (`recompute-my-stats`).
+    public var recap: YearRecap?
     public var generatedDate: Date?
     public var statsComputedAt: Date?
 
     public var isPublic: Bool { privacy == "public" }
 
-    enum CodingKeys: String, CodingKey { case userId, year, privacy, stats, generatedDate, statsComputedAt }
+    enum CodingKeys: String, CodingKey { case userId, year, privacy, stats, recap, generatedDate, statsComputedAt }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -23,6 +27,7 @@ public struct YearInReviewDocument: Decodable, Hashable, Sendable {
         year = try c.decode(Int.self, forKey: .year)
         privacy = try c.optionalText(.privacy)
         stats = try c.decodeIfPresent(YearInReviewStats.self, forKey: .stats)
+        recap = try c.decodeIfPresent(YearRecap.self, forKey: .recap)
         generatedDate = try c.moment(.generatedDate)
         statsComputedAt = try c.moment(.statsComputedAt)
     }
@@ -60,9 +65,10 @@ public struct YearInReviewStats: Codable, Hashable, Sendable {
 }
 
 /// `computeYearRecap(shows, year)` (lib/yearRecap.js): fixtures/year-in-review
-/// `expected.recap`. **No server function serves this yet**: the web
-/// computes it in the browser. The native app needs it from the server
-/// (flagged in Part 4), never from a Swift port of the calculator.
+/// `expected.recap`. The server writes it as `yearInReviews/{uid}_{year}.recap`
+/// (5.60.16); the app reads that, never a Swift port of the calculator. To
+/// get one for a year, make sure the document exists (the same merge write
+/// the web's privacy toggle makes), then call `recompute-my-stats`.
 public struct YearRecap: Codable, Hashable, Sendable {
     public var year: Int
     public var totalShows: Int

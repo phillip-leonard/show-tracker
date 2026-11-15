@@ -21,3 +21,13 @@ public struct AppInfo: Sendable, Equatable {
 
     public static var current: AppInfo { AppInfo(bundle: .main) }
 }
+
+/// Where the process is running.
+public enum AppEnvironment {
+    /// The app is the host of an XCTest bundle (MySetlistsTests): it must
+    /// not start Firebase or a session itself, so a test can configure
+    /// Firebase (the Auth emulator) before anything uses it.
+    public static var isHostingTests: Bool {
+        ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+    }
+}

@@ -180,8 +180,25 @@ const SCHEMAS = {
         achievements: list({ title: R.string, description: R.string }),
         shareableQuote: R.string,
       }),
+      // The 2026 recap (5.60.16), YearRecap in Swift: every field required.
+      recap: obj({
+        year: R.intRequired, totalShows: R.intRequired, totalBands: R.intRequired, totalVenues: R.intRequired,
+        totalCities: R.intRequired, songsHeard: R.intRequired, newBands: R.intRequired,
+        newBandNames: R.stringListRequired, newVenues: R.intRequired,
+        topBands: list({ name: R.string, shows: R.intRequired }),
+        topSongs: list({ name: R.string, artist: R.string, count: R.intRequired }),
+        noSetlist: list({ id: R.string, artist: R.string, venue: R.string, city: R.string, date: R.string }),
+        showsWithSetlist: R.intRequired,
+        highlights: obj({
+          firstShow: obj({ id: R.string, artist: R.string, venue: R.string, city: R.string, date: R.string }, { required: true }),
+          latestShow: obj({ id: R.string, artist: R.string, venue: R.string, city: R.string, date: R.string }, { required: true }),
+          busiestMonth: obj({ month: R.intRequired, name: R.string, shows: R.intRequired }, { required: true }),
+          longestRun: obj({ key: R.string, artist: R.string, venue: R.string, city: R.string, nights: R.intRequired, start: R.string, end: R.string }),
+        }, { required: true }),
+        updatedThrough: R.string,
+      }),
     },
-    requiredLists: { 'stats.topRatedShows': true, 'stats.achievements': true },
+    requiredLists: { 'stats.topRatedShows': true, 'stats.achievements': true, 'recap.topBands': true, 'recap.topSongs': true, 'recap.noSetlist': true },
   },
   config: {
     fields: { minSupportedIosVersion: R.text, latestIosVersion: R.text, reason: R.text, iosPushOfferEnabled: R.flag, updatedAt: R.moment },

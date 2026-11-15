@@ -112,7 +112,8 @@ export default function PrivacyPolicy() {
               <h2 className="text-xl font-semibold text-primary mb-4">Your Rights and Choices</h2>
               <ul className="list-disc list-inside space-y-2 ml-2">
                 <li><strong className="text-primary">Access and Update:</strong> You can access and update your account information at any time by logging into your account.</li>
-                <li><strong className="text-primary">Delete Your Account:</strong> You may request deletion of your account and associated data by contacting us at the email address below.</li>
+                <li><strong className="text-primary">Get a Copy of Your Data:</strong> You can request a copy of your data by emailing <a href="mailto:support@mysetlists.net" className="text-brand hover:text-brand underline">support@mysetlists.net</a>.</li>
+                <li><strong className="text-primary">Delete Your Account:</strong> You can delete your account and all your data at any time from Profile → Delete My Account in the app or on the website. You can also email <a href="mailto:support@mysetlists.net" className="text-brand hover:text-brand underline">support@mysetlists.net</a>.</li>
                 <li><strong className="text-primary">Opt Out of Communications:</strong> You may opt out of non-essential communications at any time.</li>
               </ul>
 
