@@ -4,6 +4,58 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.60.15] — 2026-11-15
+
+Ships in **iOS 3.13.31** (Capacitor, `MARKETING_VERSION` 3.13.30 → 3.13.31)
+and **native 4.0.1** (4.0.0 → 4.0.1). Nothing changes for users of the web
+or Capacitor apps.
+
+**Native app Part 4: the models and the contract with the server.**
+
+- **Core models** (`ios-native/Packages/Core/Sources/Core/Models`):
+  - `Show` and `Song`, `UpcomingShow`, `UserProfile`, `UserStats`,
+    `PublicUserStats`, `CommunityStats`, `YearInReviewDocument` and its
+    stats, `YearRecap`, `AppConfig`, `ShowTag`, `PendingEmailTag`,
+    `ShowSuggestion`, `FriendEdge`.
+  - Read-only: `Show` isn't `Encodable`, because the app never writes a
+    whole show.
+  - Tolerant only where production needs it, each case documented:
+    - a stored `id` field (no `@DocumentID`)
+    - `createdAt` as a Timestamp or an ISO string
+    - `null`, `""` and absent meaning the same
+    - songs without `set`, and `setBreak`
+    - followed bands as objects or plain names
+    - `avgShowRating` and the leaderboard's `avgRating` as a number or a
+      numeric string
+    - the old `odubleserId` key
+
+    A wrong type is an error, not a silent default.
+- **`ShowDate`**: `lib/showDate.js`'s readers ported to Swift (the app
+  never writes a show date). The new shared golden table
+  `fixtures/dates/show-dates.json` (65 rows) runs against both:
+  `lib/__tests__/showDateGolden.test.js` and `ShowDateGoldenTests`.
+- **Contract tests** (Swift Testing, 29 in CoreTests):
+  - Every `fixtures/shows` document decodes, every field it carries is one
+    the model knows, and every value survives the round trip. Their
+    stored context documents (existing shows, tags, upcoming shows)
+    decode too.
+  - Every `fixtures/year-in-review` case's Year in Review and recap
+    re-encodes to the same JSON.
+  - One test for each production variant, decoded through
+    `Firestore.Decoder` with real Timestamps.
+  - CoreTests bundles the repo's `fixtures/` folder through a symlink, so
+    there's one copy.
+- **`scripts/scan-show-decode.js`** (read-only, counts only): checks every
+  production document against the models' decoding rules.
+  `tests/native/decodeScan.test.js` checks the checker. On 2026-11-15:
+  **0 of 1,749 documents would fail**, across 12 collections (1,501
+  shows, 128 tags, 45 profiles, …).
+- **Flagged, not built:** no server function serves the 2026 recap
+  (`computeYearRecap` runs only in the browser). `YearRecap` decodes it, but
+  the native app needs it from the server before it can show it.
+
+---
+
 ## [5.60.14] — 2026-11-15
 
 Ships in **iOS 3.13.30** (Capacitor, `MARKETING_VERSION` 3.13.29 → 3.13.30)

@@ -30,7 +30,7 @@ Apple: "a bundle ID always matches exactly one Xcode Cloud product". The native 
 
 | Setting | Value |
 |---|---|
-| Start condition | Branch Changes → `main`. Files and Folders → Custom Conditions → **Start a Build** when files change in `ios-native/`. Also Manual Start. |
+| Start condition | Branch Changes → `main`. Files and Folders → Custom Conditions → **Start a Build** when files change in `ios-native/` **or `fixtures/`** (the Swift contract tests read the shared fixtures). Also Manual Start. |
 | Environment | Latest release Xcode and macOS. **Clean** build on. |
 | Actions | **Test**: iOS, scheme `MySetlists`, iOS Simulator (any recent iPhone). **Archive**: iOS, scheme `MySetlists`, Deployment Preparation **TestFlight (Internal Testing Only)**. |
 | Post-actions | TestFlight Internal Testing → a group named "Native internal" (create it in TestFlight first). **No external testing, no App Store submission** (DECISIONS: internal TestFlight only until cutover). |
@@ -39,7 +39,7 @@ Apple: "a bundle ID always matches exactly one Xcode Cloud product". The native 
 
 | Setting | Value |
 |---|---|
-| Start condition | Pull Request Changes → any source branch into `main`. Files and Folders → Start a Build when files change in `ios-native/`. |
+| Start condition | Pull Request Changes → any source branch into `main`. Files and Folders → Start a Build when files change in `ios-native/` or `fixtures/`. |
 | Actions | **Test** only (iOS Simulator, scheme `MySetlists`). |
 
 Both workflows run `ios-native/ci_scripts/ci_post_clone.sh`, which installs nothing. It checks that `GoogleService-Info.plist` is for `com.mysetlists.app` and that `Package.resolved` is committed.
