@@ -4,6 +4,37 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.60.21] — 2026-11-15
+
+Ships in **iOS 3.13.37** (Capacitor, `MARKETING_VERSION` 3.13.36 → 3.13.37)
+and **native 4.0.6** (4.0.5 → 4.0.6). Nothing changes in the web or
+Capacitor apps.
+
+**Native app Stage 1, first PR: the Q-01 answer and "Welcome back".**
+
+- **Q-01 answered** (`docs/ios-native/Q01-SIGNIN-CARRYOVER.md`, DECISIONS
+  "Spikes"): a Google session carries over when the native app is installed
+  over the Capacitor app; Apple and email don't. Apple was expected to carry
+  over, but the Capacitor app signs Apple users in with
+  `skipNativeAuth: true`, so the native SDK never held that session.
+  **Decision:** Apple and email users sign in again, with no token bridge.
+- **"Welcome back" on the sign-in screen (native):** after an update from the
+  Capacitor app, until an account signs in on that install, the screen says
+  "Welcome back. Sign in to see your shows. Everything you logged is still
+  there." "Forgot your password?" is now on the sign-in screen itself, not
+  only inside the email sheet. A carried-over Google session, or any later
+  sign-out, gets the ordinary screen (`Core/Session/WelcomeBack.swift`,
+  `WelcomeBackTests`).
+- **Stage 1 audit** (`docs/ios-native/STAGE1-AUDIT.md`): the web's Shows
+  list, show page and add flows, what the native app does with each, the
+  offline queue, the gaps, and the PR order. The approved calls are in
+  DECISIONS ("Stage 1"): upcoming shows written directly, song ratings on
+  the show screen, no web links inside it, a new `setlist-source` function,
+  the setlist-edit and set-grouping rules ported with shared fixtures, and a
+  file-backed queue for offline adds that the sign-out warning counts.
+
+---
+
 ## [5.60.20] — 2026-11-15
 
 Ships in **iOS 3.13.36** (Capacitor, `MARKETING_VERSION` 3.13.35 → 3.13.36)

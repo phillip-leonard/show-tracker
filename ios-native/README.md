@@ -37,7 +37,7 @@ Sign-out clears Firestore's offline cache: `Core/Database` terminates the instan
 
 ## Q-01: the first-launch report
 
-Once per install, `Core/Auth/FirstLaunchAuthRecorder` records which auth state Firebase restored on the first launch (no personal data). To read it: tap the version in Me five times, then open **First-launch sign-in**. It also goes to Crashlytics (`FirstLaunchAuthState`) and the system log (`com.mysetlists.app`, category `Q01`). The test steps are in [`docs/ios-native/Q01-SIGNIN-CARRYOVER.md`](../docs/ios-native/Q01-SIGNIN-CARRYOVER.md).
+Once per install, `Core/Auth/FirstLaunchAuthRecorder` records which auth state Firebase restored on the first launch (no personal data). To read it: tap the version in Me five times, then open **First-launch sign-in**. It also goes to Crashlytics (`FirstLaunchAuthState`) and the system log (`com.mysetlists.app`, category `Q01`). The test steps are in [`docs/ios-native/Q01-SIGNIN-CARRYOVER.md`](../docs/ios-native/Q01-SIGNIN-CARRYOVER.md). The answer: Google carries over, Apple and email don't, and those users sign in again. So after an update from the Capacitor app, until an account signs in, the sign-in screen says "Welcome back" (`Core/Session/WelcomeBack`).
 
 ## Trying it without production accounts
 

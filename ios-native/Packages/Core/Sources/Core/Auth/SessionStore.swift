@@ -107,6 +107,7 @@ public final class SessionStore {
         let switched = next.uid != user?.uid
         user = next
         signedIn = true
+        if !next.isAnonymous { WelcomeBack.noteAccountSignIn() }
         if switched {
             profileState = .unknown
             listenToProfile(uid: next.uid)
