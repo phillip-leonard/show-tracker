@@ -4,6 +4,69 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.60.17] — 2026-11-15
+
+Ships in **iOS 3.13.33** (Capacitor, `MARKETING_VERSION` 3.13.32 → 3.13.33)
+and **native 4.0.2** (4.0.1 → 4.0.2). Nothing changes in the web or
+Capacitor apps.
+
+**Native app Part 5: signing in, and the client for the Netlify functions.**
+
+- **Ways in** (`Core/Auth/SessionStore`, screens in `Features/Auth`):
+  - Sign in with Apple (a SHA-256 nonce; the name Apple sends once is set
+    through `moderate-content`'s filter), Google (GoogleSignIn), and email
+    and password.
+  - "Forgot password", through `send-password-reset`.
+  - "Continue as guest", on Firebase anonymous auth.
+  - Every way in is disabled until the terms box is ticked. Apple's and
+    Google's own buttons are used.
+- **Guests upgrade without losing anything.** Linking Apple, Google or email
+  keeps the uid, then `account-linked` gives them what a sign-up gets. If the
+  credential already has an account, the app offers to sign in to it and
+  move the guest's shows (`adopt-guest-shows`): duplicates stay, and a
+  "possible" match moves only if the person picks it.
+- **Gates, in the web's order** (`Core/Session/AccountGate`): update
+  required, then signed out, then suspended (`userProfiles.banned`), then
+  terms (`Terms.version`). The profile is tri-state, so an account that has
+  accepted never sees the terms gate flash.
+- **Updates:** `config/app` is read at launch and on every return to the
+  foreground. Below the latest version there's a dismissible banner; below
+  the minimum, a screen that can't be dismissed, with deletion still
+  reachable. A new shared table, `fixtures/app-version/version-status.json`,
+  is run by `lib/appVersion.js` (`lib/__tests__/appVersionGolden.test.js`)
+  and the Swift `AppVersion`.
+- **Account deletion:**
+  - Apple accounts confirm with Apple first, so `delete-account` can revoke
+    Apple's tokens (only when it's the same Apple ID). Backing out of
+    Apple's sheet cancels the deletion.
+  - Deletion is reachable from the app and from the update-required screen.
+- **Sign-out never hangs:** push token, Firebase, Google, local state, each
+  step bounded (`SignOutRunner`). A guest is warned that signing out loses
+  their shows, and offered to create an account first.
+- **API client** (`Core/API`):
+  - Calls `/.netlify/functions/<name>` with the Firebase ID token, and
+    retries a 401 once with a fresh token.
+  - Typed errors: `signInRequired`, `accountRequired` (a guest), `forbidden`,
+    `rateLimited` (Retry-After), `offline`, `server`.
+  - Request types for `normalize-show` (`ShowInput`, every kind; each
+    `fixtures/shows` input round-trips through it), `friends.js`, the setlist
+    operations, `delete-account`, `account-linked`, `adopt-guest-shows`,
+    `send-password-reset` and `moderate-content`'s `profileName`.
+- **The recap field:** `YearInReviewDocument.recap` (5.60.16). The
+  production decode scan now checks it too: still 0 failures.
+- **Tests:**
+  - 53 Core unit tests, all passing.
+  - A new app-hosted target, `MySetlistsTests`, runs `SessionStore` against
+    the Firebase Auth emulator with the real SDK
+    (`npm run test:native-auth-emulator`): guest, guest to email (same uid),
+    the credential-in-use path, and the error messages. 4 of 4 pass. While
+    the app hosts tests it doesn't start Firebase itself.
+- **Flagged, not built:** there is no data export anywhere to make reachable,
+  and sign-out leaves Firestore's offline cache on the device
+  (`docs/ios-native/DECISIONS.md`).
+
+---
+
 ## [5.60.16] — 2026-11-15
 
 Ships in **iOS 3.13.32** (Capacitor, `MARKETING_VERSION` 3.13.31 → 3.13.32).

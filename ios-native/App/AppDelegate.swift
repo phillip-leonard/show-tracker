@@ -9,8 +9,10 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
-        AppBootstrap.configureFirebase()
         BrandFonts.register()
+        // Hosting MySetlistsTests: the tests configure Firebase themselves.
+        guard !AppEnvironment.isHostingTests else { return true }
+        AppBootstrap.configureFirebase()
         return true
     }
 }

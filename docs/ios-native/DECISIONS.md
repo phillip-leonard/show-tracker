@@ -109,3 +109,15 @@ Not during the Year in Review peak (Dec 2 to mid-January), because the cutover m
 - **The keychain access group is `66N4YR3VP9.com.mysetlists.app`**, the default, because neither app has a keychain-sharing entitlement. Q-01 depends on this.
 - **Plus Jakarta Sans:** Google Fonts' variable TTFs, weights 200 to 800, roman and italic, registered from the DesignSystem package. Extra-bold renders as itself; it isn't mapped to bold, as the Part 1 audit assumed.
 - **The privacy manifest** keeps the Capacitor app's data types. It adds crash and diagnostic data (Crashlytics, not linked to the account) and drops product interaction (the native binary links no analytics SDK). Check the App Store privacy labels against it before cutover (Q-08).
+
+## Sign-in and the API client (2026-11-15, Part 5)
+
+- **The terms box comes first.** Every way in (Apple, Google, email, guest) is disabled until it's ticked. The tick is recorded on the profile at the first sign-in. An account without an acceptance of `Terms.version` gets the gate. The order of screens is the web's: update required, signed out, suspended, terms, the app.
+- **Version gating** reads `config/app` at launch and on every return to the foreground. The shared table `fixtures/app-version/version-status.json` keeps the rule the same in both apps. Today's values are Capacitor 3.x numbers, which no native 4.x build is below. Native-only minimums need their own keys when they're wanted, plus a rules change, because `config/app` is `hasOnly`.
+- **Linking a guest** calls `account-linked` with any kept referral. When the credential already has an account, the app signs in to that account and uses `adopt-guest-shows` (preview, then commit); the guest's ID token is kept from before the switch as proof.
+- **Deletion** asks Apple for a fresh authorization code on Apple accounts (only when it's the same Apple ID) so `delete-account` can revoke Apple's tokens. Backing out of Apple's sheet cancels the deletion. Deletion is reachable from the update-required screen too.
+- **Sign-out never hangs:** push-token document, Firebase, Google and local state, each step bounded at 4 s (`SignOutRunner`).
+- **Flagged, not built:**
+  - **There is no data export.** SCOPING asks for deletion and export to be always reachable. Deletion is; nothing exports a user's data on the web or the server.
+  - **Sign-out doesn't clear Firestore's offline cache.** Clearing it means terminating Firestore for the rest of the process. The next user can't read the previous user's documents (the rules decide that on the server), but the files stay on the device.
+

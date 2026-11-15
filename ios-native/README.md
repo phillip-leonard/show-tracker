@@ -23,11 +23,19 @@ ios-native/
 
 Only `Core` depends on Firebase (13.x) and GoogleSignIn (10.x). Features and the app reach them through it.
 
+## Signing in (Part 5)
+
+`Core/Auth/SessionStore` owns the session: Apple, Google, email, "Continue as guest" (Firebase anonymous auth), linking a guest to a credential, password reset, sign-out and account deletion. `Core/Session/AccountGate` decides which screen replaces the app: update required, signed out, suspended, terms, or the app. `Core/API/APIClient` calls the Netlify functions with the user's ID token and turns failures into `APIError`, including `.accountRequired` for a guest. The screens are in `Features/Auth`.
+
 ## Build and test
 
 ```bash
 xcodebuild test -workspace ios-native/MySetlists.xcworkspace -scheme MySetlists -destination 'platform=iOS Simulator,name=iPhone 18 Pro'
 ```
+
+Two test targets run from that one command:
+- **CoreTests** and **DesignSystemTests** (package tests): models, fixtures, dates, the API client, the version table, the gate, sign-out.
+- **MySetlistsTests** (`AppTests/`, hosted in the app): `SessionStore` against the Firebase Auth emulator with the real SDK. It is skipped unless the emulator is running. Run it with `npm run test:native-auth-emulator`. It's hosted because Firebase Auth needs the app's keychain entitlement, and Messaging needs an app bundle. While the app hosts tests (`AppEnvironment.isHostingTests`), it doesn't start Firebase itself.
 
 A Release build uploads its dSYM to Crashlytics (the "Upload dSYM to Crashlytics" build phase). For a local Release build or archive that shouldn't upload, pass `SKIP_CRASHLYTICS_UPLOAD=YES`.
 

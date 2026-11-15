@@ -49,6 +49,16 @@
                ReferencedContainer = "container:Packages/DesignSystem">
             </BuildableReference>
          </TestableReference>
+         <TestableReference
+            skipped = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "38CA2FD1FC299AB29667AA0D"
+               BuildableName = "MySetlistsTests.xctest"
+               BlueprintName = "MySetlistsTests"
+               ReferencedContainer = "container:MySetlists.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
       </Testables>
    </TestAction>
    <LaunchAction

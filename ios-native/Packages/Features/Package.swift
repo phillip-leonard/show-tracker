@@ -13,6 +13,8 @@ let package = Package(
     dependencies: [
         .package(path: "../Core"),
         .package(path: "../DesignSystem"),
+        // Google's own button (branding rules); the sign-in itself is Core's.
+        .package(url: "https://github.com/google/GoogleSignIn-iOS.git", from: "10.0.0"),
     ],
     targets: [
         .target(
@@ -20,6 +22,7 @@ let package = Package(
             dependencies: [
                 .product(name: "Core", package: "Core"),
                 .product(name: "DesignSystem", package: "DesignSystem"),
+                .product(name: "GoogleSignInSwift", package: "GoogleSignIn-iOS"),
             ]
         ),
     ]

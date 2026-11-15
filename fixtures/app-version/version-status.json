@@ -1,0 +1,31 @@
+{
+  "name": "version-status",
+  "description": "config/app version gating (lib/appVersion.js compareVersions and versionStatus). Both apps run every row: lib/__tests__/appVersionGolden.test.js and the Swift AppVersionTests. compare is -1, 0, 1, or null when either side isn't a version. status is blocked (below the minimum: a screen that can't be dismissed), update (below the latest: a banner) or ok; anything missing or unreadable is ok, so a bad config never locks anyone out.",
+  "compare": [
+    ["3.13.10", "3.13.10", 0],
+    ["3.13", "3.13.0", 0],
+    ["3.13.9", "3.13.10", -1],
+    ["3.14", "3.13.99", 1],
+    ["4.0.0", "3.13.30", 1],
+    ["4.0.1", "4.0.10", -1],
+    ["10.0", "9.9.9", 1],
+    [" 4.0.1 ", "4.0.1", 0],
+    ["4.0.0.1", "4.0.0", 1],
+    ["4.0.0.0.1", "4.0.0", null],
+    ["4.0-beta", "4.0", null],
+    ["", "4.0", null],
+    ["v4.0", "4.0", null]
+  ],
+  "status": [
+    { "current": "3.13.9", "min": "3.13.10", "latest": "3.13.30", "expected": "blocked" },
+    { "current": "3.13.10", "min": "3.13.10", "latest": "3.13.30", "expected": "update" },
+    { "current": "3.13.30", "min": "3.13.10", "latest": "3.13.30", "expected": "ok" },
+    { "current": "4.0.1", "min": "3.13.10", "latest": "3.13.30", "expected": "ok" },
+    { "current": "4.0.1", "min": "4.0.2", "latest": "4.0.3", "expected": "blocked" },
+    { "current": "4.0.2", "min": "4.0.2", "latest": "4.0.3", "expected": "update" },
+    { "current": "4.0.1", "min": null, "latest": null, "expected": "ok" },
+    { "current": "4.0.1", "min": "nonsense", "latest": "", "expected": "ok" },
+    { "current": "", "min": "9.0", "latest": "9.0", "expected": "ok" },
+    { "current": "4.0.1", "min": null, "latest": "4.0.2", "expected": "update" }
+  ]
+}

@@ -12,17 +12,33 @@
 		DF0EEA974BFE54933A6E7E4A /* DesignSystem in Frameworks */ = {isa = PBXBuildFile; productRef = 47F43D77D4C3D6502FF3BDFB /* DesignSystem */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		33D75C2637BE769C3AFA2768 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 82CFD9CFA0EAE68AB5CC45CA /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 6B3EDC966D4709426A1E9369;
+			remoteInfo = MySetlists;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
 		22FC42C8E490BC80351F81CC /* MySetlists.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MySetlists.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		93ACC3BB16F447F21A75833D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		77B5BE89E35A1C4A10E04D4B /* MySetlists.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = MySetlists.entitlements; sourceTree = "<group>"; };
 		B4439E36CA8122FDBCC7C0B2 /* MySetlistsRelease.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = MySetlistsRelease.entitlements; sourceTree = "<group>"; };
+		28FAB34DC3CAE50F2457E50D /* MySetlistsTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MySetlistsTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		5062613BA6A368AD49B04BD2 /* App */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = App;
+			sourceTree = "<group>";
+		};
+		9456473972091F75462891BC /* AppTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = AppTests;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -38,6 +54,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		7D3C69E82D2DFAB2F5CD77EE /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -45,6 +68,7 @@
 			isa = PBXGroup;
 			children = (
 				5062613BA6A368AD49B04BD2 /* App */,
+				9456473972091F75462891BC /* AppTests */,
 				FE927749C24B146266AEF2DE /* Config */,
 				E3D5D3A4460C42ACAF051326 /* Products */,
 			);
@@ -64,6 +88,7 @@
 			isa = PBXGroup;
 			children = (
 				22FC42C8E490BC80351F81CC /* MySetlists.app */,
+				28FAB34DC3CAE50F2457E50D /* MySetlistsTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -97,6 +122,27 @@
 			productReference = 22FC42C8E490BC80351F81CC /* MySetlists.app */;
 			productType = "com.apple.product-type.application";
 		};
+		38CA2FD1FC299AB29667AA0D /* MySetlistsTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = DFF52D190766B6AFCA962DD8 /* Build configuration list for PBXNativeTarget "MySetlistsTests" */;
+			buildPhases = (
+				43EF54DB97BD2A1F9A65E642 /* Sources */,
+				7D3C69E82D2DFAB2F5CD77EE /* Frameworks */,
+				7A9CC3D2BFEB8E16DF12FB51 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				0708F5E1C7A523234A475CE6 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				9456473972091F75462891BC /* AppTests */,
+			);
+			name = MySetlistsTests;
+			productName = MySetlistsTests;
+			productReference = 28FAB34DC3CAE50F2457E50D /* MySetlistsTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -109,6 +155,10 @@
 				TargetAttributes = {
 					6B3EDC966D4709426A1E9369 = {
 						CreatedOnToolsVersion = 27.2;
+					};
+					38CA2FD1FC299AB29667AA0D = {
+						CreatedOnToolsVersion = 27.2;
+						TestTargetID = 6B3EDC966D4709426A1E9369;
 					};
 				};
 			};
@@ -132,12 +182,20 @@
 			projectRoot = "";
 			targets = (
 				6B3EDC966D4709426A1E9369 /* MySetlists */,
+				38CA2FD1FC299AB29667AA0D /* MySetlistsTests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		3417685F5007656CC8409908 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		7A9CC3D2BFEB8E16DF12FB51 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -182,7 +240,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		43EF54DB97BD2A1F9A65E642 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		0708F5E1C7A523234A475CE6 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 6B3EDC966D4709426A1E9369 /* MySetlists */;
+			targetProxy = 33D75C2637BE769C3AFA2768 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		A5546DA8F50CFE44CE277C6F /* Debug */ = {
@@ -299,7 +372,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 4.0.1;
+				MARKETING_VERSION = 4.0.2;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",
@@ -334,7 +407,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 4.0.1;
+				MARKETING_VERSION = 4.0.2;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",
@@ -347,6 +420,44 @@
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		5893F1B0AB8F490106E98E2D /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 66N4YR3VP9;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				MARKETING_VERSION = 4.0.2;
+				PRODUCT_BUNDLE_IDENTIFIER = com.mysetlists.app.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/MySetlists.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/MySetlists";
+			};
+			name = Debug;
+		};
+		B72D28D45DBE8A504081F385 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 66N4YR3VP9;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				MARKETING_VERSION = 4.0.2;
+				PRODUCT_BUNDLE_IDENTIFIER = com.mysetlists.app.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/MySetlists.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/MySetlists";
 			};
 			name = Release;
 		};
@@ -367,6 +478,15 @@
 			buildConfigurations = (
 				FF9BA386A16E6E48C9E8800A /* Debug */,
 				7594D427B213B360B62A05B5 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		DFF52D190766B6AFCA962DD8 /* Build configuration list for PBXNativeTarget "MySetlistsTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5893F1B0AB8F490106E98E2D /* Debug */,
+				B72D28D45DBE8A504081F385 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
