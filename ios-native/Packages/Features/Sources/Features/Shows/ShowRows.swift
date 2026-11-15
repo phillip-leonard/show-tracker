@@ -6,16 +6,25 @@ import SwiftUI
 /// (`ShowDate`), never shifted by a time zone; the text as stored when it
 /// can't be read.
 enum ShowDateText {
-    static func display(_ value: String) -> String {
-        let iso = ShowDate.isoDay(value)
-        let parts = iso.split(separator: "-").compactMap { Int($0) }
-        guard parts.count == 3 else { return value.isEmpty ? "No date" : value }
+    static func date(_ value: String) -> Date? {
+        let parts = ShowDate.isoDay(value).split(separator: "-").compactMap { Int($0) }
+        guard parts.count == 3 else { return nil }
         var components = DateComponents()
         components.year = parts[0]
         components.month = parts[1]
         components.day = parts[2]
-        guard let date = Calendar.current.date(from: components) else { return iso }
+        return Calendar.current.date(from: components)
+    }
+
+    static func display(_ value: String) -> String {
+        guard let date = date(value) else { return value.isEmpty ? "No date" : value }
         return date.formatted(.dateTime.month(.abbreviated).day().year())
+    }
+
+    /// "NOV" and "08" for the row's date block; "?" when unreadable.
+    static func block(_ value: String) -> (month: String, day: String) {
+        guard let date = date(value) else { return ("", "?") }
+        return (date.formatted(.dateTime.month(.abbreviated)).uppercased(), date.formatted(.dateTime.day(.twoDigits)))
     }
 }
 
@@ -24,28 +33,50 @@ func venueLine(_ venue: String, _ city: String) -> String {
     [venue, city].map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }.joined(separator: ", ")
 }
 
-/// One past show: band, date, venue and city, rating, setlist status.
+/// The month and day block at the start of a row (the Stage 1 mockup).
+struct DateBlock: View {
+    let date: String
+
+    var body: some View {
+        let block = ShowDateText.block(date)
+        VStack(spacing: 0) {
+            Text(block.month)
+                .font(.jakarta(size: 11, weight: .bold, relativeTo: .caption2))
+                .tracking(0.5)
+                .foregroundStyle(Color.amber)
+            Text(block.day)
+                .font(.jakarta(size: 20, weight: .heavy, relativeTo: .title3))
+                .monospacedDigit()
+                .foregroundStyle(Color.textPrimary)
+        }
+        .frame(width: 48, height: 52)
+        .background(Color.surfaceHover, in: RoundedRectangle(cornerRadius: Radius.xl, style: .continuous))
+        .accessibilityHidden(true) // the row's label reads the full date
+    }
+}
+
+/// One past show: date block, band, venue and city, rating and setlist status.
 struct ShowRow: View {
     let show: Show
     let today: String
 
     var body: some View {
-        HStack(alignment: .top, spacing: Space.x3) {
-            VStack(alignment: .leading, spacing: Space.x1) {
+        HStack(spacing: Space.x3) {
+            DateBlock(date: show.date)
+            VStack(alignment: .leading, spacing: 3) {
                 Text(show.artist.isEmpty ? "Unknown band" : show.artist)
-                    .font(.jakarta(size: 17, weight: .semibold, relativeTo: .headline))
+                    .font(.jakarta(size: 16, weight: .bold, relativeTo: .headline))
                     .foregroundStyle(Color.textPrimary)
-                Text(ShowDateText.display(show.date))
-                    .font(.jakarta(size: 14, relativeTo: .subheadline))
-                    .foregroundStyle(Color.textSecondary)
                 let place = venueLine(show.venue, show.city)
                 if !place.isEmpty {
                     Text(place)
-                        .font(.jakarta(size: 14, relativeTo: .subheadline))
+                        .font(.jakarta(size: 13, relativeTo: .subheadline))
                         .foregroundStyle(Color.textSecondary)
-                        .lineLimit(2)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
                 }
                 HStack(spacing: Space.x2) {
+                    RatingText(rating: show.rating)
                     SetlistStatusLabel(status: ShowList.setlistStatus(show))
                     if ShowList.isFutureDated(show, today: today) {
                         Text("Upcoming")
@@ -53,19 +84,45 @@ struct ShowRow: View {
                             .foregroundStyle(Color.brand)
                     }
                 }
-                .padding(.top, 2)
             }
-            Spacer(minLength: Space.x2)
-            if let rating = show.rating {
-                RatingBadge(rating: rating)
-            }
+            Spacer(minLength: 0)
         }
-        .padding(.vertical, Space.x1)
+        .padding(.vertical, 2)
         .accessibilityElement(children: .combine)
+        .accessibilityLabel(accessibilityText)
+    }
+
+    private var accessibilityText: String {
+        var parts = [show.artist, ShowDateText.display(show.date), venueLine(show.venue, show.city)]
+        parts.append(show.rating.map { "rated \($0) out of 10" } ?? "not rated")
+        switch ShowList.setlistStatus(show) {
+        case .songs(let n): parts.append("setlist, \(n) songs")
+        case .missing: parts.append("no setlist yet")
+        case .proposalWaiting: parts.append("setlist proposal waiting")
+        }
+        return parts.filter { !$0.isEmpty }.joined(separator: ", ")
     }
 }
 
-/// "8/10", the show's own rating.
+/// "★ 8/10" in amber, or "Not rated".
+struct RatingText: View {
+    let rating: Int?
+
+    var body: some View {
+        if let rating {
+            Text("★ \(rating)/10")
+                .font(.jakarta(size: 12, weight: .bold, relativeTo: .caption))
+                .monospacedDigit()
+                .foregroundStyle(Color.amber)
+        } else {
+            Text("Not rated")
+                .font(.jakarta(size: 12, relativeTo: .caption))
+                .foregroundStyle(Color.textMuted)
+        }
+    }
+}
+
+/// "8/10", the show's own rating, as a badge (the detail placeholder).
 struct RatingBadge: View {
     let rating: Int
 
@@ -81,52 +138,73 @@ struct RatingBadge: View {
     }
 }
 
-/// Has a setlist (how many songs), has none yet, or has an update waiting.
+/// Setlist (green), Proposal waiting (amber) or No setlist yet (muted).
 struct SetlistStatusLabel: View {
     let status: ShowList.SetlistStatus
 
     var body: some View {
         switch status {
         case .songs(let n):
-            line(n == 1 ? "1 song" : "\(n) songs", "music.note.list", Color.textMuted)
+            label(n == 1 ? "Setlist · 1 song" : "Setlist · \(n) songs", Color.brandLight)
         case .missing:
-            line("No setlist yet", "music.note", Color.textMuted)
+            label("No setlist yet", Color.textMuted)
         case .proposalWaiting:
-            line("Setlist update waiting", "arrow.triangle.2.circlepath", Color.brand, weight: .semibold)
+            label("Proposal waiting", Color.amber)
         }
     }
 
-    private func line(_ text: String, _ symbol: String, _ color: Color, weight: Font.Weight = .regular) -> some View {
-        HStack(spacing: Space.x1) {
-            Image(systemName: symbol).imageScale(.small)
-            Text(text)
-        }
-        .font(.jakarta(size: 12, weight: weight, relativeTo: .caption))
-        .foregroundStyle(color)
+    private func label(_ text: String, _ color: Color) -> some View {
+        Text(text)
+            .font(.jakarta(size: 12, weight: .semibold, relativeTo: .caption))
+            .foregroundStyle(color)
     }
 }
 
-/// One upcoming show: band, date (and time), venue and city.
+/// A year and how many shows it holds: "2026 … 38 shows".
+struct YearHeader: View {
+    let year: String
+    let count: Int
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text(year.isEmpty ? "No date" : year)
+                .font(.jakarta(size: 20, weight: .bold, relativeTo: .title3))
+                .foregroundStyle(Color.textPrimary)
+            Spacer()
+            Text(count == 1 ? "1 show" : "\(count) shows")
+                .font(.jakarta(size: 13, relativeTo: .footnote))
+                .foregroundStyle(Color.textSecondary)
+        }
+        .textCase(nil)
+        .padding(.bottom, 2)
+    }
+}
+
+/// One upcoming show: date block, band, venue and city, time.
 struct UpcomingRow: View {
     let show: UpcomingShow
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Space.x1) {
-            Text(show.artist.isEmpty ? "Unknown band" : show.artist)
-                .font(.jakarta(size: 17, weight: .semibold, relativeTo: .headline))
-                .foregroundStyle(Color.textPrimary)
-            Text([ShowDateText.display(show.date), show.time].compactMap { $0 }.joined(separator: " · "))
-                .font(.jakarta(size: 14, relativeTo: .subheadline))
-                .foregroundStyle(Color.textSecondary)
-            let place = venueLine(show.venue, show.city)
-            if !place.isEmpty {
-                Text(place)
-                    .font(.jakarta(size: 14, relativeTo: .subheadline))
-                    .foregroundStyle(Color.textSecondary)
-                    .lineLimit(2)
+        HStack(spacing: Space.x3) {
+            DateBlock(date: show.date)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(show.artist.isEmpty ? "Unknown band" : show.artist)
+                    .font(.jakarta(size: 16, weight: .bold, relativeTo: .headline))
+                    .foregroundStyle(Color.textPrimary)
+                let place = venueLine(show.venue, show.city)
+                if !place.isEmpty {
+                    Text(place)
+                        .font(.jakarta(size: 13, relativeTo: .subheadline))
+                        .foregroundStyle(Color.textSecondary)
+                        .lineLimit(1)
+                }
+                Text([ShowDateText.display(show.date), show.time].compactMap { $0 }.joined(separator: " · "))
+                    .font(.jakarta(size: 12, weight: .semibold, relativeTo: .caption))
+                    .foregroundStyle(Color.brandLight)
             }
+            Spacer(minLength: 0)
         }
-        .padding(.vertical, Space.x1)
+        .padding(.vertical, 2)
         .accessibilityElement(children: .combine)
     }
 }

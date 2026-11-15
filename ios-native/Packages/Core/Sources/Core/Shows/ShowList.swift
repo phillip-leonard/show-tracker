@@ -62,6 +62,25 @@ public enum ShowList {
         return order.map { YearSection(year: $0, shows: groups[$0] ?? []) }
     }
 
+    /// A year of upcoming shows, in the order given.
+    public struct UpcomingYearSection: Identifiable, Hashable, Sendable {
+        public let year: String
+        public let shows: [UpcomingShow]
+        public var id: String { year }
+    }
+
+    /// Upcoming shows grouped by year, soonest year first (`upcomingOrder` within).
+    public static func upcomingByYear(_ shows: [UpcomingShow]) -> [UpcomingYearSection] {
+        var order: [String] = []
+        var groups: [String: [UpcomingShow]] = [:]
+        for show in upcomingOrder(shows) {
+            let year = ShowDate.year(show.date)
+            if groups[year] == nil { order.append(year) }
+            groups[year, default: []].append(show)
+        }
+        return order.map { UpcomingYearSection(year: $0, shows: groups[$0] ?? []) }
+    }
+
     // MARK: Search and filters
 
     /// What narrows the Past list. Empty means everything.
@@ -115,6 +134,10 @@ public enum ShowList {
         let t = text.trimmingCharacters(in: .whitespacesAndNewlines)
         if t.isEmpty { return true }
         return contains(show.artist, t) || contains(show.venue, t) || contains(show.city, t)
+    }
+
+    public static func upcoming(_ shows: [UpcomingShow], matching text: String) -> [UpcomingShow] {
+        shows.filter { matches($0, text: text) }
     }
 
     // MARK: Filter options

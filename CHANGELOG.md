@@ -12,16 +12,17 @@ Capacitor apps.
 
 **Native app Stage 1, Part 2: the Shows tab (read).**
 
-- **Past | Upcoming.** Past is every document in `users/{uid}/shows`,
-  grouped by year, newest first, with ties in document-id order. That's the
-  same count and order as the web's My Shows. Upcoming is
-  `users/{uid}/upcomingShows`, soonest first, then band
-  (`Core/Shows/ShowList`). A show in `shows` dated after today stays in Past
+- **Past | Upcoming**, each with its count ("Past · 214"). Past is every
+  document in `users/{uid}/shows`, grouped by year, newest first, with ties
+  in document-id order. That's the same count and order as the web's My
+  Shows. Upcoming is `users/{uid}/upcomingShows`, grouped by year, soonest
+  first, then band (`Core/Shows/ShowList`). A show in `shows` dated after today stays in Past
   with an "Upcoming" mark (production has none), so the count still matches.
-- **Rows:** band, date ("Nov 15, 2026", read as a calendar day), venue and
-  city, the show's rating, and the setlist status: how many songs, "No
-  setlist yet", or "Setlist update waiting" for a pending Internet Archive
-  proposal.
+- **Rows**, laid out as in the Stage 1 mockups: a month/day block, band,
+  venue and city, then the rating ("★ 8/10" or "Not rated") and the setlist
+  status: "Setlist · N songs", "Proposal waiting" (a pending Internet
+  Archive proposal) or "No setlist yet". Year headers carry their show
+  count. Dates are read as calendar days.
 - **Search** matches band, venue, city and song titles, ignoring case and
   accents. **Filters:** year, band and venue (a menu, with removable chips).
   The **counts** above the list: shows from the list itself; bands, venues

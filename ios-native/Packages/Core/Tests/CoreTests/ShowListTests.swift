@@ -57,6 +57,19 @@ import Testing
         #expect(ShowList.upcomingOrder(list).map(\.id) == ["b", "c", "a", "d"])
     }
 
+    @Test func upcomingSectionsBySoonestYear() throws {
+        let list = try [
+            Self.upcoming("a", "Phish", "2027-01-02"),
+            Self.upcoming("b", "Goose", "2026-12-30"),
+            Self.upcoming("c", "Billy Strings", "2026-11-28"),
+            Self.upcoming("d", "X", ""),
+        ]
+        let sections = ShowList.upcomingByYear(list)
+        #expect(sections.map(\.year) == ["2026", "2027", ""])
+        #expect(sections[0].shows.map(\.id) == ["c", "b"])
+        #expect(sections.flatMap(\.shows).count == list.count)
+    }
+
     @Test func searchMatchesBandVenueCityAndSongs() throws {
         let s = try Self.show("1", "Goose", "2024-05-01", venue: "Red Rocks", city: "Morrison, CO", songs: ["Arcadia", "Tumble"])
         for text in ["goose", "RED", "morrison", "tumb", "  arcadia "] {

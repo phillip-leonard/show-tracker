@@ -6,7 +6,7 @@ import SwiftUI
 /// counts, empty states, pull to refresh. Reads `ShowsStore`; writes
 /// nothing yet. Adding a show (+) arrives in Part 4.
 struct ShowsHome: View {
-    enum Segment: String, CaseIterable { case past = "Shows", upcoming = "Upcoming" }
+    enum Segment: String, CaseIterable { case past = "Past", upcoming = "Upcoming" }
 
     @Environment(ShowsStore.self) private var store
     @Environment(SessionStore.self) private var session
@@ -38,6 +38,9 @@ struct ShowsHome: View {
             }
             ToolbarItem(placement: .primaryAction) {
                 Button { adding = true } label: { Label("Add a show", systemImage: "plus") }
+                    .buttonStyle(.borderedProminent)
+                    .buttonBorderShape(.circle)
+                    .tint(.brand)
             }
         }
         .sheet(isPresented: $adding) { AddShowPlaceholder(isGuest: isGuest) }
@@ -58,7 +61,9 @@ struct ShowsHome: View {
         VStack(spacing: Space.x2) {
             UpdateBanner()
             Picker("Shows", selection: $segment) {
-                ForEach(Segment.allCases, id: \.self) { Text($0.rawValue) }
+                // "Past · 214" | "Upcoming · 6" (the Stage 1 mockup), once loaded.
+                Text(store.showsLoaded ? "Past · \(store.shows.count)" : "Past").tag(Segment.past)
+                Text(store.upcomingLoaded ? "Upcoming · \(store.upcoming.count)" : "Upcoming").tag(Segment.upcoming)
             }
             .pickerStyle(.segmented)
             .padding(.horizontal, Space.x4)
@@ -158,7 +163,7 @@ struct ShowsHome: View {
                         }
                     }
                 } header: {
-                    Text(section.year.isEmpty ? "No date" : section.year) + Text(" · \(section.shows.count)").foregroundStyle(Color.textMuted)
+                    YearHeader(year: section.year, count: section.shows.count)
                 }
                 .brandRow()
             }
@@ -225,18 +230,26 @@ struct ShowsHome: View {
     // MARK: Upcoming
 
     private var upcomingList: some View {
-        let ordered = ShowList.upcomingOrder(store.upcoming)
-        let shown = ordered.filter { ShowList.matches($0, text: query) }
+        let shown = ShowList.upcoming(store.upcoming, matching: query)
+        let sections = ShowList.upcomingByYear(shown)
         return List {
-            if !store.upcoming.isEmpty {
+            if !store.upcoming.isEmpty, !query.trimmingCharacters(in: .whitespaces).isEmpty {
                 Section {
-                    ForEach(shown) { show in
+                    Text("\(shown.count) of \(store.upcoming.count) upcoming")
+                        .font(.jakarta(size: 14, relativeTo: .subheadline))
+                        .foregroundStyle(Color.textSecondary)
+                }
+                .brandRow()
+            }
+            ForEach(sections) { section in
+                Section {
+                    ForEach(section.shows) { show in
                         NavigationLink(value: AppRoute.upcomingShow(id: show.id)) { UpcomingRow(show: show) }
                     }
                 } header: {
-                    Text(query.isEmpty ? "\(ordered.count) upcoming" : "\(shown.count) of \(ordered.count) upcoming")
+                    YearHeader(year: section.year, count: section.shows.count)
                 } footer: {
-                    statusNote
+                    if section.id == sections.last?.id { statusNote }
                 }
                 .brandRow()
             }
