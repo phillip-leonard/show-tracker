@@ -28,7 +28,7 @@
 // minus the festival itself and the non-performers (passes, parking,
 // camping) that get listed as attractions too.
 
-const { normalizeFestivalName } = require('./festivalMatchRule');
+const { normalizeFestivalName } = require('../../../lib/festivalMatch');
 
 const REFRESH_MS = 24 * 60 * 60 * 1000;
 const MAX_LINEUP = 300;

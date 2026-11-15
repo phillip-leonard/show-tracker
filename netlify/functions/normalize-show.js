@@ -6,7 +6,9 @@
 //   { mode, inputs: [ { kind, … }, … ] }          up to 25, in order
 //     -> { ok, …result }  or  { ok, results: [ result | { error }, … ] }
 //
-// result: { show, duplicate, band } and, on commit, what was written
+// result: { show, duplicate, band, festivalMatches } and, on commit, what
+// was written. festivalMatches (5.60.8) are catalog festivals the show may
+// belong to, a suggestion only (lib/festivalMatch.js festivalsForShow)
 // (lib/normalizeShowServer.js commitShow). The input kinds and the
 // document are lib/normalizeShow.js and lib/showInputs.js; the golden
 // fixtures in fixtures/shows/ are the contract the Swift app tests

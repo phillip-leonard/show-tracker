@@ -63,7 +63,7 @@ const {
   locationsAgree,
   nameSimilarity,
   FESTIVAL_NAME_MAX,
-} = require('./festivalMatchRule');
+} = require('../../../lib/festivalMatch');
 
 const SEED_CREATOR = 'system:seed';
 const SEED_SOURCE = 'seed';

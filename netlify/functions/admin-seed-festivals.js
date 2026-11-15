@@ -25,8 +25,8 @@
  * The planning rules (what counts as a match, a conflict, a skip) and the
  * shape of a seeded document live in netlify/functions/lib/festivalSeed.js,
  * with the reasons. In short:
- *   - It uses the app's own match rule (lib/festivalMatchRule.js, kept equal
- *     to lib/festivalMatch.js by festivalMatchParity.test.js).
+ *   - It uses the app's own match rule (lib/festivalMatch.js, CommonJS
+ *     since 5.60.8, required directly).
  *   - It never writes to a festival that already exists, user-created or
  *     seeded, and never writes to anyone's attendance record or shows.
  *   - Matches and conflicts are reported, never merged. Merging stays with

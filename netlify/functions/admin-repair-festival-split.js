@@ -11,8 +11,8 @@
  * Lands Music & Arts Festival"), so both gates passed and a 2011 festival
  * was merged into a 2008 one.
  *
- * The rule is fixed (lib/festivalMatch.js + the port in
- * admin-migrate-festivals.js now bound both the year and the span), but
+ * The rule is fixed (lib/festivalMatch.js now bounds both the year and the
+ * span), but
  * the migration had already written. The rule fix prevents recurrence; it
  * cannot undo a merge, because migration is idempotent and re-running it
  * will not un-merge anything. Hence this.
@@ -53,34 +53,15 @@ const CORS_HEADERS = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
-// Kept in step with lib/festivalMatch.js — see the note in
-// admin-migrate-festivals.js about why the rule is ported rather than
-// imported.
-const MIN_FESTIVAL_YEAR = 1900;
-const MAX_FESTIVAL_YEAR = 2100;
-const MAX_FESTIVAL_DAYS = 30;
-const MS_PER_DAY = 86400000;
-const FESTIVAL_NAME_MAX = 120;
+// The app's own match rule and its bounds (lib/festivalMatch.js, CommonJS
+// since 5.60.8); until then a hand-kept port lived here.
+const {
+  MIN_FESTIVAL_YEAR, MAX_FESTIVAL_YEAR, MAX_FESTIVAL_DAYS, MS_PER_DAY, FESTIVAL_NAME_MAX,
+  normalizeFestivalName, festivalStartMs,
+} = require('../../lib/festivalMatch');
 
-function normalizeFestivalName(name) {
-  let out = String(name || '')
-    .toLowerCase()
-    .replace(/[‘’]/g, "'")
-    .replace(/&/g, ' and ')
-    .replace(/[^a-z0-9\s]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-  out = out.replace(/^(the|a|an)\s+/, '');
-  return out.replace(/\s+(19|20)\d{2}$/, '').trim();
-}
-
-function parseDay(value) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value || '')) return null;
-  const year = Number(String(value).slice(0, 4));
-  if (year < MIN_FESTIVAL_YEAR || year > MAX_FESTIVAL_YEAR) return null;
-  const ms = Date.parse(`${value}T00:00:00Z`);
-  return Number.isNaN(ms) ? null : ms;
-}
+// A plausible yyyy-MM-dd day as ms, or null (the rule's own reading).
+const parseDay = (value) => festivalStartMs({ startDate: value });
 
 // The corrected details have to survive the same scrutiny the match rule
 // applies, otherwise a repair could reintroduce the exact class of bad

@@ -42,11 +42,10 @@
  * record with no `festivalId` as a pre-migration record and shows it
  * unchanged). A partially-migrated user never sees an empty page.
  *
- * MATCH RULE. Re-implemented here rather than imported from
- * lib/festivalMatch.js: this is CommonJS running under firebase-admin in a
- * Netlify function, with no build step to resolve the app's `@/lib` alias.
- * It is a direct port and must stay in step — if you change one, change
- * both. lib/__tests__/festivalMatch.test.js covers the shared semantics.
+ * MATCH RULE. lib/festivalMatch.js, required directly (5.60.8; until then
+ * a port lived here). For festivals with dates it is the rule this
+ * migration ran with; it also matches festivals added with only a year
+ * (5.58.0), which postdate the migration.
  */
 
 const { withCors } = require('./lib/cors');
@@ -58,100 +57,9 @@ const CORS_HEADERS = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
-// Ported from lib/festivalMatch.js — keep in step.
-const MAX_START_DATE_GAP_DAYS = 3;
-const MIN_NAME_SIMILARITY = 0.6;
-const MIN_NAME_LENGTH = 3;
-const MS_PER_DAY = 86400000;
-// See lib/festivalMatch.js for why these exist: a startDate typed as
-// "0011-08-12" parsed as year 11 AD, giving a ~2001-year window that
-// merged a 2011 festival into a 2008 one. Out-of-range dates now match
-// nothing rather than everything.
-const MAX_FESTIVAL_DAYS = 30;
-const MIN_FESTIVAL_YEAR = 1900;
-const MAX_FESTIVAL_YEAR = 2100;
-const LEADING_ARTICLES = /^(the|a|an)\s+/;
-const TRAILING_YEAR = /\s+(19|20)\d{2}$/;
-
-function normalizeFestivalName(name) {
-  let out = String(name || '')
-    .toLowerCase()
-    .replace(/[‘’]/g, "'")
-    .replace(/&/g, ' and ')
-    .replace(/[^a-z0-9\s]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-  out = out.replace(LEADING_ARTICLES, '');
-  return out.replace(TRAILING_YEAR, '').trim();
-}
-
-function nameTokens(normalized) {
-  return normalized ? normalized.split(' ').filter(Boolean) : [];
-}
-
-function nameSimilarity(a, b) {
-  const ta = new Set(nameTokens(normalizeFestivalName(a)));
-  const tb = new Set(nameTokens(normalizeFestivalName(b)));
-  if (ta.size === 0 || tb.size === 0) return 0;
-  let shared = 0;
-  ta.forEach(t => { if (tb.has(t)) shared++; });
-  const union = ta.size + tb.size - shared;
-  return union === 0 ? 0 : shared / union;
-}
-
-function namesAreClose(a, b) {
-  const na = normalizeFestivalName(a);
-  const nb = normalizeFestivalName(b);
-  if (!na || !nb) return false;
-  if (na === nb) return true;
-  if (na.length < MIN_NAME_LENGTH || nb.length < MIN_NAME_LENGTH) return false;
-  const ta = nameTokens(na);
-  const tb = nameTokens(nb);
-  const shorter = ta.length <= tb.length ? ta : tb;
-  const longerSet = new Set(ta.length <= tb.length ? tb : ta);
-  if (shorter.every(t => longerSet.has(t))) return true;
-  return nameSimilarity(a, b) >= MIN_NAME_SIMILARITY;
-}
-
-function parseDay(value) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value || '')) return null;
-  const year = Number(value.slice(0, 4));
-  if (year < MIN_FESTIVAL_YEAR || year > MAX_FESTIVAL_YEAR) return null;
-  const ms = Date.parse(`${value}T00:00:00Z`);
-  return Number.isNaN(ms) ? null : ms;
-}
-
-function windowOf(festival) {
-  const start = parseDay(festival && festival.startDate);
-  if (start === null) return null;
-  const end = parseDay(festival && festival.endDate);
-  if (end === null || end < start) return { start, end: start };
-  if (end - start > MAX_FESTIVAL_DAYS * MS_PER_DAY) return null;
-  return { start, end };
-}
-
-function datesAreClose(a, b) {
-  const wa = windowOf(a);
-  const wb = windowOf(b);
-  if (!wa || !wb) return false;
-  if (wa.start <= wb.end && wb.start <= wa.end) return true;
-  return Math.abs(wa.start - wb.start) <= MAX_START_DATE_GAP_DAYS * MS_PER_DAY;
-}
-
-function normalizeLocation(location) {
-  return String(location || '')
-    .toLowerCase()
-    .split(',')[0]
-    .replace(/[^a-z0-9\s]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-function festivalsMatch(a, b) {
-  if (!a || !b) return false;
-  return namesAreClose(a.name, b.name) && datesAreClose(a, b);
-}
-// ── end ported match rule ─────────────────────────────────────────────
+// The app's own match rule (lib/festivalMatch.js, CommonJS since 5.60.8);
+// until then a hand-kept port lived here.
+const { normalizeFestivalName, normalizeLocation, festivalsMatch } = require('../../lib/festivalMatch');
 
 function initFirebase() {
   const { getApps, initializeApp, cert } = require('firebase-admin/app');

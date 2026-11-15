@@ -4,6 +4,41 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.60.8] — 2026-11-15
+
+Ships in **iOS 3.13.24** (`MARKETING_VERSION` 3.13.23 → 3.13.24). The
+festival form's "is this one of these?" now asks the server, so it needs a
+new iOS build.
+
+**Festival matching has one implementation** (pre-native server moves,
+Part 3).
+
+- **One rule.** `lib/festivalMatch.js` is CommonJS and every caller
+  requires it. Gone: the CommonJS twin
+  (`netlify/functions/lib/festivalMatchRule.js`) and its parity test, and
+  the hand-kept ports in `admin-migrate-festivals.js` and
+  `admin-repair-festival-split.js`. The twin's two extra helpers
+  (`festivalStartMs`, `startGapDays`, the admin merge's edition guard)
+  moved into the rule with their tests.
+- **`match-festivals`** (signed in): the create form's matches, from the
+  same bounded catalog queries the app ran (a name prefix and a ±7-day
+  start window, 20 each), festivals the user already joined left out, in
+  the rule's own answer shape. `AppContext.findFestivalMatches` calls it.
+- **`normalize-show` suggests a festival** for a new show not already
+  attached to one: the show's day inside the festival's dates, and the
+  band on its lineup or the show in its city (`festivalsForShow`).
+  Returned as `festivalMatches`, never written; nothing in the app shows
+  it yet.
+- **Production parity (read-only):** across all 45,753 pairs of the 303
+  catalog festivals, the removed twin and the shared rule agree on every
+  pair, as does the removed migrate port on every dated pair (45,451). 35
+  of the 1,413 shows not attached to a festival would get a suggestion,
+  all by city.
+- Tests: `tests/festivals/matchFestivals.test.js` (new);
+  `lib/__tests__/festivalMatch.test.js` gains the `startGapDays` cases.
+
+---
+
 ## [5.60.7] — 2026-11-15
 
 Ships in **iOS 3.13.23** (`MARKETING_VERSION` 3.13.22 → 3.13.23). The show

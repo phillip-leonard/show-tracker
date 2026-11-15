@@ -31,6 +31,7 @@ const { mergeBandSetlist } = require('../../../lib/bandSetlistMerge');
 const { lostNotes } = require('../../../lib/setlistNotes');
 const { getSetlists } = require('./setlistfmSetlist');
 const { internalProxyHeader } = require('./proxyLimit');
+const { festivalsForShowFrom } = require('./festivalMatchServer');
 
 const SETLISTFM_BUDGET_MS = 8000;
 
@@ -61,6 +62,9 @@ function serverDeps(db, user, { bandSetlistHandler } = {}) {
       const tag = snap.exists ? snap.data() : null;
       return tag && email && String(tag.toEmail || '').toLowerCase() === email && tag.status === 'pending' ? tag : null;
     },
+    // Which catalog festival the show may belong to (lib/festivalMatch.js
+    // festivalsForShow): a suggestion, never written.
+    festivalsForShow: (show) => festivalsForShowFrom(db, show),
     async upcomingShow(upcomingId) {
       const snap = await db.collection('users').doc(uid).collection('upcomingShows').doc(upcomingId).get();
       return snap.exists ? snap.data() : null;
@@ -163,7 +167,14 @@ async function commitShow(db, uid, normalized, input, { confirmPossible = false,
 async function normalizeOne(db, user, input, { mode = 'preview', existingShows, deps, FieldValue, now } = {}) {
   try {
     const normalized = await normalizeShowInput(input, { deps, existingShows, now });
-    const out = { show: normalized.show, duplicate: normalized.duplicate, band: normalized.band };
+    const out = { show: normalized.show, duplicate: normalized.duplicate, band: normalized.band, festivalMatches: [] };
+    // A show not already attached to a festival: which one it may belong to
+    // (5.60.8). Only a suggestion; a failed lookup never fails the add.
+    if (!normalized.show.festivalId && deps.festivalsForShow) {
+      try { out.festivalMatches = await deps.festivalsForShow(normalized.show); } catch (err) {
+        console.warn('normalize-show: festival lookup failed:', err && err.message);
+      }
+    }
     if (mode !== 'commit') return out;
     const committed = await commitShow(db, user.uid, normalized, input, { confirmPossible: input.confirmPossible === true, FieldValue });
     if (committed.written && committed.created) existingShows.push(normalized.show);

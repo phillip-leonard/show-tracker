@@ -7,8 +7,8 @@
  * gets an inline error instead of a rejected write, and in a Netlify
  * function, so the check cannot be skipped by writing to Firestore
  * directly. Functions are CommonJS and cannot require the app's ESM
- * modules, which is why netlify/functions/lib/festivalMatchRule.js exists
- * in the same shape.
+ * modules, which is why netlify/functions/lib/festivalMatchRule.js existed
+ * in the same shape until 5.60.8.
  *
  * The festival rule is maintained as a hand-kept copy guarded by a parity
  * test. This one is generated instead, because a wordlist is going to be
@@ -36,7 +36,7 @@ const HEADER = `/**
  * Netlify function can apply exactly the filter the client applies.
  *
  * WHY A COPY RATHER THAN AN IMPORT. Same reason
- * netlify/functions/lib/festivalMatchRule.js exists: functions are
+ * netlify/functions/lib/festivalMatchRule.js existed until 5.60.8: functions are
  * CommonJS and cannot require the app's ESM modules, and the alternative
  * — every function re-implementing the rule inline — is what let the
  * festival match rule drift until a bound that stopped a mistyped year
