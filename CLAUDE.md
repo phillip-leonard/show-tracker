@@ -83,6 +83,10 @@ These closed real holes. `tests/rules/security.rules.test.js` and `tests/securit
 - **A public page made from a user's data is built on the server from their own documents**, never from the request body (`create-shared-collection`, 5.59.12).
 - **`npm run lint` must pass with 0 errors** (`eslint.config.js`; the Lint workflow). Warnings are a backlog, not a gate.
 
+## Native SwiftUI app
+
+The approved decisions for the native app (`ios-native/`, 4.0.0) are in `docs/ios-native/DECISIONS.md`: architecture, tabs, guests on anonymous auth, what the server owns, design tokens, Xcode Cloud. Read it before any native work, and don't reopen a decision there without asking.
+
 ## Versioning: every PR bumps the App Store version
 
 **Every PR opened for MySetlists bumps the App Store version**, in addition to the web version in `package.json` (and its `CHANGELOG.md` entry).
