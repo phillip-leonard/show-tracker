@@ -10,7 +10,7 @@
 //                          signed-in user reads, as userProfiles today.
 //   communityStats/global  the leaderboards and community totals
 //                          (lib/communityStats.js), from the same numbers.
-//   yearInReviews/{uid}_{year}.stats
+//   yearInReviews/{uid}_{year}.stats and .recap
 //                          the Year in Review numbers a visitor sees on a
 //                          public review (lib/yearInReviewStats.js), on
 //                          every review document that exists (5.60.4). The
@@ -35,6 +35,7 @@
 const { computeUserStats, publicStats, isRanked, rankUsers } = require('../../../lib/stats');
 const { buildCommunityStats, onLeaderboard } = require('./communityStats');
 const { computeYearInReview } = require('../../../lib/yearInReviewStats');
+const { computeYearRecap } = require('../../../lib/yearRecap');
 const { listAnonymousUids } = require('./firebaseAdmin');
 
 const BATCH = 400;
@@ -75,11 +76,17 @@ function showsWithIdsByUser(showsSnap) {
 }
 
 /**
- * yearInReviewUpdates(reviewDocs, showsFor) → [{ ref, stats }] for every
- * review whose stored numbers differ from its owner's shows. Pure apart
- * from reading the snapshots, so the parity report and the tests can use
- * it. A year that no longer has any shows gets `stats: null`, which the
- * page shows as unavailable.
+ * yearInReviewUpdates(reviewDocs, showsFor) → [{ ref, stats, recap }] for
+ * every review whose stored numbers differ from its owner's shows. Pure
+ * apart from reading the snapshots, so the parity report and the tests can
+ * use it. A year that no longer has any shows gets `stats: null` and
+ * `recap: null`, which the page shows as unavailable.
+ *
+ * `recap` (5.60.16) is lib/yearRecap.js computeYearRecap for the same year:
+ * the 2026 recap, the My Shows banner and the Stats card, which the web
+ * computed only in the browser. Written here so the native app reads it
+ * rather than porting the calculator. A document from before 5.60.16 has
+ * no `recap`, so the next run (or recompute-my-stats) fills it in.
  */
 // JSON with object keys sorted at every level: Firestore hands maps back
 // with their keys in its own order, so a plain JSON.stringify would see a
@@ -103,10 +110,16 @@ function yearInReviewUpdates(reviewDocs, showsFor) {
     if (d.id && d.id !== `${data.userId}_${year}`) continue;
     // Through JSON, so a missing field (a show with no city) is left out as
     // Firestore stores it, rather than an `undefined` the Admin SDK refuses.
-    const computed = computeYearInReview(showsFor(data.userId) || [], year);
-    const stats = computed == null ? null : JSON.parse(JSON.stringify(computed));
-    if (canonicalJson(stats) === canonicalJson(data.stats == null ? null : data.stats)) continue;
-    out.push({ ref: d.ref, uid: data.userId, year, stats });
+    const shows = showsFor(data.userId) || [];
+    const asStored = (v) => (v == null ? null : JSON.parse(JSON.stringify(v)));
+    const stats = asStored(computeYearInReview(shows, year));
+    const recap = asStored(computeYearRecap(shows, year));
+    const statsSame = canonicalJson(stats) === canonicalJson(data.stats == null ? null : data.stats);
+    // A missing field isn't "null": a review written before 5.60.16 has no
+    // recap yet and gets one, even for a year with no shows.
+    const recapSame = 'recap' in data && canonicalJson(recap) === canonicalJson(data.recap == null ? null : data.recap);
+    if (statsSame && recapSame) continue;
+    out.push({ ref: d.ref, uid: data.userId, year, stats, recap });
   }
   return out;
 }
@@ -114,7 +127,7 @@ function yearInReviewUpdates(reviewDocs, showsFor) {
 async function writeYearInReviews(db, updates, at) {
   for (let i = 0; i < updates.length; i += BATCH) {
     const batch = db.batch();
-    updates.slice(i, i + BATCH).forEach((u) => batch.update(u.ref, { stats: u.stats, statsComputedAt: at }));
+    updates.slice(i, i + BATCH).forEach((u) => batch.update(u.ref, { stats: u.stats, recap: u.recap, statsComputedAt: at }));
     await batch.commit();
   }
   return updates.length;

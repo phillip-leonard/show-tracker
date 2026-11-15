@@ -96,6 +96,21 @@ async function main() {
     await assertSucceeds(as('alice').doc('yearInReviews/alice_2025').update({ privacy: 'private' }));
   });
 
+  await test('recap (5.60.16): the server writes it; no client creates, changes or removes it', async () => {
+    const RECAP = { year: 2025, totalShows: 3 };
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await ctx.firestore().doc('yearInReviews/dave_2025').set({ userId: 'dave', year: 2025, privacy: 'private', stats: STATS, recap: RECAP });
+    });
+    await assertFails(as('erin').doc('yearInReviews/erin_2025').set({ userId: 'erin', year: 2025, recap: RECAP }), 'create with a recap');
+    await assertFails(as('dave').doc('yearInReviews/dave_2025').update({ recap: { ...RECAP, totalShows: 99 } }), 'change it');
+    await assertFails(as('dave').doc('yearInReviews/dave_2025').update({ recap: firebase.firestore.FieldValue.delete() }), 'remove it');
+    await assertFails(as('dave').doc('yearInReviews/dave_2025').set({ userId: 'dave', year: 2025 }), 'a full overwrite would drop it');
+    // What every app version writes (merge, no recap) still passes on a document that has one.
+    await assertSucceeds(as('dave').doc('yearInReviews/dave_2025').set({ userId: 'dave', year: 2025, generatedDate: ts(), privacy: 'public' }, { merge: true }));
+    await assertSucceeds(as('dave').doc('yearInReviews/dave_2025').set({ userId: 'dave', year: 2025, generatedDate: ts(), stats: STATS }, { merge: true }));
+    await assertSucceeds(as('dave').doc('yearInReviews/dave_2025').get());
+  });
+
   await test('delete: nobody', async () => {
     await assertFails(as('alice').doc('yearInReviews/alice_2025').delete());
   });
