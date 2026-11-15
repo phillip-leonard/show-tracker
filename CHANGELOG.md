@@ -29,8 +29,17 @@ moves, Part 6, the rest of SCOPING item 6).
   existed with a read the rules refuse for a document that doesn't exist,
   so every attempt failed quietly: production has 0 suggestions, though
   mutual friends share 156 nights. The server creates them now, for each
-  new show. The suggestions old scans should have made are not backfilled
-  (devices that ran the once-only scan won't run it again).
+  new show, and none for a night two friends are already tagged together
+  on (`netlify/functions/lib/showSuggestions.js`).
+- **Backfill** (`scripts/backfill-show-suggestions.js`, dry run by
+  default, `--apply`, idempotent): the suggestions the old scans should
+  have made, once. In-app only: marked `backfill: true`, and send-email
+  refuses the suggestion email for them (nothing pushes suggestions). One
+  card each, since a single grouped entry would need new UI. The dry run
+  reports how many each user would get and flags anyone over 10; `--apply`
+  refuses until `config/app.latestIosVersion` is at least 3.13.27.
+  Production dry run: 11 suggestions across 6 pairs (62 nights skipped as
+  already tagged together); one user would get 11.
 - **No rules change.** iOS 3.13.26 and earlier still read friends' shows,
   delete themselves from friends' lists and create suggestions themselves,
   so the rules keep allowing it until `minSupportedIosVersion` passes them.

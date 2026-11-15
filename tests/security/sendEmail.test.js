@@ -281,6 +281,13 @@ test('suggestion_nudge: you confirmed, they haven\'t → email to them', async (
   assertSent(sent, BOB.email, /Were you there/);
 });
 
+test('suggestion_nudge: never for a backfilled suggestion (in-app only, 5.60.11)', async () => {
+  const { db, sent } = setup();
+  db._put('showSuggestions/s3', suggestion({ backfill: true }));
+  assert.strictEqual((await send(ALICE, { type: 'suggestion_nudge', suggestionId: 's3' })).statusCode, 403);
+  assert.strictEqual(sent.length, 0);
+});
+
 test('suggestion_nudge: not a participant, or you haven\'t confirmed → 403', async () => {
   const { db, sent } = setup();
   db._put('showSuggestions/s1', suggestion());

@@ -18,6 +18,8 @@ const path = require('node:path');
 const { createFakeDb, createFakeAuth } = require('../email/fakeFirestore');
 const { __setTestFirebase } = require('../../netlify/functions/lib/firebaseAdmin');
 const friends = require('../../netlify/functions/friends');
+const { planBackfill, versionAtLeast } = require('../../scripts/backfill-show-suggestions');
+const { suggestionDocId } = require('../../netlify/functions/lib/showSuggestions');
 
 const ALICE = { uid: 'aliceUid000001', email: 'alice@example.com' };
 const BOB = { uid: 'bobUid00000001', email: 'bob@example.com' };
@@ -109,7 +111,7 @@ test('suggestionScan for one show: a suggestion with each mutual friend who has 
   setup();
   const res = json(await call('alice-token', { action: 'suggestionScan', showId: 'a1' }));
   assert.strictEqual(res.created, 1, 'Bob, not Carol (not mutual)');
-  const id = friends.suggestionDocId(ALICE.uid, BOB.uid, 'nye');
+  const id = suggestionDocId(ALICE.uid, BOB.uid, 'nye');
   const doc = db._get(`showSuggestions/${id}`);
   assert.deepStrictEqual(doc.participants, [ALICE.uid, BOB.uid].sort());
   assert.deepStrictEqual(doc.names, { [ALICE.uid]: 'Alice', [BOB.uid]: 'Bob' });
@@ -127,7 +129,7 @@ test('suggestionScan for all shows (the retroactive scan): every shared night', 
 
 test('the same suggestion id the app always used, so existing suggestions are found', async () => {
   setup();
-  const id = friends.suggestionDocId(BOB.uid, ALICE.uid, 'nye');
+  const id = suggestionDocId(BOB.uid, ALICE.uid, 'nye');
   db._put(`showSuggestions/${id}`, { participants: [ALICE.uid, BOB.uid].sort(), overallStatus: 'confirmed' });
   assert.strictEqual(json(await call('alice-token', { action: 'suggestionScan', showId: 'a1' })).created, 0);
   assert.strictEqual(db._get(`showSuggestions/${id}`).overallStatus, 'confirmed', 'not overwritten');
@@ -146,6 +148,44 @@ test('the app no longer reads a friend’s shows or writes into another user’s
   const rules = fs.readFileSync(path.join(__dirname, '..', '..', 'firestore.rules'), 'utf8');
   assert.ok(/exists\(\/databases\/\$\(database\)\/documents\/users\/\$\(userId\)\/friends\/\$\(request\.auth\.uid\)\)/.test(rules),
     'the friends read rule stays until minSupportedIosVersion passes 3.13.26 (GATED-CLEANUPS.md)');
+});
+
+test('suggestionScan skips a night the two are already tagged together on', async () => {
+  setup();
+  db._put(`users/${ALICE.uid}/shows/a1`, { ...db._get(`users/${ALICE.uid}/shows/a1`), taggedFriendUids: [BOB.uid] });
+  db._put(`users/${BOB.uid}/shows/b2`, { ...db._get(`users/${BOB.uid}/shows/b2`), taggedByUid: ALICE.uid });
+  assert.strictEqual(json(await call('alice-token', { action: 'suggestionScan' })).created, 0);
+});
+
+// ── The one-off backfill (scripts/backfill-show-suggestions.js) ───────
+
+test('backfill plan: mutual, unblocked, not App Review, not tagged together; once per pair and night; per-user counts', () => {
+  const shows = new Map([
+    ['a', [{ id: 'a1', artist: 'Phish', venue: 'MSG', date: '2024-12-31', setlistfmId: 'nye' }, { id: 'a2', artist: 'Goose', venue: 'Red Rocks', date: '2024-06-21', taggedFriendUids: ['b'] }, { id: 'a3', artist: 'Phish', venue: 'MSG', date: '31-12-2024', setlistfmId: 'nye' }]],
+    ['b', [{ id: 'b1', artist: 'Phish', venue: 'Madison Square Garden', date: '2024-12-31', setlistfmId: 'nye' }, { id: 'b2', artist: 'goose', venue: 'red rocks', date: '21-06-2024' }]],
+    ['c', [{ id: 'c1', artist: 'Phish', venue: 'MSG', date: '2024-12-31', setlistfmId: 'nye' }]],
+    ['d', [{ id: 'd1', artist: 'Phish', venue: 'MSG', date: '2024-12-31', setlistfmId: 'nye' }]],
+    ['rev', [{ id: 'r1', artist: 'Phish', venue: 'MSG', date: '2024-12-31', setlistfmId: 'nye' }]],
+  ]);
+  const plan = planBackfill({
+    friendEdges: ['a>b', 'b>a', 'a>c', /* c never listed a */ 'a>d', 'd>a', 'a>rev', 'rev>a'],
+    blocked: new Set(['d|a']),
+    showsByUid: shows,
+    excludedUids: new Set(['rev']),
+  });
+  assert.strictEqual(plan.pairs, 1, 'only a–b: c is one-sided, d blocked, rev an App Review account');
+  assert.deepStrictEqual(plan.suggestions.map((x) => x.docId), [suggestionDocId('a', 'b', 'nye')], 'nye once (a has it twice), Goose skipped');
+  assert.strictEqual(plan.skippedTagged, 1);
+  assert.deepStrictEqual(plan.perUser, { a: 1, b: 1 });
+  const again = planBackfill({ friendEdges: ['a>b', 'b>a'], showsByUid: shows, existingIds: new Set([suggestionDocId('a', 'b', 'nye')]) });
+  assert.strictEqual(again.suggestions.length, 0, 'idempotent: an existing suggestion is not planned again');
+});
+
+test('backfill waits for the live iOS version', () => {
+  assert.strictEqual(versionAtLeast('3.13.12', '3.13.27'), false);
+  assert.strictEqual(versionAtLeast('3.13.27', '3.13.27'), true);
+  assert.strictEqual(versionAtLeast('3.14', '3.13.27'), true);
+  assert.strictEqual(versionAtLeast(undefined, '3.13.27'), false);
 });
 
 run('Friend reads on the server (5.60.11)');

@@ -281,7 +281,10 @@ async function suggestionNudge(ctx, caller, req) {
     const other = parts.find((u) => u !== caller.uid);
     return parts.includes(caller.uid) && other
       && d.responses && d.responses[caller.uid] === 'confirmed' && d.responses[other] === 'pending'
-      && !d.emailSentToUid;
+      && !d.emailSentToUid
+      // Suggestions the one-off backfill made (5.60.11) are in-app only:
+      // no email, whatever the app asks for.
+      && d.backfill !== true;
   };
   let doc;
   if (req.legacyTo) {

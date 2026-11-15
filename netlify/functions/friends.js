@@ -50,6 +50,7 @@ const { signReferral, readReferral } = require('./lib/referralToken');
 const { corsHeaders: baseCors } = require('./lib/cors');
 const { takeDailyQuota } = require('./lib/rateLimit');
 const { showMatchKey } = require('../../lib/showIdentity');
+const { suggestionDocId, suggestionDoc, planSuggestions } = require('./lib/showSuggestions');
 
 const APP_URL = 'https://mysetlists.net';
 // A referral or invite names its inviter on the new account's profile
@@ -165,12 +166,6 @@ function matchShows(mine, theirs) {
   return mine.filter((s) => byKey.has(showMatchKey(s))).map((s) => ({ ...s, friendShow: friendShowView(byKey.get(showMatchKey(s))) }));
 }
 
-// The suggestion's id: the two uids sorted, and the show's match key, as
-// the app built it (so suggestions it already wrote are found).
-function suggestionDocId(a, b, key) {
-  const [uid1, uid2] = [a, b].sort();
-  return `${uid1}_${uid2}_${String(key).replace(/[^a-z0-9]/g, '_').slice(0, 80)}`;
-}
 
 /** Records who invited a brand new account, never overwriting one. */
 async function recordInviter(db, auth, uid, inviterUid) {
@@ -349,28 +344,15 @@ const ACTIONS = {
     for (const f of friendsSnap.docs) {
       const friendUid = f.id;
       if (!(await mutualFriends(db, uid, friendUid))) continue;
-      const theirKeys = new Set((await showsOf(db, friendUid)).map(showMatchKey));
+      const friendShows = await showsOf(db, friendUid);
       const friendName = f.data().friendName || profileName(await getProfile(db, friendUid), 'Friend');
-      for (const show of mine) {
-        const key = showMatchKey(show);
-        if (!theirKeys.has(key)) continue;
-        const ref = db.collection('showSuggestions').doc(suggestionDocId(uid, friendUid, key));
+      // A night the two are already tagged together on needs no question
+      // (lib/showSuggestions.js).
+      for (const p of planSuggestions({ myUid: uid, myShows: mine, friendUid, friendShows })) {
+        if (p.skipped) continue;
+        const ref = db.collection('showSuggestions').doc(p.docId);
         if ((await ref.get()).exists) continue;
-        const [uid1, uid2] = [uid, friendUid].sort();
-        const names = { [uid]: myName, [friendUid]: friendName };
-        await ref.set({
-          participants: [uid1, uid2],
-          names: { [uid1]: names[uid1], [uid2]: names[uid2] },
-          showKey: key,
-          showData: { artist: show.artist || '', venue: show.venue || '', date: show.date || '', city: show.city || '', setlistfmId: show.setlistfmId || null },
-          responses: { [uid1]: 'pending', [uid2]: 'pending' },
-          overallStatus: 'pending',
-          emailSentToUid: null,
-          emailSentAt: null,
-          lastViewedAt: { [uid1]: null, [uid2]: null },
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        });
+        await ref.set(suggestionDoc({ a: uid, b: friendUid, names: { [uid]: myName, [friendUid]: friendName }, show: p.show, key: p.key }));
         created++;
       }
     }
