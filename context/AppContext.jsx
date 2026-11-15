@@ -59,6 +59,7 @@ import {
   commitShowInputs, OfflineError, readOutbox, addToOutbox, removeFromOutbox, deviceShowWrite, possibleDuplicateQuestion,
 } from '@/lib/showAdd';
 import { venueCountKey } from '@/lib/venueCount';
+import { mergeShowsSnapshot, startShowsListener } from '@/lib/liveShows';
 import { computeUserStats, STATS_VERSION } from '@/lib/stats';
 import { bandKey, songKey } from '@/lib/stats/keys';
 import { mergeGuestShows, mergeMessage, readLocalShows } from '@/lib/guestMerge';
@@ -821,28 +822,71 @@ export function AppProvider({ children }) {
   }, [user?.uid, guestMode, requestStatsRecompute]);
 
   // ── Load shows from Firestore ───────────────────────────────────────
-  const loadShows = useCallback(async (userId) => {
-    setIsLoading(true);
-    try {
-      const showsRef = collection(db, 'users', userId, 'shows');
-      const snapshot = await getDocs(showsRef);
-      const loadedShows = snapshot.docs.map(d => {
-        const data = d.data();
-        return { id: d.id, ...data, setlist: data.setlist || [] };
-      });
-      setShows(loadedShows);
+  // ── The user's shows, live (5.60.10, R-06 part 2) ───────────────────
+  // A listener on users/{uid}/shows (lib/liveShows.js), so an edit made on
+  // another device appears here without a reload. It fails loudly and
+  // never hangs: no first snapshot within its deadline, or a listener
+  // error, and the shows are read once instead, with a deadline of its
+  // own; either way loading ends and the failure is reported. A snapshot
+  // never undoes what this device just did: a show still being saved
+  // (offline, the outbox) and a setlist whose edit is in flight keep this
+  // device's copy until the server has them.
+  const showsListener = useRef({ stop: null, uid: null });
+  const setlistInFlight = useRef(new Map()); // showId -> edits not yet back
 
-      if (auth.currentUser) {
-        await updateUserProfile(auth.currentUser, loadedShows);
-        runRetroactiveSuggestionScan().catch(() => {});
-      }
-    } catch (error) {
-      console.error('Failed to load shows:', error);
-    } finally {
-      setIsLoading(false);
-      setShowsLoadedFor(userId);
-    }
+  const stopShowsListener = () => {
+    const { stop } = showsListener.current;
+    showsListener.current = { stop: null, uid: null };
+    if (stop) stop();
+  };
+
+  // Ids of shows this device is still saving: written while normalize-show
+  // was out of reach and not yet on the server, or waiting in the outbox.
+  const pendingShowIds = (uid) => {
+    const ids = new Set(readOutbox(uid).map((e) => e.showId));
+    pendingDeviceWrites.current.forEach((state, id) => { if (!state.settled) ids.add(id); });
+    return ids;
+  };
+
+  const applyServerShows = (uid, serverShows) => {
+    if (showsListener.current.uid !== uid) return; // a listener for someone who has signed out
+    const inFlight = new Set([...setlistInFlight.current].filter(([, n]) => n > 0).map(([id]) => id));
+    const merged = mergeShowsSnapshot(serverShows, latestShows.current, { pendingIds: pendingShowIds(uid), setlistInFlight: inFlight });
+    latestShows.current = merged;
+    setShows(merged);
+    setSelectedShow(prev => (prev ? merged.find(s => s.id === prev.id) || prev : prev));
+  };
+
+  const loadShows = useCallback(async (userId) => {
+    stopShowsListener();
+    setIsLoading(true);
+    const showsRef = collection(db, 'users', userId, 'shows');
+    showsListener.current = { stop: null, uid: userId };
+    const stop = startShowsListener({
+      subscribe: (next, fail) => onSnapshot(showsRef, next, fail),
+      readOnce: async () => (await getDocs(showsRef)).docs,
+      onShows: (serverShows) => applyServerShows(userId, serverShows),
+      onError: (error, stage) => {
+        console.error(`[shows] ${stage === 'read-once' ? 'loading your shows failed' : `live updates unavailable (${stage}); loading once instead`}:`, error?.message || error);
+      },
+      onLoaded: async ({ error, live }) => {
+        setIsLoading(false);
+        setShowsLoadedFor(userId);
+        if (error && !live && latestShows.current.length === 0) {
+          setToast({ message: 'Your shows couldn\u2019t be loaded. Check your connection and reload.', type: 'error' });
+        }
+        if (auth.currentUser && auth.currentUser.uid === userId) {
+          try { await updateUserProfile(auth.currentUser, latestShows.current); } catch (err) { console.warn('[shows] profile update failed:', err?.message); }
+          runRetroactiveSuggestionScan().catch(() => {});
+        }
+      },
+    });
+    showsListener.current = { stop, uid: userId };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // No listener outlives the app.
+  useEffect(() => () => stopShowsListener(), []);
 
   // ── Load festivals from Firestore ────────────────────────────────────
   // Two reads per festival: the user's own attendance record
@@ -1230,6 +1274,10 @@ export function AppProvider({ children }) {
   // their state, so without this a second account could briefly, or after
   // a failed read for good, see the first one's friends, tags or alerts.
   const resetUserState = () => {
+    // Synchronous and returns nothing: safe as a sign-out step
+    // (lib/signOutFlow.js), nothing a Capacitor plugin can hang.
+    stopShowsListener();
+    setlistInFlight.current = new Map();
     setShows([]);
     latestShows.current = [];
     setShowsLoadedFor(null);
@@ -3151,6 +3199,10 @@ export function AppProvider({ children }) {
 
   const writeSetlistEdit = async (showId, edit, deviceSetlist, seq) => {
     const ref = showDocRef(showId);
+    // Until this edit is back, a snapshot keeps this device's setlist for
+    // the show (the transaction isn't in the listener's view until it
+    // commits; lib/liveShows.js).
+    setlistInFlight.current.set(showId, (setlistInFlight.current.get(showId) || 0) + 1);
     const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
     try {
       if (offline) throw new Error('offline');
@@ -3169,6 +3221,9 @@ export function AppProvider({ children }) {
       // last write wins (queued until the connection is back).
       updateDoc(ref, { setlist: deviceSetlist })
         .catch((err) => console.error('Failed to save the setlist:', err));
+    } finally {
+      const left = (setlistInFlight.current.get(showId) || 1) - 1;
+      if (left > 0) setlistInFlight.current.set(showId, left); else setlistInFlight.current.delete(showId);
     }
     requestStatsRecompute();
   };

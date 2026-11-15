@@ -6,9 +6,8 @@ All notable changes to mysetlists.net are documented here.
 
 ## [5.60.11] — 2026-11-15
 
-Ships in **iOS 3.13.27** (`MARKETING_VERSION` 3.13.25 → 3.13.27; 3.13.26 is
-taken by the open 5.60.10 PR, #418). Changes how the app reads friends'
-shows, so it needs a new iOS build.
+Ships in **iOS 3.13.27** (`MARKETING_VERSION` 3.13.26 → 3.13.27). Changes how
+the app reads friends' shows, so it needs a new iOS build.
 
 **Friends no longer read each other's show histories** (pre-native server
 moves, Part 6, the rest of SCOPING item 6).
@@ -41,6 +40,40 @@ moves, Part 6, the rest of SCOPING item 6).
   Together count is the same as the app's for each; no friendship where
   the app could read and the server refuses (one-sided or blocked).
 - Tests: `tests/security/friendReads.test.js` (new).
+
+---
+
+## [5.60.10] — 2026-11-15
+
+Ships in **iOS 3.13.26** (`MARKETING_VERSION` 3.13.25 → 3.13.26). Changes how
+the app loads a signed-in user's shows, so it needs a new iOS build, **and
+a check on a real device before it ships** (below).
+
+**Your shows stay up to date while the app is open** (R-06, part 2;
+part 1 is 5.60.9).
+
+- **Before:** the app read a user's shows once (`getDocs` in `loadShows`)
+  and never again, so an edit made on another device appeared only after a
+  reload.
+- **Now:** a live listener on `users/{uid}/shows` (`lib/liveShows.js`). An
+  edit, an add or a delete on another device shows here within moments.
+- **It fails loudly and never hangs** (the 5.36.4 lesson, `lib/firebase.js`):
+  no first snapshot within 10 s, or a listener error, and the shows are
+  read once instead, with a 15 s deadline of its own. Whatever happens,
+  loading ends; if nothing could be read the user is told to check the
+  connection and reload, and the failure is logged. A listener that
+  answers late is still used.
+- **A snapshot never undoes what this device just did.** A show this
+  device is still saving (written offline, or in the outbox) stays until
+  the server has it, and a setlist whose edit is still in its transaction
+  keeps this device's copy until the transaction returns. Everything else
+  is the server's: a show deleted elsewhere goes.
+- The listener stops on sign-out and session end (`resetUserState`, a
+  synchronous step in `lib/signOutFlow.js`), when another user signs in,
+  and when the app closes. Guests are unchanged (localStorage).
+- Tests: `lib/__tests__/liveShows.test.js` (the listener that never
+  answers, both reads hanging, a listener error or throw, a late answer,
+  stop before anything arrives, the merge rules, and the wiring).
 
 ---
 
