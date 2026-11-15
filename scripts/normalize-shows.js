@@ -12,7 +12,9 @@
  *            Part 1b)
  *   stored   every show: the date as ISO, isManual by the buildShowDoc
  *            rule, a missing setlist as []. Never a user's rating, comment,
- *            setlist or anything else they wrote.
+ *            setlist or anything else they wrote. Also counts the shows
+ *            carrying normalizationError (5.60.7): ones the pending pass
+ *            gave up on because the server refused their input, by code.
  *
  * The dry run also prints the shape report: how stored shows differ from
  * the canonical shape new documents have (lib/showInputs.js), by field.
@@ -70,6 +72,8 @@ async function main() {
 
   console.log('Pending (needsNormalization):', JSON.stringify(pending));
   console.log(`Stored: ${stored.scanned} shows, ${stored.changed} to fix`, JSON.stringify(stored.byField));
+  const errs = stored.normalizationError;
+  console.log(`normalizationError: ${errs.total} show${errs.total === 1 ? '' : 's'} the sweep couldn't normalize${errs.total ? ` ${JSON.stringify(errs.byCode)}` : ''}`);
   if (!apply) {
     const shape = await shapeReport(db);
     console.log(`\nShape (informational, never written): ${shape.differ} of ${shape.scanned} stored shows differ from the shape new documents have`);

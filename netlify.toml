@@ -58,6 +58,12 @@
 [functions."moderation-sla-reminder"]
   schedule = "15 */4 * * *"
 
+# Every 6 hours (5.60.7): setlists for shows that have none, across every
+# account, oldest-unchecked first, through the same merge and ratings guard
+# as every setlist write. See netlify/functions/lib/setlistOps.js.
+[functions."scan-missing-setlists-scheduled"]
+  schedule = "45 */6 * * *"
+
 # Hourly (5.60.5): shows the app wrote before normalize-show answered are
 # normalized from their saved input; the 03:xx UTC run also fixes what older
 # builds wrote (date format, isManual). See netlify/functions/lib/showSweep.js.

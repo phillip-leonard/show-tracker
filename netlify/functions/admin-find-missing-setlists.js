@@ -16,8 +16,10 @@
  */
 
 const { withCors } = require('./lib/cors');
-const https = require('https');
-const { setlistfmKey, missingSetlistfmKey } = require('./lib/setlistfmKey');
+const { missingSetlistfmKey } = require('./lib/setlistfmKey');
+const { findSetlistfmMatch, inTransaction } = require('./lib/setlistOps');
+const { setlistDeps } = require('./lib/setlistOpsHandler');
+const { extractSongsFromSetlist } = require('../../lib/setlistParser');
 
 // The one admin check: custom claim or verified allowlisted address (5.59.12).
 const { isAdmin } = require('./lib/firebaseAdmin');
@@ -49,118 +51,17 @@ async function verifyAdmin(token) {
 
 // ── Setlist.fm API ──────────────────────────────────────────────────
 
-function fetchFromSetlistFm(params) {
-  return new Promise((resolve, reject) => {
-    const options = {
-      hostname: 'api.setlist.fm',
-      path: `/rest/1.0/search/setlists?${params.toString()}`,
-      method: 'GET',
-      headers: {
-        'x-api-key': setlistfmKey(),
-        Accept: 'application/json',
-        'User-Agent': 'MySetlists/3.8',
-      },
-    };
-    const req = https.request(options, (res) => {
-      let data = '';
-      res.on('data', (chunk) => { data += chunk; });
-      res.on('end', () => {
-        try {
-          resolve({ statusCode: res.statusCode, data: JSON.parse(data) });
-        } catch (e) {
-          reject(new Error(`Parse error: ${e.message}`));
-        }
-      });
-    });
-    req.on('error', reject);
-    req.setTimeout(10000, () => { req.destroy(); reject(new Error('Timeout')); });
-    req.end();
-  });
+// The setlist.fm search and the song parse are the app's own (5.60.7):
+// lib/setlistOps.js findSetlistfmMatch (the artist's year, up to three
+// pages, under the name variants scanForMissingSetlists always tried,
+// through search-setlists.js and its cache) and lib/setlistParser.js. This
+// function had its own copies of both until then.
+function searchSetlistFm(artist, date) {
+  if (!artist || !date) return Promise.resolve(null);
+  return findSetlistfmMatch({ artist, date }, setlistDeps());
 }
 
-async function searchSetlistFm(artist, date) {
-  if (!artist || !date) return null;
-  const year = date.split('-')[0];
-
-  const searchVariants = [artist];
-  if (artist.includes('&')) searchVariants.push(artist.replace(/&/g, 'and'));
-  if (artist.toLowerCase().startsWith('the ')) searchVariants.push(artist.substring(4));
-  else searchVariants.push('The ' + artist);
-
-  for (const searchArtist of searchVariants) {
-    try {
-      const params = new URLSearchParams({ artistName: searchArtist, year, p: '1' });
-      const { statusCode, data } = await fetchFromSetlistFm(params);
-
-      if (statusCode === 429) {
-        await new Promise((r) => setTimeout(r, 2000));
-        const retry = await fetchFromSetlistFm(params);
-        if (retry.statusCode === 200 && retry.data.setlist) {
-          const match = findDateMatch(retry.data.setlist, date);
-          if (match) return match;
-        }
-        continue;
-      }
-
-      if (statusCode !== 200 || !data.setlist || data.setlist.length === 0) {
-        await new Promise((r) => setTimeout(r, 300));
-        continue;
-      }
-
-      const match = findDateMatch(data.setlist, date);
-      if (match) return match;
-    } catch (err) {
-      console.warn(`[SETLIST.FM] Error searching "${searchArtist}":`, err.message);
-    }
-    await new Promise((r) => setTimeout(r, 300));
-  }
-  return null;
-}
-
-function findDateMatch(setlists, targetDate) {
-  return setlists.find((s) => {
-    if (!s.eventDate) return false;
-    const parts = s.eventDate.split('-');
-    if (parts.length !== 3) return false;
-    return `${parts[2]}-${parts[1]}-${parts[0]}` === targetDate;
-  }) || null;
-}
-
-const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII'];
-const toRoman = (n) => ROMAN[n - 1] || String(n);
-
-// Counts regular sets and encores separately so labels come out right even
-// when a show has multiple regular sets before its encore(s).
-function extractSongs(match) {
-  const songs = [];
-  let regularSetCount = 0;
-  let encoreCount = 0;
-  if (match.sets && match.sets.set) {
-    match.sets.set.forEach((set) => {
-      let setLabel;
-      if (set.encore) {
-        encoreCount++;
-        setLabel = encoreCount === 1 ? 'Encore' : `Encore ${toRoman(encoreCount)}`;
-      } else {
-        regularSetCount++;
-        setLabel = `Set ${toRoman(regularSetCount)}`;
-      }
-
-      if (set.song) {
-        set.song.forEach((song) => {
-          songs.push({
-            id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
-            name: song.name.trim(),
-            set: setLabel,
-            cover: song.cover ? song.cover.name : null,
-            tape: song.tape || false,
-          });
-        });
-      }
-    });
-  }
-  return songs;
-}
+const extractSongs = (match) => extractSongsFromSetlist(match);
 
 // ── Handler ─────────────────────────────────────────────────────────
 
@@ -328,7 +229,15 @@ exports.handler = async function (event) {
           if (matchData.setlistfmUrl) updates.setlistfmUrl = matchData.setlistfmUrl;
           if (matchData.tour) updates.tour = matchData.tour;
 
-          await db.collection('users').doc(ms.userId).collection('shows').doc(ms.showId).update(updates);
+          // Only into a setlist that is still empty, read in the same
+          // transaction (5.60.7): a show that gained songs since the scan
+          // read it is left alone, so nothing the user wrote is replaced.
+          const written = await inTransaction(db, ms.userId, ms.showId, (current) => (
+            (current.setlist || []).length > 0
+              ? { ok: false, reason: 'has-setlist' }
+              : { ok: true, update: updates }
+          ));
+          if (!written.ok) throw new Error(written.reason === 'has-setlist' ? 'the show has a setlist now; left alone' : written.reason);
           result.populated = true;
           populatedCount++;
         } catch (err) {

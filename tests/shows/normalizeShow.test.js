@@ -190,8 +190,13 @@ test('sweep: the stored pass fixes only the date, isManual and a missing setlist
   db._put(`users/${ALICE.uid}/shows/1`, { artist: ' Phish ', venue: '', date: '31-12-2024', isManual: true, setlistfmId: 'x', tour: '', rating: 9, setlist: [{ name: '' }] });
   db._put(`users/${ALICE.uid}/shows/2`, { artist: 'Goose', date: '2024-06-21', isManual: true, setlist: [] });
   db._put(`users/${ALICE.uid}/upcomingShows/3`, { artist: 'Not a show', date: '31-12-2030' });
+  db._put(`users/${ALICE.uid}/shows/4`, { artist: 'Goose', date: '2024-06-22', isManual: true, setlist: [], normalizationError: 'tag-not-found' });
   const dry = await sweepStored(db, { write: false });
-  assert.deepStrictEqual(dry, { scanned: 2, changed: 1, byField: { date: 1, isManual: 1 } });
+  assert.deepStrictEqual(dry, {
+    scanned: 3, changed: 1, byField: { date: 1, isManual: 1 },
+    // Shows the pending pass gave up on, counted by code (5.60.7).
+    normalizationError: { total: 1, byCode: { 'tag-not-found': 1 } },
+  });
   await sweepStored(db, { write: true });
   const fixed = db._get(`users/${ALICE.uid}/shows/1`);
   assert.deepStrictEqual([fixed.date, fixed.isManual, fixed.artist, fixed.tour, fixed.rating, fixed.setlist], ['2024-12-31', false, ' Phish ', '', 9, [{ name: '' }]]);

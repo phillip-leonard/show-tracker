@@ -23,10 +23,8 @@ import {
   upcomingTagShowData, upcomingInputFromTag, findSetlistForDate,
 } from '@/lib/upcomingShows';
 import { isReturningUser as checkIsReturningUser } from '@/lib/popupManager';
-import { extractSongsFromSetlist } from '@/lib/setlistParser';
-import { fetchBandSetlistResponse, fetchBandSetlist, fetchBandSetlistWithReason, bandSetlistShowFields, mergeSourceSetlist, mergeNeedsWrite, userNoteCounts } from '@/lib/bandSetlist';
-import { describeSummary } from '@/lib/bandSetlistMerge';
-import { resolveSource, SETLIST_SOURCES } from '@/lib/setlistSources';
+import { fetchBandSetlistResponse } from '@/lib/bandSetlist';
+import { SETLIST_SOURCES } from '@/lib/setlistSources';
 import { removeSongFromSetlist, insertSongAt } from '@/lib/setlistGrouping';
 import { normalizeFestivalName, findFestivalMatches as matchFestivals } from '@/lib/festivalMatch';
 import { festivalWhenFields } from '@/lib/festivalDates';
@@ -64,7 +62,7 @@ import { venueCountKey } from '@/lib/venueCount';
 import { computeUserStats, STATS_VERSION } from '@/lib/stats';
 import { bandKey, songKey } from '@/lib/stats/keys';
 import { mergeGuestShows, mergeMessage, readLocalShows } from '@/lib/guestMerge';
-import { classifyDuplicate, showMatchKey, setlistIsOnShowDate } from '@/lib/showIdentity';
+import { classifyDuplicate, showMatchKey } from '@/lib/showIdentity';
 
 // ── Helper: mint a show document id ─────────────────────────────────────
 // Where a sign-in from the Songs I've heard tool may return to: a band's
@@ -1759,149 +1757,67 @@ export function AppProvider({ children }) {
     }
   };
 
-  // ── Setlist scanning ────────────────────────────────────────────────
+  // ── Setlists from a source (5.60.7) ─────────────────────────────────
+  //
+  // Every change to a setlist from a band source or setlist.fm is made on
+  // the server (netlify/functions/lib/setlistOps.js): the merge, the
+  // "never lose a rating" guard, and the write, in a transaction against
+  // the show as it is stored. The app asks and shows the answer; it never
+  // merges or writes a source's setlist itself. The answers keep the
+  // shapes the show page and the review sheet already read: { ok, reason,
+  // detail, summary, result, setlist, ambiguous, message }, plus `fields`,
+  // what was written, which is folded into the shows here.
+
+  const callSetlistOp = async (op, body) => {
+    try {
+      const res = await authedFetch(`/.netlify/functions/${op}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) return { ok: false, reason: 'http-error', detail: data.error || `HTTP ${res.status}` };
+      return data;
+    } catch (err) {
+      return { ok: false, reason: 'fetch-failed', detail: err?.message || String(err) };
+    }
+  };
+
+  // What the server wrote, into the shows and the open show.
+  const applyServerFields = (showId, fields) => {
+    if (!fields) return;
+    const patch = (s) => (s.id === showId ? { ...s, ...fields } : s);
+    latestShows.current = latestShows.current.map(patch);
+    setShows(prev => prev.map(patch));
+    if (selectedShow?.id === showId) setSelectedShow(prev => (prev && prev.id === showId ? { ...prev, ...fields } : prev));
+    requestStatsRecompute();
+  };
+
+  // An admin's own shows with no setlist (the Admin button): the band
+  // source where the band has one, else setlist.fm, a few shows per request
+  // until every one has been asked about. The scheduled
+  // scan-missing-setlists-scheduled does the same for everyone.
   const scanForMissingSetlists = async () => {
-    const showsWithoutSetlists = shows.filter(s => !s.setlist || s.setlist.length === 0);
-    if (showsWithoutSetlists.length === 0) {
+    const missing = shows.filter(s => !s.setlist || s.setlist.length === 0).map(s => s.id);
+    if (missing.length === 0) {
       alert('All your shows already have setlists!');
       return;
     }
-
     setSetlistScanning(true);
-    setSetlistScanProgress({ current: 0, total: showsWithoutSetlists.length, found: 0 });
+    setSetlistScanProgress({ current: 0, total: missing.length, found: 0 });
+    let remaining = missing;
+    let done = 0;
     let found = 0;
-
-    const searchAndMatch = async (searchArtist, date, year) => {
-      for (let page = 1; page <= 3; page++) {
-        const params = new URLSearchParams({ artistName: searchArtist, year, p: String(page) });
-        const response = await fetch(apiUrl(`/api/search-setlists?${params.toString()}`));
-        if (!response.ok) return null;
-        const data = await response.json();
-        if (!data.setlist || data.setlist.length === 0) return null;
-
-        const match = data.setlist.find(s => {
-          // setlist.fm's DD-MM-YYYY against the show's date in any stored
-          // format (B-06).
-          return setlistIsOnShowDate(s.eventDate, date);
-        });
-
-        if (match) return match;
-        if (data.setlist.length < 20) break;
-        await new Promise(resolve => setTimeout(resolve, 300));
-      }
-      return null;
-    };
-
-    const extractSongs = extractSongsFromSetlist;
-
-    // ── The band-source shortcut ──────────────────────────────────────
-    // For a Goose or Phish show this is ONE request: both archives are
-    // addressable by show date, so there is a single URL that either has
-    // the night or doesn't.
-    //
-    // What it replaces for those shows is searchAndMatch above, which is
-    // built entirely around setlist.fm's search having no date endpoint:
-    // up to three pages of twenty results, retried under up to three
-    // artist-name variants ("X", "X and Y", "The X"), reversing
-    // setlist.fm's DD-MM-YYYY into YYYY-MM-DD to compare each candidate.
-    // Up to nine requests to find one night, and that loop exists for no
-    // other reason. Every other artist keeps it unchanged.
-    const scanViaBandSource = async (show) => {
-      const result = await fetchBandSetlist({
-        artist: show.artist,
-        date: show.date,
-        venue: show.venue,
+    while (remaining.length) {
+      const out = await callSetlistOp('scan-missing-setlists', { showIds: remaining });
+      if (!Array.isArray(out.results) || !out.results.length) break;
+      out.results.forEach((r) => {
+        if (r.status === 'found') { found++; applyServerFields(r.showId, r.fields); }
       });
-      if (!result) return false;
-
-      // Through the merge rules like every other write, even though these
-      // shows are the ones with no setlist — because "no setlist" is
-      // `setlist: []` in most cases but not all, and a user who hand-added
-      // two songs they remembered has a setlist worth keeping.
-      const { setlist, changed, summary, result: chosen } = mergeSourceSetlist(show.setlist || [], result);
-      const fields = bandSetlistShowFields(chosen, setlist);
-      // Already up to date is still found: the band source has the night,
-      // so the setlist.fm search below has nothing to add.
-      if (!mergeNeedsWrite({ changed, summary }, show, fields)) return summary.skipped === 'identical';
-
-      console.log(`[SETLIST SCAN] ${show.artist} ${show.date} via ${result.source}: ${describeSummary(summary)}`);
-      await updateShowData(show.id, fields);
-      return true;
-    };
-
-    for (let i = 0; i < showsWithoutSetlists.length; i++) {
-      const show = showsWithoutSetlists[i];
-      try {
-        if (!show.artist || !show.date) continue;
-        // The year from any stored format: a DD-MM-YYYY show used to search
-        // setlist.fm for year "23" (B-06).
-        const year = showYear(show.date);
-        if (!year) continue;
-
-        // One request instead of up to nine, where the artist has a band
-        // source. A failure here falls through to the setlist.fm path
-        // below rather than giving up on the show.
-        //
-        // Not for a source whose setlists must be reviewed before they are
-        // written (the Internet Archive, for Grateful Dead): this scan
-        // writes without asking, so those shows keep the setlist.fm path
-        // they have always had here, and the Archive's version is offered
-        // through the review screen instead (proposeSetlistFromSource).
-        const scanSource = resolveSource({ name: show.artist });
-        if (scanSource.isBandSource && !scanSource.requiresReview) {
-          if (await scanViaBandSource(show)) {
-            found++;
-            setSetlistScanProgress({ current: i + 1, total: showsWithoutSetlists.length, found });
-            if (i < showsWithoutSetlists.length - 1) {
-              await new Promise(resolve => setTimeout(resolve, 500));
-            }
-            continue;
-          }
-        }
-
-        let match = await searchAndMatch(show.artist, show.date, year);
-
-        if (!match && show.artist.includes('&')) {
-          await new Promise(resolve => setTimeout(resolve, 300));
-          match = await searchAndMatch(show.artist.replace(/&/g, 'and'), show.date, year);
-        }
-
-        if (!match) {
-          await new Promise(resolve => setTimeout(resolve, 300));
-          if (show.artist.toLowerCase().startsWith('the ')) {
-            match = await searchAndMatch(show.artist.substring(4), show.date, year);
-          } else {
-            match = await searchAndMatch('The ' + show.artist, show.date, year);
-          }
-        }
-
-        if (match) {
-          const songs = extractSongs(match);
-          if (songs.length > 0) {
-            // `setlistSource` is stamped explicitly on the setlist.fm path
-            // too, so nothing downstream has to infer the source from
-            // which fields happen to be present. Readers still default to
-            // setlist.fm when the field is absent — every show document
-            // written before this release has no such field, and
-            // backfilling millions of them to say what the default already
-            // says would be pointless churn.
-            const updates = { setlist: songs, setlistfmId: match.id, setlistfmUrl: match.url || null, isManual: false, setlistSource: 'setlistfm' };
-            if (match.tour) updates.tour = match.tour.name;
-            await updateShowData(show.id, updates);
-            found++;
-          }
-        }
-      } catch (err) {
-        console.warn('Setlist scan error for', show.artist, err);
-      }
-
-      setSetlistScanProgress({ current: i + 1, total: showsWithoutSetlists.length, found });
-
-      if (i < showsWithoutSetlists.length - 1) {
-        await new Promise(resolve => setTimeout(resolve, 500));
-      }
+      done += out.results.length;
+      setSetlistScanProgress({ current: done, total: missing.length, found });
+      remaining = out.remaining || [];
     }
-
     setSetlistScanning(false);
     if (found > 0) {
       alert(`Found ${found} new setlist${found !== 1 ? 's' : ''}!`);
@@ -1910,173 +1826,41 @@ export function AppProvider({ children }) {
     }
   };
 
-  // ── Re-fetch one show's setlist from its band source ────────────────
-  //
-  // The per-show counterpart to scanForMissingSetlists, and the answer to
-  // the case that one cannot reach: a show that ALREADY has a setlist.fm
-  // setlist. scanForMissingSetlists only looks at shows where
-  // `!s.setlist || s.setlist.length === 0`, which is right — it is a
-  // backfill for gaps, and re-running it must not rewrite setlists people
-  // have been rating for months. But it means a Goose show logged before
-  // 5.33.0 keeps its setlist.fm setlist forever unless something asks for
-  // the swap explicitly. This is that ask, one show at a time, initiated by
-  // the user from the show itself.
-  //
-  // Returns a result object rather than a boolean, because the button that
-  // calls it has to say what happened — including, especially, what
-  // happened when nothing did. Never throws and never leaves the show
-  // worse: every failure path returns `{ ok: false, reason }` with the
-  // stored setlist untouched.
-  // Split in two since 5.47.3, so a source whose setlists must be reviewed
-  // (the Internet Archive) can show the user what it found before anything
-  // is written: proposeSetlistFromSource fetches and merges in memory only,
-  // applySetlistProposal writes. resyncSetlistFromSource is the two back to
-  // back, for the sources that need no review.
-  const proposeSetlistFromSource = async (showId) => {
-    const show = shows.find(s => s.id === showId);
-    if (!show) return { ok: false, reason: 'show-not-found' };
+  // The band source's setlist merged into this show's, for the user to see
+  // first (the Internet Archive review); nothing is written.
+  const proposeSetlistFromSource = (showId) => callSetlistOp('propose-setlist', { showId });
 
-    const source = resolveSource({ name: show.artist, mbid: show.artistMbid });
-    if (!source.isBandSource) return { ok: false, reason: 'not-a-band-source', source };
-
-    const { result, reason, detail } = await fetchBandSetlistWithReason({
-      artist: show.artist,
-      artistMbid: show.artistMbid,
-      date: show.date,
-      venue: show.venue,
-    });
-
-    if (!result) return { ok: false, reason, detail, source };
-
-    // The same merge rule every other write goes through, so a rating or a
-    // hand-added song cannot be lost by pressing this button. `changed` is
-    // false when the incoming setlist is empty or entirely untitled, both
-    // handled above, and when it matches the stored setlist exactly — which
-    // is nothing to change only if the show already credits this source.
-    const { setlist, changed, summary, result: chosen } = mergeSourceSetlist(show.setlist || [], result);
-    if (!mergeNeedsWrite({ changed, summary }, show, bandSetlistShowFields(chosen, setlist))) {
-      return { ok: false, reason: summary.skipped === 'ambiguous-date' ? 'ambiguous-date' : 'nothing-to-change', summary, source };
-    }
-
-    return { ok: true, source, result: chosen, setlist, summary };
-  };
-
-  // Writes a proposal the user accepted. The merge is re-run against the
-  // show as it is NOW rather than as it was when the proposal was made, so
-  // an edit made while the review screen was open is not lost.
-  //
-  // `onlyIfEmpty` is the backfill's guarantee: it offers setlists for shows
-  // that have none, and if one has gained a setlist since (another device,
-  // the setlist.fm scan), saving refuses rather than replacing it.
-  //
-  // Everything that reaches here has been shown to the user, so an Archive
-  // setlist written from here is `reviewed` and clears `needsReview`.
-  //
-  // The stats check: a merge may change how many songs a show has, but it
-  // must never leave fewer rated or commented songs than there were. The
-  // merge rule already guarantees that; this checks it again on the exact
-  // setlist about to be written, and refuses (writing nothing) if it fails.
-  const applySetlistProposal = async (showId, result, { onlyIfEmpty = false, extraFields = {} } = {}) => {
-    const show = shows.find(s => s.id === showId);
-    if (!show) return { ok: false, reason: 'show-not-found' };
-    if (!result || !Array.isArray(result.songs)) return { ok: false, reason: 'no-songs' };
-    if (onlyIfEmpty && (show.setlist || []).length > 0) return { ok: false, reason: 'has-setlist' };
-
-    const source = resolveSource({ name: show.artist, mbid: show.artistMbid });
-    const { setlist, changed, summary, result: chosen } = mergeSourceSetlist(show.setlist || [], result);
-
-    const fields = {
-      ...bandSetlistShowFields(chosen, setlist, { reviewed: true }),
-      ...extraFields,
-      // Same rule as the add path: take the source's tour name only where
-      // the show hasn't got one already.
-      ...(show.tour ? {} : (chosen.tour ? { tour: chosen.tour } : {})),
-    };
-
-    // An identical setlist still writes when the fields do: a show that
-    // doesn't credit this source yet, or a stored proposal's decision.
-    if (!mergeNeedsWrite({ changed, summary }, show, fields)) {
-      return { ok: false, reason: summary.skipped === 'ambiguous-date' ? 'ambiguous-date' : 'nothing-to-change', summary, source };
-    }
-
-    const before = userNoteCounts(show.setlist);
-    const after = userNoteCounts(setlist);
-    if (after.rated < before.rated || after.commented < before.commented) {
-      console.error(`[RESYNC] refused ${show.artist} ${show.date}: rated ${before.rated} → ${after.rated}, commented ${before.commented} → ${after.commented}`);
-      return { ok: false, reason: 'would-lose-notes', before, after, summary, source };
-    }
-
-    console.log(`[RESYNC] ${show.artist} ${show.date} via ${result.source}: ${describeSummary(summary)}`);
-
-    await updateShowData(showId, fields);
-    // updateShowData refreshes the `shows` array but not `selectedShow`,
-    // and /shows renders the detail view from `selectedShow` — so without
-    // this the setlist changes in Firestore and on the shows list while
-    // the open show keeps showing the old one.
-    if (selectedShow?.id === showId) {
-      setSelectedShow(prev => (prev && prev.id === showId ? { ...prev, ...fields } : prev));
-    }
-
-    return { ok: true, summary, source, result, ambiguous: !!result.ambiguous, message: result.message };
+  // A proposal the user accepted: re-merged on the server against the show
+  // as stored, refused rather than written if it would lose a rating or a
+  // comment. `onlyIfEmpty`: only into a show that still has no setlist.
+  const applySetlistProposal = async (showId, result, { onlyIfEmpty = false } = {}) => {
+    const out = await callSetlistOp('accept-proposal', { showId, result, onlyIfEmpty });
+    if (out.ok) applyServerFields(showId, out.fields);
+    return out;
   };
 
   // ── Stored proposals (the Internet Archive backfill) ──────────────────
   //
   // admin-resync-setlists writes `setlistProposal` on a Grateful Dead show
-  // instead of touching its setlist. Accept writes it through
-  // applySetlistProposal — the same merge, against the setlist as it is now,
-  // and the same stats check — and records the decision; Keep current
-  // records the decision and nothing else. Either way the re-sync does not
-  // offer the same recording again. Nothing here asks the Archive anything,
-  // but with the source switched off the proposals are not offered.
+  // instead of touching its setlist. Accept writes it (the same merge and
+  // guard; a proposal the guard refuses is recorded as blocked) and records
+  // the decision; Keep current records the decision. With the source
+  // switched off the proposals are not offered.
   const pendingProposalShows = useMemo(
     () => (SETLIST_SOURCES.archive ? shows.filter(s => s.setlistProposal?.status === 'pending') : []),
     [shows]
   );
 
-  const decideStoredProposal = (showId, status) => {
-    const show = shows.find(s => s.id === showId);
-    const p = show?.setlistProposal;
-    if (!p) return null;
-    return { ...p, status, decidedAt: new Date().toISOString() };
-  };
-
   const acceptStoredProposal = async (showId) => {
-    const show = shows.find(s => s.id === showId);
-    const p = show?.setlistProposal;
-    if (!p || p.status !== 'pending') return { ok: false, reason: 'no-proposal' };
-    const result = {
-      source: p.source || 'archive',
-      songs: p.songs || [],
-      sourceShowId: p.sourceShowId || '',
-      sourcePermalink: p.sourcePermalink || '',
-      setlistNotes: p.setlistNotes || '',
-      licenseUrl: p.licenseUrl == null ? null : p.licenseUrl,
-      needsReview: !!p.needsReview,
-      disagreement: p.disagreement || null,
-      confidence: p.confidence || '',
-      partial: !!p.partial,
-      bandKey: resolveSource({ name: show.artist, mbid: show.artistMbid }).nameKey || '',
-      contested: [],
-    };
-    const outcome = await applySetlistProposal(showId, result, {
-      extraFields: { setlistProposal: decideStoredProposal(showId, 'accepted') },
-    });
-    if (!outcome.ok && outcome.reason === 'would-lose-notes') {
-      // Flagged, so the review list shows it and an admin can see why.
-      const blocked = decideStoredProposal(showId, 'blocked');
-      await updateShowData(showId, { setlistProposal: blocked });
-      if (selectedShow?.id === showId) setSelectedShow(prev => (prev ? { ...prev, setlistProposal: blocked } : prev));
-    }
-    return outcome;
+    const out = await callSetlistOp('accept-proposal', { showId });
+    applyServerFields(showId, out.fields);
+    return out;
   };
 
   const declineStoredProposal = async (showId) => {
-    const decided = decideStoredProposal(showId, 'declined');
-    if (!decided) return { ok: false, reason: 'no-proposal' };
-    await updateShowData(showId, { setlistProposal: decided });
-    if (selectedShow?.id === showId) setSelectedShow(prev => (prev ? { ...prev, setlistProposal: decided } : prev));
-    return { ok: true };
+    const out = await callSetlistOp('reject-proposal', { showId });
+    applyServerFields(showId, out.fields);
+    return out.ok ? { ok: true } : out;
   };
 
   // The user has looked at a `needsReview` setlist and it is right.
@@ -2085,14 +1869,13 @@ export function AppProvider({ children }) {
     if (selectedShow?.id === showId) setSelectedShow(prev => (prev ? { ...prev, needsReview: false, needsReviewReason: null } : prev));
   };
 
+  // Re-fetch one show's setlist from its band source and write it, for the
+  // sources that need no review (the server refuses an Archive setlist
+  // here: those go through the review sheet).
   const resyncSetlistFromSource = async (showId) => {
-    const proposal = await proposeSetlistFromSource(showId);
-    if (!proposal.ok) return proposal;
-    // A source that requires review never reaches a write from here; the
-    // show page sends it through the review screen instead. Guarded anyway,
-    // so a caller that forgets cannot write an unreviewed Archive setlist.
-    if (proposal.source.requiresReview) return { ok: false, reason: 'needs-review', proposal, source: proposal.source };
-    return applySetlistProposal(showId, proposal.result);
+    const out = await callSetlistOp('resync-show', { showId });
+    if (out.ok) applyServerFields(showId, out.fields);
+    return out;
   };
 
   // ── Delete show ─────────────────────────────────────────────────────

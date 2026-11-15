@@ -18,8 +18,10 @@
  */
 
 const { withCors } = require('./lib/cors');
-const https = require('https');
-const { setlistfmKey, missingSetlistfmKey } = require('./lib/setlistfmKey');
+const { missingSetlistfmKey } = require('./lib/setlistfmKey');
+const { findSetlistfmMatch } = require('./lib/setlistOps');
+const { setlistDeps } = require('./lib/setlistOpsHandler');
+const { extractSongsFromSetlist } = require('../../lib/setlistParser');
 
 // The one admin check: custom claim or verified allowlisted address (5.59.12).
 const { isAdmin } = require('./lib/firebaseAdmin');
@@ -49,71 +51,11 @@ async function verifyAdmin(token) {
   return decoded;
 }
 
-function fetchFromSetlistFm(params) {
-  return new Promise((resolve, reject) => {
-    const options = {
-      hostname: 'api.setlist.fm',
-      path: `/rest/1.0/search/setlists?${params.toString()}`,
-      method: 'GET',
-      headers: {
-        'x-api-key': setlistfmKey(),
-        Accept: 'application/json',
-        'User-Agent': 'MySetlists/3.8',
-      },
-    };
-    const req = https.request(options, (res) => {
-      let data = '';
-      res.on('data', (chunk) => { data += chunk; });
-      res.on('end', () => {
-        try {
-          resolve({ statusCode: res.statusCode, data: JSON.parse(data) });
-        } catch (e) {
-          reject(new Error(`Parse error: ${e.message}`));
-        }
-      });
-    });
-    req.on('error', reject);
-    req.setTimeout(10000, () => { req.destroy(); reject(new Error('Timeout')); });
-    req.end();
-  });
-}
-
-function extractSongs(match) {
-  const songs = [];
-  const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI'];
-  let regularSetCount = 0;
-  let encoreCount = 0;
-
-  if (match.sets && match.sets.set) {
-    match.sets.set.forEach((set) => {
-      let setLabel;
-      if (set.encore) {
-        encoreCount++;
-        setLabel = encoreCount === 1 ? 'Encore' : `Encore ${ROMAN[encoreCount - 1] || encoreCount}`;
-      } else {
-        regularSetCount++;
-        setLabel = `Set ${ROMAN[regularSetCount - 1] || regularSetCount}`;
-      }
-
-      if (set.song) {
-        set.song.forEach((song) => {
-          const info = (song.info || '').toLowerCase();
-          const isDebut = info.includes('debut');
-
-          songs.push({
-            id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
-            name: (song.name || '').trim(),
-            set: setLabel,
-            cover: song.cover ? song.cover.name : null,
-            tape: song.tape || false,
-            debut: isDebut,
-          });
-        });
-      }
-    });
-  }
-  return songs;
-}
+// The setlist.fm search and the song parse are the app's own (5.60.7):
+// lib/setlistOps.js findSetlistfmMatch and lib/setlistParser.js. This
+// function had its own copies until then (its parser also flagged
+// `debut` from setlist.fm's song info, which no other path does).
+const extractSongs = (match) => extractSongsFromSetlist(match);
 
 // Why a populate must not write over this show, as a 409 response, or null.
 //
@@ -226,31 +168,7 @@ exports.handler = async function (event) {
         return { statusCode: 400, headers: CORS_HEADERS, body: JSON.stringify({ error: 'Artist and date required for setlist.fm search' }) };
       }
 
-      const year = searchDate.split('-')[0];
-      const searchVariants = [searchArtist];
-      if (searchArtist.includes('&')) searchVariants.push(searchArtist.replace(/&/g, 'and'));
-      if (searchArtist.toLowerCase().startsWith('the ')) searchVariants.push(searchArtist.substring(4));
-      else searchVariants.push('The ' + searchArtist);
-
-      let match = null;
-      for (const variant of searchVariants) {
-        if (match) break;
-        const params = new URLSearchParams({ artistName: variant, year, p: '1' });
-        try {
-          const { statusCode, data } = await fetchFromSetlistFm(params);
-          if (statusCode === 200 && data.setlist) {
-            match = data.setlist.find((s) => {
-              if (!s.eventDate) return false;
-              const parts = s.eventDate.split('-');
-              if (parts.length !== 3) return false;
-              return `${parts[2]}-${parts[1]}-${parts[0]}` === searchDate;
-            });
-          }
-        } catch (err) {
-          console.warn(`[POPULATE] Search error for "${variant}":`, err.message);
-        }
-        await new Promise((r) => setTimeout(r, 300));
-      }
+      const match = await findSetlistfmMatch({ artist: searchArtist, date: searchDate }, setlistDeps());
 
       if (!match) {
         return { statusCode: 404, headers: CORS_HEADERS, body: JSON.stringify({ error: 'No matching setlist found on setlist.fm' }) };
