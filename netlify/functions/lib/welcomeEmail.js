@@ -44,6 +44,7 @@ const { findArtistByName } = require('./publicArtistSnapshot');
 const { buildEmail, sendOne } = require('./outgoingEmail');
 const { canEmail } = require('./emailPolicy');
 const { normalizeEmail } = require('./unsubscribeToken');
+const { isAnonymousAuthUser } = require('./firebaseAdmin');
 
 // Accounts created before this never get the welcome email. It went out
 // in 5.55.0; everyone already signed up by then has seen the app.
@@ -115,7 +116,8 @@ function decideClaim(existing) {
  * → { status, ... }   never throws for an expected outcome.
  *
  * Statuses that write nothing: 'not_eligible' (no shows yet),
- * 'already_handled', 'max_attempts'. Everything else is written to the
+ * 'held_anonymous' (a guest, until they link), 'already_handled',
+ * 'max_attempts'. Everything else is written to the
  * profile.
  *
  * The band line is for the show the app named (the one just saved, or the
@@ -143,6 +145,12 @@ async function processWelcomeEmail({ db, auth, uid, showId = null, now = new Dat
 
   let authUser = null;
   try { authUser = await auth.getUser(uid); } catch { /* deleted mid-flight */ }
+
+  // A guest (anonymous auth, nothing linked; 5.60.13) has no address yet.
+  // Held with nothing written, so the email goes once they link:
+  // account-linked.js calls this again. Recording 'skipped_no_email' here
+  // would mean never.
+  if (isAnonymousAuthUser(authUser)) return { status: 'held_anonymous' };
 
   // Claim, in a transaction: two calls at once send one email.
   const claim = await db.runTransaction(async (tx) => {

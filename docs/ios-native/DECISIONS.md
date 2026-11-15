@@ -1,6 +1,6 @@
 # Native SwiftUI app: approved decisions
 
-The decisions behind the native iOS app, approved by Phillip. The original lives in his Claude project as `swift-v1-decisions.md`. This copy was written on 2026-11-14 from the foundation kickoff prompt and the answers to the Part 1 audit (`FOUNDATION-AUDIT.md`), so future sessions can find it. Don't reopen a decision here without asking him; add new ones at the end, with the date.
+The decisions behind the native iOS app, approved by Phillip. **This file is the source of truth** (since 2026-11-14). It replaces `swift-v1-decisions.md` in his Claude project. It was first written from the foundation kickoff prompt and the answers to the Part 1 audit (`FOUNDATION-AUDIT.md`). Don't reopen a decision here without asking him. Add new ones at the end, with the date.
 
 ## Platform and project
 
@@ -36,13 +36,13 @@ The decisions behind the native iOS app, approved by Phillip. The original lives
 ## Guests (Firebase anonymous auth)
 
 - Guests use Firebase anonymous auth, and their data lives in Firestore from the first show. Upgrading means linking a credential: same UID, so the data stays.
-- **"Anonymous"** means sign-in provider `anonymous` **and** no linked identities (`firebase.identities` empty), in the rules and on the server (`isAnonymous`). Emulator tests cover link-then-refresh.
+- **"Anonymous"** means sign-in provider `anonymous` **and** no linked identities (`firebase.identities` empty), in the rules and on the server (`isAnonymous`). The Auth emulator test (`tests/auth/anonymousLink.test.js`) shows the token changes at link: `sign_in_provider` becomes `password` or `google.com` straight away.
 - **Allowed for guests:** their own shows, upcoming shows, profile, wishlists, bucket lists, alert settings and stats; public data; `normalize-show` for their own shows; re-sync and the setlist operations; following bands and push alerts (D-2); feedback (D-3); deleting their account.
 - **Refused for guests:** AI ticket scan, `send-email`, friend requests and invites, tags, comments, photos and other UGC (writing **and reading**, D-1: guests see a "create an account to see comments" prompt instead), reports, festivals (joining and creating), roadmap submissions and votes (D-3), public shares and public Year in Review, the leaderboard, and the suggestions scan.
 - Anonymous accounts are left out of rankings and **`totalUsers`**. The stats jobs read anonymity from Firebase Auth, never from a profile field.
 - **Welcome email:** held for anonymous accounts (nothing recorded) and sent once they link.
 - **`account-linked`** (new function): after a link, it runs what a new sign-up gets. It claims invites, sends the welcome email if due, recomputes stats and marks the profile converted. The display name still goes through `moderate-content`.
-- **`adopt-guest-shows`** (new function, D-4): when the credential already belongs to an account, it moves the guest's shows into that account through `normalizeShowInput` and `classifyDuplicate`, then purges the anonymous account.
+- **`adopt-guest-shows`** (new function, D-4): when the credential already belongs to an account, it moves the guest's shows into that account and then purges the anonymous account. "The same show" is `classifyDuplicate`: duplicates stay with the account, and a `possible` match moves only when the user picks it. Shows are copied as stored (normalize-show built them), so ratings and notes survive. Upcoming shows and followed bands move too.
 - Ticket scanning stays sign-in-only.
 - Anonymous sign-in stays off in Firebase until the Part 2 rules are live from `main`. Then Phillip enables the provider.
 
@@ -75,3 +75,29 @@ The decisions behind the native iOS app, approved by Phillip. The original lives
 ## Order of work
 
 Part 1 audit (done, 2026-11-14) → data cleanup (5.60.12) → Part 2 server and rules for guests → Part 3 project skeleton and CI → Part 4 models and contract tests → Part 5 auth and API client → Part 6 app shell and design system → Part 7 spikes (Q-01 sign-in carry-over, Q-07 build numbers). One PR per part, each branched from the latest `main`.
+
+## v1 scope, build order and cutover timing (2026-11-14)
+
+From Phillip's project copy.
+
+### v1 scope
+
+- **Community** is in v1.
+- **Discover** stays hidden.
+- **Festivals** in v1 are read-and-attach only: list, detail, attach a show, lineup. Create, join and picks are v1.x.
+- **Screenshot and CSV import** are v1.x. Until then, the app links to the web page.
+- **Any v1.x screen** opens its web page in `SFSafariViewController` until it exists natively.
+- **Year in Review** is in v1 only if v1 is ready before Dec 2. Otherwise it waits for next season.
+
+### Build order after the foundation
+
+1. Shows tab, show detail (first, since it's the biggest screen, R-03) and add flows
+2. Stats, Me/Profile with deletion, moderation
+3. Friends, tags, notifications, push
+4. Tours, runs, songs, bands, venues, wishlist, bucket list, Community
+5. Festivals (read and attach)
+6. Internal TestFlight, then cutover per SCOPING §7.4
+
+### Cutover timing
+
+Not during the Year in Review peak (Dec 2 to mid-January), because the cutover makes most users sign in again. Cut over either before about Nov 28 or after the peak.

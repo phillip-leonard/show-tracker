@@ -44,6 +44,8 @@ const HEADERS = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'Cache-Control': 'no-store',
 };
+// The input kinds a guest can't send: both come from a friend.
+const GUEST_REFUSED_KINDS = new Set(['tag', 'email-tag']);
 const reply = (statusCode, body, extra = {}) => ({ statusCode, headers: { ...HEADERS, ...extra }, body: JSON.stringify(body) });
 
 exports.handler = async function (event) {
@@ -61,6 +63,11 @@ exports.handler = async function (event) {
   const inputs = batch ? body.inputs : (body.input ? [body.input] : []);
   if (!inputs.length) return reply(400, { error: 'An input is required.' });
   if (inputs.length > MAX_INPUTS) return reply(400, { error: `At most ${MAX_INPUTS} inputs per request.` });
+  // A guest logs their own shows here; accepting a friend's tag needs an
+  // account (5.60.13, docs/ios-native/DECISIONS.md).
+  if (user.isAnonymous && inputs.some((i) => i && GUEST_REFUSED_KINDS.has(i.kind))) {
+    return reply(403, { error: 'Create an account to accept tags.', code: 'account_required' });
+  }
 
   try {
     const db = getDb();

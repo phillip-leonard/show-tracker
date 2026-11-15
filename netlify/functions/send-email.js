@@ -31,7 +31,7 @@
  */
 
 const { getDb, getAdminAuth } = require('./lib/firebaseAdmin');
-const { requireUser } = require('./lib/requestAuth');
+const { requireAccount } = require('./lib/requestAuth');
 const { corsHeaders, ALLOWED_ORIGINS } = require('./lib/cors');
 const { canEmail } = require('./lib/emailPolicy');
 const { buildEmail, sendOne } = require('./lib/outgoingEmail');
@@ -87,7 +87,7 @@ exports.handler = async function (event) {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers, body: '' };
   if (event.httpMethod !== 'POST') return reply(405, { error: 'Method not allowed' });
 
-  const caller = await requireUser(event, headers, { message: 'Sign in required' });
+  const caller = await requireAccount(event, headers, { message: 'Sign in required' });
   if (caller.response) return caller.response;
 
   let body;

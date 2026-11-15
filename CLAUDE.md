@@ -78,6 +78,7 @@ These closed real holes. `tests/rules/security.rules.test.js` and `tests/securit
 - **A public function that spends a shared third-party quota (setlist.fm, Ticketmaster, SeatGeek) is wrapped in `withProxyLimit`** (`lib/proxyLimit.js`, 5.59.8). `tests/security/auditFollowups.test.js` fails if a function reads the setlist.fm key without it. Our own server-to-server calls send `internalProxyHeader()`.
 - **Client code reaches a function through `apiUrl()` or `authedFetch()`**, never a bare `/.netlify/...` or `/api/...` string: on iOS a relative URL resolves against `capacitor://localhost` (B-01).
 - **Shared caches are written by the function that fetches the data** (`ticketCache` via `lib/ticketCacheStore.js`), never by the browser.
+- **Guests (Firebase anonymous auth, native app) are not accounts** (5.60.13). Rules use `isAccount()` (`firestore.rules`, `storage.rules`) and functions use `requireAccount` (`lib/requestAuth.js`, 403 `account_required`) for anything social, user-generated, public or paid. A guest is `isAnonymous(decoded)` in `netlify/functions/lib/firebaseAdmin.js`: provider `anonymous` and no linked identity. Server jobs check Firebase Auth (`isAnonymousAuthUser`, `listAnonymousUids`), never a profile field. The list of what a guest can and can't do is in `docs/ios-native/DECISIONS.md`; `tests/rules/anonymous.rules.test.js` and `tests/security/anonymous.test.js` enforce it. A new feature that other users can see needs the same check.
 - **One admin check: `isAdmin(decoded)`** in `netlify/functions/lib/firebaseAdmin.js` (the `admin` custom claim, or the allowlisted address with `email_verified`). No function keeps its own `ADMIN_EMAILS` check; `isAdmin()` in `firestore.rules` and `storage.rules` is the same rule. The client's `isAdminUser` (`lib/adminAccess.js`) is for showing UI only.
 - **A public function that writes a cache validates its input first** (`lib/cacheGuard.js`), builds the key itself, caches only a good upstream answer, and counts misses with `checkProxyLimit(event, 'metadata')`.
 - **A public page made from a user's data is built on the server from their own documents**, never from the request body (`create-shared-collection`, 5.59.12).
@@ -96,3 +97,10 @@ The approved decisions for the native app (`ios-native/`, 4.0.0) are in `docs/io
 - Bump from the value on the latest `main`, not from your branch's starting point. If another open PR already took the next number, take the one after it and say so in the PR description.
 - Leave `CURRENT_PROJECT_VERSION` (the build number) alone. Xcode Cloud sets it.
 - Name the new version in the PR description, and in the `CHANGELOG.md` entry ("Ships in iOS 3.6.1").
+
+**The native app (`ios-native/`) has its own version** (Q-09, decided 2026-11-14). The rule above still applies to every PR, `ios-native/` ones included. In addition:
+
+- A PR that touches `ios-native/` also bumps the native `MARKETING_VERSION` in `ios-native/MySetlists.xcodeproj/project.pbxproj` (every build configuration). The project starts at 4.0.0 (Part 3); after that, patch bumps (4.0.0 → 4.0.1 → 4.0.2), with the same "bump from the latest `main`" rule.
+- Name both versions in the PR description and the `CHANGELOG.md` entry ("Ships in iOS 3.13.30 (Capacitor) and native 4.0.1").
+- The Capacitor app stays on 3.x and never takes a 4.x number: build numbers can't collide while the two share one App Store record.
+- Leave the native `CURRENT_PROJECT_VERSION` alone too. Xcode Cloud sets it.

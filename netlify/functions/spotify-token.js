@@ -1,5 +1,5 @@
 const { withCors } = require('./lib/cors');
-const { requireUser } = require('./lib/requestAuth');
+const { requireAccount } = require('./lib/requestAuth');
 const https = require('https');
 const querystring = require('querystring');
 
@@ -68,7 +68,7 @@ exports.handler = async function (event) {
   // switched off (PLAYLIST_CREATION_ENABLED in lib/constants.js), so no
   // shipped build calls this; lib/spotify.js sends the token through
   // authedFetch for when it is switched on.
-  const user = await requireUser(event, CORS_HEADERS);
+  const user = await requireAccount(event, CORS_HEADERS);
   if (user.response) return user.response;
 
   if (!SPOTIFY_CLIENT_ID) {

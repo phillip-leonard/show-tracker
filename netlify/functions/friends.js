@@ -44,7 +44,7 @@
  * Auth header: Authorization: Bearer {idToken}
  */
 
-const { getDb, getAdminAuth, verifyUser } = require('./lib/firebaseAdmin');
+const { getDb, getAdminAuth, verifyUser, isAnonymous } = require('./lib/firebaseAdmin');
 const { normalizeEmail, isValidEmail } = require('./lib/unsubscribeToken');
 const { signReferral, readReferral } = require('./lib/referralToken');
 const { corsHeaders: baseCors } = require('./lib/cors');
@@ -369,6 +369,8 @@ exports.handler = async function (event) {
 
   const decoded = await verifyUser(event);
   if (!decoded) return reply(401, { error: 'Sign in required' });
+  // Guests have no friends features (5.60.13, docs/ios-native/DECISIONS.md).
+  if (isAnonymous(decoded)) return reply(403, { error: 'Create an account to add friends.', code: 'account_required' });
 
   let body;
   try { body = JSON.parse(event.body || '{}'); } catch { return reply(400, { error: 'Invalid JSON body' }); }

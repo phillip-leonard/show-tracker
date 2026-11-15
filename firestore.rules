@@ -48,6 +48,28 @@ service cloud.firestore {
                        .data.get('banned', false) == true);
     }
 
+    // Guests (5.60.13, native app Part 2). The native app signs guests in
+    // with Firebase anonymous auth, so their shows live in Firestore from
+    // the first one. A guest keeps their own data and reads public data;
+    // everything social, user-generated or public-facing needs an account
+    // (docs/ios-native/DECISIONS.md, "Guests"). The same rule as
+    // isAnonymous() in netlify/functions/lib/firebaseAdmin.js: provider
+    // 'anonymous' AND no linked identity, because a linked account always
+    // has one whether or not its token's sign_in_provider has changed yet.
+    // `.get` with defaults so a token without a `firebase` claim reads as
+    // an account rather than an evaluation error.
+    // tests/rules/anonymous.rules.test.js.
+    function isAnonymous() {
+      return request.auth != null
+             && request.auth.token.get('firebase', {}).get('sign_in_provider', '') == 'anonymous'
+             && request.auth.token.get('firebase', {}).get('identities', {}).size() == 0;
+    }
+
+    // Signed in with a real account: not a guest.
+    function isAccount() {
+      return request.auth != null && !isAnonymous();
+    }
+
     // User shows — owner writes; the owner, the owner's friends (Shows
     // Together, "were you there together?") and the admin read.
     //
@@ -84,7 +106,9 @@ service cloud.firestore {
     // Pre-5.30.0 records that still hold their own name/dates keep working
     // untouched under exactly this rule until the migration reaches them.
     match /users/{userId}/festivals/{festivalId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read: if request.auth != null && request.auth.uid == userId;
+      // Joining a festival needs an account (5.60.13).
+      allow write: if isAccount() && request.auth.uid == userId;
     }
 
     // Discover preferences (5.54.0): the bands this user said "not
@@ -105,7 +129,7 @@ service cloud.firestore {
     // list only ever takes access away (remove friend, block).
     match /users/{userId}/friends/{friendId} {
       allow read: if request.auth != null && request.auth.uid == userId;
-      allow create, update: if request.auth != null && request.auth.uid == userId;
+      allow create, update: if isAccount() && request.auth.uid == userId;
       allow delete: if request.auth != null
         && (request.auth.uid == userId || request.auth.uid == friendId);
     }
@@ -262,7 +286,7 @@ service cloud.firestore {
     // whose name is visible to the person they reported is a reporter who
     // stops reporting.
     match /reports/{reportId} {
-      allow create: if request.auth != null
+      allow create: if isAccount()
                     && request.resource.data.reporterId == request.auth.uid
                     && request.resource.data.status == 'open';
       allow read:   if isAdmin();
@@ -346,13 +370,13 @@ service cloud.firestore {
     match /friendRequests/{requestId} {
       allow read: if request.auth != null
         && (resource.data.from == request.auth.uid || resource.data.to == request.auth.uid);
-      allow create: if request.auth != null
+      allow create: if isAccount()
         && request.resource.data.from == request.auth.uid
         && request.resource.data.to is string
         && request.resource.data.to != request.auth.uid
         && request.resource.data.status == 'pending'
         && request.resource.data.keys().hasOnly(['from', 'to', 'fromName', 'toName', 'status', 'createdAt']);
-      allow update: if request.auth != null
+      allow update: if isAccount()
         && resource.data.to == request.auth.uid
         && resource.data.status == 'pending'
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
@@ -387,7 +411,7 @@ service cloud.firestore {
 
       allow read: if isTagParty();
 
-      allow create: if request.auth != null
+      allow create: if isAccount()
         && request.resource.data.fromUid == request.auth.uid
         && request.resource.data.toUid is string
         && request.resource.data.toUid != request.auth.uid
@@ -399,7 +423,7 @@ service cloud.firestore {
       // Recipient answers a pending tag. Re-sending the answer it already
       // has (a double tap on Accept) is a no-op and allowed; changing an
       // answer, or answering a revoked tag, is not.
-      allow update: if request.auth != null
+      allow update: if isAccount()
         && resource.data.toUid == request.auth.uid
         && onlyChanges(['status'])
         && request.resource.data.status in ['accepted', 'declined']
@@ -407,7 +431,7 @@ service cloud.firestore {
           || resource.data.status == request.resource.data.status);
 
       // Sender takes back a tag that hasn't been answered.
-      allow update: if request.auth != null
+      allow update: if isAccount()
         && resource.data.fromUid == request.auth.uid
         && resource.data.status == 'pending'
         && onlyChanges(['status', 'revokedAt'])
@@ -415,7 +439,7 @@ service cloud.firestore {
 
       // Sender edits the date or venue of an upcoming show while a friend
       // still hasn't answered, so they answer about the right show.
-      allow update: if request.auth != null
+      allow update: if isAccount()
         && resource.data.fromUid == request.auth.uid
         && resource.data.status == 'pending'
         && resource.data.get('upcomingShowId', null) is string
@@ -427,8 +451,8 @@ service cloud.firestore {
 
     // Venue ratings — user can only write their own
     match /venueRatings/{docId} {
-      allow read: if request.auth != null;
-      allow create, update: if request.auth != null
+      allow read: if isAccount();
+      allow create, update: if isAccount()
         && request.resource.data.userId == request.auth.uid;
     }
 
@@ -507,8 +531,8 @@ service cloud.firestore {
     // which queries it actually runs." (showTags followed it too until
     // 5.59.1, when it was limited to the two people on each tag.)
     match /userActivity/{docId} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null
+      allow read: if isAccount();
+      allow create: if isAccount()
         && request.resource.data.userId == request.auth.uid;
       allow update, delete: if false;
     }
@@ -529,9 +553,9 @@ service cloud.firestore {
     // published, and that is only true if there is exactly one way in.
     // The Admin SDK bypasses these rules, so the function is unaffected.
     match /showComments/{docId} {
-      allow read: if request.auth != null;
+      allow read: if isAccount();
       allow create: if false;
-      allow update: if request.auth != null
+      allow update: if isAccount()
         && isNotBanned()
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likedBy'])
         && request.resource.data.likedBy.removeAll(resource.data.likedBy).hasOnly([request.auth.uid])
@@ -567,15 +591,15 @@ service cloud.firestore {
     // is the ban check: a banned account cannot start a meetup, join one,
     // or edit its pinned details.
     match /meetups/{meetupId} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null
+      allow read: if isAccount();
+      allow create: if isAccount()
         && isNotBanned()
         && request.resource.data.createdBy == request.auth.uid
         && request.resource.data.attendeeUids == [request.auth.uid]
         // Seeded empty. Creating with a description would be the way
         // round the update rule below.
         && request.resource.data.get('description', '') == '';
-      allow update: if request.auth != null && isNotBanned() && (
+      allow update: if isAccount() && isNotBanned() && (
         (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['attendeeUids', 'attendeeNames'])
           && request.resource.data.attendeeUids.removeAll(resource.data.attendeeUids).hasOnly([request.auth.uid])
           && resource.data.attendeeUids.removeAll(request.resource.data.attendeeUids).hasOnly([request.auth.uid]))
@@ -598,7 +622,7 @@ service cloud.firestore {
     // — a meetup thread is user-generated text other attendees read, so it
     // goes through moderate-content.js and its filter.
     match /meetupComments/{docId} {
-      allow read: if request.auth != null;
+      allow read: if isAccount();
       allow create: if false;
       allow delete: if request.auth != null
         && (resource.data.authorUid == request.auth.uid || isAdmin());
@@ -617,9 +641,9 @@ service cloud.firestore {
     // bytes are not text a wordlist can read, and routing tens of
     // megabytes through a function would be slower and no safer.
     match /showPhotos/{docId} {
-      allow read: if request.auth != null;
+      allow read: if isAccount();
       allow create: if false;
-      allow update: if request.auth != null
+      allow update: if isAccount()
         && isNotBanned()
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likedBy'])
         && request.resource.data.likedBy.removeAll(resource.data.likedBy).hasOnly([request.auth.uid])
@@ -646,11 +670,11 @@ service cloud.firestore {
       allow read: if request.auth != null
         && (resource.data.fromUid == request.auth.uid
             || resource.data.toEmail == request.auth.token.get('email', '').lower());
-      allow create: if request.auth != null
+      allow create: if isAccount()
         && request.resource.data.fromUid == request.auth.uid
         && request.resource.data.status == 'pending'
         && request.resource.data.toEmail is string;
-      allow update: if request.auth != null
+      allow update: if isAccount()
         && resource.data.toEmail == request.auth.token.get('email', '').lower()
         && resource.data.status == 'pending'
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
@@ -665,7 +689,7 @@ service cloud.firestore {
     match /invites/{docId} {
       allow read: if request.auth != null
         && (resource.data.inviterUid == request.auth.uid || isAdmin());
-      allow create: if request.auth != null
+      allow create: if isAccount()
         && request.resource.data.inviterUid == request.auth.uid
         && request.resource.data.status == 'pending'
         && request.resource.data.inviteeEmail is string;
@@ -685,21 +709,21 @@ service cloud.firestore {
     match /showSuggestions/{docId} {
       allow read:   if request.auth != null
                     && request.auth.uid in resource.data.participants;
-      allow create: if request.auth != null
+      allow create: if isAccount()
                     && request.auth.uid in request.resource.data.participants;
-      allow update: if request.auth != null
+      allow update: if isAccount()
                     && request.auth.uid in resource.data.participants;
       allow delete: if false;
       match /comments/{commentId} {
         allow read: if request.auth != null
           && request.auth.uid in
              get(/databases/$(database)/documents/showSuggestions/$(docId)).data.participants;
-        allow create: if request.auth != null
+        allow create: if isAccount()
           && request.auth.uid in
 
              get(/databases/$(database)/documents/showSuggestions/$(docId)).data.participants
           && request.resource.data.authorUid == request.auth.uid;
-        allow update: if request.auth != null
+        allow update: if isAccount()
           && resource.data.authorUid == request.auth.uid;
         allow delete: if request.auth != null
           && resource.data.authorUid == request.auth.uid;
@@ -770,13 +794,13 @@ service cloud.firestore {
         || isAdmin()
         || (request.auth != null && resource.data.submitterUid == request.auth.uid);
       allow create: if isAdmin()
-        || (request.auth != null
+        || (isAccount()
             && request.resource.data.submitterUid == request.auth.uid
             && request.resource.data.status == 'draft'
             && request.resource.data.voteCount == 0
             && !request.resource.data.keys().hasAny(['submitterEmail', 'contributors', 'notifiedEmails']));
       allow update: if isAdmin();
-      allow update: if request.auth != null
+      allow update: if isAccount()
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['voteCount', 'updatedAt'])
         && ((request.resource.data.voteCount == resource.data.get('voteCount', 0) + 1
              && !exists(/databases/$(database)/documents/roadmapItems/$(itemId)/voters/$(request.auth.uid))
@@ -789,7 +813,7 @@ service cloud.firestore {
       // Per-user vote — each user can only read/write their own voter doc
       match /voters/{userId} {
         allow read:  if request.auth != null && request.auth.uid == userId;
-        allow write: if request.auth != null && request.auth.uid == userId;
+        allow write: if isAccount() && request.auth.uid == userId;
       }
     }
 
@@ -814,7 +838,7 @@ service cloud.firestore {
     // ── NEW: In-app notifications (v1.0.24) ───────────────────────────────────
     // Admin creates; recipient reads and marks read.
     match /notifications/{notifId} {
-      allow create: if request.auth != null;
+      allow create: if isAccount();
       allow read:   if request.auth != null
                     && resource.data.uid == request.auth.uid;
       allow update: if request.auth != null
@@ -832,7 +856,7 @@ service cloud.firestore {
     // blocked by the owner check below either way.
     match /venues/{venueKey} {
       allow read:   if request.auth != null;
-      allow create: if request.auth != null;
+      allow create: if isAccount();
       allow update: if request.auth != null
                     && (resource.data.verifiedOwnerUid == request.auth.uid
                         || request.auth.token.email == 'phillip.leonard@gmail.com');
@@ -897,7 +921,7 @@ service cloud.firestore {
           );
       }
 
-      allow create: if request.auth != null
+      allow create: if isAccount()
                     && request.resource.data.createdBy == request.auth.uid
                     && request.resource.data.keys().hasOnly([
                          'name', 'nameNormalized', 'startDate', 'endDate', 'year',
@@ -916,7 +940,7 @@ service cloud.firestore {
       // Only the creator (or admin) may edit the shared details. Everyone
       // else edits their own attendance record instead. createdBy can
       // never move, so a festival's creator is fixed at creation.
-      allow update: if request.auth != null
+      allow update: if isAccount()
                     && (resource.data.createdBy == request.auth.uid
                         || request.auth.token.email == 'phillip.leonard@gmail.com')
                     && request.resource.data.createdBy == resource.data.createdBy
@@ -947,7 +971,7 @@ service cloud.firestore {
     // status/reviewedDate/reviewerNotes/rejectionReason are only ever
     // written by the admin approval flow.
     match /venueVerificationApplications/{appId} {
-      allow create: if request.auth != null
+      allow create: if isAccount()
                     && request.resource.data.applicantUid == request.auth.uid;
       allow read:   if request.auth != null
                     && (resource.data.applicantUid == request.auth.uid
@@ -963,8 +987,8 @@ service cloud.firestore {
     // this mirrors the "app decides who deserves a write" precedent
     // already used for notifications above).
     match /venueAnnouncements/{docId} {
-      allow read:   if request.auth != null;
-      allow create: if request.auth != null;
+      allow read:   if isAccount();
+      allow create: if isAccount();
       allow update: if false;
       allow delete: if request.auth != null
                     && request.auth.token.email == 'phillip.leonard@gmail.com';
@@ -972,8 +996,8 @@ service cloud.firestore {
 
     // Official venue photos.
     match /venuePhotos/{docId} {
-      allow read:   if request.auth != null;
-      allow create: if request.auth != null
+      allow read:   if isAccount();
+      allow create: if isAccount()
                     && request.resource.data.uploadedBy == request.auth.uid;
       allow update: if false;
       allow delete: if request.auth != null
@@ -984,7 +1008,7 @@ service cloud.firestore {
     // User reports of fake/duplicate/inaccurate venues — reporter creates,
     // only the admin reads/resolves.
     match /venueReports/{docId} {
-      allow create: if request.auth != null
+      allow create: if isAccount()
                     && request.resource.data.reporterUid == request.auth.uid;
       allow read:   if request.auth != null
                     && request.auth.token.email == 'phillip.leonard@gmail.com';
@@ -1097,12 +1121,15 @@ service cloud.firestore {
                         || resource.data.privacy == 'public');
       allow create: if request.auth != null
                     && request.resource.data.userId == request.auth.uid
-                    && docId == request.auth.uid + '_' + string(request.resource.data.year);
+                    && docId == request.auth.uid + '_' + string(request.resource.data.year)
+                    // A guest can't make theirs public (5.60.13).
+                    && (isAccount() || request.resource.data.get('privacy', 'private') != 'public');
       allow update: if request.auth != null
                     && resource.data.userId == request.auth.uid
                     && docId == request.auth.uid + '_' + string(resource.data.year)
                     && request.resource.data.userId == resource.data.userId
-                    && request.resource.data.year == resource.data.year;
+                    && request.resource.data.year == resource.data.year
+                    && (isAccount() || request.resource.data.get('privacy', 'private') != 'public');
       allow delete: if false;
     }
   }

@@ -13,7 +13,7 @@
 
 const { withCors } = require('./lib/cors');
 const { getDb } = require('./lib/firebaseAdmin');
-const { requireUser } = require('./lib/requestAuth');
+const { requireAccount } = require('./lib/requestAuth');
 const { takeDailyQuota } = require('./lib/rateLimit');
 const { matchFestivalsFor } = require('./lib/festivalMatchServer');
 
@@ -29,7 +29,7 @@ const reply = (statusCode, body, extra = {}) => ({ statusCode, headers: { ...HEA
 exports.handler = async function (event) {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers: HEADERS, body: '' };
   if (event.httpMethod !== 'POST') return reply(405, { error: 'method_not_allowed' });
-  const user = await requireUser(event, HEADERS);
+  const user = await requireAccount(event, HEADERS);
   if (user.response) return user.response;
 
   let body;

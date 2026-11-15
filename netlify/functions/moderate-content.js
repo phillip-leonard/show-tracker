@@ -56,6 +56,7 @@
  *     written here.
  */
 
+const { isAnonymous } = require('./lib/firebaseAdmin');
 const { withCors } = require('./lib/cors');
 const { checkContent } = require('./lib/contentFilterRule');
 
@@ -159,17 +160,22 @@ exports.handler = async function (event) {
 
   let uid;
   let db;
+  let guest = false;
   try {
     initFirebase();
     const { getAuth } = require('firebase-admin/auth');
     const decoded = await getAuth().verifyIdToken(token);
     uid = decoded.uid;
+    guest = isAnonymous(decoded);
     const { getFirestore } = require('firebase-admin/firestore');
     db = getFirestore();
   } catch (e) {
     console.error('[moderate-content] Auth failed:', e.message);
     return json(401, { error: 'Your session has expired. Please sign in again.' });
   }
+  // Guests publish nothing: no comments, captions, names or handles
+  // (5.60.13, docs/ios-native/DECISIONS.md).
+  if (guest) return json(403, { error: 'Create an account to post.', code: 'account_required' });
 
   let body;
   try {

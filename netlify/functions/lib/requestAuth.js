@@ -13,7 +13,7 @@
  * rule (5.59.12).
  */
 
-const { verifyUser, isAdmin, bearerToken } = require('./firebaseAdmin');
+const { verifyUser, isAdmin, isAnonymous, bearerToken } = require('./firebaseAdmin');
 
 function identity(decoded) {
   return {
@@ -22,6 +22,8 @@ function identity(decoded) {
     emailVerified: decoded.email_verified === true,
     name: decoded.name || null,
     isAdmin: isAdmin(decoded),
+    // A guest (anonymous auth, nothing linked yet): firebaseAdmin.isAnonymous.
+    isAnonymous: isAnonymous(decoded),
   };
 }
 
@@ -47,6 +49,32 @@ async function requireUser(event, headers = {}, { message = 'Please sign in to c
   };
 }
 
+/**
+ * The 403 a guest gets from anything that needs a real account (5.60.13).
+ * `code: 'account_required'` is what the native app turns into "create an
+ * account to use this"; `message` is what any client shows verbatim.
+ */
+const ACCOUNT_REQUIRED_MESSAGE = 'Create an account to use this.';
+function accountRequired(headers = {}, message = ACCOUNT_REQUIRED_MESSAGE) {
+  return {
+    statusCode: 403,
+    headers,
+    body: JSON.stringify({ error: message, code: 'account_required' }),
+  };
+}
+
+/**
+ * Like requireUser, plus 403 `account_required` for a guest (anonymous
+ * auth, nothing linked). For every feature the native app keeps from
+ * guests: friends, email, UGC, reports, festivals, public pages, AI scans.
+ */
+async function requireAccount(event, headers = {}, options = {}) {
+  const user = await requireUser(event, headers, options);
+  if (user.response) return user;
+  if (user.isAnonymous) return { response: accountRequired(headers) };
+  return user;
+}
+
 /** Like requireUser, plus 403 for a signed-in non-admin. */
 async function requireAdmin(event, headers = {}) {
   const user = await requireUser(event, headers);
@@ -62,4 +90,4 @@ function hasBearer(event) {
   return !!bearerToken(event);
 }
 
-module.exports = { requireUser, requireAdmin, optionalUser, hasBearer };
+module.exports = { requireUser, requireAccount, requireAdmin, optionalUser, hasBearer, accountRequired, ACCOUNT_REQUIRED_MESSAGE };

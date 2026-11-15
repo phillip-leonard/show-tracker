@@ -29,6 +29,7 @@
  * Returns { reportCount, hidden }.
  */
 
+const { isAnonymous } = require('./lib/firebaseAdmin');
 const { withCors } = require('./lib/cors');
 const https = require('https');
 
@@ -149,12 +150,15 @@ exports.handler = async function (event) {
   if (!token) return json(401, { error: 'You need to be signed in to report something.' });
 
   let reporterId;
+  let guest = false;
   let db;
   let FieldValue;
   try {
     initFirebase();
     const { getAuth } = require('firebase-admin/auth');
-    reporterId = (await getAuth().verifyIdToken(token)).uid;
+    const decoded = await getAuth().verifyIdToken(token);
+    reporterId = decoded.uid;
+    guest = isAnonymous(decoded);
     const firestore = require('firebase-admin/firestore');
     db = firestore.getFirestore();
     FieldValue = firestore.FieldValue;
@@ -162,6 +166,9 @@ exports.handler = async function (event) {
     console.error('[report-content] Auth failed:', e.message);
     return json(401, { error: 'Your session has expired. Please sign in again.' });
   }
+  // Guests can't see other users' content, so there is nothing for them to
+  // report (5.60.13, docs/ios-native/DECISIONS.md D-1).
+  if (guest) return json(403, { error: 'Create an account to report content.', code: 'account_required' });
 
   let body;
   try {

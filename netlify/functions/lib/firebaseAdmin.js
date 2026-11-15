@@ -72,6 +72,57 @@ function isAdmin(decoded) {
   return decoded.email_verified === true && ADMIN_EMAILS.includes(decoded.email);
 }
 
+/**
+ * isAnonymous(decodedToken) — a guest: Firebase anonymous auth, with no
+ * credential linked yet (5.60.13, native app Part 2). The same rule as
+ * isAnonymous() in firestore.rules and storage.rules:
+ *
+ *   firebase.sign_in_provider is 'anonymous'  AND  firebase.identities is empty
+ *
+ * Both, because Firebase doesn't document whether sign_in_provider changes
+ * when an anonymous account links Apple, Google or email; a linked account
+ * always has an identity (tests/auth/anonymousLink.test.js checks both
+ * against the Auth emulator). A token with no `firebase` claim at all is
+ * not anonymous: every real sign-in carries one, and treating its absence
+ * as a guest would lock real accounts out on a malformed token's say-so
+ * (they are refused by verifyIdToken anyway).
+ */
+function isAnonymous(decoded) {
+  if (!decoded || typeof decoded !== 'object') return false;
+  const fb = decoded.firebase;
+  if (!fb || typeof fb !== 'object') return false;
+  if (fb.sign_in_provider !== 'anonymous') return false;
+  const ids = fb.identities;
+  return !ids || typeof ids !== 'object' || Object.keys(ids).length === 0;
+}
+
+/**
+ * isAnonymousAuthUser(userRecord) — the same question asked of an Auth user
+ * record (auth.getUser / listUsers) rather than a token: a guest has no
+ * provider linked (providerData is empty). What the stats jobs and the
+ * welcome email use, since they work from Auth, not from a request.
+ */
+function isAnonymousAuthUser(user) {
+  return !!user && Array.isArray(user.providerData) && user.providerData.length === 0;
+}
+
+/**
+ * listAnonymousUids(auth) → Set of every guest's uid, from Firebase Auth
+ * (listUsers, 1,000 a page). For the stats jobs, which leave guests out of
+ * rankings and totals. Throws if Auth can't be read: a job that can't tell
+ * guests apart should fail and keep the last good numbers, not count them.
+ */
+async function listAnonymousUids(auth) {
+  const out = new Set();
+  let pageToken;
+  do {
+    const page = await auth.listUsers(1000, pageToken);
+    for (const u of page.users || []) if (isAnonymousAuthUser(u)) out.add(u.uid);
+    pageToken = page.pageToken;
+  } while (pageToken);
+  return out;
+}
+
 // The 5.59.6 name, kept for the functions that already use it.
 const isAdminClaims = isAdmin;
 
@@ -80,4 +131,4 @@ function __setTestFirebase({ db = null, auth = null } = {}) {
   testAuth = auth;
 }
 
-module.exports = { getDb, getAdminAuth, verifyUser, isAdmin, isAdminClaims, bearerToken, ADMIN_EMAILS, __setTestFirebase };
+module.exports = { getDb, getAdminAuth, verifyUser, isAdmin, isAdminClaims, isAnonymous, isAnonymousAuthUser, listAnonymousUids, bearerToken, ADMIN_EMAILS, __setTestFirebase };

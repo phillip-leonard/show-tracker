@@ -2,6 +2,19 @@ rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
 
+    // Guests (5.60.13): Firebase anonymous auth with nothing linked. The
+    // same rule as isAnonymous() in firestore.rules and
+    // netlify/functions/lib/firebaseAdmin.js. A guest can't upload or view
+    // other users' photos and videos (docs/ios-native/DECISIONS.md, D-1).
+    function isAnonymous() {
+      return request.auth != null
+             && request.auth.token.get('firebase', {}).get('sign_in_provider', '') == 'anonymous'
+             && request.auth.token.get('firebase', {}).get('identities', {}).size() == 0;
+    }
+    function isAccount() {
+      return request.auth != null && !isAnonymous();
+    }
+
     // Concert photos/videos — see lib/photos.js. Path shape:
     //   showPhotos/{concertKey}/{uid}/{fileName}
     // Read requires auth (matches the showPhotos Firestore rule — anyone
@@ -12,8 +25,8 @@ service firebase.storage {
     // account (kept in sync with ADMIN_EMAILS in lib/constants.js), for
     // moderation of a file whose Firestore doc was deleted by an admin.
     match /showPhotos/{concertKey}/{uid}/{fileName} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null
+      allow read: if isAccount();
+      allow write: if isAccount()
         && request.auth.uid == uid
         && request.resource.size < 10 * 1024 * 1024
         && (request.resource.contentType.matches('image/.*')
@@ -35,7 +48,7 @@ service firebase.storage {
       allow read: if request.auth != null
         && (request.auth.uid == uid
             || request.auth.token.email == 'phillip.leonard@gmail.com');
-      allow write: if request.auth != null
+      allow write: if isAccount()
         && request.auth.uid == uid
         && request.resource.size < 10 * 1024 * 1024
         && (request.resource.contentType.matches('image/.*')
@@ -47,8 +60,8 @@ service firebase.storage {
     // Anyone signed in can view; write/delete limited to the uploader
     // (the verified venue owner) or the admin.
     match /venuePhotos/{venueSegment}/{uid}/{fileName} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null
+      allow read: if isAccount();
+      allow write: if isAccount()
         && request.auth.uid == uid
         && request.resource.size < 10 * 1024 * 1024
         && request.resource.contentType.matches('image/.*');
