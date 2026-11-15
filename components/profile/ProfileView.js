@@ -21,7 +21,7 @@ import TourInfoModal from '@/components/TourInfoModal';
 import FollowBandButton from '@/components/artists/FollowBandButton';
 import { compareShowDates, showYear, formatDate as formatShowDay } from '@/lib/showDate';
 import { countVenues } from '@/lib/venueCount';
-import { computeUserStats } from '@/lib/stats';
+import { computeUserStats, formatAverageRating } from '@/lib/stats';
 import { shouldShowUserCount } from '@/lib/userCount';
 
 export default function ProfileView({ user, shows, userRank, headlineStats = null, totalUsers = null, onProfileUpdate, onViewShow, friends = [], favoriteArtists = [], onToggleFavoriteArtist }) {
@@ -509,7 +509,7 @@ export default function ProfileView({ user, shows, userRank, headlineStats = nul
             </div>
             <div className="flex items-center gap-2">
               <Star className="w-6 h-6 text-brand fill-amber" />
-              <span className="text-3xl font-bold text-primary">{stats.avgShowRating}</span>
+              <span className="text-3xl font-bold text-primary">{formatAverageRating(stats.avgShowRating)}</span>
               <span className="text-secondary">/10</span>
             </div>
           </div>

@@ -4,6 +4,40 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.60.12] — 2026-11-15
+
+Ships in **iOS 3.13.28** (`MARKETING_VERSION` 3.13.27 → 3.13.28). Only the
+average-rating display changes in the app; the rest is data and docs.
+
+**Data cleanup before the native app.** The SwiftUI foundation audit
+(`docs/ios-native/FOUNDATION-AUDIT.md`) scanned production's field types
+(counts only). Three findings are fixed in the data here; the rest are left
+for tolerant decoding in the Swift models.
+
+- **Tag dates to ISO** (`scripts/normalize-tag-dates.js`, dry run by
+  default, `--apply`). A tag keeps its own copy of the show, so the 5.59.10
+  show-date migration didn't reach it: 108 of 127 `showTags` and 7 of 8
+  `pendingEmailTags` still carried `DD-MM-YYYY`. Uses the 5.59.10 rules
+  (`planDateFix`). An ambiguous date is checked against the sender's own
+  show with the same setlist.fm id, then setlist.fm, and never guessed.
+  The old value is kept in `showData.dateNormalizedFrom`.
+- **No addresses on friend requests**
+  (`scripts/scrub-friend-request-emails.js`, dry run by default,
+  `--apply`). Requests from before 5.59.7 carried `fromEmail` and
+  `toEmail`, which both people can read. Friends shows the requester's name
+  and "Wants to be friends" instead of their address.
+- **`userStats.avgShowRating` is a number** (8.3, not `"8.3"`), and
+  `STATS_VERSION` is 2. Apps from before this compare a stored document's
+  version with 1, so they compute locally instead and still show one
+  decimal. My Shows and Profile format it with `formatAverageRating`
+  (`lib/stats`). Every user's document is rewritten by the 6-hourly
+  `community-stats` run, or at once by `scripts/backfill-user-stats.js
+  --apply`.
+- **`docs/ios-native/DECISIONS.md`**: the native app's approved decisions,
+  in the repo for future sessions, with a pointer in CLAUDE.md.
+
+---
+
 ## [5.60.11] — 2026-11-15
 
 Ships in **iOS 3.13.27** (`MARKETING_VERSION` 3.13.26 → 3.13.27). Changes how

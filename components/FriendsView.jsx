@@ -284,7 +284,7 @@ function FriendsView({
                       </div>
                       <div>
                         <div className="font-medium text-primary">{req.fromName || 'Someone'}</div>
-                        <div className="text-sm text-muted">{req.fromEmail}</div>
+                        <div className="text-sm text-muted">Wants to be friends</div>
                       </div>
                     </div>
                     <div className="flex gap-2">
@@ -429,7 +429,7 @@ function FriendsView({
                         <Send className="w-4 h-4 text-muted" />
                       </div>
                       <div>
-                        <div className="font-medium text-secondary">{req.toName || req.toEmail || 'Unknown'}</div>
+                        <div className="font-medium text-secondary">{req.toName || 'Someone'}</div>
                         <div className="text-sm text-muted">Pending</div>
                       </div>
                     </div>

@@ -41,6 +41,7 @@ import {
   Bookmark,
 } from 'lucide-react';
 import { compareShowDates } from '@/lib/showDate';
+import { formatAverageRating } from '@/lib/stats';
 
 export default function ShowsPage() {
   const router = useRouter();
@@ -601,7 +602,7 @@ export default function ShowsPage() {
               <Card padding="none" className="px-2.5 py-2 md:p-4"><StatFigure compact value={shows.length} label="Shows" /></Card>
               <Card padding="none" className="px-2.5 py-2 md:p-4"><StatFigure compact value={summaryStats.uniqueArtists} label="Artists" /></Card>
               <Card padding="none" className="px-2.5 py-2 md:p-4"><StatFigure compact value={summaryStats.uniqueVenues} label="Venues" /></Card>
-              <Card padding="none" className="px-2.5 py-2 md:p-4"><StatFigure compact value={summaryStats.avgRating ? `${summaryStats.avgRating}★` : '--'} label="Avg Rating" /></Card>
+              <Card padding="none" className="px-2.5 py-2 md:p-4"><StatFigure compact value={summaryStats.avgRating ? `${formatAverageRating(summaryStats.avgRating)}★` : '--'} label="Avg Rating" /></Card>
             </div>
           )}
 
