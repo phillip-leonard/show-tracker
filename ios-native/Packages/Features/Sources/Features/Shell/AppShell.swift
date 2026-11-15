@@ -9,6 +9,10 @@ import SwiftUI
 /// tab bar everywhere else; system bars get Liquid Glass on iOS 26.
 public struct AppShell: View {
     @Environment(AppRouter.self) private var router
+    @Environment(SessionStore.self) private var session
+    /// The signed-in person's shows, live (Stage 1, Part 2). Shown only while
+    /// someone is signed in, so it stops with the shell.
+    @State private var shows = ShowsStore()
 
     public init() {}
 
@@ -33,6 +37,11 @@ public struct AppShell: View {
         }
         .tabViewStyle(.sidebarAdaptable)
         .tint(.brand)
+        .environment(shows)
+        .task(id: session.user?.uid) {
+            if let uid = session.user?.uid { shows.start(uid: uid) } else { shows.stop() }
+        }
+        .onDisappear { shows.stop() }
         .sheet(item: $router.web) { page in
             SafariView(url: page.url).ignoresSafeArea()
         }
@@ -55,7 +64,20 @@ struct TabStack<Root: View>: View {
         NavigationStack(path: Binding(get: { router.paths[tab, default: []] }, set: { router.paths[tab] = $0 })) {
             root
                 .brandScreen()
-                .navigationDestination(for: AppRoute.self) { RoutePlaceholder(route: $0).brandScreen() }
+                .navigationDestination(for: AppRoute.self) { RouteScreen(route: $0).brandScreen() }
+        }
+    }
+}
+
+/// The screen for a route: the ones built so far, a placeholder for the rest.
+struct RouteScreen: View {
+    let route: AppRoute
+
+    var body: some View {
+        switch route {
+        case .show(let id): ShowDetailPlaceholder(id: id)
+        case .upcomingShow(let id): UpcomingDetailPlaceholder(id: id)
+        default: RoutePlaceholder(route: route)
         }
     }
 }

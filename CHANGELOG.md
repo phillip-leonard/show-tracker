@@ -4,6 +4,51 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.60.24] — 2026-11-15
+
+Ships in **iOS 3.13.40** (Capacitor, `MARKETING_VERSION` 3.13.39 → 3.13.40)
+and **native 4.0.8** (4.0.7 → 4.0.8). Nothing changes in the web or
+Capacitor apps.
+
+**Native app Stage 1, Part 2: the Shows tab (read).**
+
+- **Past | Upcoming.** Past is every document in `users/{uid}/shows`,
+  grouped by year, newest first, with ties in document-id order. That's the
+  same count and order as the web's My Shows. Upcoming is
+  `users/{uid}/upcomingShows`, soonest first, then band
+  (`Core/Shows/ShowList`). A show in `shows` dated after today stays in Past
+  with an "Upcoming" mark (production has none), so the count still matches.
+- **Rows:** band, date ("Nov 15, 2026", read as a calendar day), venue and
+  city, the show's rating, and the setlist status: how many songs, "No
+  setlist yet", or "Setlist update waiting" for a pending Internet Archive
+  proposal.
+- **Search** matches band, venue, city and song titles, ignoring case and
+  accents. **Filters:** year, band and venue (a menu, with removable chips).
+  The **counts** above the list: shows from the list itself; bands, venues
+  and average rating from `userStats/{uid}`, the server's numbers. With a
+  filter on: "N of M shows".
+- **Empty states** for a signed-in account, a guest (with "Create your
+  account") and no results, each with + ("Add a show": a placeholder until
+  Part 4). Pull to refresh reads both lists from the server.
+- **Live and offline:** snapshot listeners on both collections and on
+  `userStats` (`Core/Shows/ShowsStore`). With offline persistence on, a
+  launch shows the cached shows at once, with no spinner. Offline, a note
+  says so after 3 seconds. Loading always ends: a 10 s deadline on the first
+  snapshot, then one read with 15 s (`Core/Shows/LiveLoad`, the rule in
+  `lib/liveShows.js`).
+- **Deep links:** `/shows/?show=<id>` and a row open the show's header (a
+  placeholder until Part 3a), or "Show not found". `/shows/?upcoming=<id>`
+  opens the upcoming show.
+- `UpcomingShow` takes its id from the snapshot (`decodeUpcomingShow`).
+- **Tests:** `ShowListTests` (order and ties, unreadable dates, years,
+  search including songs and accents, filters, options, setlist status) and
+  `LiveLoadTests` (in time, deadline then read once, failing listener, a
+  read that never answers still ends loading, stop, `withDeadline`). Tried
+  in the simulator against the local Auth and Firestore emulators, offline
+  included (ios-native/README.md says how).
+
+---
+
 ## [5.60.23] — 2026-11-15
 
 Ships in **iOS 3.13.39** (Capacitor, `MARKETING_VERSION` 3.13.38 → 3.13.39).

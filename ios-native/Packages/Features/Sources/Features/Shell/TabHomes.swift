@@ -4,39 +4,7 @@ import SwiftUI
 
 // Each tab's root, until its feature is built (DECISIONS.md, "Build order").
 
-struct ShowsHome: View {
-    enum Segment: String, CaseIterable { case past = "Shows", upcoming = "Upcoming" }
-    @State private var segment = Segment.past
-
-    var body: some View {
-        ContentUnavailableView {
-            Label(segment == .past ? "Your shows" : "Upcoming shows", systemImage: segment == .past ? "music.note.list" : "calendar")
-        } description: {
-            Text(segment == .past ? "Every show you've been to, with its setlist." : "Shows you have tickets for.")
-        }
-        .safeAreaInset(edge: .top, spacing: 0) {
-            VStack(spacing: Space.x2) {
-                UpdateBanner()
-                Picker("Shows", selection: $segment) {
-                    ForEach(Segment.allCases, id: \.self) { Text($0.rawValue) }
-                }
-                .pickerStyle(.segmented)
-                .padding(.horizontal, Space.x4)
-            }
-            .padding(.vertical, Space.x2)
-        }
-        .navigationTitle("Shows")
-        .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                Button {
-                    // "Add a show" arrives with the Shows feature.
-                } label: {
-                    Label("Add a show", systemImage: "plus")
-                }
-            }
-        }
-    }
-}
+// ShowsHome is Features/Shows/ShowsHome.swift (Stage 1, Part 2).
 
 struct FriendsHome: View {
     @Environment(SessionStore.self) private var session
