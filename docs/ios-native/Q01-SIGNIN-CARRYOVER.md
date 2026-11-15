@@ -4,13 +4,17 @@ When the native app is installed over the Capacitor app (same bundle ID, `com.my
 
 ## Answer (2026-11-15)
 
-Phillip ran the steps below on a device.
+Phillip ran the steps below on a device on 2026-11-15: the App Store Capacitor app, **3.13.27**, then the TestFlight native build **4.0.5 (1)** installed over it.
 
 | Signed in to the Capacitor app with | Native app on first launch | As expected? |
 |---|---|---|
-| Google | **Signed in**, same account | Yes |
+| Google | **Signed in** (landed on Shows) | Yes |
 | Apple | **Signed out** (the sign-in screen) | No: expected to carry over |
 | Email and password | **Signed out** (the sign-in screen) | Yes |
+
+- **Google:** landed on Shows, signed in. First-launch line: `first launch 4.0.5 (1): signed in (google.com); keychain user; over the Capacitor app`.
+- **Apple and email:** the sign-in screen appeared, and the app wasn't signed in. **No first-launch line was captured**: the record is written once per install, on its first launch, and the Google run took it.
+- **An earlier run recorded `signed out; keychain empty`.** It doesn't count: that run didn't start from a signed-in Capacitor app.
 
 **Decision (2026-11-15): Apple and email users sign in again. There's no token bridge** (no custom-token hand-off from a last Capacitor release). Their shows are in their account, so nothing is lost; they sign in once after the update.
 
@@ -72,14 +76,14 @@ Do this three times, with **Google**, then **Apple**, then **email**.
 
 ## Results
 
-Outcomes as reported on 2026-11-15. The versions and first-launch lines weren't sent; add them here if they're wanted for the record.
+Run on 2026-11-15. Only the first run on an install gets a first-launch line (the record is kept once per install), so the Apple and email runs have none. An earlier run that recorded `signed out; keychain empty` isn't in the table: it didn't start from a signed-in Capacitor app.
 
 | Run | Capacitor version (App Store) | Signed in with | Native build (TestFlight) | First screen | Me shows the same account? | First-launch line | As expected? |
 |---|---|---|---|---|---|---|---|
-| 1 | | Google | | Shows (signed in) | Yes | | Yes |
-| 2 | | Apple | | Sign-in screen | — | | No (expected signed in) |
-| 3 | | Email | | Sign-in screen | — | | Yes |
-| Control | none | none | | | | | |
+| 1 | 3.13.27 | Google | 4.0.5 (1) | Shows (signed in) | Not noted | `first launch 4.0.5 (1): signed in (google.com); keychain user; over the Capacitor app` | Yes |
+| 2 | 3.13.27 | Apple | 4.0.5 (1) | Sign-in screen | — (not signed in) | None (taken by run 1) | No (expected signed in) |
+| 3 | 3.13.27 | Email | 4.0.5 (1) | Sign-in screen | — (not signed in) | None (taken by run 1) | Yes |
+| Control | none | none | | Not run | | | |
 
 ## What the results mean
 
