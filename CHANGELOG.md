@@ -61,9 +61,13 @@ Capacitor apps.
     (`npm run test:native-auth-emulator`): guest, guest to email (same uid),
     the credential-in-use path, and the error messages. 4 of 4 pass. While
     the app hosts tests it doesn't start Firebase itself.
-- **Flagged, not built:** there is no data export anywhere to make reachable,
-  and sign-out leaves Firestore's offline cache on the device
-  (`docs/ios-native/DECISIONS.md`).
+- **No data export in v1** (decided 2026-11-15): the requirement is now
+  "deletion is always reachable". **The privacy policy** gains a line under
+  "Your Rights and Choices": people can request a copy of their data by
+  emailing support@mysetlists.net. `export-my-data` is noted as a
+  post-launch idea (`docs/ios-native/DECISIONS.md`).
+- **Still open:** sign-out leaves Firestore's offline cache on the device.
+  Part 6 clears it (terminate, `clearPersistence()`, a fresh instance).
 
 ---
 

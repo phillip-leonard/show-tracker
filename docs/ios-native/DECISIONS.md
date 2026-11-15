@@ -118,6 +118,11 @@ Not during the Year in Review peak (Dec 2 to mid-January), because the cutover m
 - **Deletion** asks Apple for a fresh authorization code on Apple accounts (only when it's the same Apple ID) so `delete-account` can revoke Apple's tokens. Backing out of Apple's sheet cancels the deletion. Deletion is reachable from the update-required screen too.
 - **Sign-out never hangs:** push-token document, Firebase, Google and local state, each step bounded at 4 s (`SignOutRunner`).
 - **Flagged, not built:**
-  - **There is no data export.** SCOPING asks for deletion and export to be always reachable. Deletion is; nothing exports a user's data on the web or the server.
-  - **Sign-out doesn't clear Firestore's offline cache.** Clearing it means terminating Firestore for the rest of the process. The next user can't read the previous user's documents (the rules decide that on the server), but the files stay on the device.
+  - **Sign-out doesn't clear Firestore's offline cache yet.** The next user can't read the previous user's documents (the rules decide that on the server), but the files stay on the device. Part 6 fixes it (below).
+
+## Data export and the offline cache (2026-11-15)
+
+- **No data export in v1.** The requirement is **"deletion is always reachable"** (in the app, and on the update-required screen). The privacy policy says people can request a copy of their data by emailing support@mysetlists.net (components/PrivacyPolicy.jsx, "Your Rights and Choices").
+- **Post-launch idea: `export-my-data`.** A server function that builds a user's shows, ratings and profile as JSON/CSV and emails it or returns a download, signed-in only, with a per-user limit.
+- **Part 6: sign-out clears Firestore's offline cache.** Terminate the Firestore instance, `clearPersistence()`, then use a fresh instance before the next sign-in. If the SDK can't create a new instance in the same process, report it to Phillip rather than leaving the cache in place.
 
