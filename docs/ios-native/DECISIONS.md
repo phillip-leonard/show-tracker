@@ -1,6 +1,6 @@
 # Native SwiftUI app: approved decisions
 
-The decisions behind the native iOS app, approved by Phillip. The original lives in his Claude project as `swift-v1-decisions.md`. This copy was written on 2026-11-14 from the foundation kickoff prompt and the answers to the Part 1 audit (`FOUNDATION-AUDIT.md`), so future sessions can find it. Don't reopen a decision here without asking him; add new ones at the end, with the date.
+The decisions behind the native iOS app, approved by Phillip. **This file is the source of truth** (since 2026-11-14). It replaces `swift-v1-decisions.md` in his Claude project. It was first written from the foundation kickoff prompt and the answers to the Part 1 audit (`FOUNDATION-AUDIT.md`). Don't reopen a decision here without asking him. Add new ones at the end, with the date.
 
 ## Platform and project
 
@@ -75,3 +75,29 @@ The decisions behind the native iOS app, approved by Phillip. The original lives
 ## Order of work
 
 Part 1 audit (done, 2026-11-14) → data cleanup (5.60.12) → Part 2 server and rules for guests → Part 3 project skeleton and CI → Part 4 models and contract tests → Part 5 auth and API client → Part 6 app shell and design system → Part 7 spikes (Q-01 sign-in carry-over, Q-07 build numbers). One PR per part, each branched from the latest `main`.
+
+## v1 scope, build order and cutover timing (2026-11-14)
+
+From Phillip's project copy.
+
+### v1 scope
+
+- **Community** is in v1.
+- **Discover** stays hidden.
+- **Festivals** in v1 are read-and-attach only: list, detail, attach a show, lineup. Create, join and picks are v1.x.
+- **Screenshot and CSV import** are v1.x. Until then, the app links to the web page.
+- **Any v1.x screen** opens its web page in `SFSafariViewController` until it exists natively.
+- **Year in Review** is in v1 only if v1 is ready before Dec 2. Otherwise it waits for next season.
+
+### Build order after the foundation
+
+1. Shows tab, show detail (first, since it's the biggest screen, R-03) and add flows
+2. Stats, Me/Profile with deletion, moderation
+3. Friends, tags, notifications, push
+4. Tours, runs, songs, bands, venues, wishlist, bucket list, Community
+5. Festivals (read and attach)
+6. Internal TestFlight, then cutover per SCOPING §7.4
+
+### Cutover timing
+
+Not during the Year in Review peak (Dec 2 to mid-January), because the cutover makes most users sign in again. Cut over either before about Nov 28 or after the peak.
