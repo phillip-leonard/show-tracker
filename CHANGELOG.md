@@ -64,8 +64,11 @@ Capacitor apps.
 - **No data export in v1** (decided 2026-11-15): the requirement is now
   "deletion is always reachable". **The privacy policy** gains a line under
   "Your Rights and Choices": people can request a copy of their data by
-  emailing support@mysetlists.net. `export-my-data` is noted as a
-  post-launch idea (`docs/ios-native/DECISIONS.md`).
+  emailing support@mysetlists.net. "Delete Your Account" now says people can
+  delete their account and all their data at any time from Profile → Delete
+  My Account in the app or on the website, or by emailing support. (It used to
+  say to email us, though both apps delete in-app.) `export-my-data` is noted
+  as a post-launch idea (`docs/ios-native/DECISIONS.md`).
 - **Still open:** sign-out leaves Firestore's offline cache on the device.
   Part 6 clears it (terminate, `clearPersistence()`, a fresh instance).
 

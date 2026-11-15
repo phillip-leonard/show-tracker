@@ -123,6 +123,7 @@ Not during the Year in Review peak (Dec 2 to mid-January), because the cutover m
 ## Data export and the offline cache (2026-11-15)
 
 - **No data export in v1.** The requirement is **"deletion is always reachable"** (in the app, and on the update-required screen). The privacy policy says people can request a copy of their data by emailing support@mysetlists.net (components/PrivacyPolicy.jsx, "Your Rights and Choices").
+- **The privacy policy names the deletion path:** "Profile → Delete My Account in the app or on the website", which is the web's and the Capacitor app's menu. **At cutover**, the native app has it under the Me tab ("Delete my account"), so update that sentence in components/PrivacyPolicy.jsx when the native app ships.
 - **Post-launch idea: `export-my-data`.** A server function that builds a user's shows, ratings and profile as JSON/CSV and emails it or returns a download, signed-in only, with a per-user limit.
 - **Part 6: sign-out clears Firestore's offline cache.** Terminate the Firestore instance, `clearPersistence()`, then use a fresh instance before the next sign-in. If the SDK can't create a new instance in the same process, report it to Phillip rather than leaving the cache in place.
 
