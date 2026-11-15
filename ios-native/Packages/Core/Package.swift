@@ -29,7 +29,11 @@ let package = Package(
         ),
         .testTarget(
             name: "CoreTests",
-            dependencies: ["Core"]
+            dependencies: ["Core"],
+            // A symlink to the repo's fixtures/ (the contract shared with the
+            // server's tests), copied into the test bundle so the tests don't
+            // depend on the source tree being on the machine that runs them.
+            resources: [.copy("Fixtures")]
         ),
     ]
 )

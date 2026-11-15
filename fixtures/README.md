@@ -1,9 +1,20 @@
 # Shared fixtures
 
 Golden input → output files that the web app's tests and the Swift app's
-contract tests both read. Each file is plain JSON so any test runner can load
-it. Change one only on purpose: a changed expected value is a number users
-see change.
+contract tests both read (ios-native/Packages/Core/Tests/CoreTests bundles
+this folder through its `Fixtures` symlink). Each file is plain JSON so any
+test runner can load it. Change one only on purpose: a changed expected
+value is a number users see change.
+
+## `dates/`
+
+`show-dates.json`: stored show dates and how `lib/showDate.js` reads them
+(`toIsoDate`, the legacy-shape buckets, year, month-day, ordering, days
+between, setlist.fm's `DD-MM-YYYY`, past and upcoming, and the device's
+"today" in five time zones). One row per case; `''` means unreadable. The
+web side runs it in `lib/__tests__/showDateGolden.test.js`, the Swift side
+in `ShowDateGoldenTests` (ios-native Core). Add a row to both by adding it
+here.
 
 ## `shows/`
 

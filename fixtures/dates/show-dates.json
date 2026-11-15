@@ -1,0 +1,90 @@
+{
+  "name": "show-dates",
+  "description": "Stored show dates, read the way lib/showDate.js reads them. The JS tests (lib/__tests__/showDateGolden.test.js) and the Swift tests (ios-native Core ShowDateGoldenTests) both run every row. Inputs are the strings Firestore holds; '' means unreadable.",
+  "toIsoDate": [
+    ["2025-05-28", "2025-05-28"],
+    ["28-05-2025", "2025-05-28"],
+    ["2025-5-8", "2025-05-08"],
+    ["2025-05-28T23:30:00Z", "2025-05-28"],
+    ["2025-05-28 10:00", "2025-05-28"],
+    ["03-04-2024", "2024-04-03"],
+    ["05-05-2024", "2024-05-05"],
+    ["3-4-2024", "2024-04-03"],
+    ["29-02-2024", "2024-02-29"],
+    ["2024-02-29", "2024-02-29"],
+    [" 2025-05-28 ", "2025-05-28"],
+    ["", ""],
+    ["tomorrow", ""],
+    ["TBA", ""],
+    ["June 3 2019", ""],
+    ["2025-02-30", ""],
+    ["31-02-2025", ""],
+    ["2025-13-01", ""],
+    ["29-02-2025", ""],
+    ["1899-12-31", ""],
+    ["2101-01-01", ""],
+    ["05/28/2025", ""],
+    ["2025-05-28-01", ""]
+  ],
+  "storedDateShape": [
+    ["2025-05-28", "iso"],
+    ["28-05-2025", "dd-mm-yyyy"],
+    ["03-04-2024", "ambiguous"],
+    ["04-04-2024", "dd-mm-yyyy"],
+    ["13-04-2024", "dd-mm-yyyy"],
+    ["2025-5-8", "iso-variant"],
+    ["2025-05-28T10:00:00Z", "iso-variant"],
+    ["", "missing"],
+    ["soon", "other"]
+  ],
+  "showYear": [
+    ["23-10-2019", "2019"],
+    ["2019-10-23", "2019"],
+    ["x", ""]
+  ],
+  "monthDay": [
+    ["23-10-2019", "10-23"],
+    ["2019-10-23", "10-23"],
+    ["x", ""]
+  ],
+  "compareShowDates": {
+    "input": ["2025-05-28", "01-01-2024", "x", "2024-06-01", "15-03-2025"],
+    "sorted": ["01-01-2024", "2024-06-01", "15-03-2025", "2025-05-28", "x"]
+  },
+  "sameShowDate": [
+    ["28-05-2025", "2025-05-28", true],
+    ["2025-05-28", "2025-05-28", true],
+    ["2025-05-28", "2025-05-29", false],
+    ["", "", false],
+    ["x", "x", false]
+  ],
+  "daysBetweenDates": [
+    ["2025-03-01", "01-04-2025", 31],
+    ["2025-01-01", "2025-01-01", 0],
+    ["2025-01-02", "2025-01-01", -1],
+    ["2024-12-31", "2025-01-01", 1],
+    ["2024-02-28", "2024-03-01", 2],
+    ["2025-11-01", "2025-11-03", 2],
+    ["x", "2025-01-01", null]
+  ],
+  "fromSetlistfmDate": [
+    ["28-05-2025", "2025-05-28"],
+    ["3-4-2024", "2024-04-03"],
+    ["2025-05-28", ""],
+    ["31-02-2025", ""],
+    ["", ""]
+  ],
+  "relativeToToday": [
+    { "today": "2026-11-12", "date": "2026-11-12", "isPast": false, "isUpcoming": false },
+    { "today": "2026-11-12", "date": "2026-11-13", "isPast": false, "isUpcoming": true },
+    { "today": "2026-11-12", "date": "11-11-2026", "isPast": true, "isUpcoming": false },
+    { "today": "2026-11-12", "date": "x", "isPast": false, "isUpcoming": false }
+  ],
+  "today": [
+    { "instant": "2026-11-13T04:00:00Z", "timeZone": "America/Los_Angeles", "expected": "2026-11-12" },
+    { "instant": "2026-11-13T04:00:00Z", "timeZone": "America/New_York", "expected": "2026-11-12" },
+    { "instant": "2026-11-13T04:00:00Z", "timeZone": "Europe/London", "expected": "2026-11-13" },
+    { "instant": "2026-11-13T04:00:00Z", "timeZone": "Asia/Tokyo", "expected": "2026-11-13" },
+    { "instant": "2026-11-12T10:30:00Z", "timeZone": "Pacific/Auckland", "expected": "2026-11-12" }
+  ]
+}
