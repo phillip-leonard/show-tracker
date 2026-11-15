@@ -82,7 +82,7 @@ const {
   startGapDays,
   normalizeFestivalName,
   normalizeLocation,
-} = require('./lib/festivalMatchRule');
+} = require('../../lib/festivalMatch');
 
 // The one admin check: custom claim or verified allowlisted address (5.59.12).
 const { isAdmin } = require('./lib/firebaseAdmin');

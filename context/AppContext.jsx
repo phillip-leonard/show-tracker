@@ -7,7 +7,7 @@ import { signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
 import { nativeOAuthSignIn, isNativePlatform, nativeSignOut } from '@/lib/native-auth';
 import {
   collection, doc, setDoc, getDoc, getDocs, deleteDoc, updateDoc,
-  serverTimestamp, onSnapshot, query, where, addDoc, writeBatch, limit,
+  serverTimestamp, onSnapshot, query, where, addDoc, writeBatch,
   arrayUnion, arrayRemove, Timestamp, deleteField,
 } from 'firebase/firestore';
 import { auth, db, googleProvider, browserPopupRedirectResolver } from '@/lib/firebase';
@@ -26,7 +26,7 @@ import { isReturningUser as checkIsReturningUser } from '@/lib/popupManager';
 import { fetchBandSetlistResponse } from '@/lib/bandSetlist';
 import { SETLIST_SOURCES } from '@/lib/setlistSources';
 import { removeSongFromSetlist, insertSongAt } from '@/lib/setlistGrouping';
-import { normalizeFestivalName, findFestivalMatches as matchFestivals } from '@/lib/festivalMatch';
+import { normalizeFestivalName } from '@/lib/festivalMatch';
 import { festivalWhenFields } from '@/lib/festivalDates';
 import { catalogFields } from '@/lib/festivalCatalog';
 import { logActivity } from '@/lib/activityFeed';
@@ -48,7 +48,7 @@ import { callFriends } from '@/lib/friendsApi';
 import { isFirstShowTransition, requestWelcomeEmail } from '@/lib/welcomeEmailTrigger';
 import { sweepExpiredSetlistfmCaches } from '@/lib/setlistfmLocalCache';
 import { signInLeavesRoute } from '@/lib/deepLinks';
-import { toIsoDate, showYear, utcIsoDate } from '@/lib/showDate';
+import { toIsoDate, showYear } from '@/lib/showDate';
 import { performSignOut } from '@/lib/signOutFlow';
 import { pushOfferEnabled } from '@/lib/appConfig';
 import { clearSpotifySession } from '@/lib/spotify';
@@ -1987,75 +1987,34 @@ export function AppProvider({ children }) {
   // not meant to — silently repointing other people's attendance records
   // is not a thing one attendee should be able to do to another.
 
-  // How many canonical festivals a dedup lookup will pull down before
-  // fuzzy-matching client-side. Firestore can't do fuzzy search, so the
-  // query has to be bounded and the real comparison happens in
-  // lib/festivalMatch.js over a small candidate set.
-  const FESTIVAL_CANDIDATE_LIMIT = 20;
-
   // Finds canonical festivals that are probably the one the user is about
-  // to create.
-  //
-  // TWO BOUNDED QUERIES, both single-field ranges, both served by
-  // Firestore's automatic single-field indexes — no composite index is
-  // required and none was added to firestore.indexes.json:
-  //
-  //   1. Name prefix: nameNormalized >= <first token> AND
-  //      nameNormalized <= <first token> + '\uf8ff'. Catches "Bonnaroo"
-  //      against "Bonnaroo Music and Arts Festival" and vice versa.
-  //   2. Date window: startDate >= (start - 7d) AND startDate <= (end + 7d).
-  //      Catches a festival whose name is spelled differently enough that
-  //      the prefix misses it — the common case being a canonical record
-  //      whose name starts with a word the user didn't type.
-  //
-  // The union of the two is then run through the real rule
-  // (lib/festivalMatch.js), which is where the year/edition guard lives.
-  //
-  // A draft with only a year (5.58.0) has no window for query 2, so only
-  // the name prefix runs. That's the one that matters for it anyway: the
-  // rule then keeps the candidates in the same year, which can be every
-  // edition that year (both Coachella weekends) for the user to pick from.
+  // to create. The catalog queries (a name prefix and a ±7-day start
+  // window, 20 each) and the rule run on the server since 5.60.8
+  // (netlify/functions/lib/festivalMatchServer.js); see there.
   const findFestivalMatchesFor = async (draft) => {
     if (!user || !draft?.name?.trim() || (!draft?.startDate && !draft?.year)) return [];
-
-    const normalized = normalizeFestivalName(draft.name);
-    const prefix = normalized.split(' ')[0] || '';
-    const catalog = new Map();
-
-    const collect = (snap) => snap.docs.forEach(d => catalog.set(d.id, { id: d.id, ...d.data() }));
-
+    // Matched on the server (match-festivals, 5.60.8): the catalog's
+    // candidates, the user's own festivals left out, the one rule
+    // (lib/festivalMatch.js). A failed lookup must never block creation —
+    // the worst outcome is a duplicate the rule will surface next time.
     try {
-      if (prefix) {
-        collect(await getDocs(query(
-          collection(db, 'festivals'),
-          where('nameNormalized', '>=', prefix),
-          where('nameNormalized', '<=', `${prefix}\uf8ff`),
-          limit(FESTIVAL_CANDIDATE_LIMIT),
-        )));
-      }
-
-      const pad = 7 * 86400000;
-      const from = new Date(Date.parse(`${draft.startDate}T00:00:00Z`) - pad);
-      const to = new Date(Date.parse(`${draft.endDate || draft.startDate}T00:00:00Z`) + pad);
-      if (draft.startDate && !Number.isNaN(from.getTime()) && !Number.isNaN(to.getTime())) {
-        collect(await getDocs(query(
-          collection(db, 'festivals'),
-          where('startDate', '>=', utcIsoDate(from)),
-          where('startDate', '<=', utcIsoDate(to)),
-          limit(FESTIVAL_CANDIDATE_LIMIT),
-        )));
-      }
+      const res = await authedFetch('/.netlify/functions/match-festivals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: draft.name, startDate: draft.startDate || '', endDate: draft.endDate || '',
+          ...(Number.isInteger(draft.year) ? { year: draft.year } : {}), location: draft.location || '',
+        }),
+      });
+      if (!res.ok) return [];
+      const data = await res.json();
+      return Array.isArray(data.matches) ? data.matches : [];
     } catch (error) {
-      // A failed lookup must never block creation — the worst outcome is a
-      // duplicate the match rule will surface next time.
       console.warn('Festival match lookup failed:', error.message);
       return [];
     }
-
-    // A festival the user has already joined isn't a match to offer.
-    const joined = new Set((festivals || []).map(f => f.festivalId).filter(Boolean));
-    return matchFestivals(draft, Array.from(catalog.values()).filter(c => !joined.has(c.id)));
   };
+
 
   // Writes only the user's attendance record against an existing canonical
   // festival. The canonical document is never touched — not even a

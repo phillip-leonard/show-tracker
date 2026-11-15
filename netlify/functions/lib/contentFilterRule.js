@@ -3,7 +3,7 @@
  * Netlify function can apply exactly the filter the client applies.
  *
  * WHY A COPY RATHER THAN AN IMPORT. Same reason
- * netlify/functions/lib/festivalMatchRule.js exists: functions are
+ * netlify/functions/lib/festivalMatchRule.js existed until 5.60.8: functions are
  * CommonJS and cannot require the app's ESM modules, and the alternative
  * — every function re-implementing the rule inline — is what let the
  * festival match rule drift until a bound that stopped a mistyped year
