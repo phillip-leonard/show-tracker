@@ -101,3 +101,11 @@ From Phillip's project copy.
 ### Cutover timing
 
 Not during the Year in Review peak (Dec 2 to mid-January), because the cutover makes most users sign in again. Cut over either before about Nov 28 or after the peak.
+
+## Project setup (2026-11-15, Part 3)
+
+- **`ios-native/MySetlists.xcworkspace` is the entry point.** It holds the project, the three local packages and the committed `Package.resolved`. Xcode Cloud builds the workspace.
+- **iPhone and iPad.** "iPhone-first" describes the design. The target stays universal because the Capacitor app supports iPad and an App Store update can't drop a device family.
+- **The keychain access group is `66N4YR3VP9.com.mysetlists.app`**, the default, because neither app has a keychain-sharing entitlement. Q-01 depends on this.
+- **Plus Jakarta Sans:** Google Fonts' variable TTFs, weights 200 to 800, roman and italic, registered from the DesignSystem package. Extra-bold renders as itself; it isn't mapped to bold, as the Part 1 audit assumed.
+- **The privacy manifest** keeps the Capacitor app's data types. It adds crash and diagnostic data (Crashlytics, not linked to the account) and drops product interaction (the native binary links no analytics SDK). Check the App Store privacy labels against it before cutover (Q-08).

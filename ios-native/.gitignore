@@ -1,0 +1,10 @@
+# Xcode and SwiftPM state that belongs to a machine, not the repo.
+xcuserdata/
+DerivedData/
+build/
+.build/
+Packages/*/.swiftpm/
+*.xcworkspace/xcshareddata/swiftpm/configuration/
+# MySetlists.xcworkspace is the entry point and holds the committed
+# Package.resolved; the project's own inner workspace keeps none.
+MySetlists.xcodeproj/project.xcworkspace/xcshareddata/
