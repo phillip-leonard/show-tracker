@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Release. The same capabilities as the Capacitor app (ios/App/App/AppRelease.entitlements):
+  Sign in with Apple, push (production APNs), universal links.
+
+  Deliberately NO keychain-access-groups (docs/ios-native/DECISIONS.md): without
+  it the default access group is 66N4YR3VP9.com.mysetlists.app, the one the
+  Capacitor app's Firebase Auth session is stored under (Q-01).
+-->
+<plist version="1.0">
+<dict>
+	<key>aps-environment</key>
+	<string>production</string>
+	<key>com.apple.developer.applesignin</key>
+	<array>
+		<string>Default</string>
+	</array>
+	<key>com.apple.developer.associated-domains</key>
+	<array>
+		<string>applinks:mysetlists.net</string>
+	</array>
+</dict>
+</plist>

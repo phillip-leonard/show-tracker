@@ -48,6 +48,10 @@ playwright-report/
 # Firebase (sensitive - download from Firebase Console)
 GoogleService-Info.plist
 GoogleService-Info*.plist
+# Except the iOS apps' own, which Xcode Cloud needs in the repo: the
+# Capacitor one (ios/App/App/) was force-added for that reason; the native
+# one is the same file for the same Firebase iOS app.
+!ios-native/App/Resources/GoogleService-Info.plist
 
 # Claude Code agent worktrees (local scratch, not repo content)
 .claude/worktrees/

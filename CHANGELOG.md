@@ -4,6 +4,56 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.60.14] — 2026-11-15
+
+Ships in **iOS 3.13.30** (Capacitor, `MARKETING_VERSION` 3.13.29 → 3.13.30)
+and starts the **native app at 4.0.0**. Nothing changes in the web app or the
+Capacitor app; `ios/` is untouched apart from its version.
+
+**The native app's project** (native app Part 3, `ios-native/`).
+
+- **`ios-native/MySetlists.xcworkspace`**: the app target plus three local
+  Swift packages:
+  - **Core**: Firebase 13 (Auth, Firestore, Messaging, Storage, Crashlytics)
+    and GoogleSignIn 10
+  - **Features**: the screens
+  - **DesignSystem**: Plus Jakarta Sans, Google Fonts' variable TTFs (OFL),
+    weights 200 to 800
+- **The app target**: bundle ID `com.mysetlists.app`, iOS 18.0, iPhone and iPad
+  (an update can't drop iPad support), Swift 6, version 4.0.0. Firestore
+  offline persistence is on. Crashlytics reports from Release builds.
+- **Capabilities match the Capacitor app exactly**: Sign in with Apple, push
+  (development and production APNs), universal links for `mysetlists.net`.
+  There is **no keychain-sharing entitlement**, so the keychain access group is
+  `66N4YR3VP9.com.mysetlists.app`, the group the Capacitor app's Firebase
+  session lives in (Q-01).
+- **Config:** `GoogleService-Info.plist` for the existing iOS Firebase app,
+  committed as in the Capacitor project. `PrivacyInfo.xcprivacy` keeps the
+  Capacitor app's data types, adds Crashlytics's crash and diagnostic data,
+  and drops analytics (the binary links no analytics SDK).
+- **CI:**
+  - Release builds upload their dSYM to Crashlytics (a build phase;
+    `SKIP_CRASHLYTICS_UPLOAD=YES` turns it off for local builds).
+  - `ios-native/ci_scripts/ci_post_clone.sh` installs nothing (no npm). It
+    checks the Firebase config and `Package.resolved`.
+  - `docs/ios-native/XCODE-CLOUD.md` has the setup steps for Phillip: one
+    Xcode Cloud product builds the native app, the Capacitor app is built by
+    hand during the transition (D-7), and the new product's next build number
+    is set above the last Capacitor build.
+- **Netlify skips a build when every changed file is under `ios-native/`**
+  (`ignore = "sh scripts/netlify-ignore.sh"` in `netlify.toml`). Any other
+  changed file builds, including docs, `CHANGELOG.md`, `package.json`, rules
+  and functions. So do the cases the script can't be sure of: a retried
+  deploy, a missing base commit, a file moved into `ios-native/`.
+  `tests/ci/netlifyIgnore.test.js` checks each case against a scratch git
+  repo.
+- **Tests (Swift Testing)**: `CoreTests` and `DesignSystemTests`. The
+  DesignSystem tests check that the fonts register and resolve at every
+  weight the web uses. Both pass on the iOS 27 simulator. The Release device
+  build compiles and produces a dSYM.
+
+---
+
 ## [5.60.13] — 2026-11-15
 
 Ships in **iOS 3.13.29** (`MARKETING_VERSION` 3.13.28 → 3.13.29). Nothing in
