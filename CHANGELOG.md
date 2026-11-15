@@ -4,6 +4,31 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.60.23] — 2026-11-15
+
+Ships in **iOS 3.13.39** (Capacitor, `MARKETING_VERSION` 3.13.38 → 3.13.39).
+No native change.
+
+**Sets past Set IV play in order, before the encores.**
+
+- A show with a fifth set or more (Set V–Set IX, Roman or Arabic: "Set 5",
+  "Set 9") listed those sets **after** the encores, on the show page, in
+  the setlist editor's set picker and on the public show page. Only
+  Set I–IV and Encore–Encore III were known. Production has shows with up to
+  eight sets.
+- The order is now sets by number, then encores by number ("Encore 2" too),
+  then any other label where it was. A legacy `setBreak` past "Set 6" now
+  reads as a Roman set too ("Set 7" → Set VII).
+- One rule for both places: `groupSongsBySet` and `setBreakToLabel` moved
+  into `lib/setGroups.js` (CommonJS). `lib/setlistGrouping.js` re-exports
+  them, and `netlify/functions/public-show.js` requires it instead of
+  keeping its own copy.
+- `fixtures/setlist-grouping/` now pins the corrected order, with new cases
+  for a nine-set show, Arabic numbers and other labels.
+  `lib/__tests__/setGroups.test.js` covers reading the labels.
+
+---
+
 ## [5.60.22] — 2026-11-15
 
 Ships in **iOS 3.13.38** (Capacitor, `MARKETING_VERSION` 3.13.37 → 3.13.38)

@@ -1,6 +1,6 @@
 {
   "name": "getSetOptions",
-  "description": "lib/setlistGrouping.js getSetOptions: the 'which set?' picker. Every canonical label, then any other label the show has.",
+  "description": "lib/setlistGrouping.js getSetOptions: the 'which set?' picker. Every canonical label (Set I-IV, Encore-Encore III) and every other label the show has, in playing order: sets by number, then encores, then anything else.",
   "cases": [
     {
       "name": "one set",
@@ -22,7 +22,7 @@
       ]
     },
     {
-      "name": "a label beyond the canonical seven",
+      "name": "sets past Set IV sit before the encores",
       "setlist": [
         {
           "id": "l1",
@@ -75,12 +75,12 @@
         "Set II",
         "Set III",
         "Set IV",
-        "Encore",
-        "Encore II",
-        "Encore III",
         "Set V",
         "Set VI",
-        "Set 9"
+        "Set 9",
+        "Encore",
+        "Encore II",
+        "Encore III"
       ]
     },
     {
