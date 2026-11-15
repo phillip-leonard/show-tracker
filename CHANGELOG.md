@@ -4,6 +4,45 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.60.22] — 2026-11-15
+
+Ships in **iOS 3.13.38** (Capacitor, `MARKETING_VERSION` 3.13.37 → 3.13.38)
+and **native 4.0.7** (4.0.6 → 4.0.7). No change anyone can see in the web
+or Capacitor apps.
+
+**Native app Stage 1, second PR: `setlist-source` and the shared fixtures.**
+
+- **`setlist-source` (new function):** `GET
+  /.netlify/functions/setlist-source?artist=&mbid=&setlistSource=`. It says
+  whether a band has its own setlist source, the source's name and link, and
+  the re-sync control the show page should offer: whether, which call
+  (`resync-show`, or `propose-setlist` then `accept-proposal` for the
+  Internet Archive), the button, its busy label and the hint. With the
+  show's `setlistSource` it also credits where the current setlist came
+  from. It's `lib/setlistSources.js resolveSource`, unchanged, through
+  `lib/setlistSourceAnswer.js`: no second band list. Public (guests and
+  anyone), read-only, no quota, cached for an hour. The wording is the web
+  show page's, and a test fails if the two drift.
+  `tests/setlists/setlistSource.test.js`.
+- **Golden fixtures for setlist edits and set grouping:**
+  `fixtures/setlist-edits/` (rate, comment, rate all unrated, add, delete,
+  restore, reorder) and `fixtures/setlist-grouping/` (sets and encores,
+  legacy `setBreak`, the set picker, moving a song between sets, up and
+  down). Every case lists the ratings and comments that must survive, and
+  the test checks them separately. Run by
+  `lib/__tests__/setlistFixtures.test.js` now and by the Swift port in
+  Part 3b.
+- **Golden fixtures for the upcoming-show document:**
+  `fixtures/upcoming-shows/` (the new document, an edit's payload, the
+  form's validation messages and the duplicate rule). To make them test the
+  code the web writes with, `newUpcomingRecord`, `upcomingUpdate` and
+  `findDuplicateUpcoming` moved from AppContext into `lib/upcomingShows.js`;
+  the documents written are the same. `lib/__tests__/upcomingFixtures.test.js`.
+- **Native:** `SetlistAndUpcomingFixtureTests` checks today's `Song` and
+  `UpcomingShow` models decode every new fixture. No app change.
+
+---
+
 ## [5.60.21] — 2026-11-15
 
 Ships in **iOS 3.13.37** (Capacitor, `MARKETING_VERSION` 3.13.36 → 3.13.37)

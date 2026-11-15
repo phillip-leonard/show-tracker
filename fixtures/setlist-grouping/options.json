@@ -1,0 +1,100 @@
+{
+  "name": "getSetOptions",
+  "description": "lib/setlistGrouping.js getSetOptions: the 'which set?' picker. Every canonical label, then any other label the show has.",
+  "cases": [
+    {
+      "name": "one set",
+      "setlist": [
+        {
+          "id": "a",
+          "name": "Song",
+          "set": "Set I"
+        }
+      ],
+      "expected": [
+        "Set I",
+        "Set II",
+        "Set III",
+        "Set IV",
+        "Encore",
+        "Encore II",
+        "Encore III"
+      ]
+    },
+    {
+      "name": "a label beyond the canonical seven",
+      "setlist": [
+        {
+          "id": "l1",
+          "name": "Song 1",
+          "set": "Set I"
+        },
+        {
+          "id": "l2",
+          "name": "Song 2",
+          "set": "Set II"
+        },
+        {
+          "id": "l3",
+          "name": "Song 3",
+          "set": "Set III"
+        },
+        {
+          "id": "l4",
+          "name": "Song 4",
+          "set": "Set IV"
+        },
+        {
+          "id": "l5",
+          "name": "Song 5",
+          "set": "Set V"
+        },
+        {
+          "id": "l6",
+          "name": "Song 6",
+          "set": "Set VI"
+        },
+        {
+          "id": "l7",
+          "name": "Song 7",
+          "set": "Encore"
+        },
+        {
+          "id": "l8",
+          "name": "Song 8",
+          "set": "Encore II"
+        },
+        {
+          "id": "l9",
+          "name": "Song 9",
+          "set": "Set 9"
+        }
+      ],
+      "expected": [
+        "Set I",
+        "Set II",
+        "Set III",
+        "Set IV",
+        "Encore",
+        "Encore II",
+        "Encore III",
+        "Set V",
+        "Set VI",
+        "Set 9"
+      ]
+    },
+    {
+      "name": "no setlist",
+      "setlist": [],
+      "expected": [
+        "Set I",
+        "Set II",
+        "Set III",
+        "Set IV",
+        "Encore",
+        "Encore II",
+        "Encore III"
+      ]
+    }
+  ]
+}

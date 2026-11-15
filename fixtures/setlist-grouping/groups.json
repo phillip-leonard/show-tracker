@@ -1,0 +1,379 @@
+{
+  "name": "groupSongsBySet",
+  "description": "lib/setlistGrouping.js groupSongsBySet: the show page's sections. expected: [{ label, songIds }] in display order.",
+  "cases": [
+    {
+      "name": "sets and an encore",
+      "setlist": [
+        {
+          "id": "s1",
+          "name": "Arcadia",
+          "set": "Set I",
+          "cover": null,
+          "tape": false,
+          "rating": 8,
+          "comment": "Huge jam"
+        },
+        {
+          "id": "s2",
+          "name": "Tumble",
+          "set": "Set I",
+          "cover": null,
+          "tape": false,
+          "transitionMark": ">",
+          "footnote": "with a Satellite tease"
+        },
+        {
+          "id": "s3",
+          "name": "Hungersite",
+          "set": "Set I",
+          "cover": null,
+          "tape": false,
+          "rating": 9
+        },
+        {
+          "id": "s4",
+          "name": "Madhuvan",
+          "set": "Set II",
+          "cover": null,
+          "tape": false,
+          "rating": null
+        },
+        {
+          "id": "s5",
+          "name": "Arrow",
+          "set": "Set II",
+          "cover": null,
+          "tape": false,
+          "rating": 7,
+          "comment": "Set two opener",
+          "jamchart": true,
+          "songSlug": "arrow"
+        },
+        {
+          "id": "s6",
+          "name": "Echo of a Rose",
+          "set": "Encore",
+          "cover": null,
+          "tape": false,
+          "rating": 10
+        }
+      ],
+      "description": "",
+      "expected": [
+        {
+          "label": "Set I",
+          "songIds": [
+            "s1",
+            "s2",
+            "s3"
+          ]
+        },
+        {
+          "label": "Set II",
+          "songIds": [
+            "s4",
+            "s5"
+          ]
+        },
+        {
+          "label": "Encore",
+          "songIds": [
+            "s6"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "canonical order wins over stored order",
+      "description": "An Encore stored first still renders after Set I.",
+      "setlist": [
+        {
+          "id": "o1",
+          "name": "Encore song",
+          "set": "Encore"
+        },
+        {
+          "id": "o2",
+          "name": "Opener",
+          "set": "Set I"
+        },
+        {
+          "id": "o3",
+          "name": "Closer",
+          "set": "Set I"
+        }
+      ],
+      "expected": [
+        {
+          "label": "Set I",
+          "songIds": [
+            "o2",
+            "o3"
+          ]
+        },
+        {
+          "label": "Encore",
+          "songIds": [
+            "o1"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "legacy setBreak markers",
+      "description": "setBreak is stamped on the first song of each section only: Main Set, Set 2, Encore, Encore 2.",
+      "setlist": [
+        {
+          "id": "g1",
+          "name": "Wilson",
+          "setBreak": "Main Set",
+          "rating": 7
+        },
+        {
+          "id": "g2",
+          "name": "Llama"
+        },
+        {
+          "id": "g3",
+          "name": "Tweezer",
+          "setBreak": "Set 2",
+          "rating": 10,
+          "comment": "35 minutes"
+        },
+        {
+          "id": "g4",
+          "name": "Piper"
+        },
+        {
+          "id": "g5",
+          "name": "Loving Cup",
+          "setBreak": "Encore"
+        },
+        {
+          "id": "g6",
+          "name": "Tweezer Reprise",
+          "setBreak": "Encore 2"
+        }
+      ],
+      "expected": [
+        {
+          "label": "Set I",
+          "songIds": [
+            "g1",
+            "g2"
+          ]
+        },
+        {
+          "label": "Set II",
+          "songIds": [
+            "g3",
+            "g4"
+          ]
+        },
+        {
+          "label": "Encore",
+          "songIds": [
+            "g5"
+          ]
+        },
+        {
+          "label": "Encore II",
+          "songIds": [
+            "g6"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "songs with no set join the section that is open",
+      "setlist": [
+        {
+          "id": "n1",
+          "name": "Opener",
+          "set": "Set I"
+        },
+        {
+          "id": "n2",
+          "name": "Added by me",
+          "manuallyAdded": true
+        },
+        {
+          "id": "n3",
+          "name": "Set two",
+          "set": "Set II"
+        },
+        {
+          "id": "n4",
+          "name": "Also added",
+          "manuallyAdded": true
+        }
+      ],
+      "description": "",
+      "expected": [
+        {
+          "label": "Set I",
+          "songIds": [
+            "n1",
+            "n2"
+          ]
+        },
+        {
+          "label": "Set II",
+          "songIds": [
+            "n3",
+            "n4"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "a first song with no set opens Set I",
+      "setlist": [
+        {
+          "id": "f1",
+          "name": "Soundcheck jam"
+        },
+        {
+          "id": "f2",
+          "name": "Opener",
+          "set": "Set I"
+        },
+        {
+          "id": "f3",
+          "name": "Encore",
+          "set": "Encore"
+        }
+      ],
+      "description": "",
+      "expected": [
+        {
+          "label": "Set I",
+          "songIds": [
+            "f1",
+            "f2"
+          ]
+        },
+        {
+          "label": "Encore",
+          "songIds": [
+            "f3"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "labels beyond the canonical seven",
+      "description": "What the web does today: Set I-IV, Encore, Encore II in canonical order, then other labels (Set V, Set VI, Set 9) in the order they appear, so they render after the encores.",
+      "setlist": [
+        {
+          "id": "l1",
+          "name": "Song 1",
+          "set": "Set I"
+        },
+        {
+          "id": "l2",
+          "name": "Song 2",
+          "set": "Set II"
+        },
+        {
+          "id": "l3",
+          "name": "Song 3",
+          "set": "Set III"
+        },
+        {
+          "id": "l4",
+          "name": "Song 4",
+          "set": "Set IV"
+        },
+        {
+          "id": "l5",
+          "name": "Song 5",
+          "set": "Set V"
+        },
+        {
+          "id": "l6",
+          "name": "Song 6",
+          "set": "Set VI"
+        },
+        {
+          "id": "l7",
+          "name": "Song 7",
+          "set": "Encore"
+        },
+        {
+          "id": "l8",
+          "name": "Song 8",
+          "set": "Encore II"
+        },
+        {
+          "id": "l9",
+          "name": "Song 9",
+          "set": "Set 9"
+        }
+      ],
+      "expected": [
+        {
+          "label": "Set I",
+          "songIds": [
+            "l1"
+          ]
+        },
+        {
+          "label": "Set II",
+          "songIds": [
+            "l2"
+          ]
+        },
+        {
+          "label": "Set III",
+          "songIds": [
+            "l3"
+          ]
+        },
+        {
+          "label": "Set IV",
+          "songIds": [
+            "l4"
+          ]
+        },
+        {
+          "label": "Encore",
+          "songIds": [
+            "l7"
+          ]
+        },
+        {
+          "label": "Encore II",
+          "songIds": [
+            "l8"
+          ]
+        },
+        {
+          "label": "Set V",
+          "songIds": [
+            "l5"
+          ]
+        },
+        {
+          "label": "Set VI",
+          "songIds": [
+            "l6"
+          ]
+        },
+        {
+          "label": "Set 9",
+          "songIds": [
+            "l9"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "no setlist",
+      "setlist": [],
+      "description": "",
+      "expected": []
+    }
+  ]
+}

@@ -1,0 +1,444 @@
+{
+  "name": "restore",
+  "description": "lib/setlistEdits.js applySetlistEdit, edit type 'restore'. Each case: the stored setlist, the edit, and expected { setlist, changed, removed?, index? }. `survives` lists songs that must still carry that rating and comment afterwards.",
+  "cases": [
+    {
+      "name": "undo a delete",
+      "description": "The song goes back at its index with its id, set, rating and comment.",
+      "setlist": [
+        {
+          "id": "s1",
+          "name": "Arcadia",
+          "set": "Set I",
+          "cover": null,
+          "tape": false,
+          "rating": 8,
+          "comment": "Huge jam"
+        },
+        {
+          "id": "s2",
+          "name": "Tumble",
+          "set": "Set I",
+          "cover": null,
+          "tape": false,
+          "transitionMark": ">",
+          "footnote": "with a Satellite tease"
+        },
+        {
+          "id": "s3",
+          "name": "Hungersite",
+          "set": "Set I",
+          "cover": null,
+          "tape": false,
+          "rating": 9
+        },
+        {
+          "id": "s4",
+          "name": "Madhuvan",
+          "set": "Set II",
+          "cover": null,
+          "tape": false,
+          "rating": null
+        },
+        {
+          "id": "s6",
+          "name": "Echo of a Rose",
+          "set": "Encore",
+          "cover": null,
+          "tape": false,
+          "rating": 10
+        }
+      ],
+      "edit": {
+        "type": "restore",
+        "song": {
+          "id": "s5",
+          "name": "Arrow",
+          "set": "Set II",
+          "cover": null,
+          "tape": false,
+          "rating": 7,
+          "comment": "Set two opener",
+          "jamchart": true,
+          "songSlug": "arrow"
+        },
+        "index": 4
+      },
+      "survives": [
+        {
+          "songId": "s1",
+          "rating": 8,
+          "comment": "Huge jam"
+        },
+        {
+          "songId": "s3",
+          "rating": 9
+        },
+        {
+          "songId": "s5",
+          "rating": 7,
+          "comment": "Set two opener"
+        },
+        {
+          "songId": "s6",
+          "rating": 10
+        }
+      ],
+      "expected": {
+        "setlist": [
+          {
+            "id": "s1",
+            "name": "Arcadia",
+            "set": "Set I",
+            "cover": null,
+            "tape": false,
+            "rating": 8,
+            "comment": "Huge jam"
+          },
+          {
+            "id": "s2",
+            "name": "Tumble",
+            "set": "Set I",
+            "cover": null,
+            "tape": false,
+            "transitionMark": ">",
+            "footnote": "with a Satellite tease"
+          },
+          {
+            "id": "s3",
+            "name": "Hungersite",
+            "set": "Set I",
+            "cover": null,
+            "tape": false,
+            "rating": 9
+          },
+          {
+            "id": "s4",
+            "name": "Madhuvan",
+            "set": "Set II",
+            "cover": null,
+            "tape": false,
+            "rating": null
+          },
+          {
+            "id": "s5",
+            "name": "Arrow",
+            "set": "Set II",
+            "cover": null,
+            "tape": false,
+            "rating": 7,
+            "comment": "Set two opener",
+            "jamchart": true,
+            "songSlug": "arrow"
+          },
+          {
+            "id": "s6",
+            "name": "Echo of a Rose",
+            "set": "Encore",
+            "cover": null,
+            "tape": false,
+            "rating": 10
+          }
+        ],
+        "changed": true
+      }
+    },
+    {
+      "name": "undo pressed twice",
+      "description": "The song is already back: nothing changes.",
+      "setlist": [
+        {
+          "id": "s1",
+          "name": "Arcadia",
+          "set": "Set I",
+          "cover": null,
+          "tape": false,
+          "rating": 8,
+          "comment": "Huge jam"
+        },
+        {
+          "id": "s2",
+          "name": "Tumble",
+          "set": "Set I",
+          "cover": null,
+          "tape": false,
+          "transitionMark": ">",
+          "footnote": "with a Satellite tease"
+        },
+        {
+          "id": "s3",
+          "name": "Hungersite",
+          "set": "Set I",
+          "cover": null,
+          "tape": false,
+          "rating": 9
+        },
+        {
+          "id": "s4",
+          "name": "Madhuvan",
+          "set": "Set II",
+          "cover": null,
+          "tape": false,
+          "rating": null
+        },
+        {
+          "id": "s5",
+          "name": "Arrow",
+          "set": "Set II",
+          "cover": null,
+          "tape": false,
+          "rating": 7,
+          "comment": "Set two opener",
+          "jamchart": true,
+          "songSlug": "arrow"
+        },
+        {
+          "id": "s6",
+          "name": "Echo of a Rose",
+          "set": "Encore",
+          "cover": null,
+          "tape": false,
+          "rating": 10
+        }
+      ],
+      "edit": {
+        "type": "restore",
+        "song": {
+          "id": "s5",
+          "name": "Arrow",
+          "set": "Set II",
+          "cover": null,
+          "tape": false,
+          "rating": 7,
+          "comment": "Set two opener",
+          "jamchart": true,
+          "songSlug": "arrow"
+        },
+        "index": 4
+      },
+      "survives": [
+        {
+          "songId": "s1",
+          "rating": 8,
+          "comment": "Huge jam"
+        },
+        {
+          "songId": "s3",
+          "rating": 9
+        },
+        {
+          "songId": "s5",
+          "rating": 7,
+          "comment": "Set two opener"
+        },
+        {
+          "songId": "s6",
+          "rating": 10
+        }
+      ],
+      "expected": {
+        "setlist": [
+          {
+            "id": "s1",
+            "name": "Arcadia",
+            "set": "Set I",
+            "cover": null,
+            "tape": false,
+            "rating": 8,
+            "comment": "Huge jam"
+          },
+          {
+            "id": "s2",
+            "name": "Tumble",
+            "set": "Set I",
+            "cover": null,
+            "tape": false,
+            "transitionMark": ">",
+            "footnote": "with a Satellite tease"
+          },
+          {
+            "id": "s3",
+            "name": "Hungersite",
+            "set": "Set I",
+            "cover": null,
+            "tape": false,
+            "rating": 9
+          },
+          {
+            "id": "s4",
+            "name": "Madhuvan",
+            "set": "Set II",
+            "cover": null,
+            "tape": false,
+            "rating": null
+          },
+          {
+            "id": "s5",
+            "name": "Arrow",
+            "set": "Set II",
+            "cover": null,
+            "tape": false,
+            "rating": 7,
+            "comment": "Set two opener",
+            "jamchart": true,
+            "songSlug": "arrow"
+          },
+          {
+            "id": "s6",
+            "name": "Echo of a Rose",
+            "set": "Encore",
+            "cover": null,
+            "tape": false,
+            "rating": 10
+          }
+        ],
+        "changed": false
+      }
+    },
+    {
+      "name": "the setlist shrank meanwhile",
+      "description": "An index past the end appends.",
+      "setlist": [
+        {
+          "id": "s1",
+          "name": "Arcadia",
+          "set": "Set I",
+          "cover": null,
+          "tape": false,
+          "rating": 8,
+          "comment": "Huge jam"
+        },
+        {
+          "id": "s2",
+          "name": "Tumble",
+          "set": "Set I",
+          "cover": null,
+          "tape": false,
+          "transitionMark": ">",
+          "footnote": "with a Satellite tease"
+        }
+      ],
+      "edit": {
+        "type": "restore",
+        "song": {
+          "id": "s5",
+          "name": "Arrow",
+          "set": "Set II",
+          "cover": null,
+          "tape": false,
+          "rating": 7,
+          "comment": "Set two opener",
+          "jamchart": true,
+          "songSlug": "arrow"
+        },
+        "index": 4
+      },
+      "survives": [
+        {
+          "songId": "s1",
+          "rating": 8,
+          "comment": "Huge jam"
+        },
+        {
+          "songId": "s5",
+          "rating": 7,
+          "comment": "Set two opener"
+        }
+      ],
+      "expected": {
+        "setlist": [
+          {
+            "id": "s1",
+            "name": "Arcadia",
+            "set": "Set I",
+            "cover": null,
+            "tape": false,
+            "rating": 8,
+            "comment": "Huge jam"
+          },
+          {
+            "id": "s2",
+            "name": "Tumble",
+            "set": "Set I",
+            "cover": null,
+            "tape": false,
+            "transitionMark": ">",
+            "footnote": "with a Satellite tease"
+          },
+          {
+            "id": "s5",
+            "name": "Arrow",
+            "set": "Set II",
+            "cover": null,
+            "tape": false,
+            "rating": 7,
+            "comment": "Set two opener",
+            "jamchart": true,
+            "songSlug": "arrow"
+          }
+        ],
+        "changed": true
+      }
+    },
+    {
+      "name": "a negative index",
+      "description": "Appends rather than failing.",
+      "setlist": [
+        {
+          "id": "s1",
+          "name": "Arcadia",
+          "set": "Set I",
+          "cover": null,
+          "tape": false,
+          "rating": 8,
+          "comment": "Huge jam"
+        }
+      ],
+      "edit": {
+        "type": "restore",
+        "song": {
+          "id": "s3",
+          "name": "Hungersite",
+          "set": "Set I",
+          "cover": null,
+          "tape": false,
+          "rating": 9
+        },
+        "index": -1
+      },
+      "survives": [
+        {
+          "songId": "s1",
+          "rating": 8,
+          "comment": "Huge jam"
+        },
+        {
+          "songId": "s3",
+          "rating": 9
+        }
+      ],
+      "expected": {
+        "setlist": [
+          {
+            "id": "s1",
+            "name": "Arcadia",
+            "set": "Set I",
+            "cover": null,
+            "tape": false,
+            "rating": 8,
+            "comment": "Huge jam"
+          },
+          {
+            "id": "s3",
+            "name": "Hungersite",
+            "set": "Set I",
+            "cover": null,
+            "tape": false,
+            "rating": 9
+          }
+        ],
+        "changed": true
+      }
+    }
+  ]
+}

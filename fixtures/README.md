@@ -50,6 +50,56 @@ regenerate after a deliberate change:
 UPDATE_FIXTURES=1 node --experimental-loader ./lib/__tests__/alias-loader.mjs lib/__tests__/normalizeShow.test.js
 ```
 
+## `setlist-edits/` and `setlist-grouping/`
+
+A user's edit to a setlist (`lib/setlistEdits.js applySetlistEdit`), and
+how a setlist is split into sets and encores and rearranged in the editor
+(`lib/setlistGrouping.js`). The edits run on the device, inside a
+Firestore transaction against the stored setlist, so both apps have their
+own copy of these rules; these files keep them the same (5.60.22). The
+web side runs them in `lib/__tests__/setlistFixtures.test.js`; the Swift
+side decodes them now (`SetlistAndUpcomingFixtureTests`) and runs them
+with its port (Part 3b).
+
+`setlist-edits/<type>.json`, one file per edit type (`rate`, `comment`,
+`rate-unrated`, `add`, `delete`, `restore`, `reorder`), each with `cases`:
+
+| Field | What it is |
+|---|---|
+| `setlist` | The setlist as stored |
+| `edit` | `{ type, … }`, as `lib/setlistEdits.js` documents |
+| `expected` | `{ setlist, changed }`, plus `removed` and `index` for a delete |
+| `survives` | Songs that must still carry this `rating` and `comment` afterwards. Checked on their own, so regenerating `expected` can't accept an edit that drops a rating. |
+
+`setlist-grouping/`: `groups.json` (`groupSongsBySet`, expected
+`[{ label, songIds }]` in display order), `options.json` (`getSetOptions`,
+the "which set?" picker), `move.json` (`moveSongToSet`) and `reorder.json`
+(`reorderSongWithinSet`). The last two return the setlist the app then
+sends as a `reorder` edit; they carry `survives` too.
+
+Songs carry the fields production has, including ones the app doesn't
+show (`transitionMark`, `footnote`, `jamchart`, `songSlug`, the legacy
+`setBreak`). Every edit must keep them.
+
+## `upcoming-shows/`
+
+The upcoming-show document, `users/{uid}/upcomingShows/{id}`, which both
+apps write directly (no server function; 5.60.22, DECISIONS "Stage 1").
+From `lib/upcomingShows.js`: `create.json` (`newUpcomingRecord`, the new
+document), `update.json` (`upcomingUpdate`, an edit's `updateDoc`
+payload), `validate.json` (`validateUpcomingInput`, the form's messages,
+with a fixed `today`) and `duplicate.json` (`findDuplicateUpcoming`).
+`createdAt` and `updatedAt` are `serverTimestamp()` in production and the
+file's `now` (an ISO string) here. The web side runs them in
+`lib/__tests__/upcomingFixtures.test.js`.
+
+To regenerate any of these after a deliberate change:
+
+```
+UPDATE_FIXTURES=1 node --experimental-loader ./lib/__tests__/alias-loader.mjs lib/__tests__/setlistFixtures.test.js
+UPDATE_FIXTURES=1 node --experimental-loader ./lib/__tests__/alias-loader.mjs lib/__tests__/upcomingFixtures.test.js
+```
+
 ## `year-in-review/`
 
 Each file is one case:

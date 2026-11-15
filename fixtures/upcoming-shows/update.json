@@ -1,0 +1,76 @@
+{
+  "name": "upcomingUpdate",
+  "description": "lib/upcomingShows.js upcomingUpdate: the updateDoc payload for an edit. Every normalized field is written, so a cleared field is stored as cleared; taggedFriendUids, the tag credit and createdAt are left as stored. createdAt and updatedAt are serverTimestamp() in production; here they are `now`, an ISO string. The edit form sends the stored source, sourceEventId and ticketUrl back with the edit (components/upcoming/UpcomingShowForm.jsx), so an edit keeps a Ticketmaster or SeatGeek link; leaving them out would write them as manual and null.",
+  "now": "2026-11-15T12:00:00.000Z",
+  "cases": [
+    {
+      "name": "change the time and clear the notes",
+      "input": {
+        "artist": "Goose",
+        "venue": "Red Rocks Amphitheatre",
+        "city": "Morrison, CO",
+        "date": "2027-06-12",
+        "time": "8:00 PM",
+        "notes": ""
+      },
+      "expected": {
+        "artist": "Goose",
+        "venue": "Red Rocks Amphitheatre",
+        "city": "Morrison, CO",
+        "date": "2027-06-12",
+        "time": "8:00 PM",
+        "notes": "",
+        "source": "manual",
+        "sourceEventId": null,
+        "ticketUrl": null,
+        "updatedAt": "2026-11-15T12:00:00.000Z"
+      }
+    },
+    {
+      "name": "clear the time",
+      "input": {
+        "artist": "Goose",
+        "venue": "Red Rocks Amphitheatre",
+        "date": "2027-06-12",
+        "time": ""
+      },
+      "expected": {
+        "artist": "Goose",
+        "venue": "Red Rocks Amphitheatre",
+        "city": "",
+        "date": "2027-06-12",
+        "time": null,
+        "notes": "",
+        "source": "manual",
+        "sourceEventId": null,
+        "ticketUrl": null,
+        "updatedAt": "2026-11-15T12:00:00.000Z"
+      }
+    },
+    {
+      "name": "edit a Ticketmaster show: the form sends its source back",
+      "input": {
+        "artist": "Goose",
+        "venue": "Red Rocks Amphitheatre",
+        "city": "Morrison, CO",
+        "date": "2027-06-12",
+        "time": "20:00",
+        "source": "ticketmaster",
+        "sourceEventId": "tm_G5vYZ9abc",
+        "ticketUrl": "https://www.ticketmaster.com/event/abc"
+      },
+      "expected": {
+        "artist": "Goose",
+        "venue": "Red Rocks Amphitheatre",
+        "city": "Morrison, CO",
+        "date": "2027-06-12",
+        "time": "20:00",
+        "notes": "",
+        "source": "ticketmaster",
+        "sourceEventId": "tm_G5vYZ9abc",
+        "ticketUrl": "https://www.ticketmaster.com/event/abc",
+        "updatedAt": "2026-11-15T12:00:00.000Z"
+      }
+    }
+  ]
+}
