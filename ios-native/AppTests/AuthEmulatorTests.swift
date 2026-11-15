@@ -161,4 +161,33 @@ struct AuthEmulatorTests {
         after.document("cacheProbe/next").setData(["ok": true], completion: { _ in })
         #expect(try await after.document("cacheProbe/next").getDocument(source: .cache).exists)
     }
+
+    /// "Sign out" asks first when Firestore holds writes the server hasn't
+    /// acknowledged (the server here is a dead address, so nothing syncs),
+    /// and a guest is always asked.
+    @Test func signOutWarnsAboutUnsyncedChanges() async throws {
+        store.termsTicked = true
+        try await store.continueAsGuest()
+        try await waitFor { store.user?.isAnonymous == true }
+        #expect(await store.signOutPrompt() == .guestLosesEverything)
+        await store.signOut()
+        try await waitFor { store.signedIn == false }
+
+        // A fresh instance after sign-out: nothing waiting.
+        #expect(await Database.hasUnsyncedWrites() == false)
+
+        store.termsTicked = true
+        try await store.createAccount(email: newEmail(), password: "correct-horse-9")
+        try await waitFor { store.user?.isAnonymous == false }
+        let uid = try #require(store.user?.uid)
+        let db = await Database.ready()
+        db.document("users/\(uid)/shows/unsynced").setData(["artist": "Goose"], completion: { _ in })
+        #expect(await store.signOutPrompt() == .unsyncedChanges)
+
+        // "Sign out anyway": the change goes with the cache.
+        await store.signOut()
+        try await waitFor { store.signedIn == false }
+        #expect(await Database.hasUnsyncedWrites() == false)
+    }
 }
+

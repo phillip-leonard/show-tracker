@@ -45,6 +45,14 @@ public enum Database {
         return Firestore.firestore()
     }
 
+    /// Writes the server hasn't acknowledged yet (`UnsyncedWrites`), on the
+    /// current instance.
+    public static func hasUnsyncedWrites(within limit: Duration = UnsyncedWrites.defaultLimit) async -> Bool {
+        await UnsyncedWrites.exist(within: limit) { @MainActor in
+            try await ready().waitForPendingWrites()
+        }
+    }
+
     /// Terminate, clear the persisted cache, start a fresh instance with the
     /// launch settings. Pending writes that haven't reached the server are
     /// dropped with the cache (sign-out waits for them first, bounded).

@@ -23,8 +23,13 @@ in one way: referral links open the app (below).
 - **Sign-out clears Firestore's offline cache.** `Core/Database` terminates
   the instance, clears its files (`clearPersistence`) and starts a fresh one
   with the launch settings, in the same process. Every read waits for a
-  reset in flight (`Database.ready()`). Sign-out first waits up to 4 s for
-  writes still on their way. A hosted test checks it against the real SDK.
+  reset in flight (`Database.ready()`). A hosted test checks it against the
+  real SDK.
+- **Unsynced changes:** before an account signs out, Me checks for writes
+  the server hasn't acknowledged. If there are any, it warns "You have
+  changes that haven't synced yet. Signing out now will lose them." with
+  "Stay signed in" (the default) or "Sign out anyway". Unit tests
+  (`SignOutPromptTests`) and a hosted test cover it.
 - **Design tokens:** the web's colors in an asset catalog, spacing, radii
   and the type scale in Plus Jakarta Sans. A new shared table,
   `fixtures/design/tokens.json`, is checked against `app/globals.css`
@@ -39,8 +44,9 @@ in one way: referral links open the app (below).
   placeholder. Other claimed paths, and our pages the app doesn't claim
   (`/reset/*`), open in SFSafariViewController.
 - **Referral links open the app (D-6).** `apple-app-site-association` now
-  claims `/` with a `ref` query; a bare `https://mysetlists.net/` still
-  opens Safari. In the Capacitor app, `DeepLinkListener` already routes
+  claims `/` with a `ref` query (`{"/": "/", "?": {"ref": "*"}}`); a bare
+  `https://mysetlists.net/` and every unclaimed page still open Safari, which
+  `deepLinks.test.js` checks by Apple's documented matching rules. In the Capacitor app, `DeepLinkListener` already routes
   `/?ref=…` to the home page, where `AppContext` keeps the ref until sign-in.
   In the native app the ref is kept until the next account sign-in or guest
   upgrade, or used at once when an account is signed in.
