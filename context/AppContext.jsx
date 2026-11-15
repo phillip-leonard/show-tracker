@@ -7,7 +7,7 @@ import { signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
 import { nativeOAuthSignIn, isNativePlatform, nativeSignOut } from '@/lib/native-auth';
 import {
   collection, doc, setDoc, getDoc, getDocs, deleteDoc, updateDoc,
-  serverTimestamp, onSnapshot, query, where, addDoc, writeBatch,
+  serverTimestamp, onSnapshot, query, where, addDoc, writeBatch, runTransaction,
   arrayUnion, arrayRemove, Timestamp, deleteField,
 } from 'firebase/firestore';
 import { auth, db, googleProvider, browserPopupRedirectResolver } from '@/lib/firebase';
@@ -25,7 +25,7 @@ import {
 import { isReturningUser as checkIsReturningUser } from '@/lib/popupManager';
 import { fetchBandSetlistResponse } from '@/lib/bandSetlist';
 import { SETLIST_SOURCES } from '@/lib/setlistSources';
-import { removeSongFromSetlist, insertSongAt } from '@/lib/setlistGrouping';
+import { applySetlistEdit } from '@/lib/setlistEdits';
 import { normalizeFestivalName } from '@/lib/festivalMatch';
 import { festivalWhenFields } from '@/lib/festivalDates';
 import { catalogFields } from '@/lib/festivalCatalog';
@@ -1334,24 +1334,6 @@ export function AppProvider({ children }) {
   };
 
   // ── Show CRUD ───────────────────────────────────────────────────────
-  const saveShow = async (updatedShow) => {
-    if (guestMode) {
-      const updatedShows = shows.map(s => s.id === updatedShow.id ? updatedShow : s);
-      saveGuestShows(updatedShows);
-      return;
-    }
-    if (!user) return;
-    try {
-      const showRef = doc(db, 'users', user.uid, 'shows', updatedShow.id);
-      const { id, ...showData } = updatedShow;
-      if (showData.date) showData.date = toIsoDate(showData.date) || showData.date;
-      await setDoc(showRef, showData, { merge: true });
-      requestStatsRecompute();
-    } catch (error) {
-      console.error('Failed to save show:', error);
-    }
-  };
-
   // ── Adding a show (5.60.6) ──────────────────────────────────────────
   //
   // Every add path sends an input ({ kind, … }) to normalize-show, which
@@ -2555,14 +2537,15 @@ export function AppProvider({ children }) {
         }
       }
 
-      const existingUids = show.taggedFriendUids || [];
-      const mergedUids = [...new Set([...existingUids, ...selectedFriendUids])];
-      const updatedShow = { ...show, taggedFriendUids: mergedUids };
       // Functional update: the manual add form tags straight after addShow,
       // from a closure whose `shows` predates the new show. Mapping that
       // stale list would drop the show it just added.
-      setShows(prev => prev.map(s => s.id === show.id ? { ...s, taggedFriendUids: mergedUids } : s));
-      await saveShow(updatedShow);
+      setShows(prev => prev.map(s => (s.id === show.id
+        ? { ...s, taggedFriendUids: [...new Set([...(s.taggedFriendUids || []), ...selectedFriendUids])] }
+        : s)));
+      // Added to the stored list, not written over it (5.60.9): a friend
+      // tagged from another device meanwhile stays tagged.
+      await updateDoc(doc(db, 'users', user.uid, 'shows', show.id), { taggedFriendUids: arrayUnion(...selectedFriendUids) });
 
       setTagFriendsShow(null);
       setToast(`Tagged ${selectedFriendUids.length} friend${selectedFriendUids.length !== 1 ? 's' : ''} at ${show.artist}!`);
@@ -3183,181 +3166,160 @@ export function AppProvider({ children }) {
   };
 
   // ── Show / song rating & comment handlers ──────────────────────────
-  const updateShowRating = async (showId, rating) => {
-    const updatedShows = shows.map(show =>
-      show.id === showId ? { ...show, rating } : show
-    );
-    setShows(updatedShows);
-    if (selectedShow?.id === showId) {
-      setSelectedShow(updatedShows.find(s => s.id === showId));
-    }
-    const updatedShow = updatedShows.find(s => s.id === showId);
-    await saveShow(updatedShow);
+  // ── Editing a show (5.60.9, R-06) ───────────────────────────────────
+  //
+  // Each edit writes only what it changes. Until 5.60.9 every edit saved
+  // the whole show from the copy this device loaded (setDoc with every
+  // field), so the web app and the iOS app editing the same show took
+  // turns erasing each other: a song rated on the phone was gone the next
+  // time the laptop changed the show's comment.
+  //
+  //   show-level fields (rating, comment, archival pick)  updateDoc of the field
+  //   tagged friends                                      arrayUnion
+  //   the setlist                                         an edit by song id
+  //       (lib/setlistEdits.js), applied in a transaction to the setlist
+  //       as stored, so what another device changed meanwhile is kept
+  //
+  // The screen changes at once; the write follows. Offline (or when the
+  // transaction can't run) the edit is written from this device's copy,
+  // last write wins, as before. A guest's shows are on the device only.
 
-    if (user && !guestMode) {
+  const showDocRef = (showId) => doc(db, 'users', user.uid, 'shows', showId);
+
+  // The app's copy of one show, patched, everywhere it is held.
+  const patchLocalShow = (showId, patch) => {
+    const apply = (s) => (s.id === showId ? { ...s, ...(typeof patch === 'function' ? patch(s) : patch) } : s);
+    latestShows.current = latestShows.current.map(apply);
+    setShows(prev => prev.map(apply));
+    setSelectedShow(prev => (prev && prev.id === showId ? apply(prev) : prev));
+  };
+
+  const updateShowFields = async (showId, fields) => {
+    patchLocalShow(showId, fields);
+    if (guestMode) { saveGuestShows(latestShows.current); return; }
+    if (!user) return;
+    try {
+      await updateDoc(showDocRef(showId), fields);
+      requestStatsRecompute();
+    } catch (error) {
+      console.error('Failed to save show:', error);
+    }
+  };
+
+  // The latest edit per show, so an answer from an older transaction
+  // doesn't overwrite what a newer edit just put on the screen.
+  const setlistEditSeq = useRef(new Map());
+
+  const writeSetlistEdit = async (showId, edit, deviceSetlist, seq) => {
+    const ref = showDocRef(showId);
+    const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
+    try {
+      if (offline) throw new Error('offline');
+      const stored = await runTransaction(db, async (tx) => {
+        const snap = await tx.get(ref);
+        if (!snap.exists()) return null;
+        const next = applySetlistEdit(snap.data().setlist || [], edit);
+        if (next.changed) tx.update(ref, { setlist: next.setlist });
+        return next.setlist;
+      });
+      // What is stored now (the edit on top of anyone else's), unless this
+      // device has made another edit since.
+      if (stored && setlistEditSeq.current.get(showId) === seq) patchLocalShow(showId, { setlist: stored });
+    } catch (error) {
+      // No connection, or the transaction couldn't run: this device's copy,
+      // last write wins (queued until the connection is back).
+      updateDoc(ref, { setlist: deviceSetlist })
+        .catch((err) => console.error('Failed to save the setlist:', err));
+    }
+    requestStatsRecompute();
+  };
+
+  /**
+   * editSetlist(showId, edit) -> applySetlistEdit's answer on this device's
+   * copy ({ setlist, changed, removed?, index? }), or null with no such show.
+   * The screen changes now; the write runs behind it.
+   */
+  const editSetlist = (showId, edit) => {
+    const show = latestShows.current.find(s => s.id === showId);
+    if (!show) return null;
+    const result = applySetlistEdit(show.setlist || [], edit);
+    if (!result.changed) return result;
+    patchLocalShow(showId, { setlist: result.setlist });
+    if (guestMode) { saveGuestShows(latestShows.current); return result; }
+    if (!user) return result;
+    const seq = (setlistEditSeq.current.get(showId) || 0) + 1;
+    setlistEditSeq.current.set(showId, seq);
+    writeSetlistEdit(showId, edit, result.setlist, seq);
+    return result;
+  };
+
+  const updateShowRating = async (showId, rating) => {
+    const show = latestShows.current.find(s => s.id === showId);
+    await updateShowFields(showId, { rating });
+
+    if (user && !guestMode && show) {
       logActivity(user.uid, user.displayName, 'rated_show', {
         showId,
-        artist: updatedShow.artist,
-        venue: updatedShow.venue || null,
+        artist: show.artist,
+        venue: show.venue || null,
         rating,
       });
     }
   };
 
-  const updateShowComment = async (showId, comment) => {
-    const updatedShows = shows.map(show =>
-      show.id === showId ? { ...show, comment } : show
-    );
-    setShows(updatedShows);
-    if (selectedShow?.id === showId) {
-      setSelectedShow(updatedShows.find(s => s.id === showId));
-    }
-    await saveShow(updatedShows.find(s => s.id === showId));
-  };
+  const updateShowComment = (showId, comment) => updateShowFields(showId, { comment });
 
   // Remembers which archival recording (a Relisten source uuid) the user
   // picked for this show, so returning to the show doesn't reset the choice.
-  const updateArchivalAudioPick = async (showId, recordingId) => {
-    const updatedShows = shows.map(show =>
-      show.id === showId ? { ...show, archivalAudioPick: recordingId } : show
-    );
-    setShows(updatedShows);
-    if (selectedShow?.id === showId) {
-      setSelectedShow(updatedShows.find(s => s.id === showId));
-    }
-    await saveShow(updatedShows.find(s => s.id === showId));
-  };
+  const updateArchivalAudioPick = (showId, recordingId) => updateShowFields(showId, { archivalAudioPick: recordingId });
 
   const addSongToShow = async (showId, songData) => {
-    const updatedShows = shows.map(show => {
-      if (show.id === showId) {
-        return {
-          ...show,
-          setlist: [...(show.setlist || []), {
-            id: Date.now().toString(),
-            ...songData,
-            manuallyAdded: true,
-            rating: null,
-          }],
-        };
-      }
-      return show;
+    editSetlist(showId, {
+      type: 'add',
+      song: { id: Date.now().toString(), ...songData, manuallyAdded: true, rating: null },
     });
-    const updatedShow = updatedShows.find(s => s.id === showId);
-    setShows(updatedShows);
-    setSelectedShow(updatedShow);
-    await saveShow(updatedShow);
   };
 
   const updateSongRating = async (showId, songId, rating) => {
-    const updatedShows = shows.map(show => {
-      if (show.id === showId) {
-        return {
-          ...show,
-          setlist: show.setlist.map(song =>
-            song.id === songId ? { ...song, rating } : song
-          ),
-        };
-      }
-      return show;
-    });
-    const updatedShow = updatedShows.find(s => s.id === showId);
-    setShows(updatedShows);
-    setSelectedShow(updatedShow);
-    await saveShow(updatedShow);
+    editSetlist(showId, { type: 'rate', songId, rating });
   };
 
   const updateSongComment = async (showId, songId, comment) => {
-    const updatedShows = shows.map(show => {
-      if (show.id === showId) {
-        return {
-          ...show,
-          setlist: show.setlist.map(song =>
-            song.id === songId ? { ...song, comment } : song
-          ),
-        };
-      }
-      return show;
-    });
-    const updatedShow = updatedShows.find(s => s.id === showId);
-    setShows(updatedShows);
-    setSelectedShow(updatedShow);
-    await saveShow(updatedShow);
+    editSetlist(showId, { type: 'comment', songId, comment });
   };
 
   const batchRateUnrated = async (showId, rating) => {
-    const updatedShows = shows.map(show => {
-      if (show.id === showId) {
-        return {
-          ...show,
-          setlist: show.setlist.map(song =>
-            song.rating ? song : { ...song, rating }
-          ),
-        };
-      }
-      return show;
-    });
-    const updatedShow = updatedShows.find(s => s.id === showId);
-    setShows(updatedShows);
-    setSelectedShow(updatedShow);
-    await saveShow(updatedShow);
+    editSetlist(showId, { type: 'rate-unrated', rating });
   };
 
   // Removes one song from a setlist. Returns { song, index } so a caller
   // can offer to put it back, and null when there was nothing to remove —
-  // a double-tap, or a view rendered before someone else's edit. Returning
-  // null rather than writing matters: the save is a whole-array replace, so
-  // a no-op write could stamp a stale setlist over a newer one.
+  // a double-tap, or a view rendered before someone else's edit.
   //
   // A deleted song takes its rating and its comment with it. The callers
   // that surface this (ShowDetailView's setlist editor, SetlistEditor) are
   // where that is made deliberate; the rule here is only that it says what
   // it removed.
   const deleteSong = async (showId, songId) => {
-    const show = shows.find(s => s.id === showId);
-    if (!show) return null;
-
-    const { setlist, removed, index } = removeSongFromSetlist(show.setlist || [], songId);
-    if (!removed) return null;
-
-    const updatedShows = shows.map(s => (s.id === showId ? { ...s, setlist } : s));
-    const updatedShow = updatedShows.find(s => s.id === showId);
-    setShows(updatedShows);
-    if (selectedShow?.id === showId) setSelectedShow(updatedShow);
-    await saveShow(updatedShow);
-
-    return { song: removed, index };
+    const result = editSetlist(showId, { type: 'delete', songId });
+    if (!result || !result.removed) return null;
+    return { song: result.removed, index: result.index };
   };
 
-  // Persists a full setlist array after a set-editor move/reorder — used
-  // instead of addSongToShow/updateSongRating since the whole array (order
-  // and each song's `set` label) may have changed, not just one field.
   // The undo. Puts the song back exactly as it was — same id, same set,
   // same rating and comment — at the position it came from, so undoing a
   // deletion leaves no trace rather than appending the song to the end of
-  // its section.
+  // its section. A song already back (an undo pressed twice) is left alone.
   const restoreSongToShow = async (showId, song, index) => {
-    const show = shows.find(s => s.id === showId);
-    if (!show || !song) return;
-    // Already back (an undo pressed twice, or a re-fetch that returned it).
-    if ((show.setlist || []).some(s => s.id === song.id)) return;
-
-    const setlist = insertSongAt(show.setlist || [], song, index);
-    const updatedShows = shows.map(s => (s.id === showId ? { ...s, setlist } : s));
-    const updatedShow = updatedShows.find(s => s.id === showId);
-    setShows(updatedShows);
-    if (selectedShow?.id === showId) setSelectedShow(updatedShow);
-    await saveShow(updatedShow);
+    if (!song) return;
+    editSetlist(showId, { type: 'restore', song, index });
   };
 
+  // The set editor's new order and set labels. Applied to the setlist as
+  // stored: each song keeps its stored rating and comment, and a song added
+  // elsewhere meanwhile stays (lib/setlistEdits.js reorder).
   const updateSetlistOrder = async (showId, newSetlist) => {
-    const updatedShows = shows.map(show =>
-      show.id === showId ? { ...show, setlist: newSetlist } : show
-    );
-    const updatedShow = updatedShows.find(s => s.id === showId);
-    setShows(updatedShows);
-    setSelectedShow(updatedShow);
-    await saveShow(updatedShow);
+    editSetlist(showId, { type: 'reorder', setlist: newSetlist });
   };
 
   // ── Stats helpers ───────────────────────────────────────────────────
@@ -3831,7 +3793,6 @@ export function AppProvider({ children }) {
     importShowsToFestival,
 
     // Show CRUD
-    saveShow,
     addShow,
     addShowsFromTour,
     bulkAdd,

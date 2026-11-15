@@ -4,6 +4,40 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.60.9] — 2026-11-15
+
+Ships in **iOS 3.13.25** (`MARKETING_VERSION` 3.13.24 → 3.13.25). Changes how
+the app saves edits to a show, so it needs a new iOS build.
+
+**Editing a show writes only what changed** (pre-native server moves,
+Part 5, R-06). No data-shape change.
+
+- **Before:** every edit (a show rating, a comment, a song rating, a
+  reorder) saved the whole show from the copy this device loaded, every
+  field. Two devices with the same show open took turns erasing each
+  other: a song rated on the phone was gone the next time the laptop
+  changed anything about that show, a deleted song came back, a comment
+  vanished after a reorder.
+- **Now:** a show's rating, comment and archival pick are an `updateDoc` of
+  that one field; tagging friends is `arrayUnion`, so a friend tagged from
+  another device stays; and every setlist change is an edit by song id
+  (`lib/setlistEdits.js`: rate, comment, rate the unrated, add, delete,
+  undo, reorder), applied in a Firestore transaction to the setlist as
+  stored. The screen changes at once and the write follows. A reorder
+  keeps each song's stored rating and comment and any song added elsewhere
+  meanwhile.
+- **Offline**, or when the transaction can't run, the edit is written from
+  this device's copy, last write wins, as before. Guests' shows are on the
+  device only, as before.
+- `saveShow` is gone; nothing in the app writes a whole show any more.
+  `removeSongFromSetlist` and `insertSongAt` moved to `lib/setlistEdits.js`
+  (CommonJS), re-exported from `lib/setlistGrouping.js`.
+- Tests: `lib/__tests__/setlistEdits.test.js` (each edit, and five
+  two-device cases, each showing the old write losing the other device's
+  change and the new one keeping it).
+
+---
+
 ## [5.60.8] — 2026-11-15
 
 Ships in **iOS 3.13.24** (`MARKETING_VERSION` 3.13.23 → 3.13.24). The
