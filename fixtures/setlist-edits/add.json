@@ -1,0 +1,333 @@
+{
+  "name": "add",
+  "description": "lib/setlistEdits.js applySetlistEdit, edit type 'add'. Each case: the stored setlist, the edit, and expected { setlist, changed, removed?, index? }. `survives` lists songs that must still carry that rating and comment afterwards.",
+  "cases": [
+    {
+      "name": "add a song to the encore",
+      "description": "Appended at the end, as the show page adds it (manuallyAdded, rating null). Everything else is untouched.",
+      "setlist": [
+        {
+          "id": "s1",
+          "name": "Arcadia",
+          "set": "Set I",
+          "cover": null,
+          "tape": false,
+          "rating": 8,
+          "comment": "Huge jam"
+        },
+        {
+          "id": "s2",
+          "name": "Tumble",
+          "set": "Set I",
+          "cover": null,
+          "tape": false,
+          "transitionMark": ">",
+          "footnote": "with a Satellite tease"
+        },
+        {
+          "id": "s3",
+          "name": "Hungersite",
+          "set": "Set I",
+          "cover": null,
+          "tape": false,
+          "rating": 9
+        },
+        {
+          "id": "s4",
+          "name": "Madhuvan",
+          "set": "Set II",
+          "cover": null,
+          "tape": false,
+          "rating": null
+        },
+        {
+          "id": "s5",
+          "name": "Arrow",
+          "set": "Set II",
+          "cover": null,
+          "tape": false,
+          "rating": 7,
+          "comment": "Set two opener",
+          "jamchart": true,
+          "songSlug": "arrow"
+        },
+        {
+          "id": "s6",
+          "name": "Echo of a Rose",
+          "set": "Encore",
+          "cover": null,
+          "tape": false,
+          "rating": 10
+        }
+      ],
+      "edit": {
+        "type": "add",
+        "song": {
+          "id": "m1",
+          "name": "Rockdale",
+          "set": "Encore",
+          "manuallyAdded": true,
+          "rating": null
+        }
+      },
+      "survives": [
+        {
+          "songId": "s1",
+          "rating": 8,
+          "comment": "Huge jam"
+        },
+        {
+          "songId": "s3",
+          "rating": 9
+        },
+        {
+          "songId": "s5",
+          "rating": 7,
+          "comment": "Set two opener"
+        },
+        {
+          "songId": "s6",
+          "rating": 10
+        }
+      ],
+      "expected": {
+        "setlist": [
+          {
+            "id": "s1",
+            "name": "Arcadia",
+            "set": "Set I",
+            "cover": null,
+            "tape": false,
+            "rating": 8,
+            "comment": "Huge jam"
+          },
+          {
+            "id": "s2",
+            "name": "Tumble",
+            "set": "Set I",
+            "cover": null,
+            "tape": false,
+            "transitionMark": ">",
+            "footnote": "with a Satellite tease"
+          },
+          {
+            "id": "s3",
+            "name": "Hungersite",
+            "set": "Set I",
+            "cover": null,
+            "tape": false,
+            "rating": 9
+          },
+          {
+            "id": "s4",
+            "name": "Madhuvan",
+            "set": "Set II",
+            "cover": null,
+            "tape": false,
+            "rating": null
+          },
+          {
+            "id": "s5",
+            "name": "Arrow",
+            "set": "Set II",
+            "cover": null,
+            "tape": false,
+            "rating": 7,
+            "comment": "Set two opener",
+            "jamchart": true,
+            "songSlug": "arrow"
+          },
+          {
+            "id": "s6",
+            "name": "Echo of a Rose",
+            "set": "Encore",
+            "cover": null,
+            "tape": false,
+            "rating": 10
+          },
+          {
+            "id": "m1",
+            "name": "Rockdale",
+            "set": "Encore",
+            "manuallyAdded": true,
+            "rating": null
+          }
+        ],
+        "changed": true
+      }
+    },
+    {
+      "name": "add a song that is already there",
+      "description": "Same id (a retried add): left alone.",
+      "setlist": [
+        {
+          "id": "s1",
+          "name": "Arcadia",
+          "set": "Set I",
+          "cover": null,
+          "tape": false,
+          "rating": 8,
+          "comment": "Huge jam"
+        },
+        {
+          "id": "s2",
+          "name": "Tumble",
+          "set": "Set I",
+          "cover": null,
+          "tape": false,
+          "transitionMark": ">",
+          "footnote": "with a Satellite tease"
+        },
+        {
+          "id": "s3",
+          "name": "Hungersite",
+          "set": "Set I",
+          "cover": null,
+          "tape": false,
+          "rating": 9
+        },
+        {
+          "id": "s4",
+          "name": "Madhuvan",
+          "set": "Set II",
+          "cover": null,
+          "tape": false,
+          "rating": null
+        },
+        {
+          "id": "s5",
+          "name": "Arrow",
+          "set": "Set II",
+          "cover": null,
+          "tape": false,
+          "rating": 7,
+          "comment": "Set two opener",
+          "jamchart": true,
+          "songSlug": "arrow"
+        },
+        {
+          "id": "s6",
+          "name": "Echo of a Rose",
+          "set": "Encore",
+          "cover": null,
+          "tape": false,
+          "rating": 10
+        }
+      ],
+      "edit": {
+        "type": "add",
+        "song": {
+          "id": "s2",
+          "name": "Tumble",
+          "set": "Set I"
+        }
+      },
+      "survives": [
+        {
+          "songId": "s1",
+          "rating": 8,
+          "comment": "Huge jam"
+        },
+        {
+          "songId": "s3",
+          "rating": 9
+        },
+        {
+          "songId": "s5",
+          "rating": 7,
+          "comment": "Set two opener"
+        },
+        {
+          "songId": "s6",
+          "rating": 10
+        }
+      ],
+      "expected": {
+        "setlist": [
+          {
+            "id": "s1",
+            "name": "Arcadia",
+            "set": "Set I",
+            "cover": null,
+            "tape": false,
+            "rating": 8,
+            "comment": "Huge jam"
+          },
+          {
+            "id": "s2",
+            "name": "Tumble",
+            "set": "Set I",
+            "cover": null,
+            "tape": false,
+            "transitionMark": ">",
+            "footnote": "with a Satellite tease"
+          },
+          {
+            "id": "s3",
+            "name": "Hungersite",
+            "set": "Set I",
+            "cover": null,
+            "tape": false,
+            "rating": 9
+          },
+          {
+            "id": "s4",
+            "name": "Madhuvan",
+            "set": "Set II",
+            "cover": null,
+            "tape": false,
+            "rating": null
+          },
+          {
+            "id": "s5",
+            "name": "Arrow",
+            "set": "Set II",
+            "cover": null,
+            "tape": false,
+            "rating": 7,
+            "comment": "Set two opener",
+            "jamchart": true,
+            "songSlug": "arrow"
+          },
+          {
+            "id": "s6",
+            "name": "Echo of a Rose",
+            "set": "Encore",
+            "cover": null,
+            "tape": false,
+            "rating": 10
+          }
+        ],
+        "changed": false
+      }
+    },
+    {
+      "name": "add to an empty setlist",
+      "description": "The first song of a show with no setlist.",
+      "setlist": [],
+      "edit": {
+        "type": "add",
+        "song": {
+          "id": "m1",
+          "name": "Rockdale",
+          "set": "Set I",
+          "manuallyAdded": true,
+          "rating": null
+        }
+      },
+      "survives": [],
+      "expected": {
+        "setlist": [
+          {
+            "id": "m1",
+            "name": "Rockdale",
+            "set": "Set I",
+            "manuallyAdded": true,
+            "rating": null
+          }
+        ],
+        "changed": true
+      }
+    }
+  ]
+}

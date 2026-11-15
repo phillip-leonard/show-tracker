@@ -1,0 +1,179 @@
+{
+  "name": "newUpcomingRecord",
+  "description": "lib/upcomingShows.js newUpcomingRecord: the document written to users/{uid}/upcomingShows/{id} when an upcoming show is added (the id is Firestore's own, doc(collection(...))). createdAt and updatedAt are serverTimestamp() in production; here they are `now`, an ISO string.",
+  "now": "2026-11-15T12:00:00.000Z",
+  "cases": [
+    {
+      "name": "the form, minimum",
+      "input": {
+        "artist": "Goose",
+        "venue": "Red Rocks Amphitheatre",
+        "date": "2027-06-12"
+      },
+      "extra": {},
+      "expected": {
+        "artist": "Goose",
+        "venue": "Red Rocks Amphitheatre",
+        "city": "",
+        "date": "2027-06-12",
+        "time": null,
+        "notes": "",
+        "source": "manual",
+        "sourceEventId": null,
+        "ticketUrl": null,
+        "taggedFriendUids": [],
+        "taggedBy": null,
+        "taggedByUid": null,
+        "originUpcomingId": null,
+        "createdAt": "2026-11-15T12:00:00.000Z",
+        "updatedAt": "2026-11-15T12:00:00.000Z"
+      }
+    },
+    {
+      "name": "the form, every field, trimmed",
+      "input": {
+        "artist": "  Goose ",
+        "venue": " Red Rocks Amphitheatre ",
+        "city": " Morrison, CO ",
+        "date": "2027-06-12",
+        "time": " 7:00 PM ",
+        "notes": "  GA, meet at the north lot  "
+      },
+      "extra": {},
+      "expected": {
+        "artist": "Goose",
+        "venue": "Red Rocks Amphitheatre",
+        "city": "Morrison, CO",
+        "date": "2027-06-12",
+        "time": "7:00 PM",
+        "notes": "GA, meet at the north lot",
+        "source": "manual",
+        "sourceEventId": null,
+        "ticketUrl": null,
+        "taggedFriendUids": [],
+        "taggedBy": null,
+        "taggedByUid": null,
+        "originUpcomingId": null,
+        "createdAt": "2026-11-15T12:00:00.000Z",
+        "updatedAt": "2026-11-15T12:00:00.000Z"
+      }
+    },
+    {
+      "name": "notes are cut to 1,000 characters",
+      "input": {
+        "artist": "Goose",
+        "venue": "Red Rocks Amphitheatre",
+        "date": "2027-06-12",
+        "notes": "nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn"
+      },
+      "extra": {},
+      "expected": {
+        "artist": "Goose",
+        "venue": "Red Rocks Amphitheatre",
+        "city": "",
+        "date": "2027-06-12",
+        "time": null,
+        "notes": "nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn",
+        "source": "manual",
+        "sourceEventId": null,
+        "ticketUrl": null,
+        "taggedFriendUids": [],
+        "taggedBy": null,
+        "taggedByUid": null,
+        "originUpcomingId": null,
+        "createdAt": "2026-11-15T12:00:00.000Z",
+        "updatedAt": "2026-11-15T12:00:00.000Z"
+      }
+    },
+    {
+      "name": "from a Ticketmaster event",
+      "input": {
+        "artist": "Goose",
+        "venue": "Red Rocks Amphitheatre",
+        "city": "Morrison, CO",
+        "date": "2027-06-12",
+        "time": "19:00",
+        "source": "ticketmaster",
+        "sourceEventId": "tm_G5vYZ9abc",
+        "ticketUrl": "https://www.ticketmaster.com/event/abc"
+      },
+      "extra": {},
+      "expected": {
+        "artist": "Goose",
+        "venue": "Red Rocks Amphitheatre",
+        "city": "Morrison, CO",
+        "date": "2027-06-12",
+        "time": "19:00",
+        "notes": "",
+        "source": "ticketmaster",
+        "sourceEventId": "tm_G5vYZ9abc",
+        "ticketUrl": "https://www.ticketmaster.com/event/abc",
+        "taggedFriendUids": [],
+        "taggedBy": null,
+        "taggedByUid": null,
+        "originUpcomingId": null,
+        "createdAt": "2026-11-15T12:00:00.000Z",
+        "updatedAt": "2026-11-15T12:00:00.000Z"
+      }
+    },
+    {
+      "name": "an unknown source is manual",
+      "input": {
+        "artist": "Goose",
+        "venue": "Red Rocks Amphitheatre",
+        "date": "2027-06-12",
+        "source": "stubhub"
+      },
+      "extra": {},
+      "expected": {
+        "artist": "Goose",
+        "venue": "Red Rocks Amphitheatre",
+        "city": "",
+        "date": "2027-06-12",
+        "time": null,
+        "notes": "",
+        "source": "manual",
+        "sourceEventId": null,
+        "ticketUrl": null,
+        "taggedFriendUids": [],
+        "taggedBy": null,
+        "taggedByUid": null,
+        "originUpcomingId": null,
+        "createdAt": "2026-11-15T12:00:00.000Z",
+        "updatedAt": "2026-11-15T12:00:00.000Z"
+      }
+    },
+    {
+      "name": "accepted from a friend's tag",
+      "description": "Stage 3: the tag credit and the tagger's own upcoming doc id.",
+      "input": {
+        "artist": "Goose",
+        "venue": "Red Rocks Amphitheatre",
+        "city": "Morrison, CO",
+        "date": "2027-06-12"
+      },
+      "extra": {
+        "taggedBy": "Sam",
+        "taggedByUid": "uid-sam",
+        "originUpcomingId": "up-123"
+      },
+      "expected": {
+        "artist": "Goose",
+        "venue": "Red Rocks Amphitheatre",
+        "city": "Morrison, CO",
+        "date": "2027-06-12",
+        "time": null,
+        "notes": "",
+        "source": "manual",
+        "sourceEventId": null,
+        "ticketUrl": null,
+        "taggedFriendUids": [],
+        "taggedBy": "Sam",
+        "taggedByUid": "uid-sam",
+        "originUpcomingId": "up-123",
+        "createdAt": "2026-11-15T12:00:00.000Z",
+        "updatedAt": "2026-11-15T12:00:00.000Z"
+      }
+    }
+  ]
+}

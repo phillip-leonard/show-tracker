@@ -1,0 +1,58 @@
+{
+  "name": "findDuplicateUpcoming",
+  "description": "lib/upcomingShows.js findDuplicateUpcoming: the upcoming show already listed for the same band (trimmed, case-insensitive) on the same day. expected is its id, or null. Venue doesn't matter.",
+  "existing": [
+    {
+      "id": "up-1",
+      "artist": "Goose",
+      "venue": "Red Rocks Amphitheatre",
+      "city": "Morrison, CO",
+      "date": "2027-06-12"
+    },
+    {
+      "id": "up-2",
+      "artist": "Phish",
+      "venue": "Madison Square Garden",
+      "city": "New York, NY",
+      "date": "2026-12-31"
+    }
+  ],
+  "cases": [
+    {
+      "name": "same band and day",
+      "input": {
+        "artist": "Goose",
+        "venue": "Red Rocks Amphitheatre",
+        "date": "2027-06-12"
+      },
+      "expected": "up-1"
+    },
+    {
+      "name": "different case and spacing, another venue",
+      "input": {
+        "artist": "  goose ",
+        "venue": "Somewhere else",
+        "date": "2027-06-12"
+      },
+      "expected": "up-1"
+    },
+    {
+      "name": "same band, another day",
+      "input": {
+        "artist": "Goose",
+        "venue": "Red Rocks Amphitheatre",
+        "date": "2027-06-13"
+      },
+      "expected": null
+    },
+    {
+      "name": "another band, same day",
+      "input": {
+        "artist": "Trey Anastasio Band",
+        "venue": "Madison Square Garden",
+        "date": "2026-12-31"
+      },
+      "expected": null
+    }
+  ]
+}

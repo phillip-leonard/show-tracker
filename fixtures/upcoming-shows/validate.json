@@ -1,0 +1,79 @@
+{
+  "name": "validateUpcomingInput",
+  "description": "lib/upcomingShows.js validateUpcomingInput: the form's message, or null when the show can be saved. `today` is the device's local day (lib/showDate.js today()). The day itself is still upcoming.",
+  "today": "2026-11-15",
+  "cases": [
+    {
+      "name": "complete",
+      "input": {
+        "artist": "Goose",
+        "venue": "Red Rocks Amphitheatre",
+        "date": "2027-06-12"
+      },
+      "expected": null
+    },
+    {
+      "name": "today is allowed",
+      "input": {
+        "artist": "Goose",
+        "venue": "Red Rocks Amphitheatre",
+        "date": "2026-11-15"
+      },
+      "expected": null
+    },
+    {
+      "name": "no band",
+      "input": {
+        "artist": "  ",
+        "venue": "Red Rocks Amphitheatre",
+        "date": "2027-06-12"
+      },
+      "expected": "Add the artist."
+    },
+    {
+      "name": "no venue",
+      "input": {
+        "artist": "Goose",
+        "venue": "",
+        "date": "2027-06-12"
+      },
+      "expected": "Add the venue."
+    },
+    {
+      "name": "no date",
+      "input": {
+        "artist": "Goose",
+        "venue": "Red Rocks Amphitheatre",
+        "date": ""
+      },
+      "expected": "Add the date."
+    },
+    {
+      "name": "not a calendar day",
+      "input": {
+        "artist": "Goose",
+        "venue": "Red Rocks Amphitheatre",
+        "date": "2027-02-30"
+      },
+      "expected": "That date doesn’t look right."
+    },
+    {
+      "name": "not ISO",
+      "input": {
+        "artist": "Goose",
+        "venue": "Red Rocks Amphitheatre",
+        "date": "12-06-2027"
+      },
+      "expected": "That date doesn’t look right."
+    },
+    {
+      "name": "yesterday",
+      "input": {
+        "artist": "Goose",
+        "venue": "Red Rocks Amphitheatre",
+        "date": "2026-11-14"
+      },
+      "expected": "That date has passed. Add it to My Shows instead."
+    }
+  ]
+}

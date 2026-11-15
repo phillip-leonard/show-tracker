@@ -21,6 +21,7 @@ import { showHref, upcomingShowHref } from '@/lib/showRouting';
 import {
   UPCOMING_COLLECTION, normalizeUpcomingInput, validateUpcomingInput, sortUpcoming,
   upcomingTagShowData, upcomingInputFromTag, findSetlistForDate,
+  newUpcomingRecord, upcomingUpdate, findDuplicateUpcoming,
 } from '@/lib/upcomingShows';
 import { isReturningUser as checkIsReturningUser } from '@/lib/popupManager';
 import { fetchBandSetlistResponse } from '@/lib/bandSetlist';
@@ -2611,11 +2612,6 @@ export function AppProvider({ children }) {
 
   const upcomingRef = (id) => doc(db, 'users', user.uid, UPCOMING_COLLECTION, id);
 
-  const findDuplicateUpcoming = (data) => upcomingShows.find(u =>
-    (u.artist || '').trim().toLowerCase() === (data.artist || '').trim().toLowerCase()
-    && u.date === data.date
-  ) || null;
-
   // Returns the new (or existing duplicate) id, or null when nothing was
   // saved. Throws a readable Error for invalid input so the form can show it.
   const addUpcomingShow = async (input, { silent = false, extra = {} } = {}) => {
@@ -2624,7 +2620,7 @@ export function AppProvider({ children }) {
     if (problem) throw new Error(problem);
     const data = normalizeUpcomingInput(input);
 
-    const existing = findDuplicateUpcoming(data);
+    const existing = findDuplicateUpcoming(upcomingShows, data);
     if (existing) {
       if (extra.taggedBy && !existing.taggedBy) {
         await updateDoc(upcomingRef(existing.id), {
@@ -2645,15 +2641,7 @@ export function AppProvider({ children }) {
     }
 
     const ref = doc(collection(db, 'users', user.uid, UPCOMING_COLLECTION));
-    const record = {
-      ...data,
-      taggedFriendUids: [],
-      taggedBy: extra.taggedBy || null,
-      taggedByUid: extra.taggedByUid || null,
-      originUpcomingId: extra.originUpcomingId || null,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    };
+    const record = newUpcomingRecord(data, extra, serverTimestamp());
     await setDoc(ref, record);
     // The listener will deliver it too; adding it here means the "View"
     // link resolves on this tick rather than after the round trip.
@@ -2669,7 +2657,7 @@ export function AppProvider({ children }) {
     const problem = validateUpcomingInput(input);
     if (problem) throw new Error(problem);
     const data = normalizeUpcomingInput(input);
-    await updateDoc(upcomingRef(show.id), { ...data, updatedAt: serverTimestamp() });
+    await updateDoc(upcomingRef(show.id), upcomingUpdate(data, serverTimestamp()));
     setUpcomingShows(prev => sortUpcoming(prev.map(u => (u.id === show.id ? { ...u, ...data } : u))));
 
     // A friend who hasn't answered yet should be answering about the right

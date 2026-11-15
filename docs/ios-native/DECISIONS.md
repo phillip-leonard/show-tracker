@@ -158,7 +158,7 @@ From the Stage 1 Part 1 audit ([`STAGE1-AUDIT.md`](STAGE1-AUDIT.md)), approved w
 - **Upcoming shows** are `users/{uid}/upcomingShows`, as on the web. The native app writes them directly, field by field (no server function). Marking one attended goes through `normalize-show` (kind `upcoming`). A golden fixture pins the upcoming-show shape.
 - **Song ratings are on the native show detail screen** (the web's show page has none). Song comments come in Part 3b.
 - **No web links inside the show screen** in Stage 1: photos, comments, tags, friends at the show, follow band and archival audio stay hidden until their stage. Import links (screenshot, CSV/XLSX) are for signed-in accounts only.
-- **`setlist-source`**: a new read-only function that answers `resolveSource` for the app (band source or not, label, needs review). No Swift copy of the source registry.
+- **`setlist-source`**: a new read-only function that answers `resolveSource` for the app (band source or not, label, needs review). No Swift copy of the source registry. Built in 5.60.22: `GET /.netlify/functions/setlist-source?artist=&mbid=&setlistSource=`, public and cached; it also returns the re-sync button's wording and which call to make (`lib/setlistSourceAnswer.js`).
 - **`lib/setlistEdits.js` and the set-grouping rules are ported to Swift**, with shared golden fixtures run by both the JS and the Swift tests.
 - **Offline adds:** a file-backed queue of `normalize-show` requests, keyed by show id. Queued shows appear as "Waiting to sync", and their songs can't be rated until the show syncs.
 - **The sign-out warning counts queued adds**, as well as Firestore's unsynced writes.
