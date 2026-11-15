@@ -10,6 +10,7 @@ struct MeView: View {
     @State private var showUpgrade = false
     @State private var showDelete = false
     @State private var confirmGuestSignOut = false
+    @State private var confirmUnsynced = false
     @State private var signingOut = false
     #if DEBUG
     @State private var versionTaps = 0
@@ -36,7 +37,7 @@ struct MeView: View {
 
             Section {
                 Button {
-                    if isGuest { confirmGuestSignOut = true } else { signOut() }
+                    askThenSignOut()
                 } label: {
                     HStack {
                         Text("Sign out")
@@ -50,6 +51,12 @@ struct MeView: View {
                     Button("Create an account first") { showUpgrade = true }
                 } message: {
                     Text("A guest account can't be signed back into. Create an account to keep your shows.")
+                }
+                // Sign-out clears the offline cache, unsynced writes with it.
+                .alert(SignOutPrompt.unsyncedTitle, isPresented: $confirmUnsynced) {
+                    Button("Stay signed in", role: .cancel) {}
+                        .keyboardShortcut(.defaultAction)
+                    Button("Sign out anyway", role: .destructive) { signOut() }
                 }
                 Button("Delete my account", role: .destructive) { showDelete = true }
                     .disabled(signingOut)
@@ -85,6 +92,21 @@ struct MeView: View {
         .safeAreaInset(edge: .top, spacing: 0) { UpdateBanner() }
         .sheet(isPresented: $showUpgrade) { GuestUpgradeView() }
         .sheet(isPresented: $showDelete) { DeleteAccountView() }
+    }
+
+    /// A guest is always warned; an account only with changes that haven't
+    /// synced (`SessionStore.signOutPrompt`).
+    private func askThenSignOut() {
+        signingOut = true
+        Task {
+            let prompt = await session.signOutPrompt()
+            signingOut = false
+            switch prompt {
+            case .signOut: signOut()
+            case .unsyncedChanges: confirmUnsynced = true
+            case .guestLosesEverything: confirmGuestSignOut = true
+            }
+        }
     }
 
     private func signOut() {

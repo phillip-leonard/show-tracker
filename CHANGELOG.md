@@ -4,6 +4,30 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.60.19] — 2026-11-15
+
+Ships in **iOS 3.13.35** (Capacitor, `MARKETING_VERSION` 3.13.34 → 3.13.35)
+and **native 4.0.4** (4.0.3 → 4.0.4). Nothing changes in the web or
+Capacitor apps. These follow-ups to Part 6 were pushed to #426 after it
+merged, so they ship here.
+
+- **Unsynced changes are never lost without asking (native).** Before an
+  account signs out, Me checks for writes the server hasn't acknowledged
+  (Firestore's `waitForPendingWrites` not finishing within 0.75 s, which
+  covers every document). If there are any, it warns "You have changes that
+  haven't synced yet. Signing out now will lose them." with "Stay signed in"
+  (the default) or "Sign out anyway". Guests keep their own warning, since a
+  guest loses everything on sign-out. Covered by `SignOutPromptTests`
+  (CoreTests) and `signOutWarnsAboutUnsyncedChanges` (MySetlistsTests,
+  against the real SDK).
+- **The referral claim in `apple-app-site-association` is checked by Apple's
+  rules.** `deepLinks.test.js` applies Apple's documented component matching
+  to the file. `/?ref=…` opens the app; the plain homepage `/`, `/` with any
+  other query, and every unclaimed page (`/artist/*`, `/reset/*`, `/u/*`,
+  `/privacy`, …) stay in Safari. The file itself is unchanged.
+
+---
+
 ## [5.60.18] — 2026-11-15
 
 Ships in **iOS 3.13.34** (Capacitor, `MARKETING_VERSION` 3.13.33 → 3.13.34)

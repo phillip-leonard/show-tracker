@@ -107,3 +107,30 @@ import Testing
         #expect(APIError.accountRequired(message: "Create an account to add friends.").message == "Create an account to add friends.")
     }
 }
+
+@Suite struct SignOutPromptTests {
+    @Test func aGuestIsAlwaysAsked() {
+        #expect(SignOutPrompt.decide(isGuest: true, hasUnsyncedWrites: false) == .guestLosesEverything)
+        #expect(SignOutPrompt.decide(isGuest: true, hasUnsyncedWrites: true) == .guestLosesEverything)
+    }
+
+    @Test func anAccountIsAskedOnlyWithUnsyncedWrites() {
+        #expect(SignOutPrompt.decide(isGuest: false, hasUnsyncedWrites: false) == .signOut)
+        #expect(SignOutPrompt.decide(isGuest: false, hasUnsyncedWrites: true) == .unsyncedChanges)
+    }
+
+    @Test func syncedWhenTheWaitFinishesInTime() async {
+        #expect(await UnsyncedWrites.exist(within: .milliseconds(200)) {} == false)
+    }
+
+    @Test func unsyncedWhenTheWaitDoesNot() async {
+        let start = ContinuousClock.now
+        #expect(await UnsyncedWrites.exist(within: .milliseconds(200)) { try await Task.sleep(for: .seconds(30)) } == true)
+        #expect(ContinuousClock.now - start < .seconds(2), "answers at the limit, never waits for the sync")
+    }
+
+    @Test func aFailedWaitIsNotAWarning() async {
+        struct UserChanged: Error {}
+        #expect(await UnsyncedWrites.exist(within: .milliseconds(200)) { throw UserChanged() } == false)
+    }
+}
