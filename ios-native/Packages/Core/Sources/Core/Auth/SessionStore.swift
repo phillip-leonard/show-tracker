@@ -361,6 +361,15 @@ public final class SessionStore {
 
     // MARK: - Sign out and delete
 
+    /// What "Sign out" should ask first (`SignOutPrompt`): a guest always,
+    /// an account only with writes that haven't synced, since sign-out
+    /// clears the offline cache they're kept in.
+    public func signOutPrompt() async -> SignOutPrompt {
+        guard let user else { return .signOut }
+        if user.isAnonymous { return .guestLosesEverything }
+        return SignOutPrompt.decide(isGuest: false, hasUnsyncedWrites: await Database.hasUnsyncedWrites())
+    }
+
     /// Never hangs (`SignOutRunner`): what needs the session first (the push
     /// token's document, writes still on their way), then Firebase, the
     /// offline cache, Google, and local state.
