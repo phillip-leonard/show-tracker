@@ -15,7 +15,7 @@ function FriendsView({
   user, friends, pendingFriendRequests, sentFriendRequests, pendingShowTags,
   onSendFriendRequestByEmail, onSendFriendRequest, onAcceptFriendRequest,
   onDeclineFriendRequest, onRemoveFriend, onAcceptShowTag, onDeclineShowTag,
-  initialTab, getShowsTogether, showSuggestions, respondToSuggestion,
+  initialTab, getShowsTogether, getShowsTogetherCounts, showSuggestions, respondToSuggestion,
   pendingInvites, sentPendingEmailTags, inviteStats, onResendInvite, onCancelInvite,
   onBulkAcceptAll, onBulkAcceptFromFriend,
   // Show interaction handlers for ShowsTogetherView
@@ -92,17 +92,20 @@ function FriendsView({
     if (initialTab) setActiveTab(initialTab);
   }, [initialTab]);
 
-  // Load "together" counts for each friend card (getShowsTogether is async)
+  // "Together" counts for each friend card: one request for all of them
+  // (getShowsTogetherCounts, matched on the server since 5.60.11).
   useEffect(() => {
-    if (!getShowsTogether || friends.length === 0) return;
+    if (friends.length === 0) return;
     let cancelled = false;
-    Promise.all(
-      friends.map(f => getShowsTogether(f.friendUid).then(shows => [f.friendUid, shows?.length ?? 0]))
-    ).then(entries => {
-      if (!cancelled) setSharedCounts(Object.fromEntries(entries));
-    });
+    const load = getShowsTogetherCounts
+      ? getShowsTogetherCounts(friends.map(f => f.friendUid))
+      : getShowsTogether
+        ? Promise.all(friends.map(f => getShowsTogether(f.friendUid).then(shows => [f.friendUid, shows?.length ?? 0]))).then(Object.fromEntries)
+        : null;
+    if (!load) return;
+    load.then(counts => { if (!cancelled) setSharedCounts(counts || {}); });
     return () => { cancelled = true; };
-  }, [friends, getShowsTogether]);
+  }, [friends, getShowsTogether, getShowsTogetherCounts]);
 
   const handleSendRequest = async () => {
     if (!searchEmail.trim()) return;

@@ -4,6 +4,46 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.60.11] — 2026-11-15
+
+Ships in **iOS 3.13.27** (`MARKETING_VERSION` 3.13.25 → 3.13.27; 3.13.26 is
+taken by the open 5.60.10 PR, #418). Changes how the app reads friends'
+shows, so it needs a new iOS build.
+
+**Friends no longer read each other's show histories** (pre-native server
+moves, Part 6, the rest of SCOPING item 6).
+
+- **On the server now** (`netlify/functions/friends.js`, mutual friends
+  only, never across a block):
+  - `remove`: both sides of a friendship. The app no longer deletes from
+    the other person's list.
+  - `showsTogether`: the shows two friends were both at, with the friend's
+    show cut down to what the screen shows (the event, their rating, the
+    songs with their ratings and comments). Before, the app read the
+    friend's whole history.
+  - `showsTogetherCounts`: the Friends page's counts in one request, instead
+    of one full read per friend.
+  - `suggestionScan`: "were you there together?" suggestions, for a new show
+    or all of them. Before, the app read every friend's whole history on
+    every show added.
+- **Show suggestions work again.** The app checked whether a suggestion
+  existed with a read the rules refuse for a document that doesn't exist,
+  so every attempt failed quietly: production has 0 suggestions, though
+  mutual friends share 156 nights. The server creates them now, for each
+  new show. The suggestions old scans should have made are not backfilled
+  (devices that ran the once-only scan won't run it again).
+- **No rules change.** iOS 3.13.26 and earlier still read friends' shows,
+  delete themselves from friends' lists and create suggestions themselves,
+  so the rules keep allowing it until `minSupportedIosVersion` passes them.
+  That and every other cleanup waiting on an old build is listed in the new
+  `docs/ios-native/GATED-CLEANUPS.md` (`lib/appVersion.js` points there).
+- **Production parity (read-only):** 14 mutual friend pairs; the Shows
+  Together count is the same as the app's for each; no friendship where
+  the app could read and the server refuses (one-sided or blocked).
+- Tests: `tests/security/friendReads.test.js` (new).
+
+---
+
 ## [5.60.9] — 2026-11-15
 
 Ships in **iOS 3.13.25** (`MARKETING_VERSION` 3.13.24 → 3.13.25). Changes how

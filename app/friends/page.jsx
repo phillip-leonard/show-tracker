@@ -13,7 +13,7 @@ export default function FriendsPage() {
     sendFriendRequestByEmail, sendFriendRequest,
     acceptFriendRequest, declineFriendRequest, removeFriend,
     acceptShowTag, declineShowTag,
-    friendsInitialTab, getShowsTogether,
+    friendsInitialTab, getShowsTogether, getShowsTogetherCounts,
     showSuggestions, respondToSuggestion,
     pendingInvites, sentPendingEmailTags, inviteStats, resendInvite, cancelInvite,
     bulkAcceptAll, bulkAcceptFromFriend,
@@ -70,6 +70,7 @@ export default function FriendsPage() {
         onDeclineShowTag={declineShowTag}
         initialTab={friendsInitialTab}
         getShowsTogether={getShowsTogether}
+        getShowsTogetherCounts={getShowsTogetherCounts}
         showSuggestions={showSuggestions}
         respondToSuggestion={respondToSuggestion}
         pendingInvites={pendingInvites}

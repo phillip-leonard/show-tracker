@@ -24,6 +24,23 @@
  *                                display name only. Replaces reading every
  *                                profile's email in the browser (S-01).
  *
+ * And, since 5.60.11 (pre-native server moves Part 6), the friend features
+ * that read or write someone else's documents, so the app no longer does:
+ *   remove             { friendUid }   both sides of a friendship
+ *   showsTogether      { friendUid }   the shows the two of you were both at:
+ *                                      your show and the friend's (event,
+ *                                      rating and setlist only), never the
+ *                                      friend's whole history
+ *   showsTogetherCounts { friendUids } how many, per friend (the Friends page)
+ *   suggestionScan     { showId? }     "were you there together?": creates the
+ *                                      showSuggestions for one show of yours,
+ *                                      or for all of them
+ * Both reads need the friendship to be mutual, which is what let the app
+ * read a friend's shows (firestore.rules); a block between the two ends
+ * it. The rules still let a friend read your shows directly: iOS builds
+ * up to 3.13.26 do these reads themselves. Closing that waits for
+ * minSupportedIosVersion (docs/ios-native/GATED-CLEANUPS.md).
+ *
  * Auth header: Authorization: Bearer {idToken}
  */
 
@@ -32,6 +49,7 @@ const { normalizeEmail, isValidEmail } = require('./lib/unsubscribeToken');
 const { signReferral, readReferral } = require('./lib/referralToken');
 const { corsHeaders: baseCors } = require('./lib/cors');
 const { takeDailyQuota } = require('./lib/rateLimit');
+const { showMatchKey } = require('../../lib/showIdentity');
 
 const APP_URL = 'https://mysetlists.net';
 // A referral or invite names its inviter on the new account's profile
@@ -42,6 +60,10 @@ const NEW_ACCOUNT_MS = 24 * 60 * 60 * 1000;
 // lookupByEmail answers at most this many times per user per day
 // (rateLimits/friend_lookup_{uid}_{day}, lib/rateLimit.js).
 const LOOKUPS_PER_DAY = 50;
+// Shows Together and suggestion scans read two accounts' shows each; these
+// keep a script from turning them into a crawler (per user per UTC day).
+const TOGETHER_PER_DAY = 500;
+const SUGGESTION_SCANS_PER_DAY = 300;
 
 const corsHeaders = (event) => baseCors(event, { methods: 'POST, OPTIONS' });
 
@@ -101,6 +123,53 @@ async function makeFriends(db, auth, a, b) {
   if (!hasB.exists) batch.set(refB, await friendEntry(db, auth, a));
   await batch.commit();
   return true;
+}
+
+// ── Friend reads (5.60.11) ────────────────────────────────────────────
+
+/** True when both lists name the other: what let one read the other's shows. */
+async function mutualFriends(db, a, b) {
+  if (!a || !b || a === b) return false;
+  const [ab, ba] = await Promise.all([db.doc(`users/${a}/friends/${b}`).get(), db.doc(`users/${b}/friends/${a}`).get()]);
+  return ab.exists && ba.exists && !(await blockedBetween(db, a, b));
+}
+
+async function showsOf(db, uid) {
+  const snap = await db.collection(`users/${uid}/shows`).get();
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+}
+
+// What a friend sees of their friend's show on Shows Together: the event,
+// their rating, and the songs with the friend's ratings and comments, as
+// before 5.60.11, minus everything else on the document.
+function friendShowView(show) {
+  return {
+    id: show.id,
+    artist: show.artist || '',
+    venue: show.venue || '',
+    city: show.city || '',
+    date: show.date || '',
+    setlistfmId: show.setlistfmId || null,
+    rating: show.rating == null ? null : show.rating,
+    setlist: (Array.isArray(show.setlist) ? show.setlist : []).map((song) => ({
+      id: song && song.id, name: (song && song.name) || '', set: (song && song.set) || '',
+      ...(song && song.rating != null ? { rating: song.rating } : {}),
+      ...(song && song.comment ? { comment: song.comment } : {}),
+    })),
+  };
+}
+
+/** Your shows that the friend was also at, each with the friend's show. */
+function matchShows(mine, theirs) {
+  const byKey = new Map(theirs.map((s) => [showMatchKey(s), s]));
+  return mine.filter((s) => byKey.has(showMatchKey(s))).map((s) => ({ ...s, friendShow: friendShowView(byKey.get(showMatchKey(s))) }));
+}
+
+// The suggestion's id: the two uids sorted, and the show's match key, as
+// the app built it (so suggestions it already wrote are found).
+function suggestionDocId(a, b, key) {
+  const [uid1, uid2] = [a, b].sort();
+  return `${uid1}_${uid2}_${String(key).replace(/[^a-z0-9]/g, '_').slice(0, 80)}`;
 }
 
 /** Records who invited a brand new account, never overwriting one. */
@@ -230,6 +299,83 @@ const ACTIONS = {
     if (await blockedBetween(db, uid, found.uid)) return { found: false };
     return { found: true, uid: found.uid, displayName: profileName(await getProfile(db, found.uid), '') };
   },
+  // Ends a friendship: both lists, in one batch. Removing yourself from
+  // someone's list needs no justification.
+  async remove({ db, uid, body }) {
+    const friendUid = String(body.friendUid || '');
+    if (!friendUid || friendUid === uid || friendUid.includes('/')) refuse(400, 'Who should be removed?');
+    const batch = db.batch();
+    batch.delete(db.doc(`users/${uid}/friends/${friendUid}`));
+    batch.delete(db.doc(`users/${friendUid}/friends/${uid}`));
+    await batch.commit();
+    return { removed: true };
+  },
+
+  async showsTogether({ db, uid, body }) {
+    const friendUid = String(body.friendUid || '');
+    if (!(await takeDailyQuota(db, `together_${uid}`, TOGETHER_PER_DAY, { uid })).allowed) refuse(429, 'Too many requests today. Please try again tomorrow.');
+    if (!(await mutualFriends(db, uid, friendUid))) refuse(403, 'You can only compare shows with a friend.');
+    const [mine, theirs] = await Promise.all([showsOf(db, uid), showsOf(db, friendUid)]);
+    return { shows: matchShows(mine, theirs) };
+  },
+
+  async showsTogetherCounts({ db, uid, body }) {
+    const friendUids = Array.isArray(body.friendUids) ? [...new Set(body.friendUids.map(String))].slice(0, 200) : [];
+    if (!(await takeDailyQuota(db, `together_${uid}`, TOGETHER_PER_DAY, { uid })).allowed) refuse(429, 'Too many requests today. Please try again tomorrow.');
+    const mine = await showsOf(db, uid);
+    const counts = {};
+    for (const friendUid of friendUids) {
+      if (!(await mutualFriends(db, uid, friendUid))) continue;
+      const theirKeys = new Set((await showsOf(db, friendUid)).map(showMatchKey));
+      // Your shows the friend was at: the length of showsTogether's list
+      // (two of your shows on one night count twice there, so here too).
+      counts[friendUid] = mine.filter((s) => theirKeys.has(showMatchKey(s))).length;
+    }
+    return { counts };
+  },
+
+  // "Were you there together?" For one of the caller's shows (showId), or
+  // all of them: every mutual friend who has the same night gets a
+  // showSuggestions document with both of you, unless one already exists.
+  async suggestionScan({ db, uid, body }) {
+    if (!(await takeDailyQuota(db, `suggestscan_${uid}`, SUGGESTION_SCANS_PER_DAY, { uid })).allowed) refuse(429, 'Too many requests today. Please try again tomorrow.');
+    const mine = body.showId
+      ? (await showsOf(db, uid)).filter((s) => s.id === String(body.showId))
+      : await showsOf(db, uid);
+    if (!mine.length) return { created: 0 };
+    const friendsSnap = await db.collection(`users/${uid}/friends`).get();
+    const myName = profileName(await getProfile(db, uid), 'Someone');
+    let created = 0;
+    for (const f of friendsSnap.docs) {
+      const friendUid = f.id;
+      if (!(await mutualFriends(db, uid, friendUid))) continue;
+      const theirKeys = new Set((await showsOf(db, friendUid)).map(showMatchKey));
+      const friendName = f.data().friendName || profileName(await getProfile(db, friendUid), 'Friend');
+      for (const show of mine) {
+        const key = showMatchKey(show);
+        if (!theirKeys.has(key)) continue;
+        const ref = db.collection('showSuggestions').doc(suggestionDocId(uid, friendUid, key));
+        if ((await ref.get()).exists) continue;
+        const [uid1, uid2] = [uid, friendUid].sort();
+        const names = { [uid]: myName, [friendUid]: friendName };
+        await ref.set({
+          participants: [uid1, uid2],
+          names: { [uid1]: names[uid1], [uid2]: names[uid2] },
+          showKey: key,
+          showData: { artist: show.artist || '', venue: show.venue || '', date: show.date || '', city: show.city || '', setlistfmId: show.setlistfmId || null },
+          responses: { [uid1]: 'pending', [uid2]: 'pending' },
+          overallStatus: 'pending',
+          emailSentToUid: null,
+          emailSentAt: null,
+          lastViewedAt: { [uid1]: null, [uid2]: null },
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+        created++;
+      }
+    }
+    return { created };
+  },
 };
 
 exports.handler = async function (event) {
@@ -266,3 +412,4 @@ exports.handler = async function (event) {
 
 exports.ACTIONS = ACTIONS;
 exports.LOOKUPS_PER_DAY = LOOKUPS_PER_DAY;
+exports.suggestionDocId = suggestionDocId;
