@@ -32,8 +32,11 @@ const HEADERS = {
 };
 const reply = (statusCode, body, extra = {}) => ({ statusCode, headers: { ...HEADERS, ...extra }, body: JSON.stringify(body) });
 
-async function inProcessJson(modulePath, params) {
-  const res = await require(modulePath).handler({ httpMethod: 'GET', headers: { ...internalProxyHeader() }, queryStringParameters: params });
+// Called in-process: the same code and cache the app reaches over HTTP,
+// exempt from the per-IP limit. The requires are literal on purpose: the
+// function bundler only includes files it can see required by name.
+async function inProcessJson(fn, params) {
+  const res = await fn().handler({ httpMethod: 'GET', headers: { ...internalProxyHeader() }, queryStringParameters: params });
   if (!res || res.statusCode !== 200) return null;
   try { return JSON.parse(res.body); } catch { return null; }
 }
@@ -41,8 +44,8 @@ async function inProcessJson(modulePath, params) {
 /** The network reads, in-process: band-setlist.js and search-setlists.js, cache and all. */
 function serverSetlistDeps() {
   return {
-    bandSetlist: (params) => inProcessJson('../band-setlist', params),
-    searchSetlists: (params) => inProcessJson('../search-setlists', params),
+    bandSetlist: (params) => inProcessJson(() => require('../band-setlist'), params),
+    searchSetlists: (params) => inProcessJson(() => require('../search-setlists'), params),
   };
 }
 
