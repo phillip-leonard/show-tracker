@@ -139,3 +139,13 @@ Not during the Year in Review peak (Dec 2 to mid-January), because the cutover m
 - **D-6 is live:** the AASA file claims `/` with a `ref` query only (`{"/": "/", "?": {"ref": "*"}}`, the only component with a query). `deepLinks.test.js` applies Apple's documented matching rules to the file: `/?ref=…` opens the app; `/`, `/?utm_source=…`, `/artist/*`, `/reset/*` and the other unclaimed pages stay in Safari. A `?ref=` is kept until the next account sign-in or guest upgrade, or used at once when an account is already signed in (the web does the same on load). The Capacitor app opens these links too, where `AppContext` already keeps the ref.
 - **Crashlytics:** Release builds report. A hidden Developer screen (Debug only: tap the version in Me five times) turns collection on for a Debug build and has a test error and a test crash.
 - **Local emulators for trying the app:** a Debug build launched with `MYSETLISTS_EMULATORS=<host>` uses the Auth emulator at `<host>:9099` and Firestore at `<host>:8080`, so sign-in and guests can be tried without production accounts.
+
+## Spikes (2026-11-15, Part 7: prep)
+
+- **Q-01 (sign-in carry-over): test steps written, not yet run.** [`Q01-SIGNIN-CARRYOVER.md`](Q01-SIGNIN-CARRYOVER.md) has the steps (Google, Apple, email) and the results table.
+  - **Expected:** Google and Apple carry over, because the Capacitor app signs them in through the native Firebase SDK (keychain, same Firebase iOS app, same access group). Email doesn't, because it signs in with the web SDK in the WebView.
+  - The answer goes here once Phillip has run it.
+- **First-launch report (4.0.5):** once per install, the native app records which auth state Firebase restored: uid present or not, providers, guest, keychain read result, and whether it was installed over the Capacitor app. No personal data. It goes to the system log (`com.mysetlists.app`, `Q01`), Crashlytics (non-fatal domain `FirstLaunchAuthState`, plus custom keys), and a hidden screen (tap the version in Me five times, in every build).
+  - At cutover the same report measures how many updates carried a session over. Remove it once that's known.
+- **Q-07 (build numbers): answered.** [`Q07-BUILD-NUMBERS.md`](Q07-BUILD-NUMBERS.md). They can't collide, because the native app is 4.0.x and Capacitor builds are 3.13.x, and App Store Connect needs only the version-and-build pair to be unique. Set Xcode Cloud's Next Build Number above TestFlight's highest only to keep the list in order. A rollback after cutover is the one time Capacitor takes a 4.x version.
+

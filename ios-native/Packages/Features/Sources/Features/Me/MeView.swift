@@ -12,10 +12,8 @@ struct MeView: View {
     @State private var confirmGuestSignOut = false
     @State private var confirmUnsynced = false
     @State private var signingOut = false
-    #if DEBUG
     @State private var versionTaps = 0
-    @State private var showDeveloper = false
-    #endif
+    @State private var showHidden = false
 
     private var isGuest: Bool { session.user?.isAnonymous == true }
 
@@ -73,18 +71,19 @@ struct MeView: View {
             Section {
                 LabeledContent("Version", value: "\(AppInfo.current.version) (\(AppInfo.current.build))")
                     .contentShape(Rectangle())
-                    #if DEBUG
                     .onTapGesture {
-                        // Hidden: five taps on the version (Debug builds only).
+                        // Hidden: five taps on the version.
                         versionTaps += 1
-                        if versionTaps >= 5 { showDeveloper = true }
+                        if versionTaps >= 5 { showHidden = true }
                     }
-                    #endif
-                #if DEBUG
-                if showDeveloper {
+                if showHidden {
+                    // Q-01, in every build (TestFlight is Release): what this
+                    // install found on its first launch. No personal data.
+                    NavigationLink("First-launch sign-in") { FirstLaunchReportView() }
+                    #if DEBUG
                     NavigationLink("Developer") { DeveloperSettingsView() }
+                    #endif
                 }
-                #endif
             }
             .brandRow()
         }

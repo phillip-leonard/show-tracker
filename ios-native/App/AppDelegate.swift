@@ -14,6 +14,8 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         // Hosting MySetlistsTests: the tests configure Firebase themselves.
         guard !AppEnvironment.isHostingTests else { return true }
         AppBootstrap.configureFirebase()
+        // Q-01: which auth state this install found the first time it ran.
+        FirstLaunchAuthRecorder.start()
         return true
     }
 }
