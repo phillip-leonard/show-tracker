@@ -30,7 +30,12 @@ function fakeFirestore({ shows, profiles, runs = {} }) {
   const writes = [];
   const showDocs = (uid) => Object.entries(shows[uid] || {})
     .sort(([a], [b]) => (a < b ? -1 : 1))
-    .map(([id, data]) => ({ id, data: () => data, ref: { update: async (u) => writes.push({ uid, id, u }) } }));
+    .map(([id, data]) => ({
+      id,
+      data: () => data,
+      // get() for the transaction the setlist writes run in (5.60.7).
+      ref: { update: async (u) => writes.push({ uid, id, u }), get: async () => ({ exists: true, data: () => data }) },
+    }));
   const showQuery = (uid, after = null) => ({
     orderBy: () => showQuery(uid, after),
     startAfter: (id) => showQuery(uid, id),
@@ -38,6 +43,8 @@ function fakeFirestore({ shows, profiles, runs = {} }) {
   });
   return {
     writes,
+    // The setlist writes are transactions against the show as it is now.
+    runTransaction: async (fn) => fn({ get: (ref) => ref.get(), update: (ref, u) => ref.update(u) }),
     collection(name) {
       if (name === 'users') {
         return {

@@ -4,6 +4,54 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.60.7] — 2026-11-15
+
+Ships in **iOS 3.13.23** (`MARKETING_VERSION` 3.13.22 → 3.13.23). The show
+page's re-sync, the Internet Archive review and the admin scan now call the
+server, so it needs a new iOS build.
+
+**Every setlist change from a source happens on the server, and the
+"never lose a rating" guard lives only there** (pre-native server moves,
+Part 2).
+
+- **The operations** (`netlify/functions/lib/setlistOps.js`), each a
+  signed-in function on the caller's own shows: `propose-setlist` (the
+  merge, in memory, for the Archive review), `accept-proposal` (a proposal
+  the user looked at, or the stored Archive backfill proposal),
+  `reject-proposal`, `resync-show` (re-fetch and write, never an Archive
+  setlist unreviewed) and `scan-missing-setlists` (the band source, else
+  setlist.fm, a few shows per request). Answers keep the shapes the show
+  page and the review sheet read, plus the fields written.
+- **The guard** (`lostNotes`) runs on every write, inside a transaction
+  against the show as stored. Before, the app merged against the copy it
+  had loaded, so a rating made since on another device could be written
+  over; the app's setlist.fm scan and the admin auto-populate wrote over a
+  show that had gained songs since they looked; and the admin resync's
+  band-source write had no guard and no transaction. Each case is
+  reproduced in `tests/setlists/setlistOps.test.js` and now keeps the
+  rating.
+- **Scheduled scan.** `scan-missing-setlists-scheduled` (every 6 hours)
+  finds setlists for shows that have none, across every account, the
+  longest unchecked first, through the same merge and guard; a show checked
+  waits 30 days. A failed setlist.fm search is an error, not "no setlist",
+  so an outage doesn't park shows for a month. Leaves the App Review
+  accounts alone (one list now, `lib/reviewAccounts.js`). Production: 233
+  shows with no setlist across 14 accounts.
+- **The admin tools fold in.** `admin-resync-setlists` resolves sources
+  with the app's registry (`resolveSource`; its hand-kept copy sent El
+  Goose its slug, the app sends the numeric artist id) and writes in
+  guarded transactions. `admin-populate-setlist` and
+  `admin-find-missing-setlists` use the shared setlist.fm search and song
+  parser (their copies are gone; populate's parser also set `debut`, which
+  no other path does), and find-missing's auto-populate writes only into a
+  setlist still empty.
+- **The app** (`context/AppContext.jsx`) asks and shows: the merge, the
+  guard and the writes are gone from the client.
+- **`scripts/normalize-shows.js`** also prints how many shows carry
+  `normalizationError` (ones the sweep gave up on), by code. Production: 0.
+
+---
+
 ## [5.60.6] — 2026-11-14
 
 Ships in **iOS 3.13.22** (`MARKETING_VERSION` 3.13.21 → 3.13.22). Changes

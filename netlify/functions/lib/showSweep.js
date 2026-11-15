@@ -79,15 +79,25 @@ async function sweepPending(db, { write = false, emailFor = async () => null, Fi
   return counts;
 }
 
-/** sweepStored(db, { write }) -> counts of the stored fixes, by field. */
+/**
+ * sweepStored(db, { write }) -> counts of the stored fixes, by field, and of
+ * shows carrying normalizationError, by code.
+ */
 async function sweepStored(db, { write = false } = {}) {
   const snap = await db.collectionGroup('shows').get();
-  const counts = { scanned: 0, changed: 0, byField: {} };
+  const counts = { scanned: 0, changed: 0, byField: {}, normalizationError: { total: 0, byCode: {} } };
   const updates = [];
   for (const docSnap of snap.docs) {
     if (!uidOf(docSnap)) continue;
     counts.scanned += 1;
-    const { changes, fields } = canonicalizeStoredShow(docSnap.data());
+    const stored = docSnap.data();
+    // Shows the pending pass gave up on (an input the server refused, such
+    // as a withdrawn tag): kept as the device saved them, flagged.
+    if (stored.normalizationError) {
+      counts.normalizationError.total += 1;
+      bump(counts.normalizationError.byCode, String(stored.normalizationError));
+    }
+    const { changes, fields } = canonicalizeStoredShow(stored);
     if (!changes.length) continue;
     counts.changed += 1;
     changes.forEach((f) => bump(counts.byField, f));

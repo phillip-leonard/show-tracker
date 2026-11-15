@@ -91,7 +91,10 @@ const { withCors } = require('./lib/cors');
 const https = require('https');
 
 const archiveAdapter = require('./lib/archiveAdapter');
-const archiveConfig = require('../../config/internet-archive.json');
+// The app's own registry, name keys and date rule (5.60.5, 5.60.7), not
+// copies kept in step by hand.
+const { artistNameKey, artistNameKeyLoose, resolveSource, archiveArtistFor } = require('../../lib/setlistSources');
+const { toIsoDate } = require('../../lib/showDate');
 const { mergeBandSetlist, describeSummary, titleAliasesFor } = require('../../lib/bandSetlistMerge');
 
 // The one admin check: custom claim or verified allowlisted address (5.59.12).
@@ -130,9 +133,9 @@ const CORS_HEADERS = {
 // it is invoked (202 immediately, results only in the logs), which is why
 // it is not done here — a dry run you can read the output of is the whole
 // point of this endpoint.
-// The App Review demo accounts (scripts/seed-review-account.js).
-const REVIEW_ACCOUNT_HANDLES = ['alexreviewer', 'jordanmills'];
-const SEED_SHOW_ID_PREFIX = 'seed-';
+// The App Review demo accounts (scripts/seed-review-account.js), one list
+// shared with the scheduled setlist scan (5.60.7).
+const { SEED_SHOW_ID_PREFIX, reviewAccountReason } = require('./lib/reviewAccounts');
 
 const DEFAULT_DELAY_MS = 300;
 const DEFAULT_LIMIT = 25;
@@ -147,66 +150,30 @@ const DEFAULT_BUDGET_MS = 8000;
 // whole account's Goose spellings, small enough not to dump a library.
 const MAX_ARTISTS_REPORTED = 40;
 
-// ── The artist → source registry, mirrored for CommonJS ───────────────
+// ── Which band source a show's artist belongs to ──────────────────────
 //
-// lib/setlistSources.js is the registry, and since 5.60.5 it is CommonJS
-// this function could require (it already takes the name keys from it,
-// below). The mirror stays until the resync moves into the shared setlist
-// operations (pre-native server moves, Part 2), because the walk's
-// Internet Archive switch is read through archiveAdapter here. It is
-// deliberately the *minimum* mirror: the name keys and nothing
-// else, because that is all a server-side walk over show documents needs
-// (show docs store a plain artist string with no mbid, so the mbid branch
-// of resolveSource can never fire here).
+// The app's registry, lib/setlistSources.js resolveSource (5.60.7; until
+// then a hand-kept copy of the name keys lived here, "KEEP IN STEP", and
+// sent El Goose its slug where the app sends the numeric artist_id). The
+// Internet Archive is in the registry only while
+// config/internet-archive.json has `enabled: true`, the same switch
+// archiveAdapter reads. Show documents store a plain artist string, so
+// only the name keys can match here.
 //
-// KEEP IN STEP with SETLIST_SOURCES in lib/setlistSources.js. Adding a
-// source or an act there means adding it here too.
-//
-// The Internet Archive's bands (config/internet-archive.json `artists`,
-// each by its name and aliases) are here only while the file has
-// `enabled: true`, read through the adapter so the switch has one meaning
-// everywhere. Off, the walk treats their shows as setlist.fm shows and
-// sends the Archive nothing. Each carries its config entry as `archive`,
-// for its excluded dates and protected titles.
-function archiveNameKeys(archiveEnabled) {
-  if (!archiveEnabled) return {};
-  const out = {};
-  for (const artist of archiveConfig.artists || []) {
-    for (const name of [artist.name, ...(artist.aliases || [])]) {
-      const key = artistNameKey(name);
-      if (key) out[key] = { source: 'archive', artistId: artist.artistId, archive: artist };
-    }
-  }
-  return out;
-}
-
-function bandSourceNameKeys(archiveEnabled = archiveAdapter.isEnabled()) {
+// { source, artistId, nameKey, matchedOn, archive? } or null.
+function resolveBandSource(artist) {
+  const resolved = resolveSource({ name: artist });
+  if (!resolved.isBandSource) return null;
+  // The registry reads the Archive switch when it loads; the walk honours
+  // it as it is now, as it always has.
+  if (resolved.id === 'archive' && !archiveAdapter.isEnabled()) return null;
   return {
-    goose: { source: 'elgoose', artistId: 'goose' },
-    phish: { source: 'phishnet', artistId: '1' },
-    ...archiveNameKeys(archiveEnabled),
+    source: resolved.id,
+    artistId: resolved.sourceArtistFilter || '',
+    matchedOn: resolved.matchedOn || 'name',
+    nameKey: resolved.nameKey || '',
+    ...(resolved.id === 'archive' ? { archive: archiveArtistFor(resolved.nameKey) } : {}),
   };
-}
-
-// The app's own name keys and date rule (5.60.5), rather than copies kept
-// in step by hand: artistNameKey / artistNameKeyLoose from
-// lib/setlistSources.js and toIsoDate from lib/showDate.js. A stored
-// "28-05-2025" is asked about as 2025-05-28; a date the app can't read is
-// '' here too.
-const { artistNameKey, artistNameKeyLoose } = require('../../lib/setlistSources');
-const { toIsoDate } = require('../../lib/showDate');
-
-function resolveBandSource(artist, nameKeys = bandSourceNameKeys()) {
-  const BAND_SOURCE_NAME_KEYS = nameKeys;
-  const key = artistNameKey(artist);
-  if (BAND_SOURCE_NAME_KEYS[key]) return { ...BAND_SOURCE_NAME_KEYS[key], matchedOn: 'name', nameKey: key };
-
-  const loose = artistNameKeyLoose(artist);
-  if (loose && loose !== key && BAND_SOURCE_NAME_KEYS[loose]) {
-    return { ...BAND_SOURCE_NAME_KEYS[loose], matchedOn: 'name-loose', nameKey: loose };
-  }
-
-  return null;
 }
 
 function initFirebase() {
@@ -369,6 +336,24 @@ function isSourceOnly(summary, picked) {
 // AppContext.applySetlistProposal, from the one shared definition.
 const { lostNotes } = require('../../lib/setlistNotes');
 
+// A setlist write, in a transaction against the show as it is now (5.60.7):
+// the merge re-run on the stored setlist, so a rating added since this
+// walk read the show is carried, and the ratings guard
+// (lib/setlistNotes.js) refusing anything that would still lose one.
+// Until 5.60.7 the band-source write had no guard and neither write had a
+// transaction.
+async function writeMerged(db, ref, incoming, mergeOptions, fieldsFor) {
+  return db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists) return { ok: false, reason: 'show-not-found' };
+    const current = snap.data();
+    const { setlist } = mergeBandSetlist(current.setlist || [], incoming, mergeOptions);
+    if (lostNotes(current.setlist, setlist)) return { ok: false, reason: 'would-lose-notes' };
+    tx.update(ref, fieldsFor(current, setlist));
+    return { ok: true };
+  });
+}
+
 function sourceOnlyFields(show, setlist, picked, nowIso) {
   return {
     setlist,
@@ -516,10 +501,7 @@ async function runResync(body, { defaultBudgetMs = DEFAULT_BUDGET_MS } = {}) {
       if (excludeUserIds.has(userId)) return 'excludeUserIds';
       if (includeTestAccounts) return null;
       const profile = (await db.collection('userProfiles').doc(userId).get()).data() || {};
-      const handle = String(profile.handleLower || profile.handle || '').toLowerCase();
-      if (REVIEW_ACCOUNT_HANDLES.includes(handle)) return `App Review account (@${handle})`;
-      if (profile.isTestUser === true) return 'isTestUser';
-      return null;
+      return reviewAccountReason(profile);
     };
 
     let processed = 0;
@@ -685,11 +667,14 @@ async function runResync(body, { defaultBudgetMs = DEFAULT_BUDGET_MS } = {}) {
             // The band's title aliases, and on a date the source has more
             // than one show for, the contested shows: the existing setlist
             // chooses by song overlap, or nothing is written.
-            const { setlist, changed, summary, chosenCandidate } = mergeBandSetlist(show.setlist || [], incoming, {
+            const mergeOptions = {
               aliases: titleAliasesFor(resolved.nameKey),
               candidates: data.contested,
               protectedGroup: resolved.source === 'archive' ? (resolved.archive || {}).protectedGroup : undefined,
-            });
+            };
+            // The plan, from the show as read; every write re-runs the merge
+            // against the stored show (writeMerged).
+            const { changed, summary, chosenCandidate } = mergeBandSetlist(show.setlist || [], incoming, mergeOptions);
             row.summary = summary;
             if (chosenCandidate) row.incomingSongCount = (chosenCandidate.songs || []).length;
             row.userNotes.ratingsCarried = summary.carriedOver.rating || 0;
@@ -775,11 +760,12 @@ async function runResync(body, { defaultBudgetMs = DEFAULT_BUDGET_MS } = {}) {
                 console.log(`[RESYNC dry] ${userId}/${showDoc.id} ${show.artist} ${show.date} — would propose ${picked.sourceShowId}: ${describeSummary(summary)}`);
               } else if (applySourceOnly && isSourceOnly(summary, picked)) {
                 report.sourceOnly++;
-                if (lostNotes(show.setlist, setlist)) {
+                const done = await writeMerged(db, showDoc.ref, incoming, mergeOptions,
+                  (current, merged) => sourceOnlyFields(current, merged, picked, new Date().toISOString()));
+                if (!done.ok) {
                   row.note = 'not applied: the merge would have left fewer rated or commented songs';
                   report.errors.push({ userId, showId: showDoc.id, date: show.date, message: row.note });
                 } else {
-                  await showDoc.ref.update(sourceOnlyFields(show, setlist, picked, new Date().toISOString()));
                   report.appliedSourceOnly++;
                   console.log(`[RESYNC source-only] ${userId}/${showDoc.id} ${show.artist} ${show.date} — now from ${picked.sourceShowId}`);
                 }
@@ -792,13 +778,15 @@ async function runResync(body, { defaultBudgetMs = DEFAULT_BUDGET_MS } = {}) {
               report.wouldChange++;
               console.log(`[RESYNC dry] ${userId}/${showDoc.id} ${show.artist} ${show.date} — ${describeSummary(summary)}`);
             } else {
-              await showDoc.ref.update({
-                setlist,
-                ...showFields,
-                setlistFetchedAt: new Date().toISOString(),
-              });
-              report.changed++;
-              console.log(`[RESYNC write] ${userId}/${showDoc.id} ${show.artist} ${show.date} — ${describeSummary(summary)}`);
+              const done = await writeMerged(db, showDoc.ref, incoming, mergeOptions,
+                (current, merged) => ({ setlist: merged, ...showFields, setlistFetchedAt: new Date().toISOString() }));
+              if (done.ok) {
+                report.changed++;
+                console.log(`[RESYNC write] ${userId}/${showDoc.id} ${show.artist} ${show.date} — ${describeSummary(summary)}`);
+              } else {
+                row.note = 'not written: the merge would have left fewer rated or commented songs';
+                report.errors.push({ userId, showId: showDoc.id, date: show.date, message: row.note });
+              }
             }
           }
         } catch (err) {
@@ -950,13 +938,13 @@ exports.handler = async function (event) {
 };
 
 // For the tests: the registry mirror and the switch's effect on it.
-exports.bandSourceNameKeys = bandSourceNameKeys;
 exports.resolveBandSource = resolveBandSource;
 exports.runResync = runResync;
 exports.authorizeAdmin = authorizeAdmin;
 exports.CORS_HEADERS = CORS_HEADERS;
 exports.proposalUnfit = proposalUnfit;
 exports.isSourceOnly = isSourceOnly;
+exports._writeMerged = writeMerged;
 
 // CORS allowlist on every response (lib/cors.js) — no more `*` (5.59.6).
 module.exports.handler = withCors(module.exports.handler);
