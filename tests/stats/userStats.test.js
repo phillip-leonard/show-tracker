@@ -14,6 +14,8 @@ const { rebuildAllStats, recomputeUserStats } = require('../../netlify/functions
 const { parityReport } = require('../../scripts/backfill-user-stats');
 const { parityReport: yearInReviewParity } = require('../../scripts/year-in-review-parity');
 const { computeYearInReview } = require('../../lib/yearInReviewStats');
+const { computeYearRecap } = require('../../lib/yearRecap');
+const fs = require('fs');
 const { showsWithIdsByUser } = require('../../netlify/functions/lib/userStats');
 
 function seed() {
@@ -209,4 +211,57 @@ test('year-in-review parity report: one merged spelling counts one band fewer, a
   assert.strictEqual(r.recapDisagreesAfter, 0);
 });
 
-run('Server stats (5.59.15, Year in Review 5.60.4)');
+// ── The 2026 recap, on the server (5.60.16) ────────────────────────────
+
+const aliceShows = (db) => ['1', '2', '3'].map((id) => ({ id, ...db._get(`users/alice/shows/${id}`) }));
+
+test('rebuildAllStats: every review gets the recap, the same as computeYearRecap', async () => {
+  const db = seed();
+  db._put('yearInReviews/alice_2025', { userId: 'alice', year: 2025, privacy: 'private' });
+  await rebuildAllStats(db);
+  const stored = db._get('yearInReviews/alice_2025');
+  assert.deepStrictEqual(stored.recap, JSON.parse(JSON.stringify(computeYearRecap(aliceShows(db), 2025))));
+  assert.strictEqual(stored.recap.totalShows, 2);
+  assert.strictEqual(stored.recap.totalBands, 1, '"Goose" and "goose (US)" are one band, as in stats');
+  assert.strictEqual(stored.recap.highlights.firstShow.id, '1', 'shows are linked by their document ids');
+  assert.strictEqual(stored.recap.updatedThrough, '2025-06-02', 'legacy DD-MM-YYYY read as a day');
+});
+
+test('rebuildAllStats: a review from before 5.60.16 (stats right, no recap) gets one', async () => {
+  const db = seed();
+  const stats = JSON.parse(JSON.stringify(computeYearInReview(aliceShows(db), 2025)));
+  db._put('yearInReviews/alice_2025', { userId: 'alice', year: 2025, stats });
+  const r = await rebuildAllStats(db);
+  assert.strictEqual(r.yearInReviews.changed, 1);
+  assert.ok(db._get('yearInReviews/alice_2025').recap);
+  // And a year with no shows gets recap: null, written once.
+  db._put('yearInReviews/alice_2019', { userId: 'alice', year: 2019, stats: null });
+  const r2 = await rebuildAllStats(db);
+  assert.strictEqual(db._get('yearInReviews/alice_2019').recap, null);
+  assert.strictEqual(r2.yearInReviews.changed, 1);
+  assert.strictEqual((await rebuildAllStats(db)).yearInReviews.changed, 0, 'then nothing');
+});
+
+test('recomputeUserStats: the owner\'s reviews get the recap at once', async () => {
+  const db = seed();
+  db._put('yearInReviews/alice_2025', { userId: 'alice', year: 2025, privacy: 'private' });
+  await recomputeUserStats(db, 'alice');
+  assert.deepStrictEqual(db._get('yearInReviews/alice_2025').recap, JSON.parse(JSON.stringify(computeYearRecap(aliceShows(db), 2025))));
+});
+
+test('the written recap is fixtures/year-in-review expected.recap for every fixture', async () => {
+  const dir = path.join(__dirname, '..', '..', 'fixtures', 'year-in-review');
+  for (const f of fs.readdirSync(dir).filter((n) => n.endsWith('.json'))) {
+    const fx = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8'));
+    const db = createFakeDb();
+    db._put('userProfiles/u', { firstName: 'U' });
+    for (const s of fx.shows) { const { id, ...data } = s; db._put(`users/u/shows/${id}`, data); }
+    db._put(`yearInReviews/u_${fx.year}`, { userId: 'u', year: fx.year });
+    await rebuildAllStats(db);
+    const stored = db._get(`yearInReviews/u_${fx.year}`);
+    assert.deepStrictEqual(stored.recap, fx.expected.recap, `${f} recap`);
+    assert.deepStrictEqual(stored.stats, fx.expected.yearInReview, `${f} stats`);
+  }
+});
+
+run('Server stats (5.59.15, Year in Review 5.60.4, recap 5.60.16)');

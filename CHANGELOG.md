@@ -4,6 +4,41 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.60.16] — 2026-11-15
+
+Ships in **iOS 3.13.32** (Capacitor, `MARKETING_VERSION` 3.13.31 → 3.13.32).
+No native change. Nothing changes on screen: the web still shows the same
+recap.
+
+**The 2026 recap is computed on the server too.** Part 4 flagged it: the
+native app reads numbers from the server and never ports a calculator, but
+`computeYearRecap` (the recap page, the My Shows banner and the Stats card)
+ran only in the browser.
+
+- **The server writes it.** Every `yearInReviews/{uid}_{year}` now carries a
+  `recap` next to `stats`, written by the same paths: the 6-hourly
+  `community-stats` rebuild for everyone, and `recompute-my-stats` at once for
+  its caller. A year with no shows gets `recap: null`. A review from before
+  this release has no `recap`, so the next run fills it in. On 2026-11-15
+  that's both stored reviews, neither public; no backfill is needed.
+- **One calculator, shared.** `lib/yearRecap.js`, and the run detection it
+  uses (`lib/runIndex.js`), are now CommonJS with relative requires, so the
+  functions require the same file the web imports (CLAUDE.md's rule for
+  shared logic). `artistSlugFromName` moved to `lib/artistSlug.js`;
+  `lib/songIndex.js` re-exports it, unchanged. It was not merged with
+  `lib/stats/keys.js` `artistNameKey`, which trims first and would change
+  existing run keys and song links.
+- **Rules:** a client can't create, change or remove `recap`
+  (`tests/rules/yearInReviews.rules.test.js`). Every app version writes the
+  review with `merge` and never touches it, so nothing in the field breaks.
+- **Tests:** `tests/stats/userStats.test.js` checks that the written recap is
+  `fixtures/year-in-review`'s `expected.recap` for every fixture, that old
+  reviews get one, that `recompute-my-stats` writes it at once, and that a
+  second run changes nothing. The existing recap, run index and fixture
+  tests pass unchanged, and `next build` still compiles every page.
+
+---
+
 ## [5.60.15] — 2026-11-15
 
 Ships in **iOS 3.13.31** (Capacitor, `MARKETING_VERSION` 3.13.30 → 3.13.31)

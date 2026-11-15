@@ -195,7 +195,7 @@ async function main() {
   }
   for (let i = 0; i < updates.length; i += 400) {
     const batch = db.batch();
-    updates.slice(i, i + 400).forEach((u) => batch.update(u.ref, { stats: u.stats, statsComputedAt: FieldValue.serverTimestamp() }));
+    updates.slice(i, i + 400).forEach((u) => batch.update(u.ref, { stats: u.stats, recap: u.recap, statsComputedAt: FieldValue.serverTimestamp() }));
     await batch.commit();
   }
   const again = yearInReviewUpdates((await db.collection('yearInReviews').get()).docs, (uid) => byUid.get(uid));

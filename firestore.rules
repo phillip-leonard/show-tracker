@@ -1123,13 +1123,18 @@ service cloud.firestore {
                     && request.resource.data.userId == request.auth.uid
                     && docId == request.auth.uid + '_' + string(request.resource.data.year)
                     // A guest can't make theirs public (5.60.13).
-                    && (isAccount() || request.resource.data.get('privacy', 'private') != 'public');
+                    && (isAccount() || request.resource.data.get('privacy', 'private') != 'public')
+                    // The recap is the server's (lib/yearRecap.js, 5.60.16): no
+                    // client has ever written it, so it is refused outright
+                    // (unlike `stats`, which old iOS builds still write).
+                    && !request.resource.data.keys().hasAny(['recap']);
       allow update: if request.auth != null
                     && resource.data.userId == request.auth.uid
                     && docId == request.auth.uid + '_' + string(resource.data.year)
                     && request.resource.data.userId == resource.data.userId
                     && request.resource.data.year == resource.data.year
-                    && (isAccount() || request.resource.data.get('privacy', 'private') != 'public');
+                    && (isAccount() || request.resource.data.get('privacy', 'private') != 'public')
+                    && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['recap']);
       allow delete: if false;
     }
   }
