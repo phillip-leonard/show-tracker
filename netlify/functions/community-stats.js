@@ -8,16 +8,16 @@
 // including every iOS build up to 3.13.14. Clients only read these docs;
 // firestore.rules denies every client write. Logs counts only.
 
-const { getDb } = require('./lib/firebaseAdmin');
+const { getDb, getAdminAuth } = require('./lib/firebaseAdmin');
 const { rebuildAllStats } = require('./lib/userStats');
 
 exports.handler = async function () {
   try {
     const db = getDb();
     const { FieldValue } = require('firebase-admin/firestore');
-    const run = await rebuildAllStats(db, { serverTimestamp: () => FieldValue.serverTimestamp() });
+    const run = await rebuildAllStats(db, { serverTimestamp: () => FieldValue.serverTimestamp(), auth: getAdminAuth() });
     console.log(`[community-stats] ${run.users} users (${run.ranked} ranked), ${run.shows} shows, ${run.written} stats docs written`);
-    return { statusCode: 200, body: JSON.stringify({ users: run.users, ranked: run.ranked, shows: run.shows }) };
+    return { statusCode: 200, body: JSON.stringify({ users: run.users, guests: run.guests, ranked: run.ranked, shows: run.shows }) };
   } catch (error) {
     console.error('[community-stats] rebuild failed:', error);
     return { statusCode: 500, body: JSON.stringify({ error: 'rebuild failed' }) };

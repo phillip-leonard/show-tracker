@@ -1,8 +1,9 @@
 name: Firestore Rules Tests
 
 # `npm run test:rules` runs tests/rules/*.rules.test.js against the Firestore
-# emulator. Nothing ran it: the emulator needs Java, which not every dev
-# machine has, and deploy-firestore-rules.yml deploys whatever is on main
+# and Storage emulators; `npm run test:auth-emulator` runs the Auth emulator
+# tests. Nothing ran the rules tests: the emulators need Java, which not every
+# dev machine has, and deploy-firestore-rules.yml deploys whatever is on main
 # without testing it. A rule that is wrong fails silently and permissively,
 # so this runs the attacks on every PR that changes the rules or the tests.
 
@@ -10,8 +11,11 @@ on:
   pull_request:
     paths:
       - 'firestore.rules'
+      - 'storage.rules'
       - 'firebase.json'
       - 'tests/rules/**'
+      - 'tests/auth/**'
+      - 'netlify/functions/lib/firebaseAdmin.js'
       - '.github/workflows/rules-tests.yml'
   workflow_dispatch:
 
@@ -45,3 +49,8 @@ jobs:
 
       - name: Run rules tests against the emulator
         run: npm run test:rules
+
+      # Guest → account against the Auth emulator: what a token says before
+      # and after link (tests/auth/anonymousLink.test.js).
+      - name: Run the Auth emulator tests
+        run: npm run test:auth-emulator

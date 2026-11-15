@@ -101,15 +101,15 @@ function parityReport({ statsByUid, ranks, profiles, showsByUid }) {
 
 async function main() {
   const apply = process.argv.includes('--apply');
-  const { getDb } = require('../netlify/functions/lib/firebaseAdmin');
+  const { getDb, getAdminAuth } = require('../netlify/functions/lib/firebaseAdmin');
   const { rebuildAllStats, showsByUser } = require('../netlify/functions/lib/userStats');
   const db = getDb();
   const { FieldValue } = require('firebase-admin/firestore');
 
   console.log(apply ? 'APPLY: writing userStats, publicUserStats and communityStats' : 'DRY RUN: nothing is written (pass --apply to write)');
-  const run = await rebuildAllStats(db, { write: apply, serverTimestamp: () => FieldValue.serverTimestamp() });
+  const run = await rebuildAllStats(db, { write: apply, serverTimestamp: () => FieldValue.serverTimestamp(), auth: getAdminAuth() });
   const showsByUid = showsByUser(await db.collectionGroup('shows').get());
-  console.log(`\n${run.users} users, ${run.ranked} ranked, ${run.shows} shows${apply ? `, ${run.written} documents written` : ''}`);
+  console.log(`\n${run.users} users (${run.guests} guests), ${run.ranked} ranked, ${run.shows} shows${apply ? `, ${run.written} documents written` : ''}`);
   console.log('\nParity, old number vs new (counts of users):');
   const report = parityReport({ ...run, showsByUid });
   for (const [field, reasons] of Object.entries(report)) console.log(`  ${field}: ${JSON.stringify(reasons)}`);

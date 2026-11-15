@@ -23,7 +23,7 @@
 const { withCors } = require('./lib/cors');
 const heard = require('./lib/heardRecord');
 const { render } = require('./lib/posterImage');
-const { verifyUser, getDb } = require('./lib/firebaseAdmin');
+const { verifyUser, getDb, isAnonymous } = require('./lib/firebaseAdmin');
 const { openPosterStore, storeRecord, storeRecap, posterPath } = require('./lib/myPosters');
 const { withBuddy, firestoreBuddyLookup, recapSvg } = require('./lib/yearRecapCard');
 const { SITE_URL } = require('./lib/publicPageHtml');
@@ -65,6 +65,9 @@ exports.handler = async function (event) {
 
     // One counter per user per action; a refused request writes nothing.
     if (!DAILY_LIMITS[body && body.action]) return reply(400, { ok: false, error: 'bad_request' });
+    // A share is a public page (/p/<code>): guests can make the image but
+    // not publish it (5.60.13).
+    if (body.action === 'share' && isAnonymous(decoded)) return reply(403, { ok: false, error: 'account_required', code: 'account_required' });
     let quota = { allowed: true };
     try {
       quota = await takeDailyQuota(getDb(), `poster_${body.action}_${decoded.uid}`, DAILY_LIMITS[body.action], { uid: decoded.uid });

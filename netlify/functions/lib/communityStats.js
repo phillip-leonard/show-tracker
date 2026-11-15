@@ -49,8 +49,10 @@ function topProfilesBy(ranked, field) {
  * a Map (or object) of uid -> array of show docs. Returns every field of
  * communityStats/global except `updatedAt`.
  */
-function buildCommunityStats(allProfiles, showsByUid, statsByUid = null) {
-  const profiles = allProfiles.filter((p) => p.isTestUser !== true);
+function buildCommunityStats(allProfiles, showsByUid, statsByUid = null, { anonymousUids = new Set() } = {}) {
+  // Guests (anonymous auth, 5.60.13) are left out like test users: not in
+  // totalUsers (which shouldShowUserCount reads), the totals or the boards.
+  const profiles = allProfiles.filter((p) => p.isTestUser !== true && !anonymousUids.has(p.id));
   const showsFor = (uid) => (showsByUid instanceof Map ? showsByUid.get(uid) : showsByUid[uid]) || [];
   const statsFor = (uid) => (statsByUid && statsByUid.get(uid)) || computeUserStats(showsFor(uid));
 

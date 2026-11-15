@@ -37,6 +37,7 @@ const ANTHROPIC_TIMEOUT_MS = 24000;
 
 const MESSAGES = {
   signIn: 'Create a free account (or sign in and update the app) to scan tickets.',
+  account: 'Create a free account to scan tickets.',
   userLimit: `You've scanned ${AI_USER_DAILY_LIMIT} times today. Try again tomorrow.`,
   busy: 'Ticket scanning is busy right now. Try again tomorrow, or sign in to scan.',
   unavailable: 'Scanning isn’t available right now. Please try again in a few minutes.',
@@ -93,6 +94,9 @@ async function gate(event, headers, { now = Date.now() } = {}) {
   const reply = (statusCode, error, code) => ({ response: { statusCode, headers, body: JSON.stringify({ error, code }) } });
   const user = await optionalUser(event);
   if (!user && authEnforced()) return reply(401, MESSAGES.signIn, 'auth_required');
+  // Scanning is account-only (5.60.13, docs/ios-native/DECISIONS.md): a
+  // guest's token is refused rather than counted as a user or the pool.
+  if (user && user.isAnonymous) return reply(403, MESSAGES.account, 'account_required');
 
   try {
     const db = getDb();

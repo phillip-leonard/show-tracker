@@ -21,7 +21,7 @@
 //   401 not signed in · 403 not attending · 404 no such festival
 
 const { withCors } = require('./lib/cors');
-const { getDb, verifyUser, isAdminClaims } = require('./lib/firebaseAdmin');
+const { getDb, verifyUser, isAdminClaims, isAnonymous } = require('./lib/firebaseAdmin');
 const { httpsGetJson } = require('./lib/ticketmasterEvents');
 const { fetchLineup, isUpcoming, isFresh } = require('./lib/festivalLineup');
 const { SEED_LINEUP_SOURCE } = require('./lib/festivalLineupSeed');
@@ -53,6 +53,8 @@ async function handle(event, { db, get = httpsGetJson, apiKey = process.env.TICK
 
   const claims = await verifyUser(event);
   if (!claims) return reply(401, { error: 'Sign in to see festival picks.' });
+  // Festival picks are v1.x and account-only (5.60.13).
+  if (isAnonymous(claims)) return reply(403, { error: 'Create an account to see festival picks.', code: 'account_required' });
 
   let body = {};
   try { body = JSON.parse(event.body || '{}'); } catch { /* empty */ }

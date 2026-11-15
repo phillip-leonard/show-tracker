@@ -4,6 +4,74 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.60.13] — 2026-11-15
+
+Ships in **iOS 3.13.29** (`MARKETING_VERSION` 3.13.28 → 3.13.29). Nothing in
+the web app or the Capacitor app changes: their guests stay local and
+everyone else is an account. This is the server side the native app's guests
+need.
+
+**Guests on Firebase anonymous auth: the rules and the server** (native app
+Part 2, `docs/ios-native/DECISIONS.md`).
+
+- **Who is a guest.** A token whose provider is `anonymous` and has no linked
+  identity: `isAnonymous()` in `firestore.rules` and `storage.rules`, and
+  `isAnonymous(decoded)` in `netlify/functions/lib/firebaseAdmin.js`. Server
+  jobs ask Firebase Auth instead (`isAnonymousAuthUser`,
+  `listAnonymousUids`), never a profile field. The Auth emulator test
+  (`tests/auth/anonymousLink.test.js`) confirms that linking email or Google
+  changes the token at once (`sign_in_provider` becomes `password` or
+  `google.com`, with the same uid).
+- **What a guest keeps:** their own shows, upcoming shows, profile, wishlist,
+  bucket list, tours, alert settings, push token and stats; public data;
+  `normalize-show` for their own shows; re-sync and the setlist operations;
+  following bands; feedback; deleting the account; a private Year in Review.
+- **What needs an account** (rules `isAccount()`, functions `requireAccount`,
+  403 `account_required`):
+  - friends, friend requests, tags, invites and suggestions
+  - reading or writing comments, photos, meetups, activity and venue reviews
+    (guests see a "create an account" prompt instead)
+  - reports and blocks
+  - festivals (join, create, picks) and venue records
+  - roadmap submissions and votes
+  - public pages: shared collections, poster shares, a public Year in Review
+  - AI ticket and screenshot scans
+  - `send-email`
+  - `normalize-show`'s `tag` and `email-tag` inputs
+- **Rankings and totals leave guests out.** The 6-hourly stats rebuild reads
+  the guests from Firebase Auth. They're unranked and not in `totalUsers`
+  (which the 1,000-user rule reads) or the community totals.
+  `recompute-my-stats` gives a guest their own numbers, unranked.
+- **The welcome email waits for a guest to link.** It is held with nothing
+  recorded (`held_anonymous`), where before a guest would have been marked
+  `skipped_no_email` for good.
+- **New: `account-linked`.** Called once after a link. It runs what a new
+  sign-up gets, which a link otherwise skips: claims an invite to the new
+  address, follows a referral, sends the welcome email if due, recomputes
+  stats (now ranked) and marks the profile converted. Idempotent.
+- **New: `adopt-guest-shows`.** For a guest who signs in to an account they
+  already have (`credential already in use`). With both tokens, `preview`
+  shows what would move and `commit` moves it. Duplicates (`classifyDuplicate`)
+  stay with the account, and a `possible` match moves only if the user picks
+  it. Shows are copied as stored, with ratings and notes. Upcoming shows and
+  followed bands move too, then the guest account is deleted.
+- **CLAUDE.md** gains the native versioning rule (Q-09: `ios-native/` PRs also
+  bump the native 4.0.x version; the Capacitor app never takes 4.x) and the
+  guest invariant. `docs/ios-native/DECISIONS.md` gains the v1 scope, the
+  build order and the cutover timing.
+- **Tests:** `tests/rules/anonymous.rules.test.js` (Firestore and Storage),
+  `tests/security/anonymous.test.js` (every refusal, the welcome email,
+  stats, both new functions), and `tests/auth/anonymousLink.test.js` (Auth
+  emulator, `npm run test:auth-emulator`). `test:rules` now starts the
+  Storage emulator too, and the rules workflow runs on `storage.rules`
+  changes and the Auth emulator test.
+
+**After deploy:** the rules deploy from `main` by the workflow. Once they're
+live, Phillip enables the Anonymous provider in Firebase (Authentication →
+Sign-in method). Nothing uses it until the native app ships.
+
+---
+
 ## [5.60.12] — 2026-11-15
 
 Ships in **iOS 3.13.28** (`MARKETING_VERSION` 3.13.27 → 3.13.28). Only the

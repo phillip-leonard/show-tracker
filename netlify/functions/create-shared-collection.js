@@ -9,7 +9,7 @@
 // longer put arbitrary text on a public page. The body older builds send
 // (shows, stats, ownerName) is ignored.
 //
-//   - sign-in required (lib/requestAuth.js requireUser)
+//   - an account required (lib/requestAuth.js requireAccount): guests can't publish
 //   - 5 new collections per user per UTC day (rateLimits/shared_create_
 //     {uid}_{day}) and 50 per user in total
 //   - at most MAX_SHOWS shows (the most recent), MAX_SONGS songs each,
@@ -20,7 +20,7 @@
 
 const { withCors } = require('./lib/cors');
 const { getDb } = require('./lib/firebaseAdmin');
-const { requireUser } = require('./lib/requestAuth');
+const { requireAccount } = require('./lib/requestAuth');
 const { takeDailyQuota } = require('./lib/rateLimit');
 
 const CORS_HEADERS = {
@@ -74,7 +74,7 @@ exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers: CORS_HEADERS, body: '' };
   if (event.httpMethod !== 'POST') return reply(405, { error: 'method_not_allowed' });
 
-  const user = await requireUser(event, CORS_HEADERS);
+  const user = await requireAccount(event, CORS_HEADERS);
   if (user.response) return user.response;
   if (String(event.body || '').length > MAX_BODY) return reply(413, { error: 'too_large' });
 

@@ -41,7 +41,7 @@ exports.handler = async function (event) {
       return reply(429, { error: 'Your stats are refreshed often enough today; they will catch up tonight.' }, { 'Retry-After': '3600' });
     }
     const { FieldValue } = require('firebase-admin/firestore');
-    const doc = await recomputeUserStats(db, user.uid, { serverTimestamp: () => FieldValue.serverTimestamp() });
+    const doc = await recomputeUserStats(db, user.uid, { serverTimestamp: () => FieldValue.serverTimestamp(), anonymous: user.isAnonymous });
     const { computedAt, ...stats } = doc;
     return reply(200, { ok: true, stats });
   } catch (err) {

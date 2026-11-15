@@ -36,13 +36,13 @@ The decisions behind the native iOS app, approved by Phillip. **This file is the
 ## Guests (Firebase anonymous auth)
 
 - Guests use Firebase anonymous auth, and their data lives in Firestore from the first show. Upgrading means linking a credential: same UID, so the data stays.
-- **"Anonymous"** means sign-in provider `anonymous` **and** no linked identities (`firebase.identities` empty), in the rules and on the server (`isAnonymous`). Emulator tests cover link-then-refresh.
+- **"Anonymous"** means sign-in provider `anonymous` **and** no linked identities (`firebase.identities` empty), in the rules and on the server (`isAnonymous`). The Auth emulator test (`tests/auth/anonymousLink.test.js`) shows the token changes at link: `sign_in_provider` becomes `password` or `google.com` straight away.
 - **Allowed for guests:** their own shows, upcoming shows, profile, wishlists, bucket lists, alert settings and stats; public data; `normalize-show` for their own shows; re-sync and the setlist operations; following bands and push alerts (D-2); feedback (D-3); deleting their account.
 - **Refused for guests:** AI ticket scan, `send-email`, friend requests and invites, tags, comments, photos and other UGC (writing **and reading**, D-1: guests see a "create an account to see comments" prompt instead), reports, festivals (joining and creating), roadmap submissions and votes (D-3), public shares and public Year in Review, the leaderboard, and the suggestions scan.
 - Anonymous accounts are left out of rankings and **`totalUsers`**. The stats jobs read anonymity from Firebase Auth, never from a profile field.
 - **Welcome email:** held for anonymous accounts (nothing recorded) and sent once they link.
 - **`account-linked`** (new function): after a link, it runs what a new sign-up gets. It claims invites, sends the welcome email if due, recomputes stats and marks the profile converted. The display name still goes through `moderate-content`.
-- **`adopt-guest-shows`** (new function, D-4): when the credential already belongs to an account, it moves the guest's shows into that account through `normalizeShowInput` and `classifyDuplicate`, then purges the anonymous account.
+- **`adopt-guest-shows`** (new function, D-4): when the credential already belongs to an account, it moves the guest's shows into that account and then purges the anonymous account. "The same show" is `classifyDuplicate`: duplicates stay with the account, and a `possible` match moves only when the user picks it. Shows are copied as stored (normalize-show built them), so ratings and notes survive. Upcoming shows and followed bands move too.
 - Ticket scanning stays sign-in-only.
 - Anonymous sign-in stays off in Firebase until the Part 2 rules are live from `main`. Then Phillip enables the provider.
 

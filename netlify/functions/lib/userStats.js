@@ -35,6 +35,7 @@
 const { computeUserStats, publicStats, isRanked, rankUsers } = require('../../../lib/stats');
 const { buildCommunityStats, onLeaderboard } = require('./communityStats');
 const { computeYearInReview } = require('../../../lib/yearInReviewStats');
+const { listAnonymousUids } = require('./firebaseAdmin');
 
 const BATCH = 400;
 
@@ -124,11 +125,16 @@ async function writeYearInReviews(db, updates, at) {
  * write:false computes everything and writes nothing (the backfill's dry
  * run). Returns the computed stats by uid for the parity report.
  */
-async function rebuildAllStats(db, { serverTimestamp = () => new Date(), write = true } = {}) {
-  const [profilesSnap, showsSnap, reviewsSnap] = await Promise.all([
+async function rebuildAllStats(db, { serverTimestamp = () => new Date(), write = true, auth = null } = {}) {
+  // Guests, from Firebase Auth (5.60.13): unranked, and out of the
+  // community totals. `auth` is required from the callers that write
+  // (community-stats.js, the backfill); tests pass a fake or none.
+  const anonymousUidsP = auth ? listAnonymousUids(auth) : Promise.resolve(new Set());
+  const [profilesSnap, showsSnap, reviewsSnap, anonymousUids] = await Promise.all([
     db.collection('userProfiles').get(),
     db.collectionGroup('shows').get(),
     db.collection('yearInReviews').get(),
+    anonymousUidsP,
   ]);
   const profiles = profilesSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
   const profileById = new Map(profiles.map((p) => [p.id, p]));
@@ -139,11 +145,11 @@ async function rebuildAllStats(db, { serverTimestamp = () => new Date(), write =
   for (const uid of uids) statsByUid.set(uid, computeUserStats(byUid.get(uid) || []));
 
   const rankedEntries = [...uids]
-    .filter((uid) => isRanked(profileById.get(uid), statsByUid.get(uid)))
+    .filter((uid) => isRanked(profileById.get(uid), statsByUid.get(uid), { anonymous: anonymousUids.has(uid) }))
     .map((uid) => ({ uid, showCount: statsByUid.get(uid).showCount }));
   const ranks = rankUsers(rankedEntries);
 
-  const community = buildCommunityStats(profiles, byUid, statsByUid);
+  const community = buildCommunityStats(profiles, byUid, statsByUid, { anonymousUids });
   const withIds = showsWithIdsByUser(showsSnap);
   const reviewUpdates = yearInReviewUpdates(reviewsSnap.docs, (uid) => withIds.get(uid));
   let written = 0;
@@ -168,6 +174,7 @@ async function rebuildAllStats(db, { serverTimestamp = () => new Date(), write =
 
   return {
     users: uids.size,
+    guests: [...uids].filter((uid) => anonymousUids.has(uid)).length,
     ranked: rankedEntries.length,
     shows: [...byUid.values()].reduce((n, l) => n + l.length, 0),
     written,
@@ -185,7 +192,7 @@ async function rebuildAllStats(db, { serverTimestamp = () => new Date(), write =
  * against everyone else's stored publicUserStats (one small read), so the
  * caller sees their new rank at once.
  */
-async function recomputeUserStats(db, uid, { serverTimestamp = () => new Date() } = {}) {
+async function recomputeUserStats(db, uid, { serverTimestamp = () => new Date(), anonymous = false } = {}) {
   const [showsSnap, profileSnap, othersSnap, reviewsSnap] = await Promise.all([
     db.collection('users').doc(uid).collection('shows').get(),
     db.collection('userProfiles').doc(uid).get(),
@@ -194,7 +201,8 @@ async function recomputeUserStats(db, uid, { serverTimestamp = () => new Date() 
   ]);
   const stats = computeUserStats(showsSnap.docs.map((d) => d.data()));
   const profile = profileSnap.exists ? profileSnap.data() : null;
-  const ranked = isRanked(profile, stats);
+  // A guest (from the caller's token, 5.60.13) sees their numbers, unranked.
+  const ranked = isRanked(profile, stats, { anonymous });
 
   const entries = othersSnap.docs
     .filter((d) => d.id !== uid)
