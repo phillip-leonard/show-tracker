@@ -29,11 +29,15 @@ Only `Core` depends on Firebase (13.x) and GoogleSignIn (10.x). Features and the
 
 ## The app shell (Part 6)
 
-`Features/Shell`: `AppShell` (Shows · Friends · Stats · Me, and the system Search tab), `AppRouter` (the selected tab, each tab's stack, the web page on top). Links arrive in `MySetlistsApp.onOpenURL`; `Core/Navigation/DeepLink` decides where they go, from the table `lib/deepLinks.js` shares (`fixtures/deep-links/links.json`). `Features/Me` has the account actions and, in Debug builds, a hidden Developer screen (tap the version five times) for testing Crashlytics.
+`Features/Shell`: `AppShell` (Shows · Friends · Stats · Me, and the system Search tab), `AppRouter` (the selected tab, each tab's stack, the web page on top). Links arrive in `MySetlistsApp.onOpenURL`; `Core/Navigation/DeepLink` decides where they go, from the table `lib/deepLinks.js` shares (`fixtures/deep-links/links.json`). `Features/Me` has the account actions and a hidden menu (tap the version five times): **First-launch sign-in** in every build, and, in Debug builds, a Developer screen for testing Crashlytics.
 
 `DesignSystem` holds the web's colors (`Colors.xcassets`, checked against `fixtures/design/tokens.json`), spacing, radii, the type scale (`Font.brand(.sm)`) and `brandScreen()` / `brandRow()` / `brandCard()`.
 
 Sign-out clears Firestore's offline cache: `Core/Database` terminates the instance, clears its files and starts a fresh one with the launch settings. Read Firestore through `Database.ready()`, never `Firestore.firestore()`.
+
+## Q-01: the first-launch report
+
+Once per install, `Core/Auth/FirstLaunchAuthRecorder` records which auth state Firebase restored on the first launch (no personal data). To read it: tap the version in Me five times, then open **First-launch sign-in**. It also goes to Crashlytics (`FirstLaunchAuthState`) and the system log (`com.mysetlists.app`, category `Q01`). The test steps are in [`docs/ios-native/Q01-SIGNIN-CARRYOVER.md`](../docs/ios-native/Q01-SIGNIN-CARRYOVER.md).
 
 ## Trying it without production accounts
 

@@ -4,6 +4,35 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.60.20] — 2026-11-15
+
+Ships in **iOS 3.13.36** (Capacitor, `MARKETING_VERSION` 3.13.35 → 3.13.36)
+and **native 4.0.5** (4.0.4 → 4.0.5). Nothing changes in the web or
+Capacitor apps.
+
+**Native app Part 7 (prep): the Q-01 and Q-07 spikes.**
+
+- **First-launch auth report (native):** once per install, on its first
+  launch, the native app records which auth state Firebase restored. It
+  records whether a uid was there (never the uid), the providers, guest or
+  not, what the keychain held (or its error code), and whether the app was
+  installed over the Capacitor app (`Core/Session/FirstLaunchAuth`,
+  `Core/Auth/FirstLaunchAuthRecorder`). No personal data. Read it in Me (tap
+  the version five times → First-launch sign-in, in every build), in
+  Crashlytics (non-fatal domain `FirstLaunchAuthState`) or in the system log
+  (`com.mysetlists.app`, `Q01`). Unit tests cover what it records, what it
+  never records, and that it's kept once.
+- **Q-01 test steps:** `docs/ios-native/Q01-SIGNIN-CARRYOVER.md`. Sign in on
+  the Capacitor app, install the native TestFlight build over it, launch,
+  and record the result, for Google, Apple and email. It also gives the
+  expected results: Google and Apple carry over; email doesn't, because the
+  Capacitor app signs email users in with the web SDK.
+- **Q-07 answer:** `docs/ios-native/Q07-BUILD-NUMBERS.md`. Build numbers
+  can't collide, because the version-and-build pair is what must be unique
+  and the two apps never share a version (native 4.0.x, Capacitor 3.13.x).
+
+---
+
 ## [5.60.19] — 2026-11-15
 
 Ships in **iOS 3.13.35** (Capacitor, `MARKETING_VERSION` 3.13.34 → 3.13.35)
