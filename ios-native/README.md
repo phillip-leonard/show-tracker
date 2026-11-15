@@ -44,6 +44,8 @@ A Release build uploads its dSYM to Crashlytics (the "Upload dSYM to Crashlytics
 
 A push whose changes since the last deploy are all under `ios-native/` doesn't build the website (`scripts/netlify-ignore.sh`, netlify.toml's `ignore`). Anything else in the commit (docs, `CHANGELOG.md`, `package.json`, the version bumps every PR makes) builds as usual. So a native PR's first commit builds, and its follow-up commits that change only Swift don't.
 
+Netlify compares a push with the last build it *finished* (`CACHED_COMMIT_REF`). A native-only commit pushed while the previous build is still finishing is compared with an older commit, so it may build anyway. That's harmless, just not skipped.
+
 ## Versioning
 
 A PR that touches `ios-native/` bumps `MARKETING_VERSION` here (4.0.0 → 4.0.1 …) **as well as** the Capacitor and web versions. CLAUDE.md, "Versioning", has the rule. Leave `CURRENT_PROJECT_VERSION` alone: Xcode Cloud sets it.
