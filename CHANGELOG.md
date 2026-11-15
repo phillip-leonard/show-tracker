@@ -40,6 +40,13 @@ Capacitor app; `ios/` is untouched apart from its version.
     Xcode Cloud product builds the native app, the Capacitor app is built by
     hand during the transition (D-7), and the new product's next build number
     is set above the last Capacitor build.
+- **Netlify skips a build when every changed file is under `ios-native/`**
+  (`ignore = "sh scripts/netlify-ignore.sh"` in `netlify.toml`). Any other
+  changed file builds, including docs, `CHANGELOG.md`, `package.json`, rules
+  and functions. So do the cases the script can't be sure of: a retried
+  deploy, a missing base commit, a file moved into `ios-native/`.
+  `tests/ci/netlifyIgnore.test.js` checks each case against a scratch git
+  repo.
 - **Tests (Swift Testing)**: `CoreTests` and `DesignSystemTests`. The
   DesignSystem tests check that the fonts register and resolve at every
   weight the web uses. Both pass on the iOS 27 simulator. The Release device
