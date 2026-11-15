@@ -2530,8 +2530,9 @@ export function AppProvider({ children }) {
     if (!user) return;
     if (!window.confirm('Remove this friend?')) return;
     try {
-      await deleteDoc(doc(db, 'users', user.uid, 'friends', friendUid));
-      await deleteDoc(doc(db, 'users', friendUid, 'friends', user.uid));
+      // Both sides, on the server (5.60.11): the app no longer writes into
+      // another user's friends list, deletes included.
+      await callFriends('remove', { friendUid });
       setFriends(prev => prev.filter(f => f.friendUid !== friendUid));
     } catch (error) {
       console.error('Failed to remove friend:', error);
@@ -2842,116 +2843,54 @@ export function AppProvider({ children }) {
 
   // === SHOWS TOGETHER ===
 
+  // === SHOWS TOGETHER AND SUGGESTIONS (5.60.11) ===
+  // Matched on the server (netlify/functions/friends.js): the app gets the
+  // shows two friends were both at, never a friend's whole history, and
+  // the server creates the "were you there together?" suggestions. Until
+  // 5.60.11 the app read every friend's shows itself, once per friend on
+  // every show added. Dates are compared as calendar days, setlist.fm ids
+  // first (lib/showIdentity.js showMatchKey), as before.
+
   const getShowsTogether = useCallback(async (friendUid) => {
-    const [mySnap, theirSnap] = await Promise.all([
-      getDocs(collection(db, 'users', user.uid, 'shows')),
-      getDocs(collection(db, 'users', friendUid, 'shows')),
-    ]);
-    const myShows = mySnap.docs.map(d => ({ id: d.id, ...d.data() }));
-    const theirShows = theirSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-    // Dates compared as calendar days, so "28-05-2025" and "2025-05-28"
-    // are the same night (B-08).
-    const key = showMatchKey;
-    const theirMap = {};
-    theirShows.forEach(s => { theirMap[key(s)] = s; });
-    return myShows
-      .filter(s => theirMap[key(s)])
-      .map(s => ({ ...s, friendShow: theirMap[key(s)] }));
-  }, [user]);
-
-  // === SHOW SUGGESTIONS ===
-
-  const normalizeShowKey = (show) => {
-    return showMatchKey(show);
-  };
-
-  const buildSuggestionDocId = (uid1raw, uid2raw, showKey) => {
-    const [uid1, uid2] = [uid1raw, uid2raw].sort();
-    return `${uid1}_${uid2}_${showKey.replace(/[^a-z0-9]/g, '_').slice(0, 80)}`;
-  };
-
-  const createShowSuggestion = async (friendUid, friendName, show) => {
-    if (!user) return;
-    const showKey = normalizeShowKey(show);
-    const [uid1, uid2] = [user.uid, friendUid].sort();
-    const docId = buildSuggestionDocId(uid1, uid2, showKey);
-    const ref = doc(db, 'showSuggestions', docId);
     try {
-      const existing = await getDoc(ref);
-      if (existing.exists()) return;
-      const myName = user.displayName || 'Someone';
-      const name1 = uid1 === user.uid ? myName : friendName;
-      const name2 = uid2 === user.uid ? myName : friendName;
-      await setDoc(ref, {
-        participants: [uid1, uid2],
-        names: { [uid1]: name1, [uid2]: name2 },
-        showKey,
-        showData: {
-          artist: show.artist || '',
-          venue: show.venue || '',
-          date: show.date || '',
-          city: show.city || '',
-          setlistfmId: show.setlistfmId || null,
-        },
-        responses: { [uid1]: 'pending', [uid2]: 'pending' },
-        overallStatus: 'pending',
-        emailSentToUid: null,
-        emailSentAt: null,
-        lastViewedAt: { [uid1]: null, [uid2]: null },
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
-    } catch (e) {
-      console.error('Failed to create show suggestion:', e);
+      const { shows: together } = await callFriends('showsTogether', { friendUid });
+      return Array.isArray(together) ? together : [];
+    } catch (error) {
+      console.warn('Shows together failed:', error.message);
+      return [];
     }
-  };
+  }, []);
 
+  // How many shows you share with each friend, one request for all of them
+  // (the Friends page's cards).
+  const getShowsTogetherCounts = useCallback(async (friendUids) => {
+    try {
+      const { counts } = await callFriends('showsTogetherCounts', { friendUids });
+      return counts || {};
+    } catch (error) {
+      console.warn('Shows together counts failed:', error.message);
+      return {};
+    }
+  }, []);
+
+  // The key one night is known by across accounts (comments, photos,
+  // meetups, notifications): lib/showIdentity.js showMatchKey.
+  const normalizeShowKey = (show) => showMatchKey(show);
+
+  // A new show: any friend who has the same night gets a suggestion.
   const checkShowSuggestionsForNewShow = async (newShow) => {
-    if (!user || guestMode || friends.length === 0) return;
-    const showKey = normalizeShowKey(newShow);
-    for (const friend of friends) {
-      try {
-        const theirSnap = await getDocs(collection(db, 'users', friend.friendUid, 'shows'));
-        const hasMatch = theirSnap.docs.some(d => {
-          const s = d.data();
-          return normalizeShowKey(s) === showKey;
-        });
-        if (hasMatch) {
-          await createShowSuggestion(friend.friendUid, friend.friendName, newShow);
-        }
-      } catch (e) {
-        console.error('Suggestion check error for friend:', friend.friendUid, e);
-      }
-    }
+    if (!user || guestMode || friends.length === 0 || !newShow?.id) return;
+    await callFriends('suggestionScan', { showId: newShow.id });
   };
 
-  // Retroactive scan — runs once ever per user (localStorage flag).
+  // Retroactive scan — runs once per user on this device (localStorage
+  // flag); the server skips suggestions that already exist.
   const runRetroactiveSuggestionScan = async () => {
-    if (!user || guestMode || friends.length === 0 || shows.length === 0) return;
+    if (!user || guestMode || friends.length === 0) return;
     const flagKey = `suggestionScan_${user.uid}`;
     if (storage.get(flagKey)) return;
     try {
-      const existingSnap = await getDocs(
-        query(collection(db, 'showSuggestions'), where('participants', 'array-contains', user.uid))
-      );
-      const existingIds = new Set(existingSnap.docs.map(d => d.id));
-      for (const friend of friends) {
-        try {
-          const theirSnap = await getDocs(collection(db, 'users', friend.friendUid, 'shows'));
-          const theirShows = theirSnap.docs.map(d => d.data());
-          const theirKeySet = new Set(theirShows.map(s => normalizeShowKey(s)));
-          for (const myShow of shows) {
-            const showKey = normalizeShowKey(myShow);
-            if (!theirKeySet.has(showKey)) continue;
-            const docId = buildSuggestionDocId(user.uid, friend.friendUid, showKey);
-            if (existingIds.has(docId)) continue;
-            await createShowSuggestion(friend.friendUid, friend.friendName, myShow);
-            existingIds.add(docId);
-          }
-        } catch (e) {
-          console.error('Retroactive scan error for friend:', friend.friendUid, e);
-        }
-      }
+      await callFriends('suggestionScan', {});
       storage.set(flagKey, '1');
     } catch (e) {
       console.error('Retroactive suggestion scan failed:', e);
@@ -3780,6 +3719,7 @@ export function AppProvider({ children }) {
 
     // Shows together
     getShowsTogether,
+    getShowsTogetherCounts,
 
     // Pending invites
     pendingInvites,
