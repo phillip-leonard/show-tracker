@@ -12,16 +12,15 @@
 // Venue ratings/comments, wishlists, and friend lists live in entirely
 // separate Firestore collections this function never queries.
 //
-// setBreakToLabel/groupSongsBySet below are a small CJS port of
-// lib/setlistGrouping.js's logic — that file uses ESM `export` syntax,
-// which a plain `require()` here can't parse (same reason
-// lib/__tests__/popupManager.test.js re-implements logic inline instead
-// of importing its ES module target directly).
+// Sets and encores are grouped and ordered by lib/setGroups.js, the same
+// CommonJS module the app uses through lib/setlistGrouping.js (5.60.23;
+// this file kept its own copy until then).
 
 const { escapeHtml, page, notFoundPage, CACHE_HEADERS, USER_PAGE_ROBOTS, SITE_URL, isoDate, formatShowDate } = require('./lib/publicPageHtml');
 const { routeParams } = require('./lib/publicRouteParams');
 const { isSetlistfmShow, setlistfmUrlFor, attributionHtml } = require('./lib/setlistfmSetlist');
 const { archiveCreditHtml } = require('./lib/archiveAttribution');
+const { groupSongsBySet } = require('../../lib/setGroups');
 
 function getDb() {
   const privateKey = (process.env.FIREBASE_PRIVATE_KEY || '').replace(/\\n/g, '\n');
@@ -34,47 +33,6 @@ function getDb() {
   }
   const { getFirestore } = require('firebase-admin/firestore');
   return getFirestore();
-}
-
-const CANONICAL_ORDER = ['Set I', 'Set II', 'Set III', 'Set IV', 'Encore', 'Encore II', 'Encore III'];
-
-function setBreakToLabel(setBreak) {
-  if (!setBreak) return null;
-  if (setBreak === 'Main Set') return 'Set I';
-  if (setBreak === 'Encore') return 'Encore';
-  if (setBreak === 'Encore 2') return 'Encore II';
-  const m = setBreak.match(/^Set (\d+)$/);
-  if (m) {
-    const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI'];
-    return `Set ${ROMAN[parseInt(m[1]) - 1] || m[1]}`;
-  }
-  return setBreak;
-}
-
-function groupSongsBySet(setlist = []) {
-  if (!setlist.length) return [];
-  const groups = {};
-  const order = [];
-  const hasSetField = setlist.some(s => s.set);
-  let currentLabel = 'Set I';
-  if (hasSetField) {
-    setlist.forEach(song => {
-      if (song.set) currentLabel = song.set;
-      if (!groups[currentLabel]) { groups[currentLabel] = []; order.push(currentLabel); }
-      groups[currentLabel].push(song);
-    });
-  } else {
-    setlist.forEach(song => {
-      if (song.setBreak) currentLabel = setBreakToLabel(song.setBreak) || currentLabel;
-      if (!groups[currentLabel]) { groups[currentLabel] = []; order.push(currentLabel); }
-      groups[currentLabel].push(song);
-    });
-  }
-  const keys = [
-    ...CANONICAL_ORDER.filter(k => groups[k]),
-    ...order.filter(k => !CANONICAL_ORDER.includes(k) && groups[k]),
-  ];
-  return keys.map(label => ({ label, songs: groups[label] }));
 }
 
 const formatDate = (dateStr) => formatShowDate(dateStr, 'long');

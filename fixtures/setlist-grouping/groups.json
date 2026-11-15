@@ -263,8 +263,8 @@
       ]
     },
     {
-      "name": "labels beyond the canonical seven",
-      "description": "What the web does today: Set I-IV, Encore, Encore II in canonical order, then other labels (Set V, Set VI, Set 9) in the order they appear, so they render after the encores.",
+      "name": "sets past Set IV come before the encores",
+      "description": "Sets by number, Roman or Arabic (Set V, Set VI, Set 9), then the encores. Until 5.60.23 a fifth set sorted after the encores.",
       "setlist": [
         {
           "id": "l1",
@@ -338,18 +338,6 @@
           ]
         },
         {
-          "label": "Encore",
-          "songIds": [
-            "l7"
-          ]
-        },
-        {
-          "label": "Encore II",
-          "songIds": [
-            "l8"
-          ]
-        },
-        {
           "label": "Set V",
           "songIds": [
             "l5"
@@ -366,6 +354,18 @@
           "songIds": [
             "l9"
           ]
+        },
+        {
+          "label": "Encore",
+          "songIds": [
+            "l7"
+          ]
+        },
+        {
+          "label": "Encore II",
+          "songIds": [
+            "l8"
+          ]
         }
       ]
     },
@@ -374,6 +374,291 @@
       "setlist": [],
       "description": "",
       "expected": []
+    },
+    {
+      "name": "a nine-set show in Roman numerals",
+      "description": "Set V to Set IX, stored after the encore (the order a source listed them), play in number order before it.",
+      "setlist": [
+        {
+          "id": "r1",
+          "name": "Song 1",
+          "set": "Set I"
+        },
+        {
+          "id": "r2",
+          "name": "Song 2",
+          "set": "Set II"
+        },
+        {
+          "id": "r3",
+          "name": "Song 3",
+          "set": "Set III"
+        },
+        {
+          "id": "r4",
+          "name": "Song 4",
+          "set": "Set IV"
+        },
+        {
+          "id": "r5",
+          "name": "Song 5",
+          "set": "Encore"
+        },
+        {
+          "id": "r6",
+          "name": "Song 6",
+          "set": "Set V"
+        },
+        {
+          "id": "r7",
+          "name": "Song 7",
+          "set": "Set VI"
+        },
+        {
+          "id": "r8",
+          "name": "Song 8",
+          "set": "Set VII"
+        },
+        {
+          "id": "r9",
+          "name": "Song 9",
+          "set": "Set VIII"
+        },
+        {
+          "id": "r10",
+          "name": "Song 10",
+          "set": "Set IX"
+        }
+      ],
+      "expected": [
+        {
+          "label": "Set I",
+          "songIds": [
+            "r1"
+          ]
+        },
+        {
+          "label": "Set II",
+          "songIds": [
+            "r2"
+          ]
+        },
+        {
+          "label": "Set III",
+          "songIds": [
+            "r3"
+          ]
+        },
+        {
+          "label": "Set IV",
+          "songIds": [
+            "r4"
+          ]
+        },
+        {
+          "label": "Set V",
+          "songIds": [
+            "r6"
+          ]
+        },
+        {
+          "label": "Set VI",
+          "songIds": [
+            "r7"
+          ]
+        },
+        {
+          "label": "Set VII",
+          "songIds": [
+            "r8"
+          ]
+        },
+        {
+          "label": "Set VIII",
+          "songIds": [
+            "r9"
+          ]
+        },
+        {
+          "label": "Set IX",
+          "songIds": [
+            "r10"
+          ]
+        },
+        {
+          "label": "Encore",
+          "songIds": [
+            "r5"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Arabic set and encore numbers",
+      "description": "'Set 5', 'Set 10' and 'Encore 2' sort by their numbers, not as text.",
+      "setlist": [
+        {
+          "id": "a1",
+          "name": "Song 1",
+          "set": "Set 1"
+        },
+        {
+          "id": "a2",
+          "name": "Song 2",
+          "set": "Set 2"
+        },
+        {
+          "id": "a3",
+          "name": "Song 3",
+          "set": "Encore 2"
+        },
+        {
+          "id": "a4",
+          "name": "Song 4",
+          "set": "Set 10"
+        },
+        {
+          "id": "a5",
+          "name": "Song 5",
+          "set": "Encore"
+        },
+        {
+          "id": "a6",
+          "name": "Song 6",
+          "set": "Set 5"
+        }
+      ],
+      "expected": [
+        {
+          "label": "Set 1",
+          "songIds": [
+            "a1"
+          ]
+        },
+        {
+          "label": "Set 2",
+          "songIds": [
+            "a2"
+          ]
+        },
+        {
+          "label": "Set 5",
+          "songIds": [
+            "a6"
+          ]
+        },
+        {
+          "label": "Set 10",
+          "songIds": [
+            "a4"
+          ]
+        },
+        {
+          "label": "Encore",
+          "songIds": [
+            "a5"
+          ]
+        },
+        {
+          "label": "Encore 2",
+          "songIds": [
+            "a3"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "other labels stay after the encores",
+      "description": "A label that isn't a set or an encore keeps its old place: after the encores, in the order it appears.",
+      "setlist": [
+        {
+          "id": "x1",
+          "name": "Song 1",
+          "set": "Set I"
+        },
+        {
+          "id": "x2",
+          "name": "Song 2",
+          "set": "Soundcheck"
+        },
+        {
+          "id": "x3",
+          "name": "Song 3",
+          "set": "Encore"
+        },
+        {
+          "id": "x4",
+          "name": "Song 4",
+          "set": "Set V"
+        }
+      ],
+      "expected": [
+        {
+          "label": "Set I",
+          "songIds": [
+            "x1"
+          ]
+        },
+        {
+          "label": "Set V",
+          "songIds": [
+            "x4"
+          ]
+        },
+        {
+          "label": "Encore",
+          "songIds": [
+            "x3"
+          ]
+        },
+        {
+          "label": "Soundcheck",
+          "songIds": [
+            "x2"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "a legacy setBreak past Set 6",
+      "description": "setBreak 'Set 7' becomes Set VII (until 5.60.23 anything past Set 6 stayed 'Set 7').",
+      "setlist": [
+        {
+          "id": "b1",
+          "name": "Opener",
+          "setBreak": "Main Set"
+        },
+        {
+          "id": "b2",
+          "name": "Seven",
+          "setBreak": "Set 7"
+        },
+        {
+          "id": "b3",
+          "name": "Encore",
+          "setBreak": "Encore"
+        }
+      ],
+      "expected": [
+        {
+          "label": "Set I",
+          "songIds": [
+            "b1"
+          ]
+        },
+        {
+          "label": "Set VII",
+          "songIds": [
+            "b2"
+          ]
+        },
+        {
+          "label": "Encore",
+          "songIds": [
+            "b3"
+          ]
+        }
+      ]
     }
   ]
 }
