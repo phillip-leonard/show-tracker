@@ -12,6 +12,10 @@ public struct SignInView: View {
     @State private var busy = false
     @State private var error: String?
     @State private var showEmail = false
+    @State private var showReset = false
+    /// Someone coming from the Capacitor app whose sign-in didn't carry over
+    /// (Apple and email, Q-01). Read once, when the screen appears.
+    @State private var welcomeBack = WelcomeBack.shouldShow()
 
     public init() {}
 
@@ -28,6 +32,20 @@ public struct SignInView: View {
                         .multilineTextAlignment(.center)
                 }
                 .padding(.top, 48)
+
+                if welcomeBack {
+                    VStack(spacing: 6) {
+                        Text(WelcomeBack.title)
+                            .font(.jakarta(size: 20, weight: .semibold, relativeTo: .title3))
+                        Text(WelcomeBack.message)
+                            .font(.jakarta(size: 16, relativeTo: .body))
+                            .multilineTextAlignment(.center)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(16)
+                    .brandCard()
+                    .accessibilityElement(children: .combine)
+                }
 
                 TermsAgreement(ticked: $session.termsTicked)
 
@@ -55,6 +73,14 @@ public struct SignInView: View {
                     }
                     .buttonStyle(.bordered)
                     .disabled(!session.termsTicked || busy)
+
+                    // On the first screen, not only inside the email sheet:
+                    // someone signing in again after the update may not
+                    // remember the password (Q-01). Needs no terms tick.
+                    Button("Forgot your password?") { showReset = true }
+                        .font(.footnote)
+                        .frame(minHeight: 44)
+                        .disabled(busy)
 
                     Button("Continue as guest") {
                         run { try await session.continueAsGuest() }
@@ -84,6 +110,9 @@ public struct SignInView: View {
         }
         .sheet(isPresented: $showEmail) {
             EmailSignInView()
+        }
+        .sheet(isPresented: $showReset) {
+            PasswordResetView(email: "")
         }
     }
 

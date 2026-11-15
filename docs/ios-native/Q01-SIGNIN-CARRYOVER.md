@@ -2,9 +2,27 @@
 
 When the native app is installed over the Capacitor app (same bundle ID, `com.mysetlists.app`), is the person still signed in on its first launch, or do they see the sign-in screen? Test it three times: Google, Apple and email.
 
-Nothing here has been run on a device yet. These are the steps for Phillip.
+## Answer (2026-11-15)
 
-## What to expect, and why
+Phillip ran the steps below on a device.
+
+| Signed in to the Capacitor app with | Native app on first launch | As expected? |
+|---|---|---|
+| Google | **Signed in**, same account | Yes |
+| Apple | **Signed out** (the sign-in screen) | No: expected to carry over |
+| Email and password | **Signed out** (the sign-in screen) | Yes |
+
+**Decision (2026-11-15): Apple and email users sign in again. There's no token bridge** (no custom-token hand-off from a last Capacitor release). Their shows are in their account, so nothing is lost; they sign in once after the update.
+
+**What the app does about it (native 4.0.6):** after an update from the Capacitor app, until an account signs in on that install, the sign-in screen says "Welcome back. Sign in to see your shows. Everything you logged is still there." "Forgot your password?" is on the sign-in screen itself, not only in the email sheet (`Core/Session/WelcomeBack.swift`, `Features/Auth/SignInView.swift`). A carried-over Google session never sees it.
+
+**Why Apple didn't carry over:** the likely cause is that the Capacitor app signs Apple users in with `skipNativeAuth: true` (`lib/native-auth.js`), so the native Firebase SDK never holds an Apple session to leave in the keychain. SCOPING §3.4 said so before the test; the expectation in the table below was wrong. Nothing depends on the cause now that the decision is made.
+
+**Cutover message:** plan it for Apple and email users ("you'll sign in once more"). Google users go straight in.
+
+The steps and the expectations they were run against are kept below.
+
+## What we expected, and why (before the test)
 
 | Signed in to the Capacitor app with | Expected in the native app | Why |
 |---|---|---|
@@ -54,11 +72,13 @@ Do this three times, with **Google**, then **Apple**, then **email**.
 
 ## Results
 
+Outcomes as reported on 2026-11-15. The versions and first-launch lines weren't sent; add them here if they're wanted for the record.
+
 | Run | Capacitor version (App Store) | Signed in with | Native build (TestFlight) | First screen | Me shows the same account? | First-launch line | As expected? |
 |---|---|---|---|---|---|---|---|
-| 1 | | Google | | | | | |
-| 2 | | Apple | | | | | |
-| 3 | | Email | | | | | |
+| 1 | | Google | | Shows (signed in) | Yes | | Yes |
+| 2 | | Apple | | Sign-in screen | — | | No (expected signed in) |
+| 3 | | Email | | Sign-in screen | — | | Yes |
 | Control | none | none | | | | | |
 
 ## What the results mean
@@ -69,4 +89,4 @@ Do this three times, with **Google**, then **Apple**, then **email**.
 - **The terms screen first:** the profile couldn't be read (offline), or the account hadn't accepted the current terms. Check Wi-Fi and try again. The first-launch line still says what was restored.
 - **Email signed in:** better than expected. It means the person had also signed in natively (Google or Apple) on this phone. Check that the providers in the line say `password`.
 
-Send the filled table (or the three lines and screenshots), and DECISIONS.md gets the answer.
+The answer and the decision are at the top of this file and in DECISIONS.md ("Spikes").

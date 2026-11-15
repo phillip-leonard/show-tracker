@@ -142,10 +142,25 @@ Not during the Year in Review peak (Dec 2 to mid-January), because the cutover m
 
 ## Spikes (2026-11-15, Part 7: prep)
 
-- **Q-01 (sign-in carry-over): test steps written, not yet run.** [`Q01-SIGNIN-CARRYOVER.md`](Q01-SIGNIN-CARRYOVER.md) has the steps (Google, Apple, email) and the results table.
-  - **Expected:** Google and Apple carry over, because the Capacitor app signs them in through the native Firebase SDK (keychain, same Firebase iOS app, same access group). Email doesn't, because it signs in with the web SDK in the WebView.
-  - The answer goes here once Phillip has run it.
+- **Q-01 (sign-in carry-over): answered 2026-11-15.** [`Q01-SIGNIN-CARRYOVER.md`](Q01-SIGNIN-CARRYOVER.md) has the steps and results.
+  - **Google carries over. Apple and email don't.** (Apple was expected to carry over; the Capacitor app signs Apple in with `skipNativeAuth: true`, so the native SDK never held that session.)
+  - **Decision: Apple and email users sign in again. No token bridge.**
+  - **Native 4.0.6:** after an update from the Capacitor app, until an account signs in on that install, the sign-in screen says "Welcome back. Sign in to see your shows. Everything you logged is still there.", and "Forgot your password?" is on that screen (`Core/Session/WelcomeBack.swift`).
 - **First-launch report (4.0.5):** once per install, the native app records which auth state Firebase restored: uid present or not, providers, guest, keychain read result, and whether it was installed over the Capacitor app. No personal data. It goes to the system log (`com.mysetlists.app`, `Q01`), Crashlytics (non-fatal domain `FirstLaunchAuthState`, plus custom keys), and a hidden screen (tap the version in Me five times, in every build).
   - At cutover the same report measures how many updates carried a session over. Remove it once that's known.
 - **Q-07 (build numbers): answered.** [`Q07-BUILD-NUMBERS.md`](Q07-BUILD-NUMBERS.md). They can't collide, because the native app is 4.0.x and Capacitor builds are 3.13.x, and App Store Connect needs only the version-and-build pair to be unique. Set Xcode Cloud's Next Build Number above TestFlight's highest only to keep the list in order. A rollback after cutover is the one time Capacitor takes a 4.x version.
 
+
+## Stage 1: Shows tab, show detail, adding shows (2026-11-15)
+
+From the Stage 1 Part 1 audit ([`STAGE1-AUDIT.md`](STAGE1-AUDIT.md)), approved with these calls:
+
+- **Upcoming shows** are `users/{uid}/upcomingShows`, as on the web. The native app writes them directly, field by field (no server function). Marking one attended goes through `normalize-show` (kind `upcoming`). A golden fixture pins the upcoming-show shape.
+- **Song ratings are on the native show detail screen** (the web's show page has none). Song comments come in Part 3b.
+- **No web links inside the show screen** in Stage 1: photos, comments, tags, friends at the show, follow band and archival audio stay hidden until their stage. Import links (screenshot, CSV/XLSX) are for signed-in accounts only.
+- **`setlist-source`**: a new read-only function that answers `resolveSource` for the app (band source or not, label, needs review). No Swift copy of the source registry.
+- **`lib/setlistEdits.js` and the set-grouping rules are ported to Swift**, with shared golden fixtures run by both the JS and the Swift tests.
+- **Offline adds:** a file-backed queue of `normalize-show` requests, keyed by show id. Queued shows appear as "Waiting to sync", and their songs can't be rated until the show syncs.
+- **The sign-out warning counts queued adds**, as well as Firestore's unsynced writes.
+- **Model fixes:** `populatedFrom` is an ignored field; `setlistSourceChange` is decoded (Part 3).
+- **PR order:** Q-01 + Welcome back → `setlist-source` + fixtures → Part 2 (Shows tab) → 3a (detail and field edits) → 3b (setlist editing and operations) → 4 (search and manual adds) → 5 (ticket scan).
