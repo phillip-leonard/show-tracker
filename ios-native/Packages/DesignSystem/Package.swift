@@ -1,7 +1,7 @@
 // swift-tools-version: 6.0
 // DesignSystem: the shipped web app's tokens (app/globals.css, decision D-5)
 // and Plus Jakarta Sans. System materials and components first, so iOS 26+
-// supplies Liquid Glass. Tokens arrive in Part 6; the fonts are here now.
+// supplies Liquid Glass.
 import PackageDescription
 
 let package = Package(
@@ -17,7 +17,10 @@ let package = Package(
         ),
         .testTarget(
             name: "DesignSystemTests",
-            dependencies: ["DesignSystem"]
+            dependencies: ["DesignSystem"],
+            // A symlink to fixtures/design/tokens.json, the table the web's
+            // globals.css is checked against too.
+            resources: [.copy("DesignTokens.json")]
         ),
     ]
 )

@@ -4,6 +4,53 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.60.18] — 2026-11-15
+
+Ships in **iOS 3.13.34** (Capacitor, `MARKETING_VERSION` 3.13.33 → 3.13.34)
+and **native 4.0.3** (4.0.2 → 4.0.3). The web and the Capacitor app change
+in one way: referral links open the app (below).
+
+**Native app Part 6: the app shell, the design system and deep links.**
+
+- **Tabs:** Shows · Friends · Stats · Me, plus the system Search tab, each
+  its own NavigationStack (a sidebar on a wide iPad window). Each tab shows a
+  placeholder for now. Shows has the Shows/Upcoming segment and a + that
+  does nothing yet. Friends asks a guest to create an account.
+- **Me:** who is signed in, "Create your account" for a guest, sign out,
+  delete account, the legal links and the version. In Debug builds, a hidden
+  Developer screen (tap the version five times) tests Crashlytics with a
+  test error and a test crash.
+- **Sign-out clears Firestore's offline cache.** `Core/Database` terminates
+  the instance, clears its files (`clearPersistence`) and starts a fresh one
+  with the launch settings, in the same process. Every read waits for a
+  reset in flight (`Database.ready()`). Sign-out first waits up to 4 s for
+  writes still on their way. A hosted test checks it against the real SDK.
+- **Design tokens:** the web's colors in an asset catalog, spacing, radii
+  and the type scale in Plus Jakarta Sans. A new shared table,
+  `fixtures/design/tokens.json`, is checked against `app/globals.css`
+  (`lib/__tests__/designTokens.test.js`) and against the catalog
+  (DesignSystemTests). Screens use the web's `#2A2A4E` background and
+  `#1F1F3A` rows; bars and the tab bar are the system's (Liquid Glass on
+  iOS 26).
+- **Deep links:** `lib/deepLinks.js` ported to Swift (`Core/DeepLink`).
+  Both run a new shared table, `fixtures/deep-links/links.json` (49 links,
+  and the route list from `lib/navRoutes.js`), from `deepLinks.test.js` and
+  CoreTests. Show, band, song, venue and Year in Review links open their
+  placeholder. Other claimed paths, and our pages the app doesn't claim
+  (`/reset/*`), open in SFSafariViewController.
+- **Referral links open the app (D-6).** `apple-app-site-association` now
+  claims `/` with a `ref` query; a bare `https://mysetlists.net/` still
+  opens Safari. In the Capacitor app, `DeepLinkListener` already routes
+  `/?ref=…` to the home page, where `AppContext` keeps the ref until sign-in.
+  In the native app the ref is kept until the next account sign-in or guest
+  upgrade, or used at once when an account is signed in.
+- **Trying the app locally:** a Debug build launched with
+  `MYSETLISTS_EMULATORS=<host>` uses the Auth emulator (and Firestore at
+  `<host>:8080`), so guests and sign-in can be tried without production
+  accounts.
+
+---
+
 ## [5.60.17] — 2026-11-15
 
 Ships in **iOS 3.13.33** (Capacitor, `MARKETING_VERSION` 3.13.32 → 3.13.33)

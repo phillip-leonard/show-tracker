@@ -118,7 +118,7 @@ Not during the Year in Review peak (Dec 2 to mid-January), because the cutover m
 - **Deletion** asks Apple for a fresh authorization code on Apple accounts (only when it's the same Apple ID) so `delete-account` can revoke Apple's tokens. Backing out of Apple's sheet cancels the deletion. Deletion is reachable from the update-required screen too.
 - **Sign-out never hangs:** push-token document, Firebase, Google and local state, each step bounded at 4 s (`SignOutRunner`).
 - **Flagged, not built:**
-  - **Sign-out doesn't clear Firestore's offline cache yet.** The next user can't read the previous user's documents (the rules decide that on the server), but the files stay on the device. Part 6 fixes it (below).
+  - **Sign-out didn't clear Firestore's offline cache.** Fixed in Part 6 (below).
 
 ## Data export and the offline cache (2026-11-15)
 
@@ -126,4 +126,15 @@ Not during the Year in Review peak (Dec 2 to mid-January), because the cutover m
 - **The privacy policy names the deletion path:** "Profile → Delete My Account in the app or on the website", which is the web's and the Capacitor app's menu. **At cutover**, the native app has it under the Me tab ("Delete my account"), so update that sentence in components/PrivacyPolicy.jsx when the native app ships.
 - **Post-launch idea: `export-my-data`.** A server function that builds a user's shows, ratings and profile as JSON/CSV and emails it or returns a download, signed-in only, with a per-user limit.
 - **Part 6: sign-out clears Firestore's offline cache.** Terminate the Firestore instance, `clearPersistence()`, then use a fresh instance before the next sign-in. If the SDK can't create a new instance in the same process, report it to Phillip rather than leaving the cache in place.
+  - **Done in Part 6 (4.0.3).** The SDK can: `terminate` removes the instance from Firebase's registry, so the next `Firestore.firestore()` is a new one in the same process. `Core/Database` does terminate → `clearPersistence()` → fresh instance with the launch settings. Every read goes through `Database.ready()`, which waits for a reset in flight. `MySetlistsTests` (`signOutClearsTheOfflineCache`) checks it against the real SDK: a new instance, the same settings, the last session's document gone from the cache.
+  - **Writes still on their way are dropped with the cache.** Sign-out waits for them first (`waitForPendingWrites`, bounded at 4 s like every step). Offline, they're lost. They would have been refused under the next account anyway.
 
+## App shell and design system (2026-11-15, Part 6)
+
+- **Tabs:** Shows · Friends · Stats · Me, plus the system Search tab (`Tab(role: .search)`), each its own NavigationStack. `.sidebarAdaptable` makes them a sidebar on a wide iPad window. Every screen is a placeholder until its feature is built. Shows has the Shows/Upcoming segment and a + that does nothing yet.
+- **Me** has identity, "Create your account" (guests), sign out, delete account, the legal links and the version. This is the deletion path the privacy policy should name at cutover (above).
+- **The colors are the web's, in an asset catalog** (`DesignSystem/Resources/Colors.xcassets`, dark appearance set). `fixtures/design/tokens.json` is the table: DesignSystemTests checks the catalog against it, and `lib/__tests__/designTokens.test.js` checks `app/globals.css`. Screens sit on `#2A2A4E` with `#1F1F3A` rows (`brandScreen()`, `brandRow()`). Bars and the tab bar are left to the system, which gives them Liquid Glass on iOS 26; a card is glass there and the surface color on iOS 18 (`brandCard()`).
+- **Deep links:** `Core/DeepLink` is `lib/deepLinks.js` ported, and both run `fixtures/deep-links/links.json` (which also pins the route list to `lib/navRoutes.js`). Show, band, song, venue and Year in Review open their placeholder. Every other claimed path opens the same page in SFSafariViewController, and so does one of our pages the app doesn't claim (`/reset/*`). SFSafariViewController doesn't share the app's sign-in, so a page that needs an account shows the web's signed-out view.
+- **D-6 is live:** the AASA file claims `/` with a `ref` query only. A `?ref=` is kept until the next account sign-in or guest upgrade, or used at once when an account is already signed in (the web does the same on load). The Capacitor app opens these links too, where `AppContext` already keeps the ref.
+- **Crashlytics:** Release builds report. A hidden Developer screen (Debug only: tap the version in Me five times) turns collection on for a Debug build and has a test error and a test crash.
+- **Local emulators for trying the app:** a Debug build launched with `MYSETLISTS_EMULATORS=<host>` uses the Auth emulator at `<host>:9099` and Firestore at `<host>:8080`, so sign-in and guests can be tried without production accounts.
