@@ -81,7 +81,7 @@ public final class SessionStore {
     /// as the Capacitor app does. Unreadable means "no gate".
     public func refreshConfig() async {
         do {
-            appConfig = try await Firestore.firestore().document("config/app").getDocument().data(as: AppConfig.self)
+            appConfig = try await Database.ready().document("config/app").getDocument().data(as: AppConfig.self)
         } catch {
             // Offline or missing: keep what we had.
         }
@@ -115,9 +115,18 @@ public final class SessionStore {
     }
 
     private func listenToProfile(uid: String) {
-        profileListener?.remove()
+        stopListening()
+        // After a reset in flight (a sign-in straight after a sign-out).
+        Task {
+            let db = await Database.ready()
+            guard user?.uid == uid, profileListener == nil else { return }
+            attachProfileListener(db, uid: uid)
+        }
+    }
+
+    private func attachProfileListener(_ db: Firestore, uid: String) {
         var first = true
-        profileListener = Firestore.firestore().document("userProfiles/\(uid)").addSnapshotListener { [weak self] snapshot, error in
+        profileListener = db.document("userProfiles/\(uid)").addSnapshotListener { [weak self] snapshot, error in
             MainActor.assumeIsolated {
                 guard let self, self.user?.uid == uid else { return }
                 if error != nil {
@@ -149,7 +158,7 @@ public final class SessionStore {
             fields["termsAcceptedAt"] = FieldValue.serverTimestamp()
         }
         if !fields.isEmpty {
-            try? await Firestore.firestore().document("userProfiles/\(user.uid)").setData(fields, merge: true)
+            try? await Database.ready().document("userProfiles/\(user.uid)").setData(fields, merge: true)
         }
         if existing?.displayName == nil, !user.isAnonymous {
             await adoptDisplayName(pendingName ?? user.displayName)
@@ -181,13 +190,22 @@ public final class SessionStore {
         }
     }
 
+    /// A referral link (D-6) opened while signed in to an account is used at
+    /// once, as the web does whenever an account session is present
+    /// (AppContext). Signed out or a guest, it waits for the next account
+    /// sign-in or the guest's upgrade (`afterAccountSignIn`, `upgrade`).
+    public func useReferralIfSignedIn() async {
+        guard let user, !user.isAnonymous, let ref = Referral.take() else { return }
+        _ = try? await api.post(FriendsRequest.function, FriendsRequest.referral(ref: ref), as: JSONValue.self)
+    }
+
     // MARK: - Terms
 
     /// The gate's "I agree", for an account that hasn't accepted this version.
     public func acceptTerms() async throws {
         guard let uid = user?.uid else { return }
         acceptedOnThisDevice = true
-        try await Firestore.firestore().document("userProfiles/\(uid)").setData([
+        try await Database.ready().document("userProfiles/\(uid)").setData([
             "termsAcceptedVersion": Terms.version,
             "termsAcceptedAt": FieldValue.serverTimestamp(),
         ], merge: true)
@@ -343,21 +361,36 @@ public final class SessionStore {
 
     // MARK: - Sign out and delete
 
-    /// Never hangs (`SignOutRunner`): the push token's document first (it
-    /// needs the session), then Firebase, Google, and local state.
+    /// Never hangs (`SignOutRunner`): what needs the session first (the push
+    /// token's document, writes still on their way), then Firebase, the
+    /// offline cache, Google, and local state.
+    ///
+    /// The cache step runs after Firebase's sign-out and before anyone can
+    /// sign in again (`Database.ready()` waits for it): the next person on
+    /// this device starts from an empty cache.
     @discardableResult
     public func signOut() async -> [(String, SignOutRunner.Outcome)] {
         let steps: [SignOutRunner.Step] = [
-            .init("push token") {
+            .init("push token") { @MainActor in
                 let token = try await Messaging.messaging().token()
-                try await Firestore.firestore().document("pushTokens/\(token)").delete()
+                try await Database.ready().document("pushTokens/\(token)").delete()
             },
+            // Offline, this times out and those writes go with the cache:
+            // they would fail under the next account anyway.
+            .init("pending writes") { @MainActor in try await Database.ready().waitForPendingWrites() },
             .init("firebase") { @MainActor in try Auth.auth().signOut() },
+            .init("offline cache") { @MainActor [weak self] in
+                self?.stopListening()
+                let reset = await Database.clearCache()
+                if let failure = reset.failure { throw CacheResetFailed(message: failure) }
+            },
             .init("google") { @MainActor in GIDSignIn.sharedInstance.signOut() },
             .init("local") { @MainActor [weak self] in self?.resetLocalState() },
         ]
         return await SignOutRunner().run(steps)
     }
+
+    struct CacheResetFailed: Error, CustomStringConvertible { let message: String; var description: String { message } }
 
     /// Deletes the account and all its data (`delete-account`, Guideline
     /// 5.1.1(v)), then signs out. An Apple account confirms with Apple first,

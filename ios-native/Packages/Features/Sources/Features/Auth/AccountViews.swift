@@ -1,4 +1,5 @@
 import Core
+import DesignSystem
 import GoogleSignInSwift
 import SwiftUI
 
@@ -196,54 +197,10 @@ public struct DeleteAccountView: View {
     }
 }
 
-/// Until the tab shell (Part 6): who is signed in, and the account actions
-/// that must always be reachable.
-struct AccountHomeView: View {
-    @Environment(SessionStore.self) private var session
-    @State private var showUpgrade = false
-    @State private var showDelete = false
-    @State private var confirmGuestSignOut = false
-
-    var body: some View {
-        NavigationStack {
-            List {
-                Section {
-                    if let user = session.user {
-                        LabeledContent("Signed in", value: user.isAnonymous ? "As a guest" : (user.email ?? session.profile?.displayName ?? "Yes"))
-                        if let name = session.profile?.displayName { LabeledContent("Name", value: name) }
-                    }
-                }
-                if session.user?.isAnonymous == true {
-                    Section {
-                        Button("Create your account") { showUpgrade = true }
-                    } footer: {
-                        Text("Your shows stay with you. Friends, ticket scanning and anything other people see need an account.")
-                    }
-                }
-                Section {
-                    Button("Sign out") {
-                        if session.user?.isAnonymous == true { confirmGuestSignOut = true } else { Task { await session.signOut() } }
-                    }
-                    Button("Delete my account", role: .destructive) { showDelete = true }
-                }
-            }
-            .navigationTitle("MySetlists")
-            .safeAreaInset(edge: .bottom) { UpdateBanner() }
-            .sheet(isPresented: $showUpgrade) { GuestUpgradeView() }
-            .sheet(isPresented: $showDelete) { DeleteAccountView() }
-            .confirmationDialog("Sign out of your guest account?", isPresented: $confirmGuestSignOut, titleVisibility: .visible) {
-                Button("Sign out and lose my shows", role: .destructive) { Task { await session.signOut() } }
-                Button("Create an account first") { showUpgrade = true }
-            } message: {
-                Text("A guest account can't be signed back into. Create an account to keep your shows.")
-            }
-        }
-    }
-}
-
 /// The app's root: whichever gate applies, or the app.
 public struct AppRootView: View {
     @Environment(SessionStore.self) private var session
+    @Environment(AppRouter.self) private var router
     public init() {}
 
     public var body: some View {
@@ -260,8 +217,14 @@ public struct AppRootView: View {
             case .termsRequired:
                 TermsGateView()
             case .ready:
-                AccountHomeView()
+                AppShell()
             }
+        }
+        .brandBackground()
+        // Someone else, or nobody: the next session starts on Shows. A link
+        // opened while signed out is kept (nil → uid isn't a change of person).
+        .onChange(of: session.user?.uid) { old, new in
+            if old != nil, old != new { router.reset() }
         }
         .sheet(isPresented: Binding(get: { session.adoption != nil }, set: { if !$0 { session.cancelAdoption() } })) {
             AdoptionView()

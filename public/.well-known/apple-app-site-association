@@ -221,6 +221,13 @@
           },
           {
             "/": "/my-poster/*"
+          },
+          {
+            "/": "/",
+            "?": {
+              "ref": "*"
+            },
+            "comment": "Referral and invite links (D-6): the app keeps the ref until after sign-in"
           }
         ]
       }

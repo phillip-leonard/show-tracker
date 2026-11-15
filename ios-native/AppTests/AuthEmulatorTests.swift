@@ -7,8 +7,8 @@ import Core
 
 /// `SessionStore` against the Firebase Auth emulator, with the real SDK:
 /// a guest, a guest upgrading to an email account (same uid), the
-/// credential-in-use path (D-4) up to the server call, and the error
-/// mapping. Runs only when the emulator's address is passed in:
+/// credential-in-use path (D-4) up to the server call, the error mapping,
+/// and sign-out clearing Firestore's offline cache. Runs only when the emulator's address is passed in:
 ///
 ///   npm run test:native-auth-emulator
 ///
@@ -33,11 +33,12 @@ struct AuthEmulatorTests {
             FirebaseApp.configure(options: options)
         }
         Auth.auth().useEmulator(withHost: String(parts[0]), port: Int(parts[1]) ?? 9099)
-        let settings = Firestore.firestore().settings
+        // Persistent, like the app, so sign-out's cache clearing is real.
+        let settings = FirestoreSettings()
         settings.host = "127.0.0.1:65530"
         settings.isSSLEnabled = false
-        settings.cacheSettings = MemoryCacheSettings()
-        Firestore.firestore().settings = settings
+        settings.cacheSettings = PersistentCacheSettings()
+        Database.configure(settings)
         return true
     }
 
@@ -129,5 +130,35 @@ struct AuthEmulatorTests {
         await #expect(throws: AuthFailure.emailInUse) { try await store.createAccount(email: email, password: "correct-horse-9") }
         await #expect(throws: AuthFailure.weakPassword) { try await store.createAccount(email: newEmail(), password: "123") }
         #expect(store.signedIn == false)
+    }
+
+    /// Sign-out terminates Firestore, clears its persisted cache and starts a
+    /// fresh instance in the same process, with the launch settings.
+    @Test func signOutClearsTheOfflineCache() async throws {
+        store.termsTicked = true
+        try await store.continueAsGuest()
+        try await waitFor { store.user?.isAnonymous == true }
+        let uid = try #require(store.user?.uid)
+
+        let before = await Database.ready()
+        // The server address is dead, so this write lives only in the cache.
+        let probe = before.document("cacheProbe/\(uid)")
+        probe.setData(["guest": true], completion: { _ in })
+        #expect(try await probe.getDocument(source: .cache).exists)
+
+        let report = await store.signOut()
+        #expect(report.first { $0.0 == "offline cache" }?.1 == .done, "\(report)")
+        try await waitFor { store.signedIn == false }
+
+        let after = await Database.ready()
+        #expect(after !== before, "a new instance, in the same process")
+        #expect(after.settings.host == "127.0.0.1:65530", "with the settings it launched with")
+        #expect(after.settings.cacheSettings is PersistentCacheSettings)
+        let leftover = try? await after.document("cacheProbe/\(uid)").getDocument(source: .cache)
+        #expect(leftover?.exists != true, "the last session's data is gone from the cache")
+
+        // And the fresh instance works: the next session can use it.
+        after.document("cacheProbe/next").setData(["ok": true], completion: { _ in })
+        #expect(try await after.document("cacheProbe/next").getDocument(source: .cache).exists)
     }
 }

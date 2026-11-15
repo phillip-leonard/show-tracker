@@ -27,6 +27,23 @@ Only `Core` depends on Firebase (13.x) and GoogleSignIn (10.x). Features and the
 
 `Core/Auth/SessionStore` owns the session: Apple, Google, email, "Continue as guest" (Firebase anonymous auth), linking a guest to a credential, password reset, sign-out and account deletion. `Core/Session/AccountGate` decides which screen replaces the app: update required, signed out, suspended, terms, or the app. `Core/API/APIClient` calls the Netlify functions with the user's ID token and turns failures into `APIError`, including `.accountRequired` for a guest. The screens are in `Features/Auth`.
 
+## The app shell (Part 6)
+
+`Features/Shell`: `AppShell` (Shows · Friends · Stats · Me, and the system Search tab), `AppRouter` (the selected tab, each tab's stack, the web page on top). Links arrive in `MySetlistsApp.onOpenURL`; `Core/Navigation/DeepLink` decides where they go, from the table `lib/deepLinks.js` shares (`fixtures/deep-links/links.json`). `Features/Me` has the account actions and, in Debug builds, a hidden Developer screen (tap the version five times) for testing Crashlytics.
+
+`DesignSystem` holds the web's colors (`Colors.xcassets`, checked against `fixtures/design/tokens.json`), spacing, radii, the type scale (`Font.brand(.sm)`) and `brandScreen()` / `brandRow()` / `brandCard()`.
+
+Sign-out clears Firestore's offline cache: `Core/Database` terminates the instance, clears its files and starts a fresh one with the launch settings. Read Firestore through `Database.ready()`, never `Firestore.firestore()`.
+
+## Trying it without production accounts
+
+A Debug build launched with `MYSETLISTS_EMULATORS` uses local emulators (Auth on 9099, Firestore on 8080). With no Firestore emulator running, Firestore stays offline, and nothing reaches production:
+
+```bash
+npx firebase emulators:start --only auth --project demo-native-auth
+SIMCTL_CHILD_MYSETLISTS_EMULATORS=127.0.0.1 xcrun simctl launch booted com.mysetlists.app
+```
+
 ## Build and test
 
 ```bash
@@ -34,8 +51,8 @@ xcodebuild test -workspace ios-native/MySetlists.xcworkspace -scheme MySetlists 
 ```
 
 Two test targets run from that one command:
-- **CoreTests** and **DesignSystemTests** (package tests): models, fixtures, dates, the API client, the version table, the gate, sign-out.
-- **MySetlistsTests** (`AppTests/`, hosted in the app): `SessionStore` against the Firebase Auth emulator with the real SDK. It is skipped unless the emulator is running. Run it with `npm run test:native-auth-emulator`. It's hosted because Firebase Auth needs the app's keychain entitlement, and Messaging needs an app bundle. While the app hosts tests (`AppEnvironment.isHostingTests`), it doesn't start Firebase itself.
+- **CoreTests** and **DesignSystemTests** (package tests): models, fixtures, dates, deep links, the API client, the version table, the gate, sign-out, the colors.
+- **MySetlistsTests** (`AppTests/`, hosted in the app): `SessionStore` against the Firebase Auth emulator with the real SDK, including sign-out clearing the offline cache. It is skipped unless the emulator is running. Run it with `npm run test:native-auth-emulator`. It's hosted because Firebase Auth needs the app's keychain entitlement, and Messaging needs an app bundle. While the app hosts tests (`AppEnvironment.isHostingTests`), it doesn't start Firebase itself.
 
 A Release build uploads its dSYM to Crashlytics (the "Upload dSYM to Crashlytics" build phase). For a local Release build or archive that shouldn't upload, pass `SKIP_CRASHLYTICS_UPLOAD=YES`.
 
@@ -44,7 +61,7 @@ A Release build uploads its dSYM to Crashlytics (the "Upload dSYM to Crashlytics
 - **iPhone and iPad** (`TARGETED_DEVICE_FAMILY = 1,2`). The Capacitor app supports iPad, and an update can't drop a device family. Layout follows measured width (CLAUDE.md).
 - **No keychain-sharing entitlement.** The default keychain access group stays `66N4YR3VP9.com.mysetlists.app`, the group the Capacitor app's Firebase Auth session is stored under. Adding a keychain group would change where the native app looks, and sign-in carry-over (Q-01) would fail.
 - **Same capabilities as the Capacitor app:** Sign in with Apple, push (development APNs in Debug, production in Release), and universal links for `mysetlists.net`. The App ID already has all three, so the developer portal needs no changes.
-- **Firestore offline persistence is on** (`AppBootstrap`). The web keeps it off.
+- **Firestore offline persistence is on** (`AppBootstrap`). The web keeps it off. Sign-out clears it (`Database`).
 - **Crashlytics collects from Release builds only.** Debug builds don't report.
 - **Dark only in v1.**
 

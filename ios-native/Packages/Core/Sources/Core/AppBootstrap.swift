@@ -1,3 +1,4 @@
+import FirebaseAuth
 import FirebaseCore
 import FirebaseCrashlytics
 import FirebaseFirestore
@@ -16,9 +17,14 @@ public enum AppBootstrap {
 
         // Offline persistence is on in the native app (the web keeps it off):
         // the shows list works on a plane, and writes queue until online.
-        let settings = Firestore.firestore().settings
+        // Sign-out clears that cache and starts a fresh instance with these
+        // same settings (`Database`).
+        let settings = FirestoreSettings()
         settings.cacheSettings = PersistentCacheSettings()
-        Firestore.firestore().settings = settings
+        #if DEBUG
+        useLocalEmulators(settings)
+        #endif
+        Database.configure(settings)
 
         // Crash reports from release builds only: a crash while developing
         // is in front of you already.
@@ -28,4 +34,22 @@ public enum AppBootstrap {
         Crashlytics.crashlytics().setCrashlyticsCollectionEnabled(true)
         #endif
     }
+
+    #if DEBUG
+    /// Debug builds only: with `MYSETLISTS_EMULATORS=<host>` in the launch
+    /// environment, Auth uses the emulator at `<host>:9099` and Firestore the
+    /// one at `<host>:8080` (firebase.json's ports). With no Firestore
+    /// emulator running, Firestore just stays offline, so nothing touches
+    /// production. For trying sign-in, guests and the shell without real
+    /// accounts:
+    ///
+    ///   npx firebase emulators:start --only auth --project demo-native-auth
+    ///   SIMCTL_CHILD_MYSETLISTS_EMULATORS=127.0.0.1 xcrun simctl launch booted com.mysetlists.app
+    private static func useLocalEmulators(_ settings: FirestoreSettings) {
+        guard let host = ProcessInfo.processInfo.environment["MYSETLISTS_EMULATORS"], !host.isEmpty else { return }
+        Auth.auth().useEmulator(withHost: host, port: 9099)
+        settings.host = "\(host):8080"
+        settings.isSSLEnabled = false
+    }
+    #endif
 }
