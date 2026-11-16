@@ -72,6 +72,7 @@ public struct GuestUpgradeView: View {
 /// "possible" match moves only if the person picks it.
 public struct AdoptionView: View {
     @Environment(SessionStore.self) private var session
+    @Environment(ShowsStore.self) private var shows
     @State private var busy = false
     @State private var error: String?
     @State private var picked: Set<String> = []
@@ -130,11 +131,16 @@ public struct AdoptionView: View {
         }
     }
 
+    /// The guest's queued adds and song edits go to the server first, while
+    /// still signed in as the guest: after the switch nothing would send
+    /// them, and the server can only move what it has (STAGE2-AUDIT 3-c).
     private func start() {
         error = nil
         busy = true
         Task {
             defer { busy = false }
+            let left = await shows.sendQueued()
+            if left > 0 { self.error = LocalAccountData.unsentMessage(left); return }
             do { try await session.startAdoption() } catch { self.error = AuthFailure.from(error).message }
         }
     }
@@ -201,6 +207,9 @@ public struct DeleteAccountView: View {
 public struct AppRootView: View {
     @Environment(SessionStore.self) private var session
     @Environment(AppRouter.self) private var router
+    /// Here rather than in the shell, so the adoption sheet can send a
+    /// guest's queued adds and edits before the account switches.
+    @State private var shows = ShowsStore()
     public init() {}
 
     public var body: some View {
@@ -229,5 +238,6 @@ public struct AppRootView: View {
         .sheet(isPresented: Binding(get: { session.adoption != nil }, set: { if !$0 { session.cancelAdoption() } })) {
             AdoptionView()
         }
+        .environment(shows)
     }
 }

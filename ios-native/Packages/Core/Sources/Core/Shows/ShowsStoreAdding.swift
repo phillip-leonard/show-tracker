@@ -80,7 +80,7 @@ extension ShowsStore {
         guard let uid, api != nil else { return }
         guard !outboxFlushing else { outboxFlushAgain = true; return }
         outboxFlushing = true
-        Task { [weak self] in
+        outboxTask = Task { [weak self] in
             guard let self else { return }
             repeat {
                 self.outboxFlushAgain = false

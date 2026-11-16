@@ -4,6 +4,7 @@ import FirebaseCrashlytics
 import FirebaseFirestore
 import FirebaseMessaging
 import Foundation
+import os
 import GoogleSignIn
 import Observation
 import UIKit
@@ -363,8 +364,12 @@ public final class SessionStore {
             let failure = AuthFailure.from(error)
             guard failure == .credentialInUse || failure == .emailInUse else { throw failure }
             let ns = error as NSError
-            let signInCredential = (ns.userInfo[AuthErrorUserInfoUpdatedCredentialKey] as? AuthCredential) ?? credential
-            adoption = GuestAdoption(guestIdToken: guestToken, credential: signInCredential)
+            // Apple and Google: Firebase hands back an updated credential to
+            // sign in with. Email and password: keep the one typed in; an
+            // updated one carries no password, and signing in with it fails.
+            let updated = ns.userInfo[AuthErrorUserInfoUpdatedCredentialKey] as? AuthCredential
+            let signInCredential = credential.provider == EmailAuthProviderID ? credential : (updated ?? credential)
+            adoption = GuestAdoption(guestIdToken: guestToken, guestUid: guest.uid, credential: signInCredential)
             throw .credentialInUse
         }
     }
@@ -372,13 +377,26 @@ public final class SessionStore {
     /// Step 2 of the credential-in-use case: sign in to the existing account,
     /// then ask the server what moving the guest's shows would do. Nothing
     /// moves yet.
+    ///
+    /// Not while the guest has changes the server doesn't have yet (queued
+    /// adds or song edits): they're kept under the guest's uid, nothing
+    /// sends them after the switch, and the server can only move what it
+    /// has. The sheet sends them first (`ShowsStore.sendQueued`); this is
+    /// the check that nothing was left.
     public func startAdoption() async throws(AuthFailure) {
         guard var adoption else { return }
         guard let guestIdToken = adoption.guestIdToken else {
             self.adoption = nil
             throw .other("The guest session ended before its shows could be moved.")
         }
-        do { _ = try await Auth.auth().signIn(with: adoption.credential) } catch { throw AuthFailure.from(error) }
+        let unsent = LocalAccountData.unsentCount(uid: adoption.guestUid)
+        if unsent > 0 { throw .other(LocalAccountData.unsentMessage(unsent)) }
+        do { _ = try await Auth.auth().signIn(with: adoption.credential) } catch {
+            let ns = error as NSError
+            Logger(subsystem: "com.mysetlists.app", category: "Adoption")
+                .notice("adoption sign-in refused \(ns.domain, privacy: .public) \(ns.code, privacy: .public) provider \(adoption.credential.provider, privacy: .public)")
+            throw AuthFailure.from(error)
+        }
         do {
             adoption.preview = try await api.post(AdoptGuestShowsRequest.function,
                                                   AdoptGuestShowsRequest(mode: .preview, guestIdToken: guestIdToken),
@@ -395,11 +413,14 @@ public final class SessionStore {
     /// sheet can show the result; `cancelAdoption()` closes it. A retry is
     /// safe: moved shows come back as duplicates.
     public func commitAdoption(includePossible: [String]) async throws(AuthFailure) -> AdoptGuestShowsResult? {
-        guard let guestIdToken = adoption?.guestIdToken else { return nil }
+        guard let guestIdToken = adoption?.guestIdToken, let guestUid = adoption?.guestUid else { return nil }
         do {
-            return try await api.post(AdoptGuestShowsRequest.function,
-                                      AdoptGuestShowsRequest(mode: .commit, guestIdToken: guestIdToken, includePossible: includePossible),
-                                      as: AdoptGuestShowsResult.self)
+            let result = try await api.post(AdoptGuestShowsRequest.function,
+                                            AdoptGuestShowsRequest(mode: .commit, guestIdToken: guestIdToken, includePossible: includePossible),
+                                            as: AdoptGuestShowsResult.self)
+            // The guest account is gone; so is anything this phone kept for it.
+            LocalAccountData.forget(uid: guestUid, terms: termsRecord)
+            return result
         } catch {
             throw .other(error.message ?? "Your guest shows couldn't be moved.")
         }
@@ -490,13 +511,32 @@ public final class SessionStore {
             }
         }
         do {
-            try await api.post(DeleteAccountRequest.function, DeleteAccountRequest(appleAuthorizationCode: code))
+            // Longer than other calls: a large account takes a while to purge.
+            try await api.post(DeleteAccountRequest.function, DeleteAccountRequest(appleAuthorizationCode: code),
+                               timeout: Self.deletionTimeout)
         } catch {
-            throw .other(error.message ?? "Your account couldn't be deleted. Please try again.")
+            // A timeout or a 5xx isn't a "no": the server disables the
+            // account before it starts deleting, so ask Firebase whether
+            // it's gone before saying the deletion failed (STAGE2-AUDIT 3-b).
+            guard AccountDeletionCheck.mightHaveDeleted(error) else {
+                throw .other(error.message ?? "Your account couldn't be deleted. Please try again.")
+            }
+            switch await AccountDeletionCheck.check() {
+            case .gone: break
+            case .stillThere: throw .other("Your account couldn't be deleted. Please try again.")
+            case .unknown: throw .other("We couldn't confirm your account was deleted. Check your connection and try again; if it keeps failing, email \(Terms.supportEmail).")
+            }
         }
-        termsRecord.forget(uid: user.uid)
+        // The account's queued adds, song edits and terms record go with it
+        // (3-a), before and after sign-out, so a save racing the sign-out
+        // can't leave a file behind.
+        LocalAccountData.forget(uid: user.uid, terms: termsRecord)
         await signOut()
+        LocalAccountData.forget(uid: user.uid, terms: termsRecord)
     }
+
+    /// How long the deletion request may take (a large account's purge).
+    nonisolated static let deletionTimeout: Duration = .seconds(90)
 
     private func resetLocalState() {
         stopListening()
@@ -520,6 +560,9 @@ public struct GuestAdoption {
     /// Kept before switching accounts: proof the person holds the guest
     /// account. Valid for about an hour.
     public let guestIdToken: String?
+    /// The guest account, whose queued adds and edits must reach the server
+    /// before its shows move (`LocalAccountData`).
+    public let guestUid: String
     let credential: AuthCredential
     public var preview: AdoptGuestShowsPreview?
 }

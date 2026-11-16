@@ -10,9 +10,10 @@ import SwiftUI
 public struct AppShell: View {
     @Environment(AppRouter.self) private var router
     @Environment(SessionStore.self) private var session
-    /// The signed-in person's shows, live (Stage 1, Part 2). Shown only while
-    /// someone is signed in, so it stops with the shell.
-    @State private var shows = ShowsStore()
+    /// The signed-in person's shows, live (Stage 1, Part 2). Owned by
+    /// `AppRootView` (the adoption sheet sends a guest's queue through it);
+    /// started and stopped here, with the shell.
+    @Environment(ShowsStore.self) private var shows
 
     public init() {}
 
@@ -37,7 +38,6 @@ public struct AppShell: View {
         }
         .tabViewStyle(.sidebarAdaptable)
         .tint(.brand)
-        .environment(shows)
         .task(id: session.user?.uid) {
             if let uid = session.user?.uid { shows.start(uid: uid, api: session.api) } else { shows.stop() }
         }

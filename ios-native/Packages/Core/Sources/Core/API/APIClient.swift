@@ -42,9 +42,10 @@ public struct APIClient: Sendable {
 
     /// POST `body` to `/.netlify/functions/<function>` and decode the answer.
     public func post<Body: Encodable & Sendable, Response: Decodable & Sendable>(
-        _ function: String, _ body: Body, auth: Auth = .required, as: Response.Type = Response.self
+        _ function: String, _ body: Body, auth: Auth = .required, as: Response.Type = Response.self,
+        timeout: Duration = APIClient.defaultTimeout
     ) async throws(APIError) -> Response {
-        let data = try await send(function, body: body, auth: auth)
+        let data = try await send(function, body: body, auth: auth, timeout: timeout)
         do {
             return try JSONDecoder().decode(Response.self, from: data)
         } catch {
@@ -53,9 +54,13 @@ public struct APIClient: Sendable {
     }
 
     /// For functions whose answer the caller doesn't read.
-    public func post<Body: Encodable & Sendable>(_ function: String, _ body: Body, auth: Auth = .required) async throws(APIError) {
-        _ = try await send(function, body: body, auth: auth)
+    public func post<Body: Encodable & Sendable>(_ function: String, _ body: Body, auth: Auth = .required,
+                                                 timeout: Duration = APIClient.defaultTimeout) async throws(APIError) {
+        _ = try await send(function, body: body, auth: auth, timeout: timeout)
     }
+
+    /// How long a request may take before it's given up on.
+    public static let defaultTimeout: Duration = .seconds(30)
 
     /// GET `/.netlify/functions/<function>?<query>` (a read-only, cacheable
     /// function such as `setlist-source`) and decode the answer.
@@ -79,7 +84,8 @@ public struct APIClient: Sendable {
         }
     }
 
-    func send<Body: Encodable & Sendable>(_ function: String, body: Body, auth: Auth) async throws(APIError) -> Data {
+    func send<Body: Encodable & Sendable>(_ function: String, body: Body, auth: Auth,
+                                          timeout: Duration = APIClient.defaultTimeout) async throws(APIError) -> Data {
         let payload: Data
         do { payload = try JSONEncoder().encode(body) } catch { throw .invalidResponse("encoding \(function): \(error)") }
 
@@ -89,11 +95,11 @@ public struct APIClient: Sendable {
             if token == nil, auth == .required { throw .signInRequired(message: nil) }
         }
         do {
-            return try await perform(function, payload: payload, token: token)
+            return try await perform(function, payload: payload, token: token, timeout: timeout)
         } catch .signInRequired(let message) where token != nil {
             // Once, with a fresh token.
             guard let fresh = try await idToken(forceRefresh: true) else { throw .signInRequired(message: message) }
-            return try await perform(function, payload: payload, token: fresh)
+            return try await perform(function, payload: payload, token: fresh, timeout: timeout)
         }
     }
 
@@ -105,12 +111,13 @@ public struct APIClient: Sendable {
         }
     }
 
-    private func perform(_ function: String, payload: Data, token: String?) async throws(APIError) -> Data {
+    private func perform(_ function: String, payload: Data, token: String?, timeout: Duration) async throws(APIError) -> Data {
         try await perform(function, url: baseURL.appendingPathComponent(".netlify/functions/\(function)"),
-                          method: "POST", payload: payload, token: token)
+                          method: "POST", payload: payload, token: token, timeout: timeout)
     }
 
-    private func perform(_ function: String, url: URL, method: String, payload: Data?, token: String?) async throws(APIError) -> Data {
+    private func perform(_ function: String, url: URL, method: String, payload: Data?, token: String?,
+                         timeout: Duration = APIClient.defaultTimeout) async throws(APIError) -> Data {
         var request = URLRequest(url: url)
         request.httpMethod = method
         if let payload {
@@ -122,7 +129,7 @@ public struct APIClient: Sendable {
         // browser, but some functions check the origin they serve.
         request.setValue(APIClient.productionBaseURL.absoluteString, forHTTPHeaderField: "Origin")
         if let token { request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }
-        request.timeoutInterval = 30
+        request.timeoutInterval = Double(timeout.components.seconds) + Double(timeout.components.attoseconds) / 1e18
 
         let data: Data
         let response: URLResponse

@@ -53,6 +53,7 @@ public struct TermsGateView: View {
 /// terms gate.
 public struct SuspendedView: View {
     @Environment(SessionStore.self) private var session
+    @State private var showDelete = false
     public init() {}
 
     public var body: some View {
@@ -70,9 +71,19 @@ public struct SuspendedView: View {
             Button("Sign out") { Task { await session.signOut() } }
                 .buttonStyle(.bordered)
                 .frame(minHeight: 44)
+            // Deletion stays reachable (Guideline 5.1.1(v); Stage 2). A
+            // suspended account can't sign in again, so it works only while
+            // this session lasts; after that it goes through support.
+            Button("Delete my account", role: .destructive) { showDelete = true }
+                .frame(minHeight: 44)
+            Text("You can delete this account now, while you're still signed in. After you sign out, email [\(Terms.supportEmail)](mailto:\(Terms.supportEmail)) to delete it or to get a copy of your data.")
+                .font(.footnote)
+                .multilineTextAlignment(.center)
+                .foregroundStyle(.secondary)
         }
         .padding(24)
         .frame(maxWidth: 480)
+        .sheet(isPresented: $showDelete) { DeleteAccountView() }
     }
 }
 
