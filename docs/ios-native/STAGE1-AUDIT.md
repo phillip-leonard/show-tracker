@@ -221,3 +221,7 @@ Each from the latest `main`, each bumping the web version, the Capacitor `MARKET
 
 - Whether `SFSafariViewController` keeps a web sign-in between openings in this app (S-5). It should, since iOS 11 keeps website data per app, but check on a device before relying on it.
 - Phillip's own list order against the web: checked in Part 2's TestFlight steps, since the audit scripts don't print anything about a single account.
+
+## Follow-ups
+
+- **Offline song edits as a queue of edit operations** (after Part 3b, native 4.0.11). Today, a song edit made offline writes this device's whole setlist when it can't run its transaction (last write wins, as on the web), so a rating made on another device while this one was offline can be overwritten. Online, a slow transaction keeps retrying and never falls back. The fix: keep offline `SetlistEdit`s in a per-person file queue (like the add outbox, `ShowOutbox`), keyed by show. Rebuild the on-screen overlay from it at launch, and replay each edit as a transaction against the stored setlist on reconnect, in order. Every edit type is safe to apply twice under the `fixtures/setlist-edits/` rules, so a replay after a lost answer is harmless. The sign-out warning must count queued edits, as it will count queued adds (Part 4). Tests: replay order, the force-quit case, and two devices where one was offline (both ratings stick). Best built with Part 4's outbox, which needs the same file, flush and reconnect plumbing.

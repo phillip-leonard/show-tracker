@@ -1,3 +1,4 @@
+import FirebaseFirestore
 import Foundation
 import Testing
 @testable import Core
@@ -107,5 +108,34 @@ import Testing
         #expect(result.setlist.map { SetlistEdits.songId($0) } == ["b", "a"])
         #expect(result.setlist[1]["rating"] == .number(9))
         #expect(result.setlist[1]["set"] == .string("Encore"))
+    }
+}
+
+/// When a song edit's transaction fails: retry online (with backoff),
+/// write this device's copy only offline, stop on what retrying can't fix.
+@Suite struct SetlistSavePolicyTests {
+    static func firestore(_ code: Int) -> NSError { NSError(domain: FirestoreErrorDomain, code: code) }
+
+    @Test func onlineFailuresAreRetriedNeverReplacedByTheDeviceCopy() {
+        for code in [14, 4, 10, 8, 13, 2] { // unavailable, deadline exceeded, aborted, resource exhausted, internal, unknown
+            #expect(SetlistSavePolicy.next(after: Self.firestore(code), attempt: 1, online: true) == .retry(after: .seconds(1)), "code \(code)")
+        }
+        #expect(SetlistSavePolicy.next(after: URLError(.timedOut), attempt: 3, online: true) == .retry(after: .seconds(4)))
+    }
+
+    @Test func offlineWritesTheDeviceCopy() {
+        #expect(SetlistSavePolicy.next(after: Self.firestore(14), attempt: 1, online: false) == .writeDeviceCopy)
+    }
+
+    @Test func whatRetryingCantFixStops() {
+        for code in [3, 5, 7, 9, 16] {
+            #expect(SetlistSavePolicy.next(after: Self.firestore(code), attempt: 1, online: true) == .giveUp, "code \(code)")
+        }
+        #expect(SetlistSavePolicy.next(after: SetlistTransaction.Failure.unreadableSetlist, attempt: 1, online: false) == .giveUp,
+                "a setlist the app can't read is never overwritten, online or not")
+    }
+
+    @Test func backoffGrowsToThirtySeconds() {
+        #expect((1...8).map { SetlistSavePolicy.backoff(attempt: $0) } == [1, 2, 4, 8, 16, 30, 30, 30].map { .seconds($0) })
     }
 }

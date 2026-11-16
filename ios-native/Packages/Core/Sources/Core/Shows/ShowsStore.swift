@@ -345,32 +345,79 @@ public final class ShowsStore {
         return result
     }
 
+    /// Runs the edit's transaction until it lands. Online, a slow or failed
+    /// attempt is retried with backoff (`SetlistSavePolicy`), never replaced by
+    /// a whole-setlist write. If the phone goes offline before it lands, this
+    /// device's latest copy is written instead, queued by Firestore.
     private func commit(_ edit: SetlistEdit, deviceCopy: [JSONValue], ref: DocumentReference, showId: String, uid: String) async {
         defer { if self.uid == uid { finishSetlistEdit(showId: showId) } }
-        if Connectivity.shared.isOnline {
-            do {
-                _ = try await withDeadline(.seconds(10)) { try await SetlistTransaction.run(edit, on: ref) }
+        var attempt = 0
+        while self.uid == uid {
+            guard Connectivity.shared.isOnline else { writeDeviceCopy(showId: showId, fallback: deviceCopy, ref: ref, uid: uid); return }
+            attempt += 1
+            switch await Self.transactionOrOffline(edit, on: ref) {
+            case .landed:
                 return
-            } catch SetlistTransaction.Failure.unreadableSetlist {
-                // Writing this device's copy would lose what the app can't read.
-                writeProblem = "That change wasn't saved: this setlist has data the app can't read."
-                Self.log(SetlistTransaction.Failure.unreadableSetlist, stage: "setlist edit")
+            case .wentOffline:
+                // The attempt may still land once the phone is back; every edit
+                // is safe to apply twice (the fixtures' rules), so writing this
+                // device's copy now loses nothing.
+                writeDeviceCopy(showId: showId, fallback: deviceCopy, ref: ref, uid: uid)
                 return
-            } catch {
-                Self.log(error, stage: "setlist transaction")
+            case .failed(let error):
+                Self.log(error, stage: "setlist transaction attempt \(attempt)")
+                switch SetlistSavePolicy.next(after: error, attempt: attempt, online: Connectivity.shared.isOnline) {
+                case .retry(let delay):
+                    try? await Task.sleep(for: delay)
+                case .writeDeviceCopy:
+                    writeDeviceCopy(showId: showId, fallback: deviceCopy, ref: ref, uid: uid)
+                    return
+                case .giveUp:
+                    guard self.uid == uid else { return }
+                    writeProblem = error is SetlistTransaction.Failure
+                        ? "That change wasn't saved: this setlist has data the app can't read."
+                        : "That change wasn't saved. \(error.localizedDescription)"
+                    return
+                }
             }
         }
-        // Offline, or the transaction didn't finish: this device's copy.
-        // Not awaited: Firestore applies it to the cache now and sends it
-        // when it can.
+    }
+
+    enum Attempt { case landed, wentOffline, failed(Error) }
+
+    /// One transaction attempt, or `.wentOffline` as soon as the phone loses
+    /// its network path while it runs (a transaction can't finish offline).
+    static func transactionOrOffline(_ edit: SetlistEdit, on ref: DocumentReference) async -> Attempt {
+        let once = Once()
+        return await withCheckedContinuation { (continuation: CheckedContinuation<Attempt, Never>) in
+            let watch = Task { @MainActor in
+                await Connectivity.shared.waitUntilOffline()
+                if !Task.isCancelled, once.claim() { continuation.resume(returning: .wentOffline) }
+            }
+            Task { @MainActor in
+                let result: Attempt
+                do { _ = try await SetlistTransaction.run(edit, on: ref); result = .landed } catch { result = .failed(error) }
+                watch.cancel()
+                if once.claim() { continuation.resume(returning: result) }
+            }
+        }
+    }
+
+    /// Offline: this device's latest copy of the setlist (every edit made
+    /// so far), applied to the cache now and sent when the phone is back.
+    private func writeDeviceCopy(showId: String, fallback: [JSONValue], ref: DocumentReference, uid: String) {
+        let copy = pendingSetlists[showId]?.raw ?? fallback
         Task { [weak self] in
-            do { try await SetlistTransaction.writeDeviceCopy(deviceCopy, to: ref) } catch {
+            do { try await SetlistTransaction.writeDeviceCopy(copy, to: ref) } catch {
                 guard let self, self.uid == uid else { return }
                 self.writeProblem = "That change wasn't saved. \(error.localizedDescription)"
                 Self.log(error, stage: "setlist device copy")
             }
         }
     }
+
+    /// A song edit of this show hasn't landed yet ("Saving…").
+    public func isSavingSetlist(showId: String) -> Bool { (setlistInFlight[showId] ?? 0) > 0 }
 
     private func finishSetlistEdit(showId: String) {
         let left = (setlistInFlight[showId] ?? 1) - 1

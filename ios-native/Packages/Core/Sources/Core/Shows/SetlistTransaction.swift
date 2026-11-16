@@ -92,6 +92,42 @@ extension JSONValue {
     }
 }
 
+/// What to do after a transaction attempt fails (`ShowsStore` song edits).
+///
+/// Online, a slow or failed transaction is retried, with backoff, for as
+/// long as the phone stays online: this device's copy is never written over
+/// the stored setlist just because the server was slow. Only when the phone
+/// is offline is this device's copy written (queued by Firestore, last write
+/// wins). An error that retrying can't fix (no permission, the show is gone,
+/// a setlist the app can't read) stops it and says so.
+public enum SetlistSavePolicy {
+    public enum Next: Equatable, Sendable {
+        case retry(after: Duration)
+        case writeDeviceCopy
+        case giveUp
+    }
+
+    /// Firestore error codes that retrying won't fix: invalid argument (3),
+    /// not found (5), already exists (6), permission denied (7), failed
+    /// precondition (9), out of range (11), unimplemented (12), data loss
+    /// (15), unauthenticated (16).
+    static let permanentCodes: Set<Int> = [3, 5, 6, 7, 9, 11, 12, 15, 16]
+
+    /// After attempt number `attempt` (from 1) failed with `error`.
+    public static func next(after error: Error, attempt: Int, online: Bool) -> Next {
+        if case SetlistTransaction.Failure.unreadableSetlist? = error as? SetlistTransaction.Failure { return .giveUp }
+        guard online else { return .writeDeviceCopy }
+        let ns = error as NSError
+        if ns.domain == FirestoreErrorDomain, permanentCodes.contains(ns.code) { return .giveUp }
+        return .retry(after: backoff(attempt: attempt))
+    }
+
+    /// 1, 2, 4, 8, 16, then every 30 seconds.
+    public static func backoff(attempt: Int) -> Duration {
+        .seconds(min(30, 1 << min(max(attempt, 1) - 1, 5)))
+    }
+}
+
 /// Whether the phone has a network path: a transaction can't run offline,
 /// so a setlist edit goes straight to the device-copy write.
 @MainActor
@@ -99,6 +135,11 @@ public final class Connectivity {
     public static let shared = Connectivity()
     public private(set) var isOnline = true
     private let monitor = NWPathMonitor()
+
+    /// Returns once the phone has no network path (checked twice a second).
+    public func waitUntilOffline() async {
+        while isOnline, !Task.isCancelled { try? await Task.sleep(for: .milliseconds(500)) }
+    }
 
     private init() {
         monitor.pathUpdateHandler = { [weak self] path in

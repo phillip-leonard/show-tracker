@@ -478,9 +478,20 @@ struct SetlistSection: View {
                         .background(Color.surface, in: RoundedRectangle.brand(Radius.xl2))
                     }
                 }
-                Text("Tap a song to rate it · Long-press to edit")
-                    .font(.jakarta(size: 12, relativeTo: .caption))
-                    .foregroundStyle(Color.textMuted)
+                if store.isSavingSetlist(showId: show.id) {
+                    // Until the transaction lands; online it keeps retrying.
+                    HStack(spacing: Space.x2) {
+                        ProgressView().controlSize(.small)
+                        Text("Saving…")
+                    }
+                    .font(.jakarta(size: 12, weight: .semibold, relativeTo: .caption))
+                    .foregroundStyle(Color.textSecondary)
+                    .accessibilityElement(children: .combine)
+                } else {
+                    Text("Tap a song to rate it · Long-press to edit")
+                        .font(.jakarta(size: 12, relativeTo: .caption))
+                        .foregroundStyle(Color.textMuted)
+                }
             }
 
             HStack(spacing: Space.x3) {
