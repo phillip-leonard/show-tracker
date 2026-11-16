@@ -25,6 +25,9 @@ struct FriendsHome: View {
             }
         }
         .navigationTitle("Friends")
+        .toolbar {
+            ToolbarItem(placement: .topBarLeading) { NotificationsButton() }
+        }
         .sheet(isPresented: $showUpgrade) { GuestUpgradeView() }
     }
 }

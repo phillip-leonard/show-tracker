@@ -18,6 +18,9 @@ public enum AppRoute: Hashable, Sendable {
     /// Your shows for one band, song or venue, from Stats (Stage 2). Not a
     /// link target: nothing on the web opens it.
     case myShows(ShowsFilter)
+    /// The inbox (Stage 3, Part 4), on the Friends tab: `/notifications`,
+    /// and the link band-alert pushes carry.
+    case notifications
 }
 
 /// What opening a link does (FOUNDATION-AUDIT.md §1.4).
@@ -79,8 +82,10 @@ public extension DeepLink {
             if let user = value("user"), let year = value("year") { return .open(.stats, .yearInReview(user: user, year: year)) }
         case "/stats":
             return .open(.stats, nil)
-        case "/friends", "/notifications":
+        case "/friends":
             return .open(.friends, nil)
+        case "/notifications":
+            return .open(.friends, .notifications)
         case "/profile":
             return .open(.me, nil)
         case "/search":
@@ -113,6 +118,7 @@ public extension AppRoute {
         case .venue(let key): path = "/venues"; params.set("venue", key)
         case .yearInReview(let user, let year): path = "/year-in-review"; params.set("user", user); params.set("year", year)
         case .myShows: path = "/stats"
+        case .notifications: path = "/notifications"
         }
         return DeepLink.webURL(path: path, params: params)
     }
