@@ -13,6 +13,11 @@ import Observation
 /// - Loading always ends (`LiveLoad`, lib/liveShows.js): a deadline on the
 ///   first snapshot, then one read with a deadline of its own.
 /// - Guests are anonymous accounts with a uid, so this is the same for them.
+/// - Edits (Part 3a) write one field at a time (`ShowFieldEdit`), and a
+///   delete removes the document; the listener shows both at once, online
+///   or not (Firestore applies a write to the cache before the server has
+///   it). Each is followed by `recompute-my-stats`, debounced 3 s, as on
+///   the web.
 @MainActor
 @Observable
 public final class ShowsStore {
@@ -32,11 +37,21 @@ public final class ShowsStore {
     public private(set) var loadProblem: String?
     /// The last pull to refresh didn't reach the server.
     public private(set) var refreshProblem: String?
+    /// Shows added on this device that the server hasn't built yet
+    /// (`ShowOutbox`), oldest first.
+    public private(set) var queued: [QueuedShow] = []
+    /// The server refused the last edit or delete (it stays on screen until
+    /// the listener brings the stored value back).
+    public var writeProblem: String?
 
     private var showsLoad: LiveLoad<Snapshot<Show>>?
     private var upcomingLoad: LiveLoad<Snapshot<UpcomingShow>>?
     private var statsListener: ListenerRegistration?
     private var reportedDecodeFailure = false
+    private var api: APIClient?
+    private var sources: SetlistSourceCache?
+    private var recompute: Task<Void, Never>?
+    private var festivalNames: [String: String] = [:]
 
     struct Snapshot<T> {
         var items: [T]
@@ -46,11 +61,18 @@ public final class ShowsStore {
 
     public init() {}
 
-    /// Starts (or restarts, for a different person) the listeners.
-    public func start(uid: String) {
+    /// Starts (or restarts, for a different person) the listeners. `api`
+    /// is for the functions an edit calls (`recompute-my-stats`) and the
+    /// show page asks (`setlist-source`).
+    public func start(uid: String, api: APIClient? = nil) {
+        if let api {
+            self.api = api
+            if sources == nil { sources = SetlistSourceCache(api: api) }
+        }
         guard uid != self.uid else { return }
         stop()
         self.uid = uid
+        queued = ShowOutbox.load(uid: uid)
         Task { await attach(uid: uid) }
     }
 
@@ -68,9 +90,20 @@ public final class ShowsStore {
         fromCache = false
         loadProblem = nil
         refreshProblem = nil
+        queued = []
+        writeProblem = nil
+        festivalNames = [:]
+        recompute?.cancel(); recompute = nil
     }
 
     public func show(id: String) -> Show? { shows.first { $0.id == id } }
+
+    /// A show still in this device's outbox. Once the server has built it,
+    /// the stored show (same id) is the one to open.
+    public func queuedShow(id: String) -> QueuedShow? {
+        guard show(id: id) == nil else { return nil }
+        return queued.first { $0.showId == id }
+    }
     public func upcomingShow(id: String) -> UpcomingShow? { upcoming.first { $0.id == id } }
 
     // MARK: Listening
@@ -179,6 +212,99 @@ public final class ShowsStore {
         }
     }
 
+    // MARK: Editing
+
+    /// Writes one field of one show (`updateData` of that field only).
+    /// The listener has the new value at once; the server gets it when it
+    /// can (Firestore queues it offline, across a force-quit).
+    public func update(_ change: ShowFieldChange, showId: String) {
+        guard let uid else { return }
+        writeProblem = nil
+        Task {
+            let db = await Database.ready()
+            guard self.uid == uid else { return }
+            db.collection("users").document(uid).collection("shows").document(showId)
+                .updateData(change.firestoreData) { [weak self] error in
+                    guard let error else { return }
+                    MainActor.assumeIsolated {
+                        guard let self, self.uid == uid else { return }
+                        self.writeProblem = "That change wasn't saved. \(error.localizedDescription)"
+                        Self.log(error, stage: "update \(change.field.rawValue)")
+                    }
+                }
+        }
+        requestStatsRecompute()
+    }
+
+    /// Deletes the show document. The web also rewrites the legacy profile
+    /// counters; the native app never does (CLAUDE.md: nothing trusts them).
+    public func delete(showId: String) {
+        guard let uid else { return }
+        writeProblem = nil
+        Task {
+            let db = await Database.ready()
+            guard self.uid == uid else { return }
+            db.collection("users").document(uid).collection("shows").document(showId).delete { [weak self] error in
+                guard let error else { return }
+                MainActor.assumeIsolated {
+                    guard let self, self.uid == uid else { return }
+                    self.writeProblem = "The show wasn't deleted. \(error.localizedDescription)"
+                    Self.log(error, stage: "delete")
+                }
+            }
+        }
+        requestStatsRecompute()
+    }
+
+    /// `recompute-my-stats`, 3 s after the last change (the web's debounce),
+    /// so `userStats/{uid}` (and the header's numbers) follow. Offline it
+    /// fails quietly; the 6-hourly `community-stats` job catches up.
+    private func requestStatsRecompute() {
+        recompute?.cancel()
+        guard let api else { return }
+        recompute = Task {
+            try? await Task.sleep(for: .seconds(3))
+            guard !Task.isCancelled else { return }
+            do { try await api.post("recompute-my-stats", [String: String]()) } catch {
+                Self.log(error, stage: "recompute-my-stats")
+            }
+        }
+    }
+
+    // MARK: What the show page asks
+
+    /// `setlist-source` for this show's band, cached for the session.
+    public func setlistSource(for show: Show) async -> SetlistSourceAnswer? {
+        await sources?.answer(for: show)
+    }
+
+    /// The festival this show is part of, by name: the person's attendance
+    /// record (`users/{uid}/festivals/{festivalId}`) points at the shared
+    /// `festivals/{id}`, which holds the name; an older record has its own.
+    public func festivalName(for show: Show) async -> String? {
+        guard let uid, let festivalId = show.festivalId else { return show.festivalName }
+        if let known = festivalNames[festivalId] { return known }
+        let db = await Database.ready()
+        do {
+            let attendance = try await withDeadline(.seconds(10)) {
+                try await db.collection("users").document(uid).collection("festivals").document(festivalId).getDocument()
+            }
+            var name = attendance.data()?["name"] as? String
+            if let canonicalId = attendance.data()?["festivalId"] as? String, !canonicalId.isEmpty {
+                let canonical = try await withDeadline(.seconds(10)) {
+                    try await db.collection("festivals").document(canonicalId).getDocument()
+                }
+                name = (canonical.data()?["name"] as? String) ?? name
+            }
+            let found = name?.trimmingCharacters(in: .whitespaces)
+            guard self.uid == uid else { return nil }
+            if let found, !found.isEmpty { festivalNames[festivalId] = found; return found }
+        } catch {
+            Self.log(error, stage: "festival")
+        }
+        return show.festivalName
+    }
+
     // MARK: Reporting
 
     private func noteUndecodable(_ count: Int, collection: String) {
@@ -193,5 +319,29 @@ public final class ShowsStore {
 
     private static func log(_ error: Error, stage: String) {
         Crashlytics.crashlytics().log("ShowsStore \(stage): \(error.localizedDescription)")
+    }
+}
+
+extension ShowFieldChange {
+    /// The `updateData` payload: exactly one key.
+    public var firestoreData: [String: Any] {
+        switch self {
+        case .set(let field, let value): [field.rawValue: value.firestoreValue]
+        case .remove(let field): [field.rawValue: FieldValue.delete()]
+        }
+    }
+}
+
+extension JSONValue {
+    /// As Firestore stores it: whole numbers as integers.
+    var firestoreValue: Any {
+        switch self {
+        case .null: NSNull()
+        case .bool(let b): b
+        case .number(let n): n.rounded() == n && abs(n) < 9e15 ? Int(n) : n
+        case .string(let s): s
+        case .array(let a): a.map(\.firestoreValue)
+        case .object(let o): o.mapValues(\.firestoreValue)
+        }
     }
 }

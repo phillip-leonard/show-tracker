@@ -38,19 +38,13 @@ struct StatsHome: View {
     }
 }
 
+/// The system Search tab, until search is built: points to the Shows
+/// tab's own search field meanwhile.
 struct SearchHome: View {
-    @State private var query = ""
-
     var body: some View {
-        Group {
-            if query.isEmpty {
-                ContentUnavailableView("Search", systemImage: "magnifyingglass", description: Text("Bands, venues and songs."))
-            } else {
-                ContentUnavailableView.search(text: query)
-            }
-        }
-        .navigationTitle("Search")
-        .searchable(text: $query, prompt: "Bands, venues, songs")
+        ContentUnavailableView("Search", systemImage: "magnifyingglass",
+                               description: Text("Search is coming soon. Use the search field on Shows for now."))
+            .navigationTitle("Search")
     }
 }
 

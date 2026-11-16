@@ -1,0 +1,1373 @@
+{
+  "name": "fields",
+  "description": "lib/showFieldEdits.js showFieldEdit(field, value): the one-field write the native show page sends (updateData of that field only), and the stored show after it. `expected.edit` is { ok, set } | { ok, remove } | { ok: false, error }; `expected.show` is `show` with only that field changed (unchanged when refused). `remove` is Firestore's deleteField().",
+  "cases": [
+    {
+      "name": "rate the show",
+      "description": "Only `rating` is written.",
+      "show": {
+        "artist": "Goose",
+        "venue": "Red Rocks Amphitheatre",
+        "city": "Morrison",
+        "state": "CO",
+        "country": "US",
+        "date": "2026-06-12",
+        "tour": "Summer Tour",
+        "rating": 7,
+        "venueRating": 9,
+        "comment": "Rain all night",
+        "setlistSource": "elgoose",
+        "needsReview": false,
+        "setlist": [
+          {
+            "id": "s1",
+            "name": "Arcadia",
+            "set": "Set I",
+            "rating": 8,
+            "comment": "Huge jam"
+          },
+          {
+            "id": "s2",
+            "name": "Tumble",
+            "set": "Set I",
+            "transitionMark": ">"
+          }
+        ],
+        "populatedFrom": "admin"
+      },
+      "field": "rating",
+      "value": 9,
+      "expected": {
+        "edit": {
+          "ok": true,
+          "set": {
+            "rating": 9
+          }
+        },
+        "show": {
+          "artist": "Goose",
+          "venue": "Red Rocks Amphitheatre",
+          "city": "Morrison",
+          "state": "CO",
+          "country": "US",
+          "date": "2026-06-12",
+          "tour": "Summer Tour",
+          "rating": 9,
+          "venueRating": 9,
+          "comment": "Rain all night",
+          "setlistSource": "elgoose",
+          "needsReview": false,
+          "setlist": [
+            {
+              "id": "s1",
+              "name": "Arcadia",
+              "set": "Set I",
+              "rating": 8,
+              "comment": "Huge jam"
+            },
+            {
+              "id": "s2",
+              "name": "Tumble",
+              "set": "Set I",
+              "transitionMark": ">"
+            }
+          ],
+          "populatedFrom": "admin"
+        }
+      }
+    },
+    {
+      "name": "rate an unrated show",
+      "description": "",
+      "show": {
+        "artist": "Goose",
+        "venue": "Red Rocks Amphitheatre",
+        "city": "Morrison",
+        "state": "CO",
+        "country": "US",
+        "date": "2026-06-12",
+        "tour": "Summer Tour",
+        "setlistSource": "elgoose",
+        "needsReview": false,
+        "setlist": [
+          {
+            "id": "s1",
+            "name": "Arcadia",
+            "set": "Set I",
+            "rating": 8,
+            "comment": "Huge jam"
+          },
+          {
+            "id": "s2",
+            "name": "Tumble",
+            "set": "Set I",
+            "transitionMark": ">"
+          }
+        ],
+        "populatedFrom": "admin"
+      },
+      "field": "rating",
+      "value": 10,
+      "expected": {
+        "edit": {
+          "ok": true,
+          "set": {
+            "rating": 10
+          }
+        },
+        "show": {
+          "artist": "Goose",
+          "venue": "Red Rocks Amphitheatre",
+          "city": "Morrison",
+          "state": "CO",
+          "country": "US",
+          "date": "2026-06-12",
+          "tour": "Summer Tour",
+          "setlistSource": "elgoose",
+          "needsReview": false,
+          "setlist": [
+            {
+              "id": "s1",
+              "name": "Arcadia",
+              "set": "Set I",
+              "rating": 8,
+              "comment": "Huge jam"
+            },
+            {
+              "id": "s2",
+              "name": "Tumble",
+              "set": "Set I",
+              "transitionMark": ">"
+            }
+          ],
+          "populatedFrom": "admin",
+          "rating": 10
+        }
+      }
+    },
+    {
+      "name": "the lowest rating",
+      "description": "",
+      "show": {
+        "artist": "Goose",
+        "venue": "Red Rocks Amphitheatre",
+        "city": "Morrison",
+        "state": "CO",
+        "country": "US",
+        "date": "2026-06-12",
+        "tour": "Summer Tour",
+        "setlistSource": "elgoose",
+        "needsReview": false,
+        "setlist": [
+          {
+            "id": "s1",
+            "name": "Arcadia",
+            "set": "Set I",
+            "rating": 8,
+            "comment": "Huge jam"
+          },
+          {
+            "id": "s2",
+            "name": "Tumble",
+            "set": "Set I",
+            "transitionMark": ">"
+          }
+        ],
+        "populatedFrom": "admin"
+      },
+      "field": "rating",
+      "value": 1,
+      "expected": {
+        "edit": {
+          "ok": true,
+          "set": {
+            "rating": 1
+          }
+        },
+        "show": {
+          "artist": "Goose",
+          "venue": "Red Rocks Amphitheatre",
+          "city": "Morrison",
+          "state": "CO",
+          "country": "US",
+          "date": "2026-06-12",
+          "tour": "Summer Tour",
+          "setlistSource": "elgoose",
+          "needsReview": false,
+          "setlist": [
+            {
+              "id": "s1",
+              "name": "Arcadia",
+              "set": "Set I",
+              "rating": 8,
+              "comment": "Huge jam"
+            },
+            {
+              "id": "s2",
+              "name": "Tumble",
+              "set": "Set I",
+              "transitionMark": ">"
+            }
+          ],
+          "populatedFrom": "admin",
+          "rating": 1
+        }
+      }
+    },
+    {
+      "name": "clear the show rating",
+      "description": "Removed, not written as 0.",
+      "show": {
+        "artist": "Goose",
+        "venue": "Red Rocks Amphitheatre",
+        "city": "Morrison",
+        "state": "CO",
+        "country": "US",
+        "date": "2026-06-12",
+        "tour": "Summer Tour",
+        "rating": 7,
+        "venueRating": 9,
+        "comment": "Rain all night",
+        "setlistSource": "elgoose",
+        "needsReview": false,
+        "setlist": [
+          {
+            "id": "s1",
+            "name": "Arcadia",
+            "set": "Set I",
+            "rating": 8,
+            "comment": "Huge jam"
+          },
+          {
+            "id": "s2",
+            "name": "Tumble",
+            "set": "Set I",
+            "transitionMark": ">"
+          }
+        ],
+        "populatedFrom": "admin"
+      },
+      "field": "rating",
+      "value": null,
+      "expected": {
+        "edit": {
+          "ok": true,
+          "remove": [
+            "rating"
+          ]
+        },
+        "show": {
+          "artist": "Goose",
+          "venue": "Red Rocks Amphitheatre",
+          "city": "Morrison",
+          "state": "CO",
+          "country": "US",
+          "date": "2026-06-12",
+          "tour": "Summer Tour",
+          "venueRating": 9,
+          "comment": "Rain all night",
+          "setlistSource": "elgoose",
+          "needsReview": false,
+          "setlist": [
+            {
+              "id": "s1",
+              "name": "Arcadia",
+              "set": "Set I",
+              "rating": 8,
+              "comment": "Huge jam"
+            },
+            {
+              "id": "s2",
+              "name": "Tumble",
+              "set": "Set I",
+              "transitionMark": ">"
+            }
+          ],
+          "populatedFrom": "admin"
+        }
+      }
+    },
+    {
+      "name": "clear the show rating with 0",
+      "description": "The web's picker sends 0 for its blank option.",
+      "show": {
+        "artist": "Goose",
+        "venue": "Red Rocks Amphitheatre",
+        "city": "Morrison",
+        "state": "CO",
+        "country": "US",
+        "date": "2026-06-12",
+        "tour": "Summer Tour",
+        "rating": 7,
+        "venueRating": 9,
+        "comment": "Rain all night",
+        "setlistSource": "elgoose",
+        "needsReview": false,
+        "setlist": [
+          {
+            "id": "s1",
+            "name": "Arcadia",
+            "set": "Set I",
+            "rating": 8,
+            "comment": "Huge jam"
+          },
+          {
+            "id": "s2",
+            "name": "Tumble",
+            "set": "Set I",
+            "transitionMark": ">"
+          }
+        ],
+        "populatedFrom": "admin"
+      },
+      "field": "rating",
+      "value": 0,
+      "expected": {
+        "edit": {
+          "ok": true,
+          "remove": [
+            "rating"
+          ]
+        },
+        "show": {
+          "artist": "Goose",
+          "venue": "Red Rocks Amphitheatre",
+          "city": "Morrison",
+          "state": "CO",
+          "country": "US",
+          "date": "2026-06-12",
+          "tour": "Summer Tour",
+          "venueRating": 9,
+          "comment": "Rain all night",
+          "setlistSource": "elgoose",
+          "needsReview": false,
+          "setlist": [
+            {
+              "id": "s1",
+              "name": "Arcadia",
+              "set": "Set I",
+              "rating": 8,
+              "comment": "Huge jam"
+            },
+            {
+              "id": "s2",
+              "name": "Tumble",
+              "set": "Set I",
+              "transitionMark": ">"
+            }
+          ],
+          "populatedFrom": "admin"
+        }
+      }
+    },
+    {
+      "name": "a rating above 10 is refused",
+      "description": "",
+      "show": {
+        "artist": "Goose",
+        "venue": "Red Rocks Amphitheatre",
+        "city": "Morrison",
+        "state": "CO",
+        "country": "US",
+        "date": "2026-06-12",
+        "tour": "Summer Tour",
+        "rating": 7,
+        "venueRating": 9,
+        "comment": "Rain all night",
+        "setlistSource": "elgoose",
+        "needsReview": false,
+        "setlist": [
+          {
+            "id": "s1",
+            "name": "Arcadia",
+            "set": "Set I",
+            "rating": 8,
+            "comment": "Huge jam"
+          },
+          {
+            "id": "s2",
+            "name": "Tumble",
+            "set": "Set I",
+            "transitionMark": ">"
+          }
+        ],
+        "populatedFrom": "admin"
+      },
+      "field": "rating",
+      "value": 11,
+      "expected": {
+        "edit": {
+          "ok": false,
+          "error": "bad-rating"
+        },
+        "show": {
+          "artist": "Goose",
+          "venue": "Red Rocks Amphitheatre",
+          "city": "Morrison",
+          "state": "CO",
+          "country": "US",
+          "date": "2026-06-12",
+          "tour": "Summer Tour",
+          "rating": 7,
+          "venueRating": 9,
+          "comment": "Rain all night",
+          "setlistSource": "elgoose",
+          "needsReview": false,
+          "setlist": [
+            {
+              "id": "s1",
+              "name": "Arcadia",
+              "set": "Set I",
+              "rating": 8,
+              "comment": "Huge jam"
+            },
+            {
+              "id": "s2",
+              "name": "Tumble",
+              "set": "Set I",
+              "transitionMark": ">"
+            }
+          ],
+          "populatedFrom": "admin"
+        }
+      }
+    },
+    {
+      "name": "a fractional rating is refused",
+      "description": "",
+      "show": {
+        "artist": "Goose",
+        "venue": "Red Rocks Amphitheatre",
+        "city": "Morrison",
+        "state": "CO",
+        "country": "US",
+        "date": "2026-06-12",
+        "tour": "Summer Tour",
+        "rating": 7,
+        "venueRating": 9,
+        "comment": "Rain all night",
+        "setlistSource": "elgoose",
+        "needsReview": false,
+        "setlist": [
+          {
+            "id": "s1",
+            "name": "Arcadia",
+            "set": "Set I",
+            "rating": 8,
+            "comment": "Huge jam"
+          },
+          {
+            "id": "s2",
+            "name": "Tumble",
+            "set": "Set I",
+            "transitionMark": ">"
+          }
+        ],
+        "populatedFrom": "admin"
+      },
+      "field": "rating",
+      "value": 7.5,
+      "expected": {
+        "edit": {
+          "ok": false,
+          "error": "bad-rating"
+        },
+        "show": {
+          "artist": "Goose",
+          "venue": "Red Rocks Amphitheatre",
+          "city": "Morrison",
+          "state": "CO",
+          "country": "US",
+          "date": "2026-06-12",
+          "tour": "Summer Tour",
+          "rating": 7,
+          "venueRating": 9,
+          "comment": "Rain all night",
+          "setlistSource": "elgoose",
+          "needsReview": false,
+          "setlist": [
+            {
+              "id": "s1",
+              "name": "Arcadia",
+              "set": "Set I",
+              "rating": 8,
+              "comment": "Huge jam"
+            },
+            {
+              "id": "s2",
+              "name": "Tumble",
+              "set": "Set I",
+              "transitionMark": ">"
+            }
+          ],
+          "populatedFrom": "admin"
+        }
+      }
+    },
+    {
+      "name": "a rating as text is refused",
+      "description": "",
+      "show": {
+        "artist": "Goose",
+        "venue": "Red Rocks Amphitheatre",
+        "city": "Morrison",
+        "state": "CO",
+        "country": "US",
+        "date": "2026-06-12",
+        "tour": "Summer Tour",
+        "rating": 7,
+        "venueRating": 9,
+        "comment": "Rain all night",
+        "setlistSource": "elgoose",
+        "needsReview": false,
+        "setlist": [
+          {
+            "id": "s1",
+            "name": "Arcadia",
+            "set": "Set I",
+            "rating": 8,
+            "comment": "Huge jam"
+          },
+          {
+            "id": "s2",
+            "name": "Tumble",
+            "set": "Set I",
+            "transitionMark": ">"
+          }
+        ],
+        "populatedFrom": "admin"
+      },
+      "field": "rating",
+      "value": "8",
+      "expected": {
+        "edit": {
+          "ok": false,
+          "error": "bad-rating"
+        },
+        "show": {
+          "artist": "Goose",
+          "venue": "Red Rocks Amphitheatre",
+          "city": "Morrison",
+          "state": "CO",
+          "country": "US",
+          "date": "2026-06-12",
+          "tour": "Summer Tour",
+          "rating": 7,
+          "venueRating": 9,
+          "comment": "Rain all night",
+          "setlistSource": "elgoose",
+          "needsReview": false,
+          "setlist": [
+            {
+              "id": "s1",
+              "name": "Arcadia",
+              "set": "Set I",
+              "rating": 8,
+              "comment": "Huge jam"
+            },
+            {
+              "id": "s2",
+              "name": "Tumble",
+              "set": "Set I",
+              "transitionMark": ">"
+            }
+          ],
+          "populatedFrom": "admin"
+        }
+      }
+    },
+    {
+      "name": "rate the venue",
+      "description": "Only `venueRating` is written.",
+      "show": {
+        "artist": "Goose",
+        "venue": "Red Rocks Amphitheatre",
+        "city": "Morrison",
+        "state": "CO",
+        "country": "US",
+        "date": "2026-06-12",
+        "tour": "Summer Tour",
+        "rating": 7,
+        "venueRating": 9,
+        "comment": "Rain all night",
+        "setlistSource": "elgoose",
+        "needsReview": false,
+        "setlist": [
+          {
+            "id": "s1",
+            "name": "Arcadia",
+            "set": "Set I",
+            "rating": 8,
+            "comment": "Huge jam"
+          },
+          {
+            "id": "s2",
+            "name": "Tumble",
+            "set": "Set I",
+            "transitionMark": ">"
+          }
+        ],
+        "populatedFrom": "admin"
+      },
+      "field": "venueRating",
+      "value": 6,
+      "expected": {
+        "edit": {
+          "ok": true,
+          "set": {
+            "venueRating": 6
+          }
+        },
+        "show": {
+          "artist": "Goose",
+          "venue": "Red Rocks Amphitheatre",
+          "city": "Morrison",
+          "state": "CO",
+          "country": "US",
+          "date": "2026-06-12",
+          "tour": "Summer Tour",
+          "rating": 7,
+          "venueRating": 6,
+          "comment": "Rain all night",
+          "setlistSource": "elgoose",
+          "needsReview": false,
+          "setlist": [
+            {
+              "id": "s1",
+              "name": "Arcadia",
+              "set": "Set I",
+              "rating": 8,
+              "comment": "Huge jam"
+            },
+            {
+              "id": "s2",
+              "name": "Tumble",
+              "set": "Set I",
+              "transitionMark": ">"
+            }
+          ],
+          "populatedFrom": "admin"
+        }
+      }
+    },
+    {
+      "name": "clear the venue rating",
+      "description": "",
+      "show": {
+        "artist": "Goose",
+        "venue": "Red Rocks Amphitheatre",
+        "city": "Morrison",
+        "state": "CO",
+        "country": "US",
+        "date": "2026-06-12",
+        "tour": "Summer Tour",
+        "rating": 7,
+        "venueRating": 9,
+        "comment": "Rain all night",
+        "setlistSource": "elgoose",
+        "needsReview": false,
+        "setlist": [
+          {
+            "id": "s1",
+            "name": "Arcadia",
+            "set": "Set I",
+            "rating": 8,
+            "comment": "Huge jam"
+          },
+          {
+            "id": "s2",
+            "name": "Tumble",
+            "set": "Set I",
+            "transitionMark": ">"
+          }
+        ],
+        "populatedFrom": "admin"
+      },
+      "field": "venueRating",
+      "value": null,
+      "expected": {
+        "edit": {
+          "ok": true,
+          "remove": [
+            "venueRating"
+          ]
+        },
+        "show": {
+          "artist": "Goose",
+          "venue": "Red Rocks Amphitheatre",
+          "city": "Morrison",
+          "state": "CO",
+          "country": "US",
+          "date": "2026-06-12",
+          "tour": "Summer Tour",
+          "rating": 7,
+          "comment": "Rain all night",
+          "setlistSource": "elgoose",
+          "needsReview": false,
+          "setlist": [
+            {
+              "id": "s1",
+              "name": "Arcadia",
+              "set": "Set I",
+              "rating": 8,
+              "comment": "Huge jam"
+            },
+            {
+              "id": "s2",
+              "name": "Tumble",
+              "set": "Set I",
+              "transitionMark": ">"
+            }
+          ],
+          "populatedFrom": "admin"
+        }
+      }
+    },
+    {
+      "name": "a venue rating of 0 clears it",
+      "description": "",
+      "show": {
+        "artist": "Goose",
+        "venue": "Red Rocks Amphitheatre",
+        "city": "Morrison",
+        "state": "CO",
+        "country": "US",
+        "date": "2026-06-12",
+        "tour": "Summer Tour",
+        "setlistSource": "elgoose",
+        "needsReview": false,
+        "setlist": [
+          {
+            "id": "s1",
+            "name": "Arcadia",
+            "set": "Set I",
+            "rating": 8,
+            "comment": "Huge jam"
+          },
+          {
+            "id": "s2",
+            "name": "Tumble",
+            "set": "Set I",
+            "transitionMark": ">"
+          }
+        ],
+        "populatedFrom": "admin"
+      },
+      "field": "venueRating",
+      "value": 0,
+      "expected": {
+        "edit": {
+          "ok": true,
+          "remove": [
+            "venueRating"
+          ]
+        },
+        "show": {
+          "artist": "Goose",
+          "venue": "Red Rocks Amphitheatre",
+          "city": "Morrison",
+          "state": "CO",
+          "country": "US",
+          "date": "2026-06-12",
+          "tour": "Summer Tour",
+          "setlistSource": "elgoose",
+          "needsReview": false,
+          "setlist": [
+            {
+              "id": "s1",
+              "name": "Arcadia",
+              "set": "Set I",
+              "rating": 8,
+              "comment": "Huge jam"
+            },
+            {
+              "id": "s2",
+              "name": "Tumble",
+              "set": "Set I",
+              "transitionMark": ">"
+            }
+          ],
+          "populatedFrom": "admin"
+        }
+      }
+    },
+    {
+      "name": "write the show's note",
+      "description": "Trimmed at both ends; the line break inside stays.",
+      "show": {
+        "artist": "Goose",
+        "venue": "Red Rocks Amphitheatre",
+        "city": "Morrison",
+        "state": "CO",
+        "country": "US",
+        "date": "2026-06-12",
+        "tour": "Summer Tour",
+        "rating": 7,
+        "venueRating": 9,
+        "comment": "Rain all night",
+        "setlistSource": "elgoose",
+        "needsReview": false,
+        "setlist": [
+          {
+            "id": "s1",
+            "name": "Arcadia",
+            "set": "Set I",
+            "rating": 8,
+            "comment": "Huge jam"
+          },
+          {
+            "id": "s2",
+            "name": "Tumble",
+            "set": "Set I",
+            "transitionMark": ">"
+          }
+        ],
+        "populatedFrom": "admin"
+      },
+      "field": "comment",
+      "value": "  Best Arcadia ever.\nSat in the rain.  ",
+      "expected": {
+        "edit": {
+          "ok": true,
+          "set": {
+            "comment": "Best Arcadia ever.\nSat in the rain."
+          }
+        },
+        "show": {
+          "artist": "Goose",
+          "venue": "Red Rocks Amphitheatre",
+          "city": "Morrison",
+          "state": "CO",
+          "country": "US",
+          "date": "2026-06-12",
+          "tour": "Summer Tour",
+          "rating": 7,
+          "venueRating": 9,
+          "comment": "Best Arcadia ever.\nSat in the rain.",
+          "setlistSource": "elgoose",
+          "needsReview": false,
+          "setlist": [
+            {
+              "id": "s1",
+              "name": "Arcadia",
+              "set": "Set I",
+              "rating": 8,
+              "comment": "Huge jam"
+            },
+            {
+              "id": "s2",
+              "name": "Tumble",
+              "set": "Set I",
+              "transitionMark": ">"
+            }
+          ],
+          "populatedFrom": "admin"
+        }
+      }
+    },
+    {
+      "name": "a note on a show without one",
+      "description": "",
+      "show": {
+        "artist": "Goose",
+        "venue": "Red Rocks Amphitheatre",
+        "city": "Morrison",
+        "state": "CO",
+        "country": "US",
+        "date": "2026-06-12",
+        "tour": "Summer Tour",
+        "setlistSource": "elgoose",
+        "needsReview": false,
+        "setlist": [
+          {
+            "id": "s1",
+            "name": "Arcadia",
+            "set": "Set I",
+            "rating": 8,
+            "comment": "Huge jam"
+          },
+          {
+            "id": "s2",
+            "name": "Tumble",
+            "set": "Set I",
+            "transitionMark": ">"
+          }
+        ],
+        "populatedFrom": "admin"
+      },
+      "field": "comment",
+      "value": "First time at Red Rocks",
+      "expected": {
+        "edit": {
+          "ok": true,
+          "set": {
+            "comment": "First time at Red Rocks"
+          }
+        },
+        "show": {
+          "artist": "Goose",
+          "venue": "Red Rocks Amphitheatre",
+          "city": "Morrison",
+          "state": "CO",
+          "country": "US",
+          "date": "2026-06-12",
+          "tour": "Summer Tour",
+          "setlistSource": "elgoose",
+          "needsReview": false,
+          "setlist": [
+            {
+              "id": "s1",
+              "name": "Arcadia",
+              "set": "Set I",
+              "rating": 8,
+              "comment": "Huge jam"
+            },
+            {
+              "id": "s2",
+              "name": "Tumble",
+              "set": "Set I",
+              "transitionMark": ">"
+            }
+          ],
+          "populatedFrom": "admin",
+          "comment": "First time at Red Rocks"
+        }
+      }
+    },
+    {
+      "name": "clear the note",
+      "description": "",
+      "show": {
+        "artist": "Goose",
+        "venue": "Red Rocks Amphitheatre",
+        "city": "Morrison",
+        "state": "CO",
+        "country": "US",
+        "date": "2026-06-12",
+        "tour": "Summer Tour",
+        "rating": 7,
+        "venueRating": 9,
+        "comment": "Rain all night",
+        "setlistSource": "elgoose",
+        "needsReview": false,
+        "setlist": [
+          {
+            "id": "s1",
+            "name": "Arcadia",
+            "set": "Set I",
+            "rating": 8,
+            "comment": "Huge jam"
+          },
+          {
+            "id": "s2",
+            "name": "Tumble",
+            "set": "Set I",
+            "transitionMark": ">"
+          }
+        ],
+        "populatedFrom": "admin"
+      },
+      "field": "comment",
+      "value": "",
+      "expected": {
+        "edit": {
+          "ok": true,
+          "remove": [
+            "comment"
+          ]
+        },
+        "show": {
+          "artist": "Goose",
+          "venue": "Red Rocks Amphitheatre",
+          "city": "Morrison",
+          "state": "CO",
+          "country": "US",
+          "date": "2026-06-12",
+          "tour": "Summer Tour",
+          "rating": 7,
+          "venueRating": 9,
+          "setlistSource": "elgoose",
+          "needsReview": false,
+          "setlist": [
+            {
+              "id": "s1",
+              "name": "Arcadia",
+              "set": "Set I",
+              "rating": 8,
+              "comment": "Huge jam"
+            },
+            {
+              "id": "s2",
+              "name": "Tumble",
+              "set": "Set I",
+              "transitionMark": ">"
+            }
+          ],
+          "populatedFrom": "admin"
+        }
+      }
+    },
+    {
+      "name": "a note of spaces clears it",
+      "description": "",
+      "show": {
+        "artist": "Goose",
+        "venue": "Red Rocks Amphitheatre",
+        "city": "Morrison",
+        "state": "CO",
+        "country": "US",
+        "date": "2026-06-12",
+        "tour": "Summer Tour",
+        "rating": 7,
+        "venueRating": 9,
+        "comment": "Rain all night",
+        "setlistSource": "elgoose",
+        "needsReview": false,
+        "setlist": [
+          {
+            "id": "s1",
+            "name": "Arcadia",
+            "set": "Set I",
+            "rating": 8,
+            "comment": "Huge jam"
+          },
+          {
+            "id": "s2",
+            "name": "Tumble",
+            "set": "Set I",
+            "transitionMark": ">"
+          }
+        ],
+        "populatedFrom": "admin"
+      },
+      "field": "comment",
+      "value": "   \n ",
+      "expected": {
+        "edit": {
+          "ok": true,
+          "remove": [
+            "comment"
+          ]
+        },
+        "show": {
+          "artist": "Goose",
+          "venue": "Red Rocks Amphitheatre",
+          "city": "Morrison",
+          "state": "CO",
+          "country": "US",
+          "date": "2026-06-12",
+          "tour": "Summer Tour",
+          "rating": 7,
+          "venueRating": 9,
+          "setlistSource": "elgoose",
+          "needsReview": false,
+          "setlist": [
+            {
+              "id": "s1",
+              "name": "Arcadia",
+              "set": "Set I",
+              "rating": 8,
+              "comment": "Huge jam"
+            },
+            {
+              "id": "s2",
+              "name": "Tumble",
+              "set": "Set I",
+              "transitionMark": ">"
+            }
+          ],
+          "populatedFrom": "admin"
+        }
+      }
+    },
+    {
+      "name": "a null note clears it",
+      "description": "",
+      "show": {
+        "artist": "Goose",
+        "venue": "Red Rocks Amphitheatre",
+        "city": "Morrison",
+        "state": "CO",
+        "country": "US",
+        "date": "2026-06-12",
+        "tour": "Summer Tour",
+        "rating": 7,
+        "venueRating": 9,
+        "comment": "Rain all night",
+        "setlistSource": "elgoose",
+        "needsReview": false,
+        "setlist": [
+          {
+            "id": "s1",
+            "name": "Arcadia",
+            "set": "Set I",
+            "rating": 8,
+            "comment": "Huge jam"
+          },
+          {
+            "id": "s2",
+            "name": "Tumble",
+            "set": "Set I",
+            "transitionMark": ">"
+          }
+        ],
+        "populatedFrom": "admin"
+      },
+      "field": "comment",
+      "value": null,
+      "expected": {
+        "edit": {
+          "ok": true,
+          "remove": [
+            "comment"
+          ]
+        },
+        "show": {
+          "artist": "Goose",
+          "venue": "Red Rocks Amphitheatre",
+          "city": "Morrison",
+          "state": "CO",
+          "country": "US",
+          "date": "2026-06-12",
+          "tour": "Summer Tour",
+          "rating": 7,
+          "venueRating": 9,
+          "setlistSource": "elgoose",
+          "needsReview": false,
+          "setlist": [
+            {
+              "id": "s1",
+              "name": "Arcadia",
+              "set": "Set I",
+              "rating": 8,
+              "comment": "Huge jam"
+            },
+            {
+              "id": "s2",
+              "name": "Tumble",
+              "set": "Set I",
+              "transitionMark": ">"
+            }
+          ],
+          "populatedFrom": "admin"
+        }
+      }
+    },
+    {
+      "name": "a note that isn't text is refused",
+      "description": "",
+      "show": {
+        "artist": "Goose",
+        "venue": "Red Rocks Amphitheatre",
+        "city": "Morrison",
+        "state": "CO",
+        "country": "US",
+        "date": "2026-06-12",
+        "tour": "Summer Tour",
+        "rating": 7,
+        "venueRating": 9,
+        "comment": "Rain all night",
+        "setlistSource": "elgoose",
+        "needsReview": false,
+        "setlist": [
+          {
+            "id": "s1",
+            "name": "Arcadia",
+            "set": "Set I",
+            "rating": 8,
+            "comment": "Huge jam"
+          },
+          {
+            "id": "s2",
+            "name": "Tumble",
+            "set": "Set I",
+            "transitionMark": ">"
+          }
+        ],
+        "populatedFrom": "admin"
+      },
+      "field": "comment",
+      "value": 5,
+      "expected": {
+        "edit": {
+          "ok": false,
+          "error": "bad-text"
+        },
+        "show": {
+          "artist": "Goose",
+          "venue": "Red Rocks Amphitheatre",
+          "city": "Morrison",
+          "state": "CO",
+          "country": "US",
+          "date": "2026-06-12",
+          "tour": "Summer Tour",
+          "rating": 7,
+          "venueRating": 9,
+          "comment": "Rain all night",
+          "setlistSource": "elgoose",
+          "needsReview": false,
+          "setlist": [
+            {
+              "id": "s1",
+              "name": "Arcadia",
+              "set": "Set I",
+              "rating": 8,
+              "comment": "Huge jam"
+            },
+            {
+              "id": "s2",
+              "name": "Tumble",
+              "set": "Set I",
+              "transitionMark": ">"
+            }
+          ],
+          "populatedFrom": "admin"
+        }
+      }
+    },
+    {
+      "name": "any other field is refused",
+      "description": "Field edits are rating, venueRating and comment only; the setlist goes through lib/setlistEdits.js.",
+      "show": {
+        "artist": "Goose",
+        "venue": "Red Rocks Amphitheatre",
+        "city": "Morrison",
+        "state": "CO",
+        "country": "US",
+        "date": "2026-06-12",
+        "tour": "Summer Tour",
+        "rating": 7,
+        "venueRating": 9,
+        "comment": "Rain all night",
+        "setlistSource": "elgoose",
+        "needsReview": false,
+        "setlist": [
+          {
+            "id": "s1",
+            "name": "Arcadia",
+            "set": "Set I",
+            "rating": 8,
+            "comment": "Huge jam"
+          },
+          {
+            "id": "s2",
+            "name": "Tumble",
+            "set": "Set I",
+            "transitionMark": ">"
+          }
+        ],
+        "populatedFrom": "admin"
+      },
+      "field": "setlist",
+      "value": [],
+      "expected": {
+        "edit": {
+          "ok": false,
+          "error": "bad-field"
+        },
+        "show": {
+          "artist": "Goose",
+          "venue": "Red Rocks Amphitheatre",
+          "city": "Morrison",
+          "state": "CO",
+          "country": "US",
+          "date": "2026-06-12",
+          "tour": "Summer Tour",
+          "rating": 7,
+          "venueRating": 9,
+          "comment": "Rain all night",
+          "setlistSource": "elgoose",
+          "needsReview": false,
+          "setlist": [
+            {
+              "id": "s1",
+              "name": "Arcadia",
+              "set": "Set I",
+              "rating": 8,
+              "comment": "Huge jam"
+            },
+            {
+              "id": "s2",
+              "name": "Tumble",
+              "set": "Set I",
+              "transitionMark": ">"
+            }
+          ],
+          "populatedFrom": "admin"
+        }
+      }
+    },
+    {
+      "name": "the date is refused",
+      "description": "",
+      "show": {
+        "artist": "Goose",
+        "venue": "Red Rocks Amphitheatre",
+        "city": "Morrison",
+        "state": "CO",
+        "country": "US",
+        "date": "2026-06-12",
+        "tour": "Summer Tour",
+        "rating": 7,
+        "venueRating": 9,
+        "comment": "Rain all night",
+        "setlistSource": "elgoose",
+        "needsReview": false,
+        "setlist": [
+          {
+            "id": "s1",
+            "name": "Arcadia",
+            "set": "Set I",
+            "rating": 8,
+            "comment": "Huge jam"
+          },
+          {
+            "id": "s2",
+            "name": "Tumble",
+            "set": "Set I",
+            "transitionMark": ">"
+          }
+        ],
+        "populatedFrom": "admin"
+      },
+      "field": "date",
+      "value": "2026-06-13",
+      "expected": {
+        "edit": {
+          "ok": false,
+          "error": "bad-field"
+        },
+        "show": {
+          "artist": "Goose",
+          "venue": "Red Rocks Amphitheatre",
+          "city": "Morrison",
+          "state": "CO",
+          "country": "US",
+          "date": "2026-06-12",
+          "tour": "Summer Tour",
+          "rating": 7,
+          "venueRating": 9,
+          "comment": "Rain all night",
+          "setlistSource": "elgoose",
+          "needsReview": false,
+          "setlist": [
+            {
+              "id": "s1",
+              "name": "Arcadia",
+              "set": "Set I",
+              "rating": 8,
+              "comment": "Huge jam"
+            },
+            {
+              "id": "s2",
+              "name": "Tumble",
+              "set": "Set I",
+              "transitionMark": ">"
+            }
+          ],
+          "populatedFrom": "admin"
+        }
+      }
+    }
+  ]
+}

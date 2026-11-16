@@ -44,6 +44,28 @@ public struct APIClient: Sendable {
         _ = try await send(function, body: body, auth: auth)
     }
 
+    /// GET `/.netlify/functions/<function>?<query>` (a read-only, cacheable
+    /// function such as `setlist-source`) and decode the answer.
+    public func get<Response: Decodable & Sendable>(
+        _ function: String, query: [String: String], auth: Auth = .none, as: Response.Type = Response.self
+    ) async throws(APIError) -> Response {
+        var token: String?
+        if auth != .none {
+            token = try await idToken(forceRefresh: false)
+            if token == nil, auth == .required { throw .signInRequired(message: nil) }
+        }
+        var components = URLComponents(url: baseURL.appendingPathComponent(".netlify/functions/\(function)"), resolvingAgainstBaseURL: false)
+        // Sorted, so the same question is the same URL (and the same CDN cache entry).
+        components?.queryItems = query.sorted { $0.key < $1.key }.map { URLQueryItem(name: $0.key, value: $0.value) }
+        guard let url = components?.url else { throw .invalidResponse("\(function): bad query") }
+        let data = try await perform(function, url: url, method: "GET", payload: nil, token: token)
+        do {
+            return try JSONDecoder().decode(Response.self, from: data)
+        } catch {
+            throw .invalidResponse("\(function): \(error)")
+        }
+    }
+
     func send<Body: Encodable & Sendable>(_ function: String, body: Body, auth: Auth) async throws(APIError) -> Data {
         let payload: Data
         do { payload = try JSONEncoder().encode(body) } catch { throw .invalidResponse("encoding \(function): \(error)") }
@@ -71,10 +93,17 @@ public struct APIClient: Sendable {
     }
 
     private func perform(_ function: String, payload: Data, token: String?) async throws(APIError) -> Data {
-        var request = URLRequest(url: baseURL.appendingPathComponent(".netlify/functions/\(function)"))
-        request.httpMethod = "POST"
-        request.httpBody = payload
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        try await perform(function, url: baseURL.appendingPathComponent(".netlify/functions/\(function)"),
+                          method: "POST", payload: payload, token: token)
+    }
+
+    private func perform(_ function: String, url: URL, method: String, payload: Data?, token: String?) async throws(APIError) -> Data {
+        var request = URLRequest(url: url)
+        request.httpMethod = method
+        if let payload {
+            request.httpBody = payload
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        }
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         // Functions answer CORS for the website's origin; the app is not a
         // browser, but some functions check the origin they serve.

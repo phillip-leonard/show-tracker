@@ -58,6 +58,9 @@ public struct Show: Decodable, Identifiable, Hashable, Sendable {
     public var needsReview: Bool?
     public var needsReviewReason: ReviewReason?
     public var setlistProposal: SetlistProposal?
+    /// The Archive backfill switched the credit with no song changed
+    /// (admin-resync-setlists): the show page says so once.
+    public var setlistSourceChange: SourceChange?
 
     // Server bookkeeping
     public var normalizedVersion: Int?
@@ -71,8 +74,8 @@ public struct Show: Decodable, Identifiable, Hashable, Sendable {
              artistMbid, isManual, createdAt, rating, comment, venueRating, festivalId, festivalName,
              isFestival, taggedBy, taggedByUid, taggedFriendUids, archivalAudioPick, migratedFromLocal,
              setlistSource, sourceShowId, sourcePermalink, setlistNotes, setlistFetchedAt,
-             sourceLicenseUrl, needsReview, needsReviewReason, setlistProposal, normalizedVersion,
-             needsNormalization
+             sourceLicenseUrl, needsReview, needsReviewReason, setlistProposal, setlistSourceChange,
+             normalizedVersion, needsNormalization
     }
 
     /// Fields documents carry that the app doesn't read. Listed so the
@@ -80,7 +83,7 @@ public struct Show: Decodable, Identifiable, Hashable, Sendable {
     public static let ignoredFields: Set<String> = [
         "artistImage", "posterCheckedQuick", "posterCheckedDeep", "posterUrl", "posterSource",
         "posterSourceUrl", "importedByAdmin", "dateNormalizedFrom", "setlistScanAt",
-        "setlistFetchAttempted", "populatedAt",
+        "setlistFetchAttempted", "populatedAt", "populatedFrom",
     ]
 
     public init(from decoder: Decoder) throws {
@@ -119,6 +122,7 @@ public struct Show: Decodable, Identifiable, Hashable, Sendable {
         needsReview = try c.flag(.needsReview)
         needsReviewReason = try c.decodeIfPresent(ReviewReason.self, forKey: .needsReviewReason)
         setlistProposal = try c.decodeIfPresent(SetlistProposal.self, forKey: .setlistProposal)
+        setlistSourceChange = try c.decodeIfPresent(SourceChange.self, forKey: .setlistSourceChange)
         normalizedVersion = try c.decodeIfPresent(Int.self, forKey: .normalizedVersion)
         needsNormalization = try c.flag(.needsNormalization)
     }
@@ -179,6 +183,23 @@ public struct Song: Decodable, Identifiable, Hashable, Sendable {
         songSlug = try c.optionalText(.songSlug)
         sourceOpener = try c.flag(.sourceOpener)
         notInSource = try c.flag(.notInSource)
+    }
+}
+
+/// A change of the setlist's credit (`setlistSourceChange`): from one
+/// source to another, and whether any song changed.
+public struct SourceChange: Decodable, Hashable, Sendable {
+    public var from: String?
+    public var to: String?
+    public var songsChanged: Bool?
+
+    enum CodingKeys: String, CodingKey { case from, to, songsChanged }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        from = try c.optionalText(.from)
+        to = try c.optionalText(.to)
+        songsChanged = try c.flag(.songsChanged)
     }
 }
 

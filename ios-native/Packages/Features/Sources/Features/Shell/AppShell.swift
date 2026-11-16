@@ -39,7 +39,7 @@ public struct AppShell: View {
         .tint(.brand)
         .environment(shows)
         .task(id: session.user?.uid) {
-            if let uid = session.user?.uid { shows.start(uid: uid) } else { shows.stop() }
+            if let uid = session.user?.uid { shows.start(uid: uid, api: session.api) } else { shows.stop() }
         }
         .onDisappear { shows.stop() }
         .sheet(item: $router.web) { page in
@@ -75,7 +75,7 @@ struct RouteScreen: View {
 
     var body: some View {
         switch route {
-        case .show(let id): ShowDetailPlaceholder(id: id)
+        case .show(let id): ShowDetailScreen(id: id)
         case .upcomingShow(let id): UpcomingDetailPlaceholder(id: id)
         default: RoutePlaceholder(route: route)
         }

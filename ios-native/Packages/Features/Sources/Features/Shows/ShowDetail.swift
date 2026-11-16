@@ -1,0 +1,637 @@
+import Core
+import DesignSystem
+import SwiftUI
+
+/// Where `/shows/?show=<id>` and a row lead (Stage 1, Part 3a): the show
+/// page, a show still waiting to sync, or "Show not found". Waits for the
+/// shows to load, which always ends (`ShowsStore`).
+struct ShowDetailScreen: View {
+    @Environment(ShowsStore.self) private var store
+    let id: String
+    /// Deleted from this screen: it is closing, so don't say "not found".
+    @State private var deleted = false
+
+    var body: some View {
+        Group {
+            if let show = store.show(id: id) {
+                ShowDetailView(show: show) { deleted = true }
+            } else if let queued = store.queuedShow(id: id) {
+                QueuedShowDetail(entry: queued)
+            } else if deleted {
+                Color.clear
+            } else if !store.showsLoaded {
+                ProgressView("Loading the show")
+            } else {
+                ContentUnavailableView {
+                    Label("Show not found", systemImage: "music.mic")
+                } description: {
+                    Text("It may have been deleted, or it belongs to another account.")
+                }
+            }
+        }
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+// MARK: - The show page
+
+/// The show page, as the Stage 1 mockup lays it out: the header, your
+/// ratings and note, the setlist by set, the source's notes and credit.
+/// The ratings and the note are each one field written on its own
+/// (`ShowFieldEdit`); the setlist is read-only until Part 3b, and the
+/// re-sync button shows what it will do (`setlist-source`) without doing
+/// it yet.
+struct ShowDetailView: View {
+    @Environment(ShowsStore.self) private var store
+    @Environment(SessionStore.self) private var session
+    @Environment(\.dismiss) private var dismiss
+    let show: Show
+    let onDelete: () -> Void
+
+    @State private var source: SetlistSourceAnswer?
+    @State private var festival: String?
+    @State private var editingNote = false
+    @State private var confirmingDelete = false
+    @State private var showingResync = false
+
+    private var isGuest: Bool { session.user?.isAnonymous == true }
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: Space.x5) {
+                ShowHeader(date: show.date, tour: show.tour, artist: show.artist, venue: show.venue,
+                           city: show.city, state: show.state, festival: festival)
+                YourRatingsCard(show: show, editNote: { editingNote = true })
+                SetlistSection(show: show, source: source)
+            }
+            .padding(.horizontal, Space.x5)
+            .padding(.top, Space.x2)
+            .padding(.bottom, Space.x8)
+            // A readable column on a wide iPad window (layout follows width).
+            .frame(maxWidth: 720, alignment: .leading)
+            .frame(maxWidth: .infinity)
+        }
+        .navigationTitle(show.artist)
+        .toolbar {
+            // The header carries the band; the title stays for VoiceOver and the back stack.
+            ToolbarItem(placement: .principal) { Text("").accessibilityHidden(true) }
+            if let resync = source?.resync, resync.offered, let label = resync.label {
+                ToolbarItem(placement: .primaryAction) {
+                    Button { showingResync = true } label: { Label(label, systemImage: "arrow.triangle.2.circlepath") }
+                }
+            }
+            ToolbarItem(placement: .primaryAction) { moreMenu }
+        }
+        .sheet(isPresented: $editingNote) {
+            NoteEditor(note: show.comment ?? "") { text in
+                store.update(ShowFieldEdit.comment(text), showId: show.id)
+            }
+        }
+        .alert(source?.resync.label ?? "Re-sync", isPresented: $showingResync) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text([source?.resync.hint, "Re-syncing starts working in the next TestFlight build."].compactMap { $0 }.joined(separator: "\n\n"))
+        }
+        .alert("Not saved", isPresented: Binding(get: { store.writeProblem != nil }, set: { if !$0 { store.writeProblem = nil } })) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(store.writeProblem ?? "")
+        }
+        .task(id: SetlistSourceAnswer.query(for: show)) { source = await store.setlistSource(for: show) }
+        .task(id: show.festivalId) { festival = await store.festivalName(for: show) }
+    }
+
+    private var moreMenu: some View {
+        Menu {
+            if !isGuest, let url = URL(string: "https://mysetlists.net/shows/?show=\(show.id)") {
+                // The show's page on the web: the owner and their friends can open it.
+                ShareLink(item: url, subject: Text(show.artist), message: Text(describe(show))) {
+                    Label("Share", systemImage: "square.and.arrow.up")
+                }
+            }
+            Button(role: .destructive) { confirmingDelete = true } label: {
+                Label("Delete show", systemImage: "trash")
+            }
+        } label: {
+            Label("More", systemImage: "ellipsis")
+        }
+        // Anchored to the button it came from (a popover on iPad and iOS 26).
+        .confirmationDialog("Delete this show?", isPresented: $confirmingDelete, titleVisibility: .visible) {
+            Button("Delete show", role: .destructive) {
+                onDelete()
+                dismiss()
+                store.delete(showId: show.id)
+            }
+        } message: {
+            Text("\(describe(show)), with its setlist, ratings and note. This can't be undone.")
+        }
+    }
+
+    private func describe(_ show: Show) -> String {
+        let band = show.artist.isEmpty ? "This show" : show.artist
+        let at = show.venue.isEmpty ? "" : " at \(show.venue)"
+        return "\(band)\(at), \(ShowDateText.display(show.date))"
+    }
+}
+
+// MARK: - Header
+
+/// "SAT, NOV 8, 2026 · FALL TOUR", the band, the venue and city, and the
+/// festival it was part of.
+struct ShowHeader: View {
+    let date: String
+    let tour: String?
+    let artist: String
+    let venue: String
+    let city: String
+    let state: String?
+    let festival: String?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Space.x1) {
+            Text(kicker)
+                .font(.jakarta(size: 13, weight: .bold, relativeTo: .footnote))
+                .tracking(0.4)
+                .foregroundStyle(Color.amber)
+            Text(artist.isEmpty ? "Unknown band" : artist)
+                .font(.jakarta(size: 30, weight: .heavy, relativeTo: .largeTitle))
+                .foregroundStyle(Color.textPrimary)
+                .accessibilityAddTraits(.isHeader)
+            if !place.isEmpty {
+                Text(place)
+                    .font(.jakarta(size: 15, relativeTo: .subheadline))
+                    .foregroundStyle(Color.textSecondary)
+            }
+            if let festival {
+                Label(festival, systemImage: "tent")
+                    .font(.jakarta(size: 13, weight: .semibold, relativeTo: .footnote))
+                    .foregroundStyle(Color.amber)
+                    .padding(.horizontal, Space.x3)
+                    .padding(.vertical, Space.x1)
+                    .background(Color.amberSubtle, in: Capsule())
+                    .padding(.top, Space.x1)
+                    .accessibilityLabel("Part of \(festival)")
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var kicker: String {
+        let day = ShowDateText.date(date).map { $0.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day().year()) }
+            ?? (date.isEmpty ? "No date" : date)
+        return [day, tour].compactMap { $0 }.joined(separator: " · ").uppercased()
+    }
+
+    /// "Red Rocks Amphitheatre · Morrison, CO".
+    private var place: String {
+        var town = city.trimmingCharacters(in: .whitespaces)
+        if let state = state?.trimmingCharacters(in: .whitespaces), !state.isEmpty, !town.hasSuffix(state) {
+            town = town.isEmpty ? state : "\(town), \(state)"
+        }
+        return [venue.trimmingCharacters(in: .whitespaces), town].filter { !$0.isEmpty }.joined(separator: " · ")
+    }
+}
+
+// MARK: - Ratings and note
+
+/// Your show rating, venue rating and note: each changes one field.
+struct YourRatingsCard: View {
+    @Environment(ShowsStore.self) private var store
+    let show: Show
+    let editNote: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Space.x3) {
+            HStack(alignment: .center) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Your show rating")
+                        .font(.jakarta(size: 13, relativeTo: .footnote))
+                        .foregroundStyle(Color.textSecondary)
+                    RatingFigure(rating: show.rating, size: 22)
+                }
+                Spacer()
+                RatingMenu(title: "Show rating", rating: show.rating) { rate(.rating, $0) }
+            }
+            Divider().overlay(Color.borderSubtle)
+            HStack {
+                Text("Venue rating")
+                    .font(.jakarta(size: 15, weight: .medium, relativeTo: .body))
+                    .foregroundStyle(Color.textPrimary)
+                Spacer()
+                RatingFigure(rating: show.venueRating, size: 15)
+                RatingMenu(title: "Venue rating", rating: show.venueRating) { rate(.venueRating, $0) }
+            }
+            Divider().overlay(Color.borderSubtle)
+            note
+        }
+        .brandCard(radius: Radius.xl2)
+    }
+
+    @ViewBuilder private var note: some View {
+        if let comment = show.comment {
+            Button(action: editNote) {
+                HStack(alignment: .top, spacing: Space.x2) {
+                    Image(systemName: "text.bubble").foregroundStyle(Color.textMuted)
+                    Text(comment)
+                        .italic()
+                        .font(.jakarta(size: 15, relativeTo: .body))
+                        .foregroundStyle(Color.textSecondary)
+                        .multilineTextAlignment(.leading)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Your note: \(comment)")
+            .accessibilityHint("Edit your note")
+        } else {
+            Button(action: editNote) {
+                Label("Add a note", systemImage: "square.and.pencil")
+                    .font(.jakarta(size: 15, weight: .semibold, relativeTo: .body))
+                    .frame(minHeight: TouchTarget.minimum)
+            }
+            .tint(.brand)
+        }
+    }
+
+    private func rate(_ field: ShowField, _ value: Int?) {
+        // 1–10 or nil from the menu: never refused.
+        if case .success(let change) = ShowFieldEdit.rating(field, value) {
+            store.update(change, showId: show.id)
+        }
+    }
+}
+
+/// "★ 8/10" in amber, or "Not rated".
+struct RatingFigure: View {
+    let rating: Int?
+    let size: CGFloat
+
+    var body: some View {
+        if let rating {
+            Text("★ \(rating)/10")
+                .font(.jakarta(size: size, weight: .bold, relativeTo: size > 18 ? .title3 : .body))
+                .monospacedDigit()
+                .foregroundStyle(Color.amber)
+        } else {
+            Text("Not rated")
+                .font(.jakarta(size: size > 18 ? 17 : 15, relativeTo: .body))
+                .foregroundStyle(Color.textMuted)
+        }
+    }
+}
+
+/// A 1–10 picker for one rating, with "No rating" to clear it.
+struct RatingMenu: View {
+    let title: String
+    let rating: Int?
+    let onChange: (Int?) -> Void
+
+    var body: some View {
+        Menu {
+            Picker(title, selection: Binding(get: { rating }, set: { onChange($0) })) {
+                ForEach((1...10).reversed(), id: \.self) { n in Text("\(n)").tag(Int?.some(n)) }
+                Text("No rating").tag(Int?.none)
+            }
+            .pickerStyle(.inline)
+        } label: {
+            Text(rating == nil ? "Rate" : "Change")
+                .font(.jakarta(size: 13, weight: .semibold, relativeTo: .footnote))
+                .padding(.horizontal, Space.x3)
+                .frame(minHeight: 36)
+                .overlay(Capsule().strokeBorder(Color.borderActive))
+                .contentShape(Capsule())
+        }
+        .frame(minHeight: TouchTarget.minimum)
+        .tint(.textPrimary)
+        .accessibilityLabel(title)
+        .accessibilityValue(rating.map { "\($0) out of 10" } ?? "Not rated")
+    }
+}
+
+/// The show's note (`comment`): saved as typed, trimmed; empty removes it.
+struct NoteEditor: View {
+    @Environment(\.dismiss) private var dismiss
+    @State private var text: String
+    @FocusState private var focused: Bool
+    let original: String
+    let onSave: (String) -> Void
+
+    init(note: String, onSave: @escaping (String) -> Void) {
+        _text = State(initialValue: note)
+        original = note
+        self.onSave = onSave
+    }
+
+    var body: some View {
+        NavigationStack {
+            TextEditor(text: $text)
+                .font(.jakarta(size: 17, relativeTo: .body))
+                .focused($focused)
+                .scrollContentBackground(.hidden)
+                .padding(Space.x4)
+                .overlay(alignment: .topLeading) {
+                    if text.isEmpty {
+                        Text("What do you want to remember about this show?")
+                            .font(.jakarta(size: 17, relativeTo: .body))
+                            .foregroundStyle(Color.textMuted)
+                            .padding(.horizontal, Space.x5)
+                            .padding(.vertical, Space.x6)
+                            .allowsHitTesting(false)
+                    }
+                }
+                .brandBackground()
+                .navigationTitle(original.isEmpty ? "Add a note" : "Your note")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Save") {
+                            if text.trimmingCharacters(in: .whitespacesAndNewlines) != original { onSave(text) }
+                            dismiss()
+                        }
+                    }
+                }
+                .onAppear { focused = true }
+        }
+        .presentationDetents([.medium, .large])
+    }
+}
+
+// MARK: - Setlist
+
+/// The setlist by set and encore (read-only in 3a), the source's notes,
+/// and its credit.
+struct SetlistSection: View {
+    let show: Show
+    let source: SetlistSourceAnswer?
+
+    var body: some View {
+        let groups = SetGroups.group(show.setlist)
+        VStack(alignment: .leading, spacing: Space.x4) {
+            if show.setlistProposal?.status == "pending" {
+                Notice(title: "A setlist is waiting for your review",
+                       text: "A setlist from \(sourceName(show.setlistProposal?.source)) was found for this show. Reviewing it here comes in the next TestFlight build.",
+                       symbol: "tray.and.arrow.down", tint: .amber)
+            }
+            if show.needsReview == true, show.setlistSource == "archive" {
+                Notice(title: "Check this setlist",
+                       text: "The Internet Archive's recordings of this show don't agree on the setlist, so one was picked.",
+                       symbol: "exclamationmark.bubble", tint: .amber)
+            }
+
+            if groups.isEmpty {
+                VStack(alignment: .leading, spacing: Space.x2) {
+                    Text("No setlist yet")
+                        .font(.jakarta(size: 15, weight: .semibold, relativeTo: .body))
+                        .foregroundStyle(Color.textPrimary)
+                    if let hint = source?.resync.offered == true ? source?.resync.hint : nil {
+                        Text(hint).font(.jakarta(size: 13, relativeTo: .footnote)).foregroundStyle(Color.textSecondary)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .brandCard(radius: Radius.xl2)
+            } else {
+                let numbers = Self.numbers(groups)
+                ForEach(groups) { group in
+                    VStack(alignment: .leading, spacing: Space.x2) {
+                        Text(group.label.uppercased())
+                            .font(.jakarta(size: 13, weight: .bold, relativeTo: .footnote))
+                            .tracking(0.8)
+                            .foregroundStyle(Color.brandLight)
+                            .accessibilityAddTraits(.isHeader)
+                        VStack(spacing: 0) {
+                            ForEach(Array(group.songs.enumerated()), id: \.offset) { index, song in
+                                SongRow(number: numbers[song.id] ?? index + 1, song: song)
+                                if index < group.songs.count - 1 { Divider().overlay(Color.borderSubtle) }
+                            }
+                        }
+                        .padding(.vertical, Space.x1)
+                        .padding(.horizontal, Space.x3)
+                        .background(Color.surface, in: RoundedRectangle.brand(Radius.xl2))
+                    }
+                }
+            }
+
+            if let notes = show.setlistNotes {
+                Text(notes)
+                    .font(.jakarta(size: 13, relativeTo: .footnote))
+                    .foregroundStyle(Color.textSecondary)
+                    .padding(Space.x3)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color.surfaceHover, in: RoundedRectangle.brand(Radius.lg))
+            }
+
+            SetlistCredit(show: show, source: source)
+        }
+    }
+
+    /// Songs are numbered through the whole show, in playing order.
+    static func numbers(_ groups: [SetGroups.Group]) -> [String: Int] {
+        var out: [String: Int] = [:]
+        var n = 0
+        for song in groups.flatMap(\.songs) {
+            n += 1
+            if out[song.id] == nil { out[song.id] = n }
+        }
+        return out
+    }
+
+    private func sourceName(_ id: String?) -> String {
+        if id == "archive" { return "the Internet Archive" }
+        return source?.source.label ?? "the band's archive"
+    }
+}
+
+/// One song: its number, title and segue mark, a cover's original artist,
+/// a band source's footnote, jam chart and debut marks, and your rating
+/// and comment (shown, not changed, until Part 3b).
+struct SongRow: View {
+    let number: Int
+    let song: Song
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: Space.x3) {
+            Text("\(number)")
+                .font(.jakarta(size: 13, relativeTo: .footnote))
+                .monospacedDigit()
+                .foregroundStyle(Color.textMuted)
+                .frame(minWidth: 20, alignment: .trailing)
+            VStack(alignment: .leading, spacing: 2) {
+                (Text(song.name.isEmpty ? "Untitled" : song.name).foregroundStyle(Color.textPrimary)
+                 + Text(segue.map { " \($0)" } ?? "").foregroundStyle(Color.brandLight).fontWeight(.bold))
+                    .font(.jakarta(size: 15, weight: .medium, relativeTo: .body))
+                let marks = self.marks
+                if !marks.isEmpty {
+                    Text(marks.joined(separator: " · "))
+                        .font(.jakarta(size: 12, relativeTo: .caption))
+                        .foregroundStyle(Color.textMuted)
+                }
+                if let footnote = song.footnote, !footnote.isEmpty {
+                    Text(footnote)
+                        .font(.jakarta(size: 12, relativeTo: .caption))
+                        .foregroundStyle(Color.textSecondary)
+                }
+                if let comment = song.comment {
+                    Text(comment)
+                        .italic()
+                        .font(.jakarta(size: 12, relativeTo: .caption))
+                        .foregroundStyle(Color.textSecondary)
+                }
+            }
+            Spacer(minLength: Space.x2)
+            if let rating = song.rating {
+                Text("★ \(rating)")
+                    .font(.jakarta(size: 13, weight: .bold, relativeTo: .footnote))
+                    .monospacedDigit()
+                    .foregroundStyle(Color.amber)
+            }
+        }
+        .padding(.vertical, Space.x2)
+        .frame(minHeight: TouchTarget.minimum)
+        .accessibilityElement(children: .combine)
+    }
+
+    /// A segue to the next song: the mark the band source recorded ('>' and
+    /// '->' differ to the people who keep these archives), or '>'.
+    private var segue: String? {
+        guard song.tape == true else { return nil }
+        if let mark = song.transitionMark, !mark.isEmpty { return mark }
+        return ">"
+    }
+
+    private var marks: [String] {
+        var out: [String] = []
+        if let cover = song.cover { out.append("\(cover) cover") }
+        if song.debut == true { out.append("Debut") }
+        if song.jamchart == true { out.append(song.jamchartNote.map { "Jam chart: \($0)" } ?? "Jam chart") }
+        if song.manuallyAdded == true { out.append("Added by you") }
+        return out
+    }
+}
+
+/// The setlist's source, linked: setlist.fm's terms require it wherever its
+/// data is shown; band archives are volunteer-run and get the same credit.
+struct SetlistCredit: View {
+    let show: Show
+    let source: SetlistSourceAnswer?
+
+    static let setlistfmHome = URL(string: "https://www.setlist.fm/")!
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Space.x1) {
+            if let fm = setlistfm {
+                credit("Source: ", link: fm.text, url: fm.url)
+            } else if let band = bandSource {
+                if show.setlistSource == "archive" {
+                    credit("Setlist from a tape on ", link: "the \(band.label)", url: band.url,
+                           after: "\(show.sourceShowId.map { ", recording \($0)" } ?? ""). Tape setlists can be incomplete.")
+                } else {
+                    credit("Setlist via ", link: band.label, url: band.url)
+                }
+            }
+            if let change = show.setlistSourceChange, show.setlistSource == "archive", change.to == "archive", change.songsChanged == false {
+                let was = change.from.flatMap { $0 == "archive" ? nil : $0 }
+                Text("Now sourced from the Internet Archive\(was.map { " (was \(label(for: $0)))" } ?? ""). The songs didn't change.")
+                    .font(.jakarta(size: 12, relativeTo: .caption))
+                    .foregroundStyle(Color.textMuted)
+            }
+        }
+    }
+
+    /// A sentence with the source's name linked (opened in Safari).
+    private func credit(_ before: String, link: String, url: URL?, after: String = "") -> some View {
+        var name = AttributedString(link)
+        if let url {
+            name.link = url
+            name.underlineStyle = .single
+        }
+        return Text(AttributedString(before) + name + AttributedString(after))
+            .font(.jakarta(size: 12, relativeTo: .caption))
+            .foregroundStyle(Color.textMuted)
+            .tint(Color.textSecondary)
+    }
+
+    /// A setlist.fm show: a setlist.fm id and no band source (an absent
+    /// source means setlist.fm; shows before 5.33.0 have none).
+    private var setlistfm: (text: String, url: URL)? {
+        guard show.setlistfmId != nil, show.setlistSource == nil || show.setlistSource == "setlistfm" else { return nil }
+        let stored = show.setlistfmUrl.flatMap(URL.init(string:))
+        let url = stored.flatMap { ["setlist.fm", "www.setlist.fm"].contains($0.host?.lowercased() ?? "") && $0.scheme == "https" ? $0 : nil }
+        return (show.artist.isEmpty ? "setlist on setlist.fm" : "\(show.artist) setlist on setlist.fm", url ?? Self.setlistfmHome)
+    }
+
+    /// A band source's name and the show's own page there.
+    private var bandSource: (label: String, url: URL?)? {
+        guard let id = show.setlistSource, id != "setlistfm", !show.setlist.isEmpty else { return nil }
+        var url = show.sourcePermalink.flatMap(URL.init(string:))
+        if url == nil, id == "archive", let item = show.sourceShowId,
+           let encoded = item.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) {
+            url = URL(string: "https://archive.org/details/\(encoded)")
+        }
+        if url == nil { url = source?.stored?.homeUrl.flatMap(URL.init(string:)) }
+        return (label(for: id), url)
+    }
+
+    private func label(for id: String) -> String {
+        if let stored = source?.stored, stored.id == id { return stored.label }
+        switch id {
+        case "archive": return "Internet Archive"
+        case "setlistfm": return "setlist.fm"
+        default: return id
+        }
+    }
+}
+
+/// A boxed message above the setlist.
+struct Notice: View {
+    let title: String
+    let text: String
+    let symbol: String
+    let tint: Color
+
+    var body: some View {
+        HStack(alignment: .top, spacing: Space.x3) {
+            Image(systemName: symbol).foregroundStyle(tint).imageScale(.large)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.jakarta(size: 15, weight: .semibold, relativeTo: .body))
+                    .foregroundStyle(Color.textPrimary)
+                Text(text)
+                    .font(.jakarta(size: 13, relativeTo: .footnote))
+                    .foregroundStyle(Color.textSecondary)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(Space.x3)
+        .background(Color.surfaceHover, in: RoundedRectangle.brand(Radius.xl))
+        .accessibilityElement(children: .combine)
+    }
+}
+
+// MARK: - Waiting to sync
+
+/// A show added on this device that the server hasn't built yet: what was
+/// typed or picked, read-only, until it syncs (STAGE1-AUDIT §4).
+struct QueuedShowDetail: View {
+    let entry: QueuedShow
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: Space.x5) {
+                ShowHeader(date: entry.display.date, tour: nil, artist: entry.display.artist, venue: entry.display.venue,
+                           city: entry.display.city, state: nil, festival: nil)
+                Notice(title: "Waiting to sync",
+                       text: "Saved on this iPhone. It finishes saving when you're back online. Then you can rate it, add a note and see its setlist.",
+                       symbol: "icloud.and.arrow.up", tint: .amber)
+            }
+            .padding(.horizontal, Space.x5)
+            .padding(.top, Space.x2)
+            .padding(.bottom, Space.x8)
+            .frame(maxWidth: 720, alignment: .leading)
+            .frame(maxWidth: .infinity)
+        }
+        .navigationTitle(entry.display.artist)
+        .toolbar { ToolbarItem(placement: .principal) { Text("").accessibilityHidden(true) } }
+    }
+}

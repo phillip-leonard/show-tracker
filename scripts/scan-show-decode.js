@@ -103,11 +103,12 @@ const SHOW = {
     licenseUrl: R.text, needsReview: R.flag, disagreement: REVIEW_REASON, confidence: R.text, partial: R.flag,
     status: R.text, decidedAt: R.text,
   }),
+  setlistSourceChange: obj({ from: R.text, to: R.text, songsChanged: R.flag }),
   normalizedVersion: R.int, needsNormalization: R.flag,
 };
 // Show.ignoredFields: carried by documents, not read by the app.
 const SHOW_IGNORED = ['artistImage', 'posterCheckedQuick', 'posterCheckedDeep', 'posterUrl', 'posterSource', 'posterSourceUrl',
-  'importedByAdmin', 'dateNormalizedFrom', 'setlistScanAt', 'setlistFetchAttempted', 'populatedAt'];
+  'importedByAdmin', 'dateNormalizedFrom', 'setlistScanAt', 'setlistFetchAttempted', 'populatedAt', 'populatedFrom'];
 
 const TAG_SHOW = obj({
   artist: R.text, venue: R.text, city: R.text, date: R.text, tour: R.text, setlistfmId: R.text, setlistfmUrl: R.text,
