@@ -34,6 +34,7 @@ public enum UpcomingSaveOutcome: Equatable, Sendable {
 // `alreadyNormalized` for a show it already built under that id.
 extension ShowsStore {
     public var setlistfmSearch: SetlistfmSearch? { api.map(SetlistfmSearch.init(api:)) }
+    public var ticketScan: TicketScan? { api.map(TicketScan.init(api:)) }
 
     /// Adds a show: into the outbox, then committed. `display` is what the
     /// "Waiting to sync" row shows until the server has it.

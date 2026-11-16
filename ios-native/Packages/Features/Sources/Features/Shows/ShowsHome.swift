@@ -194,7 +194,9 @@ struct ShowsHome: View {
                 } else {
                     firstShowEmptyState
                 }
-            } else if filtered.isEmpty {
+            } else if !store.shows.isEmpty, filtered.isEmpty {
+                // Only a filter that hides stored shows; "Waiting to sync"
+                // rows alone aren't "no results".
                 noResults
             }
         }
