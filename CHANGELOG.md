@@ -4,6 +4,28 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.60.26] — 2026-11-16
+
+Ships in **iOS 3.13.42** (Capacitor, `MARKETING_VERSION` 3.13.41 → 3.13.42)
+and **native 4.0.13** (4.0.12 → 4.0.13). Nothing changes in the web or
+Capacitor apps.
+
+**Smoke Tests pass for a native-only pull request.** The required Smoke
+Tests check tests a PR's Netlify deploy preview, and Netlify cancels the
+build when nothing outside `ios-native/` changed (`scripts/netlify-ignore.sh`),
+so a native-only PR (CLAUDE.md) timed out waiting for a preview that was
+never built. The job now passes with a notice when both hold: the
+preview for the commit ended "canceled" (Netlify's commit status; its
+check runs are "neutral" either way) and every file the PR changes is
+under `ios-native/`. Every other PR, including a website change whose
+deploy was cancelled, is tested as before.
+
+**Native: the Terms gate never blocks an offline launch after acceptance.**
+The phone remembers, per account, the terms version it has seen accepted
+(`TermsAcceptanceRecord`), and the gate counts it. "I agree" offline lets
+the person in at once and queues the profile write; if a later server read
+still lacks it, it is written again.
+
 ## [5.60.25] — 2026-11-15
 
 Ships in **iOS 3.13.41** (Capacitor, `MARKETING_VERSION` 3.13.40 → 3.13.41)

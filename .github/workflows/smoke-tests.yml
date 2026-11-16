@@ -25,6 +25,9 @@ concurrency:
 permissions:
   contents: read
   checks: read
+  # The native-only skip reads the preview's commit status and the PR's files.
+  statuses: read
+  pull-requests: read
 
 jobs:
   smoke:
@@ -87,6 +90,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           set -euo pipefail
           deadline=$(( SECONDS + 600 ))
@@ -96,6 +100,26 @@ jobs:
             total=$(jq 'length' <<<"$runs")
             finished=$(jq '[.[] | select(.status == "completed")] | length' <<<"$runs")
             if (( total > 0 && total == finished )); then
+              # A native-only PR (CLAUDE.md) gets no preview: Netlify's
+              # ignore rule (scripts/netlify-ignore.sh) cancels the build when
+              # nothing outside ios-native/ changed, so the preview URL either
+              # doesn't exist or still serves an older commit. Skip, reporting
+              # success (this check is required), only when BOTH hold: the
+              # preview for this commit ended "canceled" (the check runs above
+              # are "neutral" either way, so the commit status is the signal),
+              # and every file the PR changes is under ios-native/. Anything
+              # else, including a cancelled deploy of a website change, is tested.
+              preview=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${HEAD_SHA}/statuses?per_page=100" \
+                --jq '[.[] | select(.context == "netlify/setlisttracker/deploy-preview")][0].description // ""' 2>/dev/null || echo "")
+              files=$(gh api --paginate "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/files?per_page=100" \
+                --jq '.[].filename' 2>/dev/null || echo "")
+              # No file list (the lookup failed) is never "native-only".
+              outside=$(grep -cv '^ios-native/' <<<"$files" || true)
+              if [[ -n "$files" && "$preview" == *"canceled"* && "$outside" == "0" ]]; then
+                echo "::notice::Native-only PR: Netlify cancelled the preview for ${HEAD_SHA} and every changed file is under ios-native/, so the smoke tests are skipped."
+                echo "SKIP_SMOKE=true" >> "$GITHUB_ENV"
+                exit 0
+              fi
               echo "Netlify finished deploying ${HEAD_SHA} (${total} checks)."
               exit 0
             fi
@@ -135,6 +159,7 @@ jobs:
       # serving are not quite the same moment. Fail loudly here rather than
       # letting every test fail one by one against a URL that is down.
       - name: Wait for the target URL to serve
+        if: env.SKIP_SMOKE != 'true'
         run: |
           set -euo pipefail
           for attempt in $(seq 1 30); do
@@ -153,6 +178,7 @@ jobs:
           exit 1
 
       - name: Run smoke tests
+        if: env.SKIP_SMOKE != 'true'
         env:
           TEST_EMAIL: ${{ secrets.TEST_EMAIL }}
           TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
