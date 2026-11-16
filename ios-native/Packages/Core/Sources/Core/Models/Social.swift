@@ -136,7 +136,9 @@ public struct TagShowData: Decodable, Hashable, Sendable {
 }
 
 /// `showTags/{id}`: a friend says you were at a show with them.
-public struct ShowTag: Decodable, Hashable, Sendable {
+public struct ShowTag: Decodable, Identifiable, Hashable, Sendable {
+    /// The document id, from the snapshot; not stored.
+    public var id: String = ""
     public var fromUid: String
     public var fromName: String
     public var toUid: String
@@ -162,7 +164,9 @@ public struct ShowTag: Decodable, Hashable, Sendable {
 
 /// `pendingEmailTags/{id}`: a tag sent to an address with no account yet,
 /// read by its recipient once they have one. The addresses on it are not read.
-public struct PendingEmailTag: Decodable, Hashable, Sendable {
+public struct PendingEmailTag: Decodable, Identifiable, Hashable, Sendable {
+    /// The document id, from the snapshot; not stored.
+    public var id: String = ""
     public var fromUid: String
     public var fromName: String
     public var toName: String?
@@ -187,7 +191,9 @@ public struct PendingEmailTag: Decodable, Hashable, Sendable {
 
 /// `showSuggestions/{id}`: "were you there together?", created by the
 /// server (`friends.js` suggestionScan) for two mutual friends and a night.
-public struct ShowSuggestion: Decodable, Hashable, Sendable {
+public struct ShowSuggestion: Decodable, Identifiable, Hashable, Sendable {
+    /// The document id, from the snapshot; not stored.
+    public var id: String = ""
     public var participants: [String]
     public var names: [String: String]
     public var showKey: String

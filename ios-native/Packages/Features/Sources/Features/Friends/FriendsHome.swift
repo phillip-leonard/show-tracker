@@ -37,9 +37,12 @@ struct FriendsList: View {
     @State private var confirmRemove: PersonRef?
     @State private var confirmBlock: PersonRef?
     @State private var offlineNote = false
+    @State private var flow = AddFlow()
+    @Environment(AppRouter.self) private var router
+    @Environment(ShowsStore.self) private var shows
 
     private var isEmpty: Bool {
-        store.friends.isEmpty && store.incoming.isEmpty && store.sent.isEmpty && store.invites.isEmpty
+        store.friends.isEmpty && store.sent.isEmpty && store.invites.isEmpty && store.waitingCount == 0
     }
 
     var body: some View {
@@ -75,6 +78,15 @@ struct FriendsList: View {
             Text(BlockCopy.message)
         }
         .notice($notice)
+        // A past show's tag is added like any other show (normalize-show).
+        .addOutcomeHandling(flow) { route in
+            guard let route else { return }
+            router.tab = .shows
+            router.paths[.shows] = [route]
+        }
+        // Shows together change with your shows; asked again (debounced in
+        // the store) when the count changes, not on every snapshot.
+        .onChange(of: shows.shows.count) { store.refreshTogetherCounts() }
         .task(id: store.fromCache) {
             // A first snapshot is often the cache for a moment; only one that
             // lasts means the phone is offline.
@@ -93,6 +105,8 @@ struct FriendsList: View {
 
     private var list: some View {
         List {
+            ShowsToConfirmSection(notice: $notice, flow: flow)
+
             if !store.incoming.isEmpty {
                 Section("Requests") {
                     ForEach(store.incoming) { request in
