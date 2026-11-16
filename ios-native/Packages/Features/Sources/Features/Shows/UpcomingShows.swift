@@ -104,12 +104,17 @@ struct UpcomingForm: View {
 /// morning after, "I went", which moves it to your shows with its setlist.
 struct UpcomingDetail: View {
     @Environment(ShowsStore.self) private var store
+    @Environment(FriendsStore.self) private var friends
+    @Environment(SessionStore.self) private var session
     @Environment(AppRouter.self) private var router
     @Environment(\.dismiss) private var dismiss
     let id: String
     @State private var editing = false
     @State private var confirmingDelete = false
     @State private var flow = AddFlow()
+    @State private var tagging = false
+    @State private var statuses: [String: String] = [:]
+    @State private var notice: String?
 
     var body: some View {
         Group {
@@ -139,6 +144,14 @@ struct UpcomingDetail: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .brandCard(radius: Radius.xl2)
                 }
+                if session.user?.isAnonymous != true {
+                    // Who's going (Stage 3, Part 3b): accounts only. What each
+                    // friend answered comes from the caller's own tags.
+                    TaggedWithCard(taggedUids: show.taggedFriendUids, taggedBy: show.taggedBy, statuses: statuses, upcoming: true,
+                                   onTag: { tagging = true },
+                                   onRemove: { uid, name in Task { notice = await friends.untag(upcomingId: show.id, friendUid: uid, name: name) } })
+                        .task(id: show.taggedFriendUids) { statuses = await friends.sentTagStatuses(upcomingId: show.id) }
+                }
                 if UpcomingShowRules.canMarkAttended(show) {
                     Notice(title: "Did you go?", text: "Move it to your shows. The setlist comes from setlist.fm or the band's archive when there is one.",
                            symbol: "checkmark.seal", tint: .brand,
@@ -165,6 +178,10 @@ struct UpcomingDetail: View {
         }
         .overlay { if flow.busy { ProgressView("Finding the setlist").padding().background(.regularMaterial, in: RoundedRectangle.brand()) } }
         .sheet(isPresented: $editing) { NavigationStack { UpcomingForm(editing: show) } }
+        .sheet(isPresented: $tagging) {
+            TagFriendsSheet(target: .upcoming(show.id), band: show.artist, alreadyTagged: show.taggedFriendUids) { notice = $0 }
+        }
+        .notice($notice)
         .addOutcomeHandling(flow) { route in
             guard let route else { return }
             router.paths[.shows] = [route]

@@ -29,7 +29,7 @@ public struct AppShell: View {
             Tab("Friends", systemImage: "person.2", value: AppTab.friends) {
                 TabStack(tab: .friends) { FriendsHome() }
             }
-            .badge(friends.incoming.count)
+            .badge(friends.waitingCount)
             Tab("Stats", systemImage: "chart.bar", value: AppTab.stats) {
                 TabStack(tab: .stats) { StatsHome() }
             }
@@ -49,7 +49,7 @@ public struct AppShell: View {
         // A guest who creates an account keeps their uid, so the key includes
         // whether it's still a guest.
         .task(id: "\(session.user?.uid ?? "")|\(session.user?.isAnonymous == true)") {
-            if let user = session.user, !user.isAnonymous { friends.start(uid: user.uid, api: session.api) } else { friends.stop() }
+            if let user = session.user, !user.isAnonymous { friends.start(uid: user.uid, api: session.api, email: user.email) } else { friends.stop() }
         }
         .onDisappear { shows.stop(); friends.stop() }
         .sheet(item: $router.web) { page in

@@ -27,6 +27,12 @@ public final class FriendsStore {
     private var sentIds: Set<String> = []
     private var allInvites: [Invite] = []
     public private(set) var blockedUids: [String] = []
+    /// Tags to this account (any status), suggestions it's part of, and tags
+    /// sent to its address before it had an account (Stage 3, Part 3b).
+    private var allTags: [ShowTag] = []
+    private var allEmailTags: [PendingEmailTag] = []
+    private var allSuggestions: [ShowSuggestion] = []
+    private var email: String?
 
     /// The friends list's first answer (cached, live or the one-time read)
     /// has arrived, or loading gave up. Never false for longer than ~25 s.
@@ -64,17 +70,35 @@ public final class FriendsStore {
     }
     public var invites: [Invite] { FriendsLists.invites(allInvites) }
 
+    public var pendingTags: [ShowTag] {
+        guard let uid else { return [] }
+        return ShowSocialLists.pendingTags(allTags, uid: uid, blocked: blockedSet)
+    }
+    public var pendingEmailTags: [PendingEmailTag] { ShowSocialLists.pendingEmailTags(allEmailTags, blocked: blockedSet) }
+    public var pendingSuggestions: [ShowSuggestion] {
+        guard let uid else { return [] }
+        return ShowSocialLists.pendingSuggestions(allSuggestions, uid: uid, blocked: blockedSet)
+    }
+    /// Everything waiting on this person in the Friends tab: the tab's badge.
+    public var waitingCount: Int { incoming.count + pendingTags.count + pendingEmailTags.count + pendingSuggestions.count }
+
+    /// A friend's name, from this account's own list.
+    public func name(of uid: String) -> String? { edges.first { $0.friendUid == uid }?.name }
+
     public func isFriend(_ uid: String) -> Bool { edges.contains { $0.friendUid == uid } }
     public func isBlocked(_ uid: String) -> Bool { blockedUids.contains(uid) }
     public func hasSentRequest(to uid: String) -> Bool { sent.contains { $0.to == uid } }
 
     // MARK: Listening
 
-    public func start(uid: String, api: APIClient) {
+    /// `email`: the account's address, for tags sent to it before it had an
+    /// account (`pendingEmailTags`, readable by that address only).
+    public func start(uid: String, api: APIClient, email: String? = nil) {
         self.api = api
         guard uid != self.uid else { return }
         stop()
         self.uid = uid
+        self.email = email?.lowercased()
         Task { await attach(uid: uid) }
     }
 
@@ -90,6 +114,10 @@ public final class FriendsStore {
         sentIds = []
         allInvites = []
         blockedUids = []
+        allTags = []
+        allEmailTags = []
+        allSuggestions = []
+        email = nil
         loaded = false
         fromCache = false
         loadProblem = nil
@@ -166,6 +194,34 @@ public final class FriendsStore {
                 self.blockedUids = (snapshot.exists ? try? snapshot.data(as: UserBlocks.self) : nil)?.blockedUserIds ?? []
             }
         })
+        // The web's queries (AppContext): single equality or array-contains,
+        // status filtered here, so no index.
+        listeners.append(db.collection("showTags").whereField("toUid", isEqualTo: uid).addSnapshotListener { [weak self] snapshot, error in
+            MainActor.assumeIsolated {
+                guard let self, self.uid == uid else { return }
+                if let error { Self.log(error, stage: "showTags") }
+                guard let snapshot else { return }
+                self.allTags = snapshot.documents.compactMap { try? $0.decodeShowTag() }
+            }
+        })
+        listeners.append(db.collection("showSuggestions").whereField("participants", arrayContains: uid).addSnapshotListener { [weak self] snapshot, error in
+            MainActor.assumeIsolated {
+                guard let self, self.uid == uid else { return }
+                if let error { Self.log(error, stage: "showSuggestions") }
+                guard let snapshot else { return }
+                self.allSuggestions = snapshot.documents.compactMap { try? $0.decodeSuggestion() }
+            }
+        })
+        if let email, !email.isEmpty {
+            listeners.append(db.collection("pendingEmailTags").whereField("toEmail", isEqualTo: email).addSnapshotListener { [weak self] snapshot, error in
+                MainActor.assumeIsolated {
+                    guard let self, self.uid == uid else { return }
+                    if let error { Self.log(error, stage: "pendingEmailTags") }
+                    guard let snapshot else { return }
+                    self.allEmailTags = snapshot.documents.compactMap { try? $0.decodePendingEmailTag() }
+                }
+            })
+        }
     }
 
     private func replaceRequests(_ snapshot: QuerySnapshot, ids keyPath: ReferenceWritableKeyPath<FriendsStore, Set<String>>) {
@@ -177,6 +233,13 @@ public final class FriendsStore {
             next.insert(request.id)
         }
         self[keyPath: keyPath] = next
+    }
+
+    /// Asks for the counts again (your shows changed: a tag accepted, a
+    /// show added or deleted).
+    public func refreshTogetherCounts() {
+        countsFor = []
+        refreshCountsIfNeeded()
     }
 
     /// `showsTogetherCounts` spends a daily quota, so it's asked once per
@@ -319,6 +382,101 @@ public final class FriendsStore {
         guard let url = URL(string: r.url) else { throw .invalidResponse("referralLink: \(r.url)") }
         referralURL = url
         return url
+    }
+
+    // MARK: Show social (5.60.29: every write on the server)
+
+    /// Tags friends (and, for a past show, addresses) at one of this
+    /// account's shows. The server builds the tag from the stored show.
+    public func tag(_ target: FriendsRequest.TagTarget, friendUids: [String], emails: [FriendsRequest.EmailTag] = [],
+                    band: String) async throws(APIError) -> String {
+        guard let api else { throw .offline }
+        let key: String
+        switch target { case .show(let id), .upcoming(let id): key = "tag-\(id)" }
+        busy.insert(key)
+        defer { busy.remove(key) }
+        let r = try await api.post(FriendsRequest.function, FriendsRequest.tag(target, friendUids: friendUids, emails: emails),
+                                   as: TagFriendsResponse.self)
+        if case .upcoming = target { return ShowSocialMessages.tagged(r, band: band, upcoming: true) }
+        return ShowSocialMessages.tagged(r, band: band, upcoming: false)
+    }
+
+    /// What accepting or declining a tag came to. A past show's tag is
+    /// accepted through `normalize-show` (the caller adds it as a show).
+    public enum TagAnswer: Equatable, Sendable {
+        case done(String)
+        /// The upcoming show was added (or credited): open it.
+        case addedUpcoming(upcomingId: String, message: String)
+        /// Add it through `ShowsStore.addShow` with `.tag(tagId:asPastShow:)`.
+        case addAsShow(asPastShow: Bool)
+    }
+
+    public func answer(_ tag: ShowTag, accept: Bool) async throws(APIError) -> TagAnswer {
+        if accept && !ShowSocialMessages.isUpcoming(tag) { return .addAsShow(asPastShow: false) }
+        guard let api else { throw .offline }
+        busy.insert(tag.id)
+        defer { busy.remove(tag.id) }
+        do {
+            let r = try await api.post(FriendsRequest.function, FriendsRequest.respondTag(tagId: tag.id, response: accept ? .accepted : .declined),
+                                       as: RespondTagResponse.self)
+            if accept, let id = r.upcomingId {
+                let band = tag.showData.artist.isEmpty ? "The show" : tag.showData.artist
+                return .addedUpcoming(upcomingId: id, message: r.duplicate == true
+                                      ? "\(band) was already in your upcoming shows. It now says \(tag.fromName) tagged you."
+                                      : "\(band) is in your upcoming shows.")
+            }
+            return .done(accept ? "Added." : "Tag declined.")
+        } catch {
+            // After the date, an upcoming tag becomes a past show.
+            if Self.isDatePassed(error) { return .addAsShow(asPastShow: true) }
+            throw error
+        }
+    }
+
+    /// `respondTag`'s refusal for an upcoming tag whose date has passed.
+    nonisolated static func isDatePassed(_ error: APIError) -> Bool {
+        if case .server(409, _, "date_passed") = error { return true }
+        return false
+    }
+
+    public func declineEmailTag(_ tag: PendingEmailTag) async -> String {
+        await act(tag.id, fallback: "Couldn't decline that. Try again.") { (api: APIClient) throws(APIError) -> String in
+            _ = try await api.post(FriendsRequest.function, FriendsRequest.declineEmailTag(pendingEmailTagId: tag.id), as: JSONValue.self)
+            return "Tag declined."
+        }
+    }
+
+    public func answer(_ suggestion: ShowSuggestion, confirmed: Bool) async -> String {
+        await act(suggestion.id, fallback: "Couldn't save your answer. Try again.") { (api: APIClient) throws(APIError) -> String in
+            let r = try await api.post(FriendsRequest.function,
+                                       FriendsRequest.respondSuggestion(suggestionId: suggestion.id, response: confirmed ? .confirmed : .declined),
+                                       as: SuggestionAnswerResponse.self)
+            return ShowSocialMessages.suggestionAnswer(r, confirmed: confirmed)
+        }
+    }
+
+    /// Takes a friend off an upcoming show and back their pending tag.
+    public func untag(upcomingId: String, friendUid: String, name: String) async -> String {
+        await act("untag-\(upcomingId)-\(friendUid)", fallback: "Couldn't remove \(name). Try again.") { (api: APIClient) throws(APIError) -> String in
+            _ = try await api.post(FriendsRequest.function, FriendsRequest.revokeUpcomingTags(upcomingId: upcomingId, toUid: friendUid), as: JSONValue.self)
+            return "\(name) was removed."
+        }
+    }
+
+    /// What each friend said to this account's tags on one upcoming show.
+    public func sentTagStatuses(upcomingId: String) async -> [String: String] {
+        guard let uid else { return [:] }
+        let db = await Database.ready()
+        let query = db.collection("showTags").whereField("fromUid", isEqualTo: uid).whereField("upcomingShowId", isEqualTo: upcomingId)
+        guard let snap = try? await withDeadline(.seconds(10), { try await query.getDocuments() }) else { return [:] }
+        return ShowSocialLists.sentStatuses(snap.documents.map { (toUid: ($0.data()["toUid"] as? String) ?? "", status: ($0.data()["status"] as? String) ?? "") })
+    }
+
+    /// Your shows a friend was at too (mutual friends only, on the server).
+    public func showsTogether(friendUid: String) async throws(APIError) -> [ShowsTogetherResponse.TogetherShow] {
+        guard let api else { throw .offline }
+        let r = try await api.post(FriendsRequest.function, FriendsRequest.showsTogether(friendUid: friendUid), as: ShowsTogetherResponse.self)
+        return r.shows.sorted { $0.isoDate > $1.isoDate }
     }
 
     // MARK: Other people's profiles

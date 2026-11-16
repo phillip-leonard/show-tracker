@@ -25,10 +25,34 @@ public enum FriendsRequest: Encodable, Sendable {
     case cancelInvite(inviteId: String)
     case block(targetUid: String)
     case unblock(targetUid: String)
+    /// Tags (5.60.29): built on the server from the caller's stored show.
+    case tag(TagTarget, friendUids: [String], emails: [EmailTag] = [])
+    case respondTag(tagId: String, response: TagResponse)
+    case declineEmailTag(pendingEmailTagId: String)
+    case revokeTag(tagId: String)
+    case revokeUpcomingTags(upcomingId: String, toUid: String?)
+    case refreshUpcomingTags(upcomingId: String)
+    case respondSuggestion(suggestionId: String, response: SuggestionResponse)
+
+    public enum TagTarget: Sendable, Equatable { case show(String), upcoming(String) }
+    public enum TagResponse: String, Encodable, Sendable { case accepted, declined }
+    public enum SuggestionResponse: String, Encodable, Sendable { case confirmed, declined }
+    /// Someone without an account, tagged at a past show by address.
+    public struct EmailTag: Encodable, Sendable, Equatable {
+        public var email: String
+        public var name: String?
+        public var message: String?
+        public init(email: String, name: String? = nil, message: String? = nil) {
+            self.email = email; self.name = name; self.message = message
+        }
+    }
 
     public static let function = "friends"
 
-    enum Keys: String, CodingKey { case action, requestId, ref, email, handle, friendUid, friendUids, showId, toUid, inviteId, targetUid }
+    enum Keys: String, CodingKey {
+        case action, requestId, ref, email, handle, friendUid, friendUids, showId, toUid, inviteId, targetUid,
+             upcomingId, emails, tagId, response, pendingEmailTagId, suggestionId
+    }
 
     public func encode(to encoder: Encoder) throws {
         var c = encoder.container(keyedBy: Keys.self)
@@ -51,6 +75,24 @@ public enum FriendsRequest: Encodable, Sendable {
         case .cancelInvite(let id): try c.encode("cancelInvite", forKey: .action); try c.encode(id, forKey: .inviteId)
         case .block(let uid): try c.encode("block", forKey: .action); try c.encode(uid, forKey: .targetUid)
         case .unblock(let uid): try c.encode("unblock", forKey: .action); try c.encode(uid, forKey: .targetUid)
+        case .tag(let target, let uids, let emails):
+            try c.encode("tag", forKey: .action)
+            switch target {
+            case .show(let id): try c.encode(id, forKey: .showId)
+            case .upcoming(let id): try c.encode(id, forKey: .upcomingId)
+            }
+            if !uids.isEmpty { try c.encode(uids, forKey: .friendUids) }
+            if !emails.isEmpty { try c.encode(emails, forKey: .emails) }
+        case .respondTag(let id, let response):
+            try c.encode("respondTag", forKey: .action); try c.encode(id, forKey: .tagId); try c.encode(response, forKey: .response)
+        case .declineEmailTag(let id):
+            try c.encode("respondTag", forKey: .action); try c.encode(id, forKey: .pendingEmailTagId); try c.encode("declined", forKey: .response)
+        case .revokeTag(let id): try c.encode("revokeTag", forKey: .action); try c.encode(id, forKey: .tagId)
+        case .revokeUpcomingTags(let id, let toUid):
+            try c.encode("revokeTag", forKey: .action); try c.encode(id, forKey: .upcomingId); try c.encodeIfPresent(toUid, forKey: .toUid)
+        case .refreshUpcomingTags(let id): try c.encode("refreshUpcomingTags", forKey: .action); try c.encode(id, forKey: .upcomingId)
+        case .respondSuggestion(let id, let response):
+            try c.encode("respondSuggestion", forKey: .action); try c.encode(id, forKey: .suggestionId); try c.encode(response, forKey: .response)
         }
     }
 }
@@ -106,6 +148,55 @@ public struct ReferralLinkResponse: Decodable, Sendable {
 /// `showsTogetherCounts`: friend uid → shows you were both at.
 public struct ShowsTogetherCountsResponse: Decodable, Sendable {
     public var counts: [String: Int]
+}
+
+/// `tag`: who was tagged (or already held a pending tag for the show), who
+/// was skipped (not a mutual friend, or a block), and how many addresses.
+public struct TagFriendsResponse: Decodable, Sendable {
+    public var tagged: [String]
+    public var skipped: [String]
+    public var emailTags: Int
+}
+
+/// `respondTag`. Accepting an upcoming tag answers the upcoming show it
+/// added (or credited). Refusals carry a code: `use_normalize_show` (a past
+/// show's tag) or `date_passed` (an upcoming tag after its date).
+public struct RespondTagResponse: Decodable, Sendable {
+    public var tagStatus: String
+    public var upcomingId: String?
+    public var duplicate: Bool?
+}
+
+/// `respondSuggestion`: the suggestion's state now, and whether the friend
+/// was emailed a nudge.
+public struct SuggestionAnswerResponse: Decodable, Sendable {
+    public var overallStatus: String
+    public var nudged: Bool
+}
+
+/// `showsTogether`: your shows the friend was at too, newest first once
+/// sorted. Only the fields the list shows are read.
+public struct ShowsTogetherResponse: Decodable, Sendable {
+    public var shows: [TogetherShow]
+
+    public struct TogetherShow: Decodable, Sendable, Identifiable, Hashable {
+        public var id: String
+        public var artist: String
+        public var venue: String
+        public var city: String?
+        public var date: String
+        public var isoDate: String { ShowDate.isoDay(date) }
+
+        enum CodingKeys: String, CodingKey { case id, artist, venue, city, date }
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            id = try c.decode(String.self, forKey: .id)
+            artist = try c.decodeIfPresent(String.self, forKey: .artist) ?? ""
+            venue = try c.decodeIfPresent(String.self, forKey: .venue) ?? ""
+            city = try c.decodeIfPresent(String.self, forKey: .city)
+            date = try c.decodeIfPresent(String.self, forKey: .date) ?? ""
+        }
+    }
 }
 
 /// `report-content` (Guideline 1.2): reviewed within 24 hours. A profile

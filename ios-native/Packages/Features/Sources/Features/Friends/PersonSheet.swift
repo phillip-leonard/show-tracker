@@ -40,8 +40,12 @@ struct PersonSheet: View {
                     .padding(.vertical, Space.x2)
                     .accessibilityElement(children: .combine)
 
-                    if isFriend, let together = store.togetherCounts[person.uid] {
-                        LabeledContent("Shows together", value: "\(together)")
+                    if isFriend {
+                        NavigationLink {
+                            ShowsTogetherList(friendUid: person.uid, name: name)
+                        } label: {
+                            LabeledContent("Shows together", value: store.togetherCounts[person.uid].map(String.init) ?? "")
+                        }
                     }
                     if !isBlocked, profile?.publicProfile == true, let handle,
                        let url = ProfileSettings.publicProfileURL(handle: handle) {

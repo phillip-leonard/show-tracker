@@ -43,3 +43,23 @@ public extension DocumentSnapshot {
         return invite
     }
 }
+
+public extension DocumentSnapshot {
+    func decodeShowTag() throws -> ShowTag {
+        var tag = try data(as: ShowTag.self)
+        tag.id = documentID
+        return tag
+    }
+
+    func decodePendingEmailTag() throws -> PendingEmailTag {
+        var tag = try data(as: PendingEmailTag.self)
+        tag.id = documentID
+        return tag
+    }
+
+    func decodeSuggestion() throws -> ShowSuggestion {
+        var suggestion = try data(as: ShowSuggestion.self)
+        suggestion.id = documentID
+        return suggestion
+    }
+}

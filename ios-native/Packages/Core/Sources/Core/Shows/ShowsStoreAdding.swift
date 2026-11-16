@@ -229,19 +229,35 @@ extension ShowsStore {
         }
         let ref = await upcomingCollection(uid).document(id)
         let doc = Self.firestoreData(UpcomingShowRules.update(input, now: .null), timestamps: ["updatedAt"])
+        let tagged = !(upcomingShow(id: id)?.taggedFriendUids.isEmpty ?? true)
         Task { [weak self] in
-            do { try await ref.updateData(doc) } catch { self?.writeProblem = "That change wasn't saved. \(error.localizedDescription)" }
+            do {
+                try await ref.updateData(doc)
+                // Friends who haven't answered yet answer about the new date
+                // and venue: the server rebuilds their tags (5.60.29).
+                if tagged { await self?.tellServer(.refreshUpcomingTags(upcomingId: id)) }
+            } catch { self?.writeProblem = "That change wasn't saved. \(error.localizedDescription)" }
         }
         return .saved(id: id)
     }
 
     public func deleteUpcoming(id: String) {
         guard let uid else { return }
+        let tagged = !(upcomingShow(id: id)?.taggedFriendUids.isEmpty ?? true)
         Task { [weak self] in
-            do { try await self?.upcomingCollection(uid).document(id).delete() } catch {
+            do {
+                try await self?.upcomingCollection(uid).document(id).delete()
+                // Tags nobody has answered are taken back (5.60.29).
+                if tagged { await self?.tellServer(.revokeUpcomingTags(upcomingId: id, toUid: nil)) }
+            } catch {
                 self?.writeProblem = "The upcoming show wasn't deleted. \(error.localizedDescription)"
             }
         }
+    }
+
+    /// A best-effort `friends.js` call after an upcoming show changed.
+    private func tellServer(_ request: FriendsRequest) async {
+        _ = try? await api?.post(FriendsRequest.function, request, as: JSONValue.self)
     }
 
     /// "I went": the night's setlist.fm setlist when there is one, then

@@ -63,6 +63,8 @@ struct ShowDetailView: View {
     @State private var review: ProposalReview?
     /// The song just deleted, for 12 s of Undo.
     @State private var undo: DeletedSong?
+    @State private var tagging = false
+    @State private var socialNotice: String?
 
     private var isGuest: Bool { session.user?.isAnonymous == true }
 
@@ -72,6 +74,10 @@ struct ShowDetailView: View {
                 ShowHeader(date: show.date, tour: show.tour, artist: show.artist, venue: show.venue,
                            city: show.city, state: show.state, festival: festival)
                 YourRatingsCard(show: show, editNote: { editingNote = true })
+                if !isGuest {
+                    // Friends who were there (Stage 3, Part 3b): accounts only.
+                    TaggedWithCard(taggedUids: show.taggedFriendUids, taggedBy: show.taggedBy, upcoming: false) { tagging = true }
+                }
                 SetlistSection(show: show, source: source, undo: $undo, reviewStoredProposal: { review = .stored })
             }
             .padding(.horizontal, Space.x5)
@@ -118,6 +124,10 @@ struct ShowDetailView: View {
             try? await Task.sleep(for: .seconds(12))
             if !Task.isCancelled { undo = nil }
         }
+        .sheet(isPresented: $tagging) {
+            TagFriendsSheet(target: .show(show.id), band: show.artist, alreadyTagged: show.taggedFriendUids) { socialNotice = $0 }
+        }
+        .notice($socialNotice)
         .sheet(item: $review) { item in
             ProposalReviewSheet(review: item, show: show, sourceName: sourceName) { message in
                 opMessage = message
@@ -144,6 +154,9 @@ struct ShowDetailView: View {
                 ShareLink(item: url, subject: Text(show.artist), message: Text(describe(show))) {
                     Label("Share", systemImage: "square.and.arrow.up")
                 }
+            }
+            if !isGuest {
+                Button { tagging = true } label: { Label("Tag friends", systemImage: "person.badge.plus") }
             }
             Button(role: .destructive) { confirmingDelete = true } label: {
                 Label("Delete show", systemImage: "trash")
