@@ -220,18 +220,19 @@ public final class ShowsStore {
     public func update(_ change: ShowFieldChange, showId: String) {
         guard let uid else { return }
         writeProblem = nil
-        Task {
+        Task { [weak self] in
             let db = await Database.ready()
-            guard self.uid == uid else { return }
-            db.collection("users").document(uid).collection("shows").document(showId)
-                .updateData(change.firestoreData) { [weak self] error in
-                    guard let error else { return }
-                    MainActor.assumeIsolated {
-                        guard let self, self.uid == uid else { return }
-                        self.writeProblem = "That change wasn't saved. \(error.localizedDescription)"
-                        Self.log(error, stage: "update \(change.field.rawValue)")
-                    }
-                }
+            guard self?.uid == uid else { return }
+            // Resolves when the server has it: offline, this task waits
+            // (the listener already shows the change) and nothing blocks.
+            do {
+                try await db.collection("users").document(uid).collection("shows").document(showId)
+                    .updateData(change.firestoreData)
+            } catch {
+                guard let self, self.uid == uid else { return }
+                self.writeProblem = "That change wasn't saved. \(error.localizedDescription)"
+                Self.log(error, stage: "update \(change.field.rawValue)")
+            }
         }
         requestStatsRecompute()
     }
@@ -241,16 +242,15 @@ public final class ShowsStore {
     public func delete(showId: String) {
         guard let uid else { return }
         writeProblem = nil
-        Task {
+        Task { [weak self] in
             let db = await Database.ready()
-            guard self.uid == uid else { return }
-            db.collection("users").document(uid).collection("shows").document(showId).delete { [weak self] error in
-                guard let error else { return }
-                MainActor.assumeIsolated {
-                    guard let self, self.uid == uid else { return }
-                    self.writeProblem = "The show wasn't deleted. \(error.localizedDescription)"
-                    Self.log(error, stage: "delete")
-                }
+            guard self?.uid == uid else { return }
+            do {
+                try await db.collection("users").document(uid).collection("shows").document(showId).delete()
+            } catch {
+                guard let self, self.uid == uid else { return }
+                self.writeProblem = "The show wasn't deleted. \(error.localizedDescription)"
+                Self.log(error, stage: "delete")
             }
         }
         requestStatsRecompute()

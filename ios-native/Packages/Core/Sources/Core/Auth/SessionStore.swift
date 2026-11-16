@@ -73,7 +73,7 @@ public final class SessionStore {
         }
         Task { await refreshConfig() }
         foregroundObserver = NotificationCenter.default.addObserver(forName: UIApplication.willEnterForegroundNotification, object: nil, queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated { Task { await self?.refreshConfig() } }
+            Task { @MainActor [weak self] in await self?.refreshConfig() }
         }
     }
 

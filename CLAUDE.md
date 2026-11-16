@@ -90,7 +90,7 @@ The approved decisions for the native app (`ios-native/`, 4.0.0) are in `docs/io
 
 ## Versioning: every PR bumps the App Store version
 
-**Every PR opened for MySetlists bumps the App Store version**, in addition to the web version in `package.json` (and its `CHANGELOG.md` entry).
+**Every PR opened for MySetlists bumps the App Store version**, in addition to the web version in `package.json` (and its `CHANGELOG.md` entry). The one exception is a native-only PR (below), which bumps only the native version.
 
 - Change `MARKETING_VERSION` in `ios/App/App.xcodeproj/project.pbxproj`. It appears twice (Debug and Release); change both. `Info.plist` reads `CFBundleShortVersionString` from it, so nothing else needs editing.
 - Default to a patch bump (3.6 → 3.6.1 → 3.6.2). Use a minor bump (3.6.x → 3.7) only when the user asks for one.
@@ -102,5 +102,6 @@ The approved decisions for the native app (`ios-native/`, 4.0.0) are in `docs/io
 
 - A PR that touches `ios-native/` also bumps the native `MARKETING_VERSION` in `ios-native/MySetlists.xcodeproj/project.pbxproj` (every build configuration). The project starts at 4.0.0 (Part 3); after that, patch bumps (4.0.0 → 4.0.1 → 4.0.2), with the same "bump from the latest `main`" rule.
 - Name both versions in the PR description and the `CHANGELOG.md` entry ("Ships in iOS 3.13.30 (Capacitor) and native 4.0.1").
+- **A native-only PR bumps only the native version** (decided 2026-11-15). That is a PR whose changes are all under `ios-native/`, `fixtures/` or `docs/`, or in `CLAUDE.md`, in any combination. It leaves `package.json`, `CHANGELOG.md` and the Capacitor `MARKETING_VERSION` alone, since neither the website nor the Capacitor app changes. Name the native version in the PR description ("Ships in native 4.0.10; web and Capacitor unchanged"). A PR that also touches anything else (`lib/`, `netlify/`, `app/`, `components/`, `ios/`, `package.json`, …) bumps all three, as above.
 - The Capacitor app stays on 3.x and never takes a 4.x number: build numbers can't collide while the two share one App Store record.
 - Leave the native `CURRENT_PROJECT_VERSION` alone too. Xcode Cloud sets it.
