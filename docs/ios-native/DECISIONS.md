@@ -124,7 +124,7 @@ Not during the Year in Review peak (Dec 2 to mid-January), because the cutover m
 
 - **No data export in v1.** The requirement is **"deletion is always reachable"** (in the app, and on the update-required screen). The privacy policy says people can request a copy of their data by emailing support@mysetlists.net (components/PrivacyPolicy.jsx, "Your Rights and Choices").
 - **The privacy policy names the deletion path:** "Profile → Delete My Account in the app or on the website", which is the web's and the Capacitor app's menu. **At cutover**, the native app has it under the Me tab ("Delete my account"), so update that sentence in components/PrivacyPolicy.jsx when the native app ships.
-- **Post-launch idea: `export-my-data`.** A server function that builds a user's shows, ratings and profile as JSON/CSV and emails it or returns a download, signed-in only, with a per-user limit.
+- **Post-launch idea: `export-my-data`** (on the post-v1 list; reaffirmed in Stage 2, C-1). A server function that builds a user's shows, ratings and profile as JSON/CSV and emails it or returns a download, signed-in only, with a per-user limit.
 - **Part 6: sign-out clears Firestore's offline cache.** Terminate the Firestore instance, `clearPersistence()`, then use a fresh instance before the next sign-in. If the SDK can't create a new instance in the same process, report it to Phillip rather than leaving the cache in place.
   - **Done in Part 6 (4.0.3).** The SDK can: `terminate` removes the instance from Firebase's registry, so the next `Firestore.firestore()` is a new one in the same process. `Core/Database` does terminate → `clearPersistence()` → fresh instance with the launch settings. Every read goes through `Database.ready()`, which waits for a reset in flight. `MySetlistsTests` (`signOutClearsTheOfflineCache`) checks it against the real SDK: a new instance, the same settings, the last session's document gone from the cache.
   - **Unsynced changes are never lost without asking (4.0.4).** Before signing an account out, Me checks for writes the server hasn't acknowledged (`waitForPendingWrites` not finishing within 0.75 s; it covers every document, not one listener's `hasPendingWrites`). If there are any: "You have changes that haven't synced yet. Signing out now will lose them.", with **Stay signed in** (the default) or **Sign out anyway**. A guest always gets the guest warning instead, because a guest loses everything on sign-out. `SignOutPromptTests` and `MySetlistsTests` (`signOutWarnsAboutUnsyncedChanges`) cover it.
@@ -164,3 +164,20 @@ From the Stage 1 Part 1 audit ([`STAGE1-AUDIT.md`](STAGE1-AUDIT.md)), approved w
 - **The sign-out warning counts queued adds**, as well as Firestore's unsynced writes.
 - **Model fixes:** `populatedFrom` is an ignored field; `setlistSourceChange` is decoded (Part 3).
 - **PR order:** Q-01 + Welcome back → `setlist-source` + fixtures → Part 2 (Shows tab) → 3a (detail and field edits) → 3b (setlist editing and operations) → 4 (search and manual adds) → 5 (ticket scan).
+
+## Stage 2: Stats, Me, moderation (2026-11-15)
+
+From the Stage 2 Part 1 audit ([`STAGE2-AUDIT.md`](STAGE2-AUDIT.md)), approved with these calls:
+
+- **No data export in v1** (C-1). Copies of a person's data go through support@mysetlists.net, as above. A data export is on the post-v1 list.
+- **Top lists use the server's definitions, top 10, all time** (C-2): the loose band key, `countVenues`, and songs counted by distinct shows. `userStats` gains `topSongs` (keyed by band + song), and `topBands`/`topVenues` go to 10. The fields are additive, so `STATS_VERSION` stays 2. Follow-up: the web Stats page switches to the server lists.
+- **No per-year stats in Stage 2** (C-3). "This year" stats are on the v1.x list, and need a per-year block on the server first.
+- **"Hours of live music" is dropped in native** (C-4).
+- **Rank is "#N" only** (C-5). Native never shows `rankedOf` or any other user count. Guests see "Create an account to see your rank".
+- **Avatar upload and bio are deferred** (C-6). Neither exists on the web, and both are public user content that need server and rules work first. Me shows the current photo read-only.
+- **Block side effects move to the server** (C-7, C-8). Unfriending both ways and clearing pending friend requests and show tags happen in `notify-block` (or its successor), after it checks the caller's own `userBlocks`. The web's `blockUser` stops writing those documents itself. The block, unblock, blocked-accounts and report UI moves to Stage 3, with the first screens that show other people.
+- **Year in Review entry** (C-9): on Stats, for accounts only, Dec 2 – Jan 15 Pacific (`recapPromoActive`), opening `mysetlists.net/year-in-review/?year=2026` in SFSafariViewController. The card shows no numbers. `fixtures/recap-launch/` pins the dates to `lib/recapLaunch.js`.
+- **Tap-through lists** (band, song, venue → your shows) filter the cached shows with the server's keys, ported with a shared fixture (`fixtures/stats-keys/`). The counts come from the server.
+- **Debug rows stay as they are:** both behind five taps on the version; "Developer" is Debug-only; the first-launch report stays until the cutover numbers are in.
+- **The deletion PR fixes three native bugs:** deletion clears the outbox and the edit queue; a deletion that times out checks whether the account is gone before reporting a failure; guest changes are flushed before adoption, or adoption doesn't start. The suspended screen gets "Delete my account" and the support email (deletion works there while the session lasts; after that, through support).
+- **PR order:** server PR (top songs, top 10, block side effects, the two fixtures) → Stats → Me → deletion and upgrade fixes.
