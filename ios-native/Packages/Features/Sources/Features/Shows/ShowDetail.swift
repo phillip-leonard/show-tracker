@@ -17,6 +17,8 @@ struct ShowDetailScreen: View {
                 ShowDetailView(show: show) { deleted = true }
             } else if let queued = store.queuedShow(id: id) {
                 QueuedShowDetail(entry: queued)
+            } else if store.isAwaitingNewShow(id: id) {
+                ProgressView("Saving the show")
             } else if deleted {
                 Color.clear
             } else if !store.showsLoaded {
@@ -765,16 +767,34 @@ struct Notice: View {
 /// A show added on this device that the server hasn't built yet: what was
 /// typed or picked, read-only, until it syncs (STAGE1-AUDIT §4).
 struct QueuedShowDetail: View {
+    @Environment(ShowsStore.self) private var store
+    @Environment(\.dismiss) private var dismiss
     let entry: QueuedShow
+    @State private var flow = AddFlow()
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Space.x5) {
                 ShowHeader(date: entry.display.date, tour: nil, artist: entry.display.artist, venue: entry.display.venue,
                            city: entry.display.city, state: nil, festival: nil)
-                Notice(title: "Waiting to sync",
-                       text: "Saved on this iPhone. It finishes saving when you're back online. Then you can rate it, add a note and see its setlist.",
-                       symbol: "icloud.and.arrow.up", tint: .amber)
+                switch entry.state {
+                case .queued:
+                    Notice(title: "Waiting to sync",
+                           text: "Saved on this iPhone. It finishes saving when you're back online. Then you can rate it, add a note and see its setlist.",
+                           symbol: "icloud.and.arrow.up", tint: .amber)
+                case .needsAnswer:
+                    Notice(title: "Already logged?",
+                           text: store.possibleDuplicateQuestion(entry, existingId: entry.possibleDuplicateOf),
+                           symbol: "questionmark.circle", tint: .amber,
+                           action: ("Add as a separate show", {
+                               flow.run { await store.answerPossibleDuplicate(showId: entry.showId, addAnyway: true) ?? .refused("That show isn't waiting any more.") }
+                           }))
+                    Button("Don't add", role: .destructive) { store.discardQueuedShow(showId: entry.showId); dismiss() }
+                case .failed:
+                    Notice(title: "Couldn't be added", text: entry.problem ?? "The server didn't accept this show.",
+                           symbol: "exclamationmark.triangle", tint: .amber,
+                           action: ("Delete", { store.discardQueuedShow(showId: entry.showId); dismiss() }))
+                }
             }
             .padding(.horizontal, Space.x5)
             .padding(.top, Space.x2)
@@ -784,5 +804,6 @@ struct QueuedShowDetail: View {
         }
         .navigationTitle(entry.display.artist)
         .toolbar { ToolbarItem(placement: .principal) { Text("").accessibilityHidden(true) } }
+        .addOutcomeHandling(flow) { _ in }
     }
 }

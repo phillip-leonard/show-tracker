@@ -76,7 +76,7 @@ struct RouteScreen: View {
     var body: some View {
         switch route {
         case .show(let id): ShowDetailScreen(id: id)
-        case .upcomingShow(let id): UpcomingDetailPlaceholder(id: id)
+        case .upcomingShow(let id): UpcomingDetail(id: id)
         default: RoutePlaceholder(route: route)
         }
     }

@@ -14,6 +14,10 @@ public struct QueuedShow: Codable, Identifiable, Hashable, Sendable {
     public var display: Display
     public var enqueuedAt: Date
     public var state: State
+    /// `needsAnswer`: the show already logged that this may be.
+    public var possibleDuplicateOf: String?
+    /// `failed`: what the server said.
+    public var problem: String?
 
     public var id: String { showId }
 
@@ -44,7 +48,7 @@ public struct QueuedShow: Codable, Identifiable, Hashable, Sendable {
 }
 
 /// The outbox file: one per person, `Application Support/outbox-<uid>.json`,
-/// written atomically. Part 3a reads it; Part 4 adds writing and sending.
+/// written atomically on every change (`ShowsStore.addShow`, `flushOutbox`).
 public enum ShowOutbox {
     struct File: Codable {
         var version = 1
@@ -66,10 +70,19 @@ public enum ShowOutbox {
         return (try? decoder.decode(File.self, from: data).entries) ?? []
     }
 
-    static func save(_ entries: [QueuedShow], uid: String, in directory: URL? = nil) throws {
+    public static func save(_ entries: [QueuedShow], uid: String, in directory: URL? = nil) throws {
         let target = url(uid: uid, in: directory)
+        if entries.isEmpty {
+            try? FileManager.default.removeItem(at: target)
+            return
+        }
         try FileManager.default.createDirectory(at: target.deletingLastPathComponent(), withIntermediateDirectories: true)
         try encoder.encode(File(entries: entries)).write(to: target, options: .atomic)
+    }
+
+    /// Removes the file (a guest signing out: that account can't be signed back into).
+    public static func delete(uid: String, in directory: URL? = nil) {
+        try? FileManager.default.removeItem(at: url(uid: uid, in: directory))
     }
 
     static let decoder: JSONDecoder = {

@@ -225,3 +225,45 @@ struct ShowsSummary: View {
         .accessibilityElement(children: .combine)
     }
 }
+
+/// A show added on this phone that the server hasn't built yet.
+struct WaitingShowRow: View {
+    let entry: QueuedShow
+
+    var body: some View {
+        HStack(spacing: Space.x3) {
+            DateBlock(date: entry.display.date)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(entry.display.artist.isEmpty ? "Unknown band" : entry.display.artist)
+                    .font(.jakarta(size: 16, weight: .bold, relativeTo: .headline))
+                    .foregroundStyle(Color.textPrimary)
+                let place = venueLine(entry.display.venue, entry.display.city)
+                if !place.isEmpty {
+                    Text(place).font(.jakarta(size: 13, relativeTo: .subheadline)).foregroundStyle(Color.textSecondary).lineLimit(1)
+                }
+                Label(status, systemImage: symbol)
+                    .font(.jakarta(size: 12, weight: .semibold, relativeTo: .caption))
+                    .foregroundStyle(Color.amber)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.vertical, 2)
+        .accessibilityElement(children: .combine)
+    }
+
+    private var status: String {
+        switch entry.state {
+        case .queued: "Waiting to sync"
+        case .needsAnswer: "Needs your answer"
+        case .failed: "Couldn't be added"
+        }
+    }
+
+    private var symbol: String {
+        switch entry.state {
+        case .queued: "icloud.and.arrow.up"
+        case .needsAnswer: "questionmark.circle"
+        case .failed: "exclamationmark.triangle"
+        }
+    }
+}
