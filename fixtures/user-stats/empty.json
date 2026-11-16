@@ -1,0 +1,23 @@
+{
+  "name": "empty",
+  "description": "A new account with no shows.",
+  "shows": [],
+  "expected": {
+    "statsVersion": 2,
+    "showCount": 0,
+    "songCount": 0,
+    "ratedSongCount": 0,
+    "uniqueSongCount": 0,
+    "bandCount": 0,
+    "venueCount": 0,
+    "yearsActive": 0,
+    "showsByYear": {},
+    "firstShowDate": null,
+    "lastShowDate": null,
+    "avgShowRating": null,
+    "ratedShowCount": 0,
+    "topBands": [],
+    "topVenues": [],
+    "topSongs": []
+  }
+}

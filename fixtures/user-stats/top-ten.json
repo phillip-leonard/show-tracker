@@ -1,0 +1,1485 @@
+{
+  "name": "top-ten",
+  "description": "12 bands at 12 venues, band N with N shows: every top list stops at 10, most first. Each band opens with \"Intro\" (a different song per band) and plays its own song twice (a reprise, one show).",
+  "shows": [
+    {
+      "artist": "Band 01",
+      "venue": "Venue 1",
+      "city": "Town",
+      "date": "2025-01-01",
+      "setlist": [
+        {
+          "name": "Intro"
+        },
+        {
+          "name": "S1"
+        },
+        {
+          "name": "S1"
+        }
+      ]
+    },
+    {
+      "artist": "Band 02",
+      "venue": "Venue 2",
+      "city": "Town",
+      "date": "2025-01-01",
+      "setlist": [
+        {
+          "name": "Intro"
+        },
+        {
+          "name": "S2"
+        },
+        {
+          "name": "S2"
+        }
+      ]
+    },
+    {
+      "artist": "Band 02",
+      "venue": "Venue 2",
+      "city": "Town",
+      "date": "2025-01-02",
+      "setlist": [
+        {
+          "name": "Intro"
+        },
+        {
+          "name": "S2"
+        },
+        {
+          "name": "S2"
+        }
+      ]
+    },
+    {
+      "artist": "Band 03",
+      "venue": "Venue 3",
+      "city": "Town",
+      "date": "2025-01-01",
+      "setlist": [
+        {
+          "name": "Intro"
+        },
+        {
+          "name": "S3"
+        },
+        {
+          "name": "S3"
+        }
+      ]
+    },
+    {
+      "artist": "Band 03",
+      "venue": "Venue 3",
+      "city": "Town",
+      "date": "2025-01-02",
+      "setlist": [
+        {
+          "name": "Intro"
+        },
+        {
+          "name": "S3"
+        },
+        {
+          "name": "S3"
+        }
+      ]
+    },
+    {
+      "artist": "Band 03",
+      "venue": "Venue 3",
+      "city": "Town",
+      "date": "2025-01-03",
+      "setlist": [
+        {
+          "name": "Intro"
+        },
+        {
+          "name": "S3"
+        },
+        {
+          "name": "S3"
+        }
+      ]
+    },
+    {
+      "artist": "Band 04",
+      "venue": "Venue 4",
+      "city": "Town",
+      "date": "2025-01-01",
+      "setlist": [
+        {
+          "name": "Intro"
+        },
+        {
+          "name": "S4"
+        },
+        {
+          "name": "S4"
+        }
+      ]
+    },
+    {
+      "artist": "Band 04",
+      "venue": "Venue 4",
+      "city": "Town",
+      "date": "2025-01-02",
+      "setlist": [
+        {
+          "name": "Intro"
+        },
+        {
+          "name": "S4"
+        },
+        {
+          "name": "S4"
+        }
+      ]
+    },
+    {
+      "artist": "Band 04",
+      "venue": "Venue 4",
+      "city": "Town",
+      "date": "2025-01-03",
+      "setlist": [
+        {
+          "name": "Intro"
+        },
+        {
+          "name": "S4"
+        },
+        {
+          "name": "S4"
+        }
+      ]
+    },
+    {
+      "artist": "Band 04",
+      "venue": "Venue 4",
+      "city": "Town",
+      "date": "2025-01-04",
+      "setlist": [
+        {
+          "name": "Intro"
+        },
+        {
+          "name": "S4"
+        },
+        {
+          "name": "S4"
+        }
+      ]
+    },
+    {
+      "artist": "Band 05",
+      "venue": "Venue 5",
+      "city": "Town",
+      "date": "2025-01-01",
+      "setlist": [
+        {
+          "name": "Intro"
+        },
+        {
+          "name": "S5"
+        },
+        {
+          "name": "S5"
+        }
+      ]
+    },
+    {
+      "artist": "Band 05",
+      "venue": "Venue 5",
+      "city": "Town",
+      "date": "2025-01-02",
+      "setlist": [
+        {
+          "name": "Intro"
+        },
+        {
+          "name": "S5"
+        },
+        {
+          "name": "S5"
+        }
+      ]
+    },
+    {
+      "artist": "Band 05",
+      "venue": "Venue 5",
+      "city": "Town",
+      "date": "2025-01-03",
+      "setlist": [
+        {
+          "name": "Intro"
+        },
+        {
+          "name": "S5"
+        },
+        {
+          "name": "S5"
+        }
+      ]
+    },
+    {
+      "artist": "Band 05",
+      "venue": "Venue 5",
+      "city": "Town",
+      "date": "2025-01-04",
+      "setlist": [
+        {
+          "name": "Intro"
+        },
+        {
+          "name": "S5"
+        },
+        {
+          "name": "S5"
+        }
+      ]
+    },
+    {
+      "artist": "Band 05",
+      "venue": "Venue 5",
+      "city": "Town",
+      "date": "2025-01-05",
+      "setlist": [
+        {
+          "name": "Intro"
+        },
+        {
+          "name": "S5"
+        },
+        {
+          "name": "S5"
+        }
+      ]
+    },
+    {
+      "artist": "Band 06",
+      "venue": "Venue 6",
+      "city": "Town",
+      "date": "2025-01-01",
+      "setlist": [
+        {
+          "name": "Intro"
+        },
+        {
+          "name": "S6"
+        },
+        {
+          "name": "S6"
+        }
+      ]
+    },
+    {
+      "artist": "Band 06",
+      "venue": "Venue 6",
+      "city": "Town",
+      "date": "2025-01-02",
+      "setlist": [
+        {
+          "name": "Intro"
+        },
+        {
+          "name": "S6"
+        },
+        {
+          "name": "S6"
+        }
+      ]
+    },
+    {
+      "artist": "Band 06",
+      "venue": "Venue 6",
+      "city": "Town",
+      "date": "2025-01-03",
+      "setlist": [
+        {
+          "name": "Intro"
+        },
+        {
+          "name": "S6"
+        },
+        {
+          "name": "S6"
+        }
+      ]
+    },
+    {
+      "artist": "Band 06",
+      "venue": "Venue 6",
+      "city": "Town",
+      "date": "2025-01-04",
+      "setlist": [
+        {
+          "name": "Intro"
+        },
+        {
+          "name": "S6"
+        },
+        {
+          "name": "S6"
+        }
+      ]
+    },
+    {
+      "artist": "Band 06",
+      "venue": "Venue 6",
+      "city": "Town",
+      "date": "2025-01-05",
+      "setlist": [
+        {
+          "name": "Intro"
+        },
+        {
+          "name": "S6"
+        },
+        {
+          "name": "S6"
+        }
+      ]
+    },
+    {
+      "artist": "Band 06",
+      "venue": "Venue 6",
+      "city": "Town",
+      "date": "2025-01-06",
+      "setlist": [
+        {
+          "name": "Intro"
+        },
+        {
+          "name": "S6"
+        },
+        {
+          "name": "S6"
+        }
+      ]
+    },
+    {
+      "artist": "Band 07",
+      "venue": "Venue 7",
+      "city": "Town",
+      "date": "2025-01-01",
+      "setlist": [
+        {
+          "name": "Intro"
+        },
+        {
+          "name": "S7"
+        },
+        {
+          "name": "S7"
+        }
+      ]
+    },
+    {
+      "artist": "Band 07",
+      "venue": "Venue 7",
+      "city": "Town",
+      "date": "2025-01-02",
+      "setlist": [
+        {
+          "name": "Intro"
+        },
+        {
+          "name": "S7"
+        },
+        {
+          "name": "S7"
+        }
+      ]
+    },
+    {
+      "artist": "Band 07",
+      "venue": "Venue 7",
+      "city": "Town",
+      "date": "2025-01-03",
+      "setlist": [
+        {
+          "name": "Intro"
+        },
+        {
+          "name": "S7"
+        },
+        {
+          "name": "S7"
+        }
+      ]
+    },
+    {
+      "artist": "Band 07",
+      "venue": "Venue 7",
+      "city": "Town",
+      "date": "2025-01-04",
+      "setlist": [
+        {
+          "name": "Intro"
+        },
+        {
+          "name": "S7"
+        },
+        {
+          "name": "S7"
+        }
+      ]
+    },
+    {
+      "artist": "Band 07",
+      "venue": "Venue 7",
+      "city": "Town",
+      "date": "2025-01-05",
+      "setlist": [
+        {
+          "name": "Intro"
+        },
+        {
+          "name": "S7"
+        },
+        {
+          "name": "S7"
+        }
+      ]
+    },
+    {
+      "artist": "Band 07",
+      "venue": "Venue 7",
+      "city": "Town",
+      "date": "2025-01-06",
+      "setlist": [
+        {
+          "name": "Intro"
+        },
+        {
+          "name": "S7"
+        },
+        {
+          "name": "S7"
+        }
+      ]
+    },
+    {
+      "artist": "Band 07",
+      "venue": "Venue 7",
+      "city": "Town",
+      "date": "2025-01-07",
+      "setlist": [
+        {
+          "name": "Intro"
+        },
+        {
+          "name": "S7"
+        },
+        {
+          "name": "S7"
+        }
+      ]
+    },
+    {
+      "artist": "Band 08",
+      "venue": "Venue 8",
+      "city": "Town",
+      "date": "2025-01-01",
+      "setlist": [
+        {
+          "name": "Intro"
+        },
+        {
+          "name": "S8"
+        },
+        {
+          "name": "S8"
+        }
+      ]
+    },
+    {
+      "artist": "Band 08",
+      "venue": "Venue 8",
+      "city": "Town",
+      "date": "2025-01-02",
+      "setlist": [
+        {
+          "name": "Intro"
+        },
+        {
+          "name": "S8"
+        },
+        {
+          "name": "S8"
+        }
+      ]
+    },
+    {
+      "artist": "Band 08",
+      "venue": "Venue 8",
+      "city": "Town",
+      "date": "2025-01-03",
+      "setlist": [
+        {
+          "name": "Intro"
+        },
+        {
+          "name": "S8"
+        },
+        {
+          "name": "S8"
+        }
+      ]
+    },
+    {
+      "artist": "Band 08",
+      "venue": "Venue 8",
+      "city": "Town",
+      "date": "2025-01-04",
+      "setlist": [
+        {
+          "name": "Intro"
+        },
+        {
+          "name": "S8"
+        },
+        {
+          "name": "S8"
+        }
+      ]
+    },
+    {
+      "artist": "Band 08",
+      "venue": "Venue 8",
+      "city": "Town",
+      "date": "2025-01-05",
+      "setlist": [
+        {
+          "name": "Intro"
+        },
+        {
+          "name": "S8"
+        },
+        {
+          "name": "S8"
+        }
+      ]
+    },
+    {
+      "artist": "Band 08",
+      "venue": "Venue 8",
+      "city": "Town",
+      "date": "2025-01-06",
+      "setlist": [
+        {
+          "name": "Intro"
+        },
+        {
+          "name": "S8"
+        },
+        {
+          "name": "S8"
+        }
+      ]
+    },
+    {
+      "artist": "Band 08",
+      "venue": "Venue 8",
+      "city": "Town",
+      "date": "2025-01-07",
+      "setlist": [
+        {
+          "name": "Intro"
+        },
+        {
+          "name": "S8"
+        },
+        {
+          "name": "S8"
+        }
+      ]
+    },
+    {
+      "artist": "Band 08",
+      "venue": "Venue 8",
+      "city": "Town",
+      "date": "2025-01-08",
+      "setlist": [
+        {
+          "name": "Intro"
+        },
+        {
+          "name": "S8"
+        },
+        {
+          "name": "S8"
+        }
+      ]
+    },
+    {
+      "artist": "Band 09",
+      "venue": "Venue 9",
+      "city": "Town",
+      "date": "2025-01-01",
+      "setlist": [
+        {
+          "name": "Intro"
+        },
+        {
+          "name": "S9"
+        },
+        {
+          "name": "S9"
+        }
+      ]
+    },
+    {
+      "artist": "Band 09",
+      "venue": "Venue 9",
+      "city": "Town",
+      "date": "2025-01-02",
+      "setlist": [
+        {
+          "name": "Intro"
+        },
+        {
+          "name": "S9"
+        },
+        {
+          "name": "S9"
+        }
+      ]
+    },
+    {
+      "artist": "Band 09",
+      "venue": "Venue 9",
+      "city": "Town",
+      "date": "2025-01-03",
+      "setlist": [
+        {
+          "name": "Intro"
+        },
+        {
+          "name": "S9"
+        },
+        {
+          "name": "S9"
+        }
+      ]
+    },
+    {
+      "artist": "Band 09",
+      "venue": "Venue 9",
+      "city": "Town",
+      "date": "2025-01-04",
+      "setlist": [
+        {
+          "name": "Intro"
+        },
+        {
+          "name": "S9"
+        },
+        {
+          "name": "S9"
+        }
+      ]
+    },
+    {
+      "artist": "Band 09",
+      "venue": "Venue 9",
+      "city": "Town",
+      "date": "2025-01-05",
+      "setlist": [
+        {
+          "name": "Intro"
+        },
+        {
+          "name": "S9"
+        },
+        {
+          "name": "S9"
+        }
+      ]
+    },
+    {
+      "artist": "Band 09",
+      "venue": "Venue 9",
+      "city": "Town",
+      "date": "2025-01-06",
+      "setlist": [
+        {
+          "name": "Intro"
+        },
+        {
+          "name": "S9"
+        },
+        {
+          "name": "S9"
+        }
+      ]
+    },
+    {
+      "artist": "Band 09",
+      "venue": "Venue 9",
+      "city": "Town",
+      "date": "2025-01-07",
+      "setlist": [
+        {
+          "name": "Intro"
+        },
+        {
+          "name": "S9"
+        },
+        {
+          "name": "S9"
+        }
+      ]
+    },
+    {
+      "artist": "Band 09",
+      "venue": "Venue 9",
+      "city": "Town",
+      "date": "2025-01-08",
+      "setlist": [
+        {
+          "name": "Intro"
+        },
+        {
+          "name": "S9"
+        },
+        {
+          "name": "S9"
+        }
+      ]
+    },
+    {
+      "artist": "Band 09",
+      "venue": "Venue 9",
+      "city": "Town",
+      "date": "2025-01-09",
+      "setlist": [
+        {
+          "name": "Intro"
+        },
+        {
+          "name": "S9"
+        },
+        {
+          "name": "S9"
+        }
+      ]
+    },
+    {
+      "artist": "Band 10",
+      "venue": "Venue 10",
+      "city": "Town",
+      "date": "2025-01-01",
+      "setlist": [
+        {
+          "name": "Intro"
+        },
+        {
+          "name": "S10"
+        },
+        {
+          "name": "S10"
+        }
+      ]
+    },
+    {
+      "artist": "Band 10",
+      "venue": "Venue 10",
+      "city": "Town",
+      "date": "2025-01-02",
+      "setlist": [
+        {
+          "name": "Intro"
+        },
+        {
+          "name": "S10"
+        },
+        {
+          "name": "S10"
+        }
+      ]
+    },
+    {
+      "artist": "Band 10",
+      "venue": "Venue 10",
+      "city": "Town",
+      "date": "2025-01-03",
+      "setlist": [
+        {
+          "name": "Intro"
+        },
+        {
+          "name": "S10"
+        },
+        {
+          "name": "S10"
+        }
+      ]
+    },
+    {
+      "artist": "Band 10",
+      "venue": "Venue 10",
+      "city": "Town",
+      "date": "2025-01-04",
+      "setlist": [
+        {
+          "name": "Intro"
+        },
+        {
+          "name": "S10"
+        },
+        {
+          "name": "S10"
+        }
+      ]
+    },
+    {
+      "artist": "Band 10",
+      "venue": "Venue 10",
+      "city": "Town",
+      "date": "2025-01-05",
+      "setlist": [
+        {
+          "name": "Intro"
+        },
+        {
+          "name": "S10"
+        },
+        {
+          "name": "S10"
+        }
+      ]
+    },
+    {
+      "artist": "Band 10",
+      "venue": "Venue 10",
+      "city": "Town",
+      "date": "2025-01-06",
+      "setlist": [
+        {
+          "name": "Intro"
+        },
+        {
+          "name": "S10"
+        },
+        {
+          "name": "S10"
+        }
+      ]
+    },
+    {
+      "artist": "Band 10",
+      "venue": "Venue 10",
+      "city": "Town",
+      "date": "2025-01-07",
+      "setlist": [
+        {
+          "name": "Intro"
+        },
+        {
+          "name": "S10"
+        },
+        {
+          "name": "S10"
+        }
+      ]
+    },
+    {
+      "artist": "Band 10",
+      "venue": "Venue 10",
+      "city": "Town",
+      "date": "2025-01-08",
+      "setlist": [
+        {
+          "name": "Intro"
+        },
+        {
+          "name": "S10"
+        },
+        {
+          "name": "S10"
+        }
+      ]
+    },
+    {
+      "artist": "Band 10",
+      "venue": "Venue 10",
+      "city": "Town",
+      "date": "2025-01-09",
+      "setlist": [
+        {
+          "name": "Intro"
+        },
+        {
+          "name": "S10"
+        },
+        {
+          "name": "S10"
+        }
+      ]
+    },
+    {
+      "artist": "Band 10",
+      "venue": "Venue 10",
+      "city": "Town",
+      "date": "2025-01-10",
+      "setlist": [
+        {
+          "name": "Intro"
+        },
+        {
+          "name": "S10"
+        },
+        {
+          "name": "S10"
+        }
+      ]
+    },
+    {
+      "artist": "Band 11",
+      "venue": "Venue 11",
+      "city": "Town",
+      "date": "2025-01-01",
+      "setlist": [
+        {
+          "name": "Intro"
+        },
+        {
+          "name": "S11"
+        },
+        {
+          "name": "S11"
+        }
+      ]
+    },
+    {
+      "artist": "Band 11",
+      "venue": "Venue 11",
+      "city": "Town",
+      "date": "2025-01-02",
+      "setlist": [
+        {
+          "name": "Intro"
+        },
+        {
+          "name": "S11"
+        },
+        {
+          "name": "S11"
+        }
+      ]
+    },
+    {
+      "artist": "Band 11",
+      "venue": "Venue 11",
+      "city": "Town",
+      "date": "2025-01-03",
+      "setlist": [
+        {
+          "name": "Intro"
+        },
+        {
+          "name": "S11"
+        },
+        {
+          "name": "S11"
+        }
+      ]
+    },
+    {
+      "artist": "Band 11",
+      "venue": "Venue 11",
+      "city": "Town",
+      "date": "2025-01-04",
+      "setlist": [
+        {
+          "name": "Intro"
+        },
+        {
+          "name": "S11"
+        },
+        {
+          "name": "S11"
+        }
+      ]
+    },
+    {
+      "artist": "Band 11",
+      "venue": "Venue 11",
+      "city": "Town",
+      "date": "2025-01-05",
+      "setlist": [
+        {
+          "name": "Intro"
+        },
+        {
+          "name": "S11"
+        },
+        {
+          "name": "S11"
+        }
+      ]
+    },
+    {
+      "artist": "Band 11",
+      "venue": "Venue 11",
+      "city": "Town",
+      "date": "2025-01-06",
+      "setlist": [
+        {
+          "name": "Intro"
+        },
+        {
+          "name": "S11"
+        },
+        {
+          "name": "S11"
+        }
+      ]
+    },
+    {
+      "artist": "Band 11",
+      "venue": "Venue 11",
+      "city": "Town",
+      "date": "2025-01-07",
+      "setlist": [
+        {
+          "name": "Intro"
+        },
+        {
+          "name": "S11"
+        },
+        {
+          "name": "S11"
+        }
+      ]
+    },
+    {
+      "artist": "Band 11",
+      "venue": "Venue 11",
+      "city": "Town",
+      "date": "2025-01-08",
+      "setlist": [
+        {
+          "name": "Intro"
+        },
+        {
+          "name": "S11"
+        },
+        {
+          "name": "S11"
+        }
+      ]
+    },
+    {
+      "artist": "Band 11",
+      "venue": "Venue 11",
+      "city": "Town",
+      "date": "2025-01-09",
+      "setlist": [
+        {
+          "name": "Intro"
+        },
+        {
+          "name": "S11"
+        },
+        {
+          "name": "S11"
+        }
+      ]
+    },
+    {
+      "artist": "Band 11",
+      "venue": "Venue 11",
+      "city": "Town",
+      "date": "2025-01-10",
+      "setlist": [
+        {
+          "name": "Intro"
+        },
+        {
+          "name": "S11"
+        },
+        {
+          "name": "S11"
+        }
+      ]
+    },
+    {
+      "artist": "Band 11",
+      "venue": "Venue 11",
+      "city": "Town",
+      "date": "2025-01-11",
+      "setlist": [
+        {
+          "name": "Intro"
+        },
+        {
+          "name": "S11"
+        },
+        {
+          "name": "S11"
+        }
+      ]
+    },
+    {
+      "artist": "Band 12",
+      "venue": "Venue 12",
+      "city": "Town",
+      "date": "2025-01-01",
+      "setlist": [
+        {
+          "name": "Intro"
+        },
+        {
+          "name": "S12"
+        },
+        {
+          "name": "S12"
+        }
+      ]
+    },
+    {
+      "artist": "Band 12",
+      "venue": "Venue 12",
+      "city": "Town",
+      "date": "2025-01-02",
+      "setlist": [
+        {
+          "name": "Intro"
+        },
+        {
+          "name": "S12"
+        },
+        {
+          "name": "S12"
+        }
+      ]
+    },
+    {
+      "artist": "Band 12",
+      "venue": "Venue 12",
+      "city": "Town",
+      "date": "2025-01-03",
+      "setlist": [
+        {
+          "name": "Intro"
+        },
+        {
+          "name": "S12"
+        },
+        {
+          "name": "S12"
+        }
+      ]
+    },
+    {
+      "artist": "Band 12",
+      "venue": "Venue 12",
+      "city": "Town",
+      "date": "2025-01-04",
+      "setlist": [
+        {
+          "name": "Intro"
+        },
+        {
+          "name": "S12"
+        },
+        {
+          "name": "S12"
+        }
+      ]
+    },
+    {
+      "artist": "Band 12",
+      "venue": "Venue 12",
+      "city": "Town",
+      "date": "2025-01-05",
+      "setlist": [
+        {
+          "name": "Intro"
+        },
+        {
+          "name": "S12"
+        },
+        {
+          "name": "S12"
+        }
+      ]
+    },
+    {
+      "artist": "Band 12",
+      "venue": "Venue 12",
+      "city": "Town",
+      "date": "2025-01-06",
+      "setlist": [
+        {
+          "name": "Intro"
+        },
+        {
+          "name": "S12"
+        },
+        {
+          "name": "S12"
+        }
+      ]
+    },
+    {
+      "artist": "Band 12",
+      "venue": "Venue 12",
+      "city": "Town",
+      "date": "2025-01-07",
+      "setlist": [
+        {
+          "name": "Intro"
+        },
+        {
+          "name": "S12"
+        },
+        {
+          "name": "S12"
+        }
+      ]
+    },
+    {
+      "artist": "Band 12",
+      "venue": "Venue 12",
+      "city": "Town",
+      "date": "2025-01-08",
+      "setlist": [
+        {
+          "name": "Intro"
+        },
+        {
+          "name": "S12"
+        },
+        {
+          "name": "S12"
+        }
+      ]
+    },
+    {
+      "artist": "Band 12",
+      "venue": "Venue 12",
+      "city": "Town",
+      "date": "2025-01-09",
+      "setlist": [
+        {
+          "name": "Intro"
+        },
+        {
+          "name": "S12"
+        },
+        {
+          "name": "S12"
+        }
+      ]
+    },
+    {
+      "artist": "Band 12",
+      "venue": "Venue 12",
+      "city": "Town",
+      "date": "2025-01-10",
+      "setlist": [
+        {
+          "name": "Intro"
+        },
+        {
+          "name": "S12"
+        },
+        {
+          "name": "S12"
+        }
+      ]
+    },
+    {
+      "artist": "Band 12",
+      "venue": "Venue 12",
+      "city": "Town",
+      "date": "2025-01-11",
+      "setlist": [
+        {
+          "name": "Intro"
+        },
+        {
+          "name": "S12"
+        },
+        {
+          "name": "S12"
+        }
+      ]
+    },
+    {
+      "artist": "Band 12",
+      "venue": "Venue 12",
+      "city": "Town",
+      "date": "2025-01-12",
+      "setlist": [
+        {
+          "name": "Intro"
+        },
+        {
+          "name": "S12"
+        },
+        {
+          "name": "S12"
+        }
+      ]
+    }
+  ],
+  "expected": {
+    "statsVersion": 2,
+    "showCount": 78,
+    "songCount": 234,
+    "ratedSongCount": 0,
+    "uniqueSongCount": 13,
+    "bandCount": 12,
+    "venueCount": 12,
+    "yearsActive": 1,
+    "showsByYear": {
+      "2025": 78
+    },
+    "firstShowDate": "2025-01-01",
+    "lastShowDate": "2025-01-12",
+    "avgShowRating": null,
+    "ratedShowCount": 0,
+    "topBands": [
+      {
+        "name": "Band 12",
+        "count": 12
+      },
+      {
+        "name": "Band 11",
+        "count": 11
+      },
+      {
+        "name": "Band 10",
+        "count": 10
+      },
+      {
+        "name": "Band 09",
+        "count": 9
+      },
+      {
+        "name": "Band 08",
+        "count": 8
+      },
+      {
+        "name": "Band 07",
+        "count": 7
+      },
+      {
+        "name": "Band 06",
+        "count": 6
+      },
+      {
+        "name": "Band 05",
+        "count": 5
+      },
+      {
+        "name": "Band 04",
+        "count": 4
+      },
+      {
+        "name": "Band 03",
+        "count": 3
+      }
+    ],
+    "topVenues": [
+      {
+        "name": "Venue 12, Town",
+        "count": 12
+      },
+      {
+        "name": "Venue 11, Town",
+        "count": 11
+      },
+      {
+        "name": "Venue 10, Town",
+        "count": 10
+      },
+      {
+        "name": "Venue 9, Town",
+        "count": 9
+      },
+      {
+        "name": "Venue 8, Town",
+        "count": 8
+      },
+      {
+        "name": "Venue 7, Town",
+        "count": 7
+      },
+      {
+        "name": "Venue 6, Town",
+        "count": 6
+      },
+      {
+        "name": "Venue 5, Town",
+        "count": 5
+      },
+      {
+        "name": "Venue 4, Town",
+        "count": 4
+      },
+      {
+        "name": "Venue 3, Town",
+        "count": 3
+      }
+    ],
+    "topSongs": [
+      {
+        "name": "Intro",
+        "artist": "Band 12",
+        "count": 12
+      },
+      {
+        "name": "S12",
+        "artist": "Band 12",
+        "count": 12
+      },
+      {
+        "name": "Intro",
+        "artist": "Band 11",
+        "count": 11
+      },
+      {
+        "name": "S11",
+        "artist": "Band 11",
+        "count": 11
+      },
+      {
+        "name": "Intro",
+        "artist": "Band 10",
+        "count": 10
+      },
+      {
+        "name": "S10",
+        "artist": "Band 10",
+        "count": 10
+      },
+      {
+        "name": "Intro",
+        "artist": "Band 09",
+        "count": 9
+      },
+      {
+        "name": "S9",
+        "artist": "Band 09",
+        "count": 9
+      },
+      {
+        "name": "Intro",
+        "artist": "Band 08",
+        "count": 8
+      },
+      {
+        "name": "S8",
+        "artist": "Band 08",
+        "count": 8
+      }
+    ]
+  }
+}

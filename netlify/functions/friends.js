@@ -37,7 +37,24 @@
  *                                      or for all of them
  * Both reads need the friendship to be mutual, which is what let the app
  * read a friend's shows (firestore.rules); a block between the two ends
- * it. The rules still let a friend read your shows directly: iOS builds
+ * it.
+ *
+ * And, since 5.60.27 (Stage 2, C-7), blocking, so no app writes another
+ * user's documents to do it:
+ *   block    { targetUid }  adds them to the caller's userBlocks list, then
+ *                           ends everything between the two: the
+ *                           friendship (both sides), friend requests either
+ *                           way, show tags either way, and the target on the
+ *                           caller's upcoming shows' "who's going" lists
+ *                           (taggedFriendUids). Records the block
+ *                           for the moderation queue (lib/blockNotice.js),
+ *                           best-effort. Never tells the blocked user.
+ *   unblock  { targetUid }  takes them off the list. The friendship isn't
+ *                           restored: that goes back through a request.
+ * The rules still let the app write its own userBlocks document and remove
+ * itself from someone's friends list, because iOS 3.13.42 and earlier
+ * block that way; tightening waits for minSupportedIosVersion
+ * (docs/ios-native/GATED-CLEANUPS.md). The rules still let a friend read your shows directly: iOS builds
  * up to 3.13.26 do these reads themselves. Closing that waits for
  * minSupportedIosVersion (docs/ios-native/GATED-CLEANUPS.md).
  *
@@ -51,6 +68,7 @@ const { corsHeaders: baseCors } = require('./lib/cors');
 const { takeDailyQuota } = require('./lib/rateLimit');
 const { showMatchKey } = require('../../lib/showIdentity');
 const { suggestionDocId, suggestionDoc, planSuggestions } = require('./lib/showSuggestions');
+const { recordBlockNotice } = require('./lib/blockNotice');
 
 const APP_URL = 'https://mysetlists.net';
 // A referral or invite names its inviter on the new account's profile
@@ -124,6 +142,82 @@ async function makeFriends(db, auth, a, b) {
   if (!hasB.exists) batch.set(refB, await friendEntry(db, auth, a));
   await batch.commit();
   return true;
+}
+
+// ── Blocking (5.60.27) ────────────────────────────────────────────────
+
+/** The other person in a block or unblock: a uid, never the caller. */
+function blockTarget(uid, body) {
+  const target = String(body.targetUid || '');
+  if (!target || target === uid || target.includes('/') || target.length > 128) refuse(400, 'Who should be blocked?');
+  return target;
+}
+
+/** Adds or removes `target` on `uid`'s block list, in a transaction. True if it changed. */
+async function setBlocked(db, uid, target, blocked) {
+  const ref = db.doc(`userBlocks/${uid}`);
+  return db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    const list = snap.exists && Array.isArray(snap.data().blockedUserIds) ? snap.data().blockedUserIds : [];
+    const has = list.includes(target);
+    if (has === blocked) return false;
+    const next = blocked ? [...list, target] : list.filter((id) => id !== target);
+    tx.set(ref, { userId: uid, blockedUserIds: next, updatedAt: new Date() }, { merge: true });
+    return true;
+  });
+}
+
+/**
+ * Everything a block ends between `a` (the blocker) and `b`: the
+ * friendship both ways, friend requests either way (any status), show tags
+ * either way, and `b` on `a`'s upcoming shows. Each step is independent,
+ * so a failure in one doesn't keep the others. Returns how many of each.
+ */
+async function clearBetween(db, a, b) {
+  const pairs = (collection, from, to) => [
+    db.collection(collection).where(from, '==', a).where(to, '==', b),
+    db.collection(collection).where(from, '==', b).where(to, '==', a),
+  ];
+  const removeAll = async (queries) => {
+    let n = 0;
+    for (const q of queries) {
+      try {
+        const snap = await q.get();
+        if (!snap.docs.length) continue;
+        const batch = db.batch();
+        snap.docs.forEach((d) => batch.delete(d.ref));
+        await batch.commit();
+        n += snap.docs.length;
+      } catch (e) {
+        console.warn('[friends] block: could not clear', e.message);
+      }
+    }
+    return n;
+  };
+  const refA = db.doc(`users/${a}/friends/${b}`);
+  const refB = db.doc(`users/${b}/friends/${a}`);
+  const [hadA, hadB] = await Promise.all([refA.get(), refB.get()]);
+  const batch = db.batch();
+  batch.delete(refA);
+  batch.delete(refB);
+  await batch.commit();
+  let upcomingShows = 0;
+  try {
+    const snap = await db.collection(`users/${a}/upcomingShows`).where('taggedFriendUids', 'array-contains', b).get();
+    for (const d of snap.docs) {
+      const tagged = Array.isArray(d.data().taggedFriendUids) ? d.data().taggedFriendUids : [];
+      await d.ref.update({ taggedFriendUids: tagged.filter((id) => id !== b) });
+      upcomingShows += 1;
+    }
+  } catch (e) {
+    console.warn('[friends] block: could not update upcoming shows', e.message);
+  }
+  return {
+    friendship: hadA.exists || hadB.exists,
+    friendRequests: await removeAll(pairs('friendRequests', 'from', 'to')),
+    showTags: await removeAll(pairs('showTags', 'fromUid', 'toUid')),
+    upcomingShows,
+  };
 }
 
 // ── Friend reads (5.60.11) ────────────────────────────────────────────
@@ -306,6 +400,27 @@ const ACTIONS = {
     return { removed: true };
   },
 
+  async block({ db, uid, body }) {
+    const target = blockTarget(uid, body);
+    await setBlocked(db, uid, target, true);
+    // Always cleared, even on a repeat block: a request sent since the first
+    // block, or an older build's half-finished block, is ended too.
+    const removed = await clearBetween(db, uid, target);
+    let notified = false;
+    try {
+      notified = (await recordBlockNotice(db, { blockerUid: uid, blockedUserId: target })).notified;
+    } catch (e) {
+      console.error('[friends] block notice failed (the block stands):', e.message);
+    }
+    return { blocked: true, removed, notified };
+  },
+
+  async unblock({ db, uid, body }) {
+    const target = blockTarget(uid, body);
+    await setBlocked(db, uid, target, false);
+    return { blocked: false };
+  },
+
   async showsTogether({ db, uid, body }) {
     const friendUid = String(body.friendUid || '');
     if (!(await takeDailyQuota(db, `together_${uid}`, TOGETHER_PER_DAY, { uid })).allowed) refuse(429, 'Too many requests today. Please try again tomorrow.');
@@ -369,11 +484,14 @@ exports.handler = async function (event) {
 
   const decoded = await verifyUser(event);
   if (!decoded) return reply(401, { error: 'Sign in required' });
-  // Guests have no friends features (5.60.13, docs/ios-native/DECISIONS.md).
-  if (isAnonymous(decoded)) return reply(403, { error: 'Create an account to add friends.', code: 'account_required' });
-
   let body;
   try { body = JSON.parse(event.body || '{}'); } catch { return reply(400, { error: 'Invalid JSON body' }); }
+  // Guests have no friends features (5.60.13, docs/ios-native/DECISIONS.md),
+  // and see nobody they'd need to block (D-1).
+  if (isAnonymous(decoded)) {
+    const blocking = body && (body.action === 'block' || body.action === 'unblock');
+    return reply(403, { error: blocking ? 'Create an account to block someone.' : 'Create an account to add friends.', code: 'account_required' });
+  }
   if (!body || typeof body !== 'object' || !Object.prototype.hasOwnProperty.call(ACTIONS, body.action)) {
     return reply(400, { error: 'Unknown action' });
   }

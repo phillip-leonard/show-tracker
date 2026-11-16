@@ -65,6 +65,18 @@ test('the production variants pass (as ProductionVariantTests decodes them)', ()
   assert.deepStrictEqual(checkDocument(SCHEMAS.showTags, { fromUid: 'a', fromName: 'A', toUid: 'b', status: 'pending', showData: { artist: 'G', venue: 'V', city: 'C', date: '21-06-2024', tour: '', setlist: [{ id: '1', name: '' }] } }).failures, []);
 });
 
+test('every fixtures/user-stats expected document passes, with nothing unknown (5.60.27)', () => {
+  const dir = path.join(__dirname, '..', '..', 'fixtures', 'user-stats');
+  const files = fs.readdirSync(dir).filter((f) => f.endsWith('.json'));
+  assert.ok(files.length >= 3);
+  for (const f of files) {
+    const { expected } = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8'));
+    const r = checkDocument(SCHEMAS.userStats, { ...expected, ranked: false, rank: null, rankedOf: null });
+    assert.deepStrictEqual(r.failures, [], f);
+    assert.deepStrictEqual(r.unknown, [], f);
+  }
+});
+
 test('the shapes the models refuse are failures', () => {
   assert.deepStrictEqual(show({ artist: 42 }).failures, ['artist: not a string (number)']);
   assert.deepStrictEqual(show({ setlist: 'Arcadia' }).failures, ['setlist: not a list (string)']);

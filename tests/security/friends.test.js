@@ -189,4 +189,93 @@ test('accountEmails: Auth fills addresses profiles no longer carry', async () =>
   assert.deepStrictEqual(rows.map((r) => r.email), [ALICE.email, 'legacy@example.com', '']);
 });
 
+// ── blocking on the server (5.60.27, Stage 2 C-7) ─────────────────────
+
+const blockList = (db, uid) => (db._get(`userBlocks/${uid}`) || {}).blockedUserIds || [];
+
+function seedBetween(db) {
+  db._put(`users/${ALICE.uid}/friends/${BOB.uid}`, { friendUid: BOB.uid });
+  db._put(`users/${BOB.uid}/friends/${ALICE.uid}`, { friendUid: ALICE.uid });
+  db._put(`users/${ALICE.uid}/friends/${MALLORY.uid}`, { friendUid: MALLORY.uid });
+  db._put(`users/${MALLORY.uid}/friends/${ALICE.uid}`, { friendUid: ALICE.uid });
+  db._put('friendRequests/r1', { from: BOB.uid, to: ALICE.uid, status: 'pending' });
+  db._put('friendRequests/r2', { from: ALICE.uid, to: BOB.uid, status: 'declined' });
+  db._put('friendRequests/r3', { from: MALLORY.uid, to: ALICE.uid, status: 'pending' });
+  db._put('showTags/t1', { fromUid: BOB.uid, toUid: ALICE.uid, status: 'pending' });
+  db._put('showTags/t2', { fromUid: ALICE.uid, toUid: BOB.uid, status: 'accepted' });
+  db._put('showTags/t3', { fromUid: MALLORY.uid, toUid: ALICE.uid, status: 'pending' });
+  db._put(`users/${ALICE.uid}/upcomingShows/u1`, { artist: 'Goose', taggedFriendUids: [BOB.uid, MALLORY.uid] });
+  db._put(`users/${ALICE.uid}/upcomingShows/u2`, { artist: 'Phish', taggedFriendUids: [MALLORY.uid] });
+}
+
+test('block: the list, both sides of the friendship, requests and tags either way; nobody else', async () => {
+  const { db } = setup();
+  seedBetween(db);
+  const res = await call('alice-token', { action: 'block', targetUid: BOB.uid });
+  assert.strictEqual(res.statusCode, 200, res.body);
+  const body = json(res);
+  assert.deepStrictEqual(body.removed, { friendship: true, friendRequests: 2, showTags: 2, upcomingShows: 1 });
+  assert.deepStrictEqual(db._get(`users/${ALICE.uid}/upcomingShows/u1`).taggedFriendUids, [MALLORY.uid], "off Alice's who's-going list");
+  assert.deepStrictEqual(db._get(`users/${ALICE.uid}/upcomingShows/u2`).taggedFriendUids, [MALLORY.uid]);
+  assert.deepStrictEqual(blockList(db, ALICE.uid), [BOB.uid]);
+  assert.strictEqual(db._get(`userBlocks/${ALICE.uid}`).userId, ALICE.uid);
+  assert.ok(!db._get(`users/${ALICE.uid}/friends/${BOB.uid}`) && !db._get(`users/${BOB.uid}/friends/${ALICE.uid}`), 'both sides gone');
+  assert.ok(!db._get('friendRequests/r1') && !db._get('friendRequests/r2') && !db._get('showTags/t1') && !db._get('showTags/t2'));
+  assert.ok(areFriends(db, ALICE.uid, MALLORY.uid), "Alice's other friendships stay");
+  assert.ok(db._get('friendRequests/r3') && db._get('showTags/t3'), "other people's requests and tags stay");
+  assert.deepStrictEqual(blockList(db, BOB.uid), [], 'the blocked user gets no block list and is told nothing');
+});
+
+test('block: recorded once for the moderation queue; a repeat block keeps one entry and one report', async () => {
+  const { db } = setup();
+  const first = json(await call('alice-token', { action: 'block', targetUid: BOB.uid }));
+  assert.strictEqual(first.notified, true);
+  const report = db._get(`reports/block_${ALICE.uid}_${BOB.uid}`);
+  assert.strictEqual(report.reason, 'blocked');
+  assert.strictEqual(report.reportedUserId, BOB.uid);
+  assert.strictEqual(report.contentPath, null);
+  const again = json(await call('alice-token', { action: 'block', targetUid: BOB.uid }));
+  assert.strictEqual(again.notified, false, 'no second email for the same pair');
+  assert.deepStrictEqual(blockList(db, ALICE.uid), [BOB.uid]);
+});
+
+test('block: a friend request sent after a block is refused; accepting an old one is refused', async () => {
+  const { db } = setup();
+  db._put('friendRequests/old', { from: BOB.uid, to: ALICE.uid, status: 'pending' });
+  await call('alice-token', { action: 'block', targetUid: BOB.uid });
+  db._put('friendRequests/late', { from: BOB.uid, to: ALICE.uid, status: 'pending' });
+  const res = await call('alice-token', { action: 'accept', requestId: 'late' });
+  assert.strictEqual(res.statusCode, 403);
+  assert.ok(!areFriends(db, ALICE.uid, BOB.uid));
+});
+
+test('unblock: off the list; the friendship is not restored', async () => {
+  const { db } = setup();
+  seedBetween(db);
+  await call('alice-token', { action: 'block', targetUid: BOB.uid });
+  await call('alice-token', { action: 'block', targetUid: MALLORY.uid });
+  const res = await call('alice-token', { action: 'unblock', targetUid: BOB.uid });
+  assert.strictEqual(res.statusCode, 200, res.body);
+  assert.deepStrictEqual(blockList(db, ALICE.uid), [MALLORY.uid]);
+  assert.ok(!areFriends(db, ALICE.uid, BOB.uid));
+  assert.strictEqual(json(await call('alice-token', { action: 'unblock', targetUid: BOB.uid })).blocked, false, 'unblocking twice is fine');
+});
+
+test('block and unblock: a uid other than your own, signed in', async () => {
+  setup();
+  for (const targetUid of [ALICE.uid, '', 'a/b', undefined]) {
+    assert.strictEqual((await call('alice-token', { action: 'block', targetUid })).statusCode, 400, String(targetUid));
+    assert.strictEqual((await call('alice-token', { action: 'unblock', targetUid })).statusCode, 400, String(targetUid));
+  }
+  assert.strictEqual((await call(null, { action: 'block', targetUid: BOB.uid })).statusCode, 401);
+});
+
+test('the web blocks through the server: lib/moderation.js writes no friends, requests or tags itself', () => {
+  const src = require('fs').readFileSync(require('path').join(__dirname, '../../lib/moderation.js'), 'utf8');
+  assert.ok(src.includes("callFriends('block'") && src.includes("callFriends('unblock'"), 'calls friends block and unblock');
+  for (const banned of ["'friends'", "'friendRequests'", "'showTags'", 'notify-block', 'deleteDoc(']) {
+    assert.ok(!src.includes(banned), `lib/moderation.js still uses ${banned}`);
+  }
+});
+
 run('Friends function, referral tokens and account emails (5.59.7)');

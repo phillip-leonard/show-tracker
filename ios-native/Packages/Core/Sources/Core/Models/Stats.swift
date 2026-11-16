@@ -20,8 +20,12 @@ public struct UserStats: Decodable, Hashable, Sendable {
     /// One decimal (8.3). Version 1 documents stored a string; both read.
     public var avgShowRating: Double?
     public var ratedShowCount: Int
+    /// Top 10 each, all time, most first (5.60.27; top 5 before).
     public var topBands: [NameCount]
     public var topVenues: [NameCount]
+    /// Songs by the number of shows they were seen at, per band (5.60.27).
+    /// Empty on a document from before then, until the next recompute.
+    public var topSongs: [SongCount]
     /// On the leaderboard: a real account (not a guest, test user or banned) with a show.
     public var ranked: Bool
     public var rank: Int?
@@ -31,7 +35,7 @@ public struct UserStats: Decodable, Hashable, Sendable {
     enum CodingKeys: String, CodingKey {
         case statsVersion, showCount, songCount, ratedSongCount, uniqueSongCount, bandCount, venueCount,
              yearsActive, showsByYear, firstShowDate, lastShowDate, avgShowRating, ratedShowCount, topBands,
-             topVenues, ranked, rank, rankedOf, computedAt
+             topVenues, topSongs, ranked, rank, rankedOf, computedAt
     }
 
     public init(from decoder: Decoder) throws {
@@ -51,6 +55,7 @@ public struct UserStats: Decodable, Hashable, Sendable {
         ratedShowCount = try c.decodeIfPresent(Int.self, forKey: .ratedShowCount) ?? 0
         topBands = try c.list(.topBands, of: NameCount.self)
         topVenues = try c.list(.topVenues, of: NameCount.self)
+        topSongs = try c.list(.topSongs, of: SongCount.self)
         ranked = try c.flag(.ranked) ?? false
         rank = try c.decodeIfPresent(Int.self, forKey: .rank)
         rankedOf = try c.decodeIfPresent(Int.self, forKey: .rankedOf)
@@ -73,6 +78,14 @@ public struct PublicUserStats: Decodable, Hashable, Sendable {
 
 public struct NameCount: Decodable, Hashable, Sendable {
     public var name: String
+    public var count: Int
+}
+
+/// `userStats.topSongs`: a song, the band it was seen by ("" when the show
+/// had no band), and the number of shows.
+public struct SongCount: Decodable, Hashable, Sendable {
+    public var name: String
+    public var artist: String
     public var count: Int
 }
 

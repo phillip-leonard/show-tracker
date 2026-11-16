@@ -1,0 +1,127 @@
+{
+  "description": "The identity keys behind userStats (lib/stats/keys.js bandKey and songKey, lib/venueCount.js venueCountKey). Each row is [input, key]; an empty key means it is not counted.",
+  "band": [
+    [
+      "Goose",
+      "goose"
+    ],
+    [
+      "goose (US)",
+      "goose"
+    ],
+    [
+      "The Band",
+      "band"
+    ],
+    [
+      "Band",
+      "band"
+    ],
+    [
+      "  Phish  ",
+      "phish"
+    ],
+    [
+      "Billy Strings & Friends",
+      "billy-strings-friends"
+    ],
+    [
+      "Umphrey's McGee",
+      "umphreys-mcgee"
+    ],
+    [
+      "The String Cheese Incident",
+      "string-cheese-incident"
+    ],
+    [
+      "",
+      ""
+    ],
+    [
+      "Goose [Live]",
+      "goose"
+    ]
+  ],
+  "song": [
+    [
+      "Arcadia",
+      "arcadia"
+    ],
+    [
+      "Ashes//Dust",
+      "ashes dust"
+    ],
+    [
+      "Ashes // Dust",
+      "ashes dust"
+    ],
+    [
+      "The Weight - Live",
+      "the weight"
+    ],
+    [
+      "Tweezer (Live)",
+      "tweezer"
+    ],
+    [
+      "Hey Jude - Remastered 2015",
+      "hey jude"
+    ],
+    [
+      "  ",
+      ""
+    ],
+    [
+      "???",
+      "???"
+    ],
+    [
+      "Wilson",
+      "wilson"
+    ]
+  ],
+  "venue": [
+    [
+      {
+        "venue": "Red Rocks Amphitheatre",
+        "city": "Morrison"
+      },
+      "red rocks amphitheatre::morrison"
+    ],
+    [
+      {
+        "venue": "red rocks  amphitheatre ",
+        "city": "morrison"
+      },
+      "red rocks amphitheatre::morrison"
+    ],
+    [
+      {
+        "venue": "MSG",
+        "city": "New York"
+      },
+      "msg::new york"
+    ],
+    [
+      {
+        "venue": "MSG",
+        "city": ""
+      },
+      "msg::"
+    ],
+    [
+      {
+        "venue": "",
+        "city": "Austin"
+      },
+      null
+    ],
+    [
+      {
+        "venue": "The Fillmore",
+        "city": "San Francisco"
+      },
+      "the fillmore::san francisco"
+    ]
+  ]
+}

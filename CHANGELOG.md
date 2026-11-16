@@ -4,6 +4,36 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.60.27] — 2026-11-16
+
+Ships in **iOS 3.13.43** (Capacitor, `MARKETING_VERSION` 3.13.42 → 3.13.43)
+and **native 4.0.16** (4.0.15 → 4.0.16). Stage 2 server PR
+(`docs/ios-native/STAGE2-AUDIT.md`, DECISIONS "Stage 2").
+
+**Your stats: top 10 bands, venues and songs.** `userStats/{uid}` gains
+`topSongs`: the songs you've seen at the most shows (a reprise is one show),
+per band, so two bands' "Intro" stay apart. `topBands` and `topVenues` go
+from 5 to 10. Same definitions as before (`lib/stats`), all time. The fields
+are additive, so `STATS_VERSION` stays 2 and nothing older reads them. The
+6-hourly rebuild writes them for everyone; `scripts/recompute-user-stats.js`
+does it now (dry run, then `--apply`). The web Stats page is unchanged:
+switching it to these lists is a follow-up.
+
+**Blocking happens on the server.** `friends.js` has `block` and `unblock`
+actions. A block adds the person to your list and ends everything between
+you on the server: the friendship on both sides, friend requests and show
+tags either way, and them on your upcoming shows' "who's going" lists. It
+records the block for the moderation queue without telling them. The web
+calls it; until now the browser deleted the other person's side of the
+friendship itself, the last place the app wrote another user's documents.
+`notify-block` stays for iOS 3.13.42 and earlier, and the rules stay as they
+are until those builds are retired (`docs/ios-native/GATED-CLEANUPS.md`).
+
+**Fixtures for the native app:** `fixtures/user-stats/` (shows in, `userStats`
+out), `fixtures/stats-keys/` (the band, song and venue keys) and
+`fixtures/recap-launch/` (when Stats promotes the year's recap), with their
+JS tests. The native `UserStats` model decodes `topSongs`.
+
 ## [5.60.26] — 2026-11-16
 
 Ships in **iOS 3.13.42** (Capacitor, `MARKETING_VERSION` 3.13.41 → 3.13.42)

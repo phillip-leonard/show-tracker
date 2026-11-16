@@ -134,6 +134,7 @@ test('requireAccount: 401 signed out, 403 account_required for a guest, the user
 
 const REFUSED = [
   ['friends', () => require('../../netlify/functions/friends').handler, { action: 'referralLink' }],
+  ['friends block', () => require('../../netlify/functions/friends').handler, { action: 'block', targetUid: ALICE.uid }],
   ['send-email', () => require('../../netlify/functions/send-email').handler, { type: 'friend_joined' }],
   ['create-shared-collection', () => require('../../netlify/functions/create-shared-collection').handler, { kind: 'shows' }],
   ['match-festivals', () => require('../../netlify/functions/match-festivals').handler, { name: 'Bonnaroo', year: 2024 }],
