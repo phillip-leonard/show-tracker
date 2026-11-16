@@ -16,21 +16,36 @@ public enum SetGroups {
     }
 
     public static func group(_ setlist: [Song]) -> [Group] {
+        sections(setlist, set: \.set, setBreak: \.setBreak).map { Group(label: $0.label, songs: $0.songs) }
+    }
+
+    /// The same grouping over raw song maps (the setlist as stored), for
+    /// the set editor (`SetlistEdits`). A `set` or `setBreak` counts when it
+    /// is a non-empty string, as JavaScript's truthiness has it.
+    public static func groupRaw(_ setlist: [JSONValue]) -> [(label: String, songs: [JSONValue])] {
+        let text = { (song: JSONValue, key: String) -> String? in
+            guard let s = song[key]?.stringValue, !s.isEmpty else { return nil }
+            return s
+        }
+        return sections(setlist, set: { text($0, "set") }, setBreak: { text($0, "setBreak") })
+    }
+
+    static func sections<T>(_ setlist: [T], set: (T) -> String?, setBreak: (T) -> String?) -> [(label: String, songs: [T])] {
         guard !setlist.isEmpty else { return [] }
-        var groups: [String: [Song]] = [:]
+        var groups: [String: [T]] = [:]
         var order: [String] = []
-        let hasSetField = setlist.contains { $0.set != nil }
+        let hasSetField = setlist.contains { set($0) != nil }
         var current = "Set I"
         for song in setlist {
             if hasSetField {
-                if let set = song.set { current = set }
-            } else if let mark = song.setBreak {
+                if let label = set(song) { current = label }
+            } else if let mark = setBreak(song) {
                 current = setBreakToLabel(mark) ?? current
             }
             if groups[current] == nil { groups[current] = []; order.append(current) }
             groups[current]?.append(song)
         }
-        return orderLabels(order).map { Group(label: $0, songs: groups[$0] ?? []) }
+        return orderLabels(order).map { (label: $0, songs: groups[$0] ?? []) }
     }
 
     /// The labels in playing order; ties and other labels keep their order.

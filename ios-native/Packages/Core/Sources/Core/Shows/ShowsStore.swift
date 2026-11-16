@@ -52,6 +52,13 @@ public final class ShowsStore {
     private var sources: SetlistSourceCache?
     private var recompute: Task<Void, Never>?
     private var festivalNames: [String: String] = [:]
+    /// Setlist edits in flight (Part 3b): this device's copy of a show's
+    /// setlist, shown until the stored one comes back, so a transaction that
+    /// hasn't committed yet doesn't make the screen flick back
+    /// (`mergeShowsSnapshot` in lib/liveShows.js).
+    private var pendingSetlists: [String: (raw: [JSONValue], songs: [Song])] = [:]
+    private var setlistInFlight: [String: Int] = [:]
+    private var settleTasks: [String: Task<Void, Never>] = [:]
 
     struct Snapshot<T> {
         var items: [T]
@@ -94,9 +101,18 @@ public final class ShowsStore {
         writeProblem = nil
         festivalNames = [:]
         recompute?.cancel(); recompute = nil
+        pendingSetlists = [:]
+        setlistInFlight = [:]
+        settleTasks.values.forEach { $0.cancel() }
+        settleTasks = [:]
     }
 
-    public func show(id: String) -> Show? { shows.first { $0.id == id } }
+    /// The show, with this device's setlist while an edit of it is in flight.
+    public func show(id: String) -> Show? {
+        guard var show = shows.first(where: { $0.id == id }) else { return nil }
+        if let pending = pendingSetlists[id] { show.setlist = pending.songs }
+        return show
+    }
 
     /// A show still in this device's outbox. Once the server has built it,
     /// the stored show (same id) is the one to open.
@@ -123,6 +139,7 @@ public final class ShowsStore {
                 guard let self, self.uid == uid else { return }
                 self.shows = snap.items
                 self.fromCache = snap.fromCache
+                self.settlePendingSetlists()
                 self.noteUndecodable(snap.undecodable, collection: "shows")
             },
             onLoaded: { [weak self] outcome in
@@ -237,6 +254,26 @@ public final class ShowsStore {
         requestStatsRecompute()
     }
 
+    /// "It looks right" on an Archive setlist the recordings disagreed on:
+    /// `needsReview: false, needsReviewReason: null`, as the web writes it
+    /// (one `updateData` of those two fields only).
+    public func markSetlistReviewed(showId: String) {
+        guard let uid else { return }
+        writeProblem = nil
+        Task { [weak self] in
+            let db = await Database.ready()
+            guard self?.uid == uid else { return }
+            do {
+                try await db.collection("users").document(uid).collection("shows").document(showId)
+                    .updateData(["needsReview": false, "needsReviewReason": NSNull()])
+            } catch {
+                guard let self, self.uid == uid else { return }
+                self.writeProblem = "That change wasn't saved. \(error.localizedDescription)"
+                Self.log(error, stage: "needsReview")
+            }
+        }
+    }
+
     /// Deletes the show document. The web also rewrites the legacy profile
     /// counters; the native app never does (CLAUDE.md: nothing trusts them).
     public func delete(showId: String) {
@@ -255,6 +292,133 @@ public final class ShowsStore {
         }
         requestStatsRecompute()
     }
+
+    // MARK: Setlist edits
+
+    /// Applies a song edit (`SetlistEdit`): on this device's copy at once,
+    /// then to the setlist as stored in a transaction, so another device's
+    /// rating made meanwhile is kept. Offline, or when the transaction can't
+    /// run within 10 s, this device's copy is written instead (last write
+    /// wins, queued by Firestore), as the web does. Returns the edit's result
+    /// on this device (a delete's `removed` and `index`, for the undo), or
+    /// nil when the setlist couldn't be read.
+    @discardableResult
+    public func editSetlist(showId: String, _ edit: SetlistEdit) async -> SetlistEditResult? {
+        await editSetlist(showId: showId) { _ in edit }
+    }
+
+    /// An edit built from this device's copy of the setlist: the set
+    /// editor's moves (`SetlistEdits.moveSong`), sent as a `.reorder` that
+    /// the transaction applies to the stored copy.
+    @discardableResult
+    public func editSetlist(showId: String, building build: ([JSONValue]) -> SetlistEdit) async -> SetlistEditResult? {
+        guard let uid else { return nil }
+        let db = await Database.ready()
+        guard self.uid == uid else { return nil }
+        let ref = db.collection("users").document(uid).collection("shows").document(showId)
+        let base: [JSONValue]
+        if let pending = pendingSetlists[showId]?.raw {
+            base = pending
+        } else if let cached = try? await ref.getDocument(source: .cache), cached.exists,
+                  let list = SetlistTransaction.setlist(in: cached.data()) {
+            base = list
+        } else if let fresh = try? await withDeadline(.seconds(10), { try await ref.getDocument() }), fresh.exists,
+                  let list = SetlistTransaction.setlist(in: fresh.data()) {
+            base = list
+        } else {
+            writeProblem = "That change wasn't saved: the setlist couldn't be read."
+            return nil
+        }
+        guard self.uid == uid else { return nil }
+        let edit = build(base)
+        let result = SetlistEdits.apply(base, edit)
+        guard result.changed else { return result }
+
+        pendingSetlists[showId] = (result.setlist, Self.songs(result.setlist))
+        settleTasks[showId]?.cancel()
+        setlistInFlight[showId, default: 0] += 1
+        let deviceCopy = result.setlist
+        Task { [weak self] in
+            await self?.commit(edit, deviceCopy: deviceCopy, ref: ref, showId: showId, uid: uid)
+        }
+        requestStatsRecompute()
+        return result
+    }
+
+    private func commit(_ edit: SetlistEdit, deviceCopy: [JSONValue], ref: DocumentReference, showId: String, uid: String) async {
+        defer { if self.uid == uid { finishSetlistEdit(showId: showId) } }
+        if Connectivity.shared.isOnline {
+            do {
+                _ = try await withDeadline(.seconds(10)) { try await SetlistTransaction.run(edit, on: ref) }
+                return
+            } catch SetlistTransaction.Failure.unreadableSetlist {
+                // Writing this device's copy would lose what the app can't read.
+                writeProblem = "That change wasn't saved: this setlist has data the app can't read."
+                Self.log(SetlistTransaction.Failure.unreadableSetlist, stage: "setlist edit")
+                return
+            } catch {
+                Self.log(error, stage: "setlist transaction")
+            }
+        }
+        // Offline, or the transaction didn't finish: this device's copy.
+        // Not awaited: Firestore applies it to the cache now and sends it
+        // when it can.
+        Task { [weak self] in
+            do { try await SetlistTransaction.writeDeviceCopy(deviceCopy, to: ref) } catch {
+                guard let self, self.uid == uid else { return }
+                self.writeProblem = "That change wasn't saved. \(error.localizedDescription)"
+                Self.log(error, stage: "setlist device copy")
+            }
+        }
+    }
+
+    private func finishSetlistEdit(showId: String) {
+        let left = (setlistInFlight[showId] ?? 1) - 1
+        guard left <= 0 else { setlistInFlight[showId] = left; return }
+        setlistInFlight[showId] = nil
+        // Kept until the listener has the stored setlist, at most 3 s.
+        settleTasks[showId] = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(3))
+            guard !Task.isCancelled else { return }
+            self?.pendingSetlists[showId] = nil
+            self?.settleTasks[showId] = nil
+        }
+        settlePendingSetlists()
+    }
+
+    /// Drops this device's copy once the stored setlist matches it.
+    private func settlePendingSetlists() {
+        for (id, pending) in pendingSetlists where setlistInFlight[id] == nil {
+            if shows.first(where: { $0.id == id })?.setlist == pending.songs {
+                pendingSetlists[id] = nil
+                settleTasks[id]?.cancel()
+                settleTasks[id] = nil
+            }
+        }
+    }
+
+    /// A song typed in on the show page, as the web adds one: a fresh id,
+    /// `manuallyAdded`, unrated.
+    public static func newSong(name: String, set: String, id: String = ShowID.mint()) -> JSONValue {
+        .object([
+            "id": .string(id), "name": .string(name.trimmingCharacters(in: .whitespacesAndNewlines)),
+            "set": .string(set), "manuallyAdded": .bool(true), "rating": .null,
+        ])
+    }
+
+    static func songs(_ raw: [JSONValue]) -> [Song] {
+        guard let data = try? JSONEncoder().encode(raw) else { return [] }
+        return (try? JSONDecoder().decode([Song].self, from: data)) ?? []
+    }
+
+    // MARK: Setlist operations
+
+    /// The server's setlist operations (re-sync, propose, accept, reject).
+    public var setlistOps: SetlistOps? { api.map { SetlistOps(api: $0) } }
+
+    /// A setlist operation wrote on the server: the listener brings the
+    /// setlist; the stats follow.
+    public func noteSetlistChangedOnServer() { requestStatsRecompute() }
 
     /// `recompute-my-stats`, 3 s after the last change (the web's debounce),
     /// so `userStats/{uid}` (and the header's numbers) follow. Offline it

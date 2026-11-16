@@ -5,8 +5,8 @@ import Testing
 /// The Stage 1 fixtures (5.60.22) decode with today's models: every setlist
 /// in `fixtures/setlist-edits/` and `fixtures/setlist-grouping/` as `[Song]`,
 /// every upcoming-show document in `fixtures/upcoming-shows/` as
-/// `UpcomingShow`. The grouping runs in `SetGroupsTests`; running the edits
-/// waits for the Swift port (Part 3b). This only checks the models read the files, and
+/// `UpcomingShow`. The grouping runs in `SetGroupsTests` and the edits in
+/// `SetlistEditsTests`. This only checks the models read the files, and
 /// that a rating or comment a case says survives is decoded as such.
 @Suite struct SetlistAndUpcomingFixtureTests {
     static let setlistFiles: [URL] = ((try? FixtureLoader.files(in: "setlist-edits")) ?? [])
