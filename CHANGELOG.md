@@ -4,6 +4,58 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.60.29] — 2026-11-16
+
+Ships in **iOS 3.13.45** (Capacitor, `MARKETING_VERSION` 3.13.44 → 3.13.45).
+Native unchanged. Stage 3, Part 3a (`docs/ios-native/STAGE3-AUDIT.md`,
+DECISIONS "Stage 3", C-2, C-3 and C-5).
+
+**Engagement notifications come from the server (a security fix).** Until
+now the browser wrote "X replied to your comment", "X liked your photo" and
+the rest straight into the other person's inbox, and the rules let any
+account write any notification to anyone, so a notification could be faked.
+
+- **Replies and mentions:** `moderate-content` writes them when it creates
+  the comment. A mention reaches only the author's own friends named as
+  "@Name", as before.
+- **Likes and meetup joins:** the new `engagement-notify` function writes
+  them only if the like or the join is in the stored document. Liking,
+  unliking and liking again notifies once.
+- **What the server decides:** who it's for, who it's from and the message.
+  Nothing is sent to yourself, across a block, or to someone who turned
+  engagement notifications off. The opt-in immediate email goes out as
+  before.
+- **Comments now store the show's band, venue and date** (as photos already
+  did), so a notification can name the show.
+- **Old builds:** refusing client-written notifications waits for iOS
+  3.13.44 and earlier to retire (GATED-CLEANUPS, "Notifications only from
+  the server").
+
+**Tags and suggestion answers go through the server.** `friends.js` gains
+`tag`, `respondTag`, `revokeTag`, `refreshUpcomingTags` and
+`respondSuggestion` (in `netlify/functions/lib/showSocialActions.js`), and
+the web uses them.
+
+- **Tagging:** a tag carries the tagger's show as stored, never the copy the
+  browser sent, and goes only to mutual friends with no block either way. A
+  friend who already has a pending tag for that show isn't tagged twice.
+  Tagging someone without an account (an email tag) goes through `tag` too.
+- **Answering:** declining, and accepting a tag on an upcoming show (it's
+  added to your upcoming shows, or credits the one already there), are
+  server actions. Accepting a past show's tag is still `normalize-show`.
+- **Taking back:** untagging a friend, or deleting an upcoming show, revokes
+  the pending tags on the server. Editing an upcoming show updates the tags
+  nobody has answered.
+- **"Were you there together?":** the answer, the overall status and the
+  one-time nudge email are the server's, in a transaction on the shared
+  document.
+- **Old builds:** refusing the old client writes waits for iOS 3.13.44 and
+  earlier (GATED-CLEANUPS, "Tags and suggestion answers only through the
+  server").
+
+`lib/upcomingShows.js` is now CommonJS, so the server accepts upcoming tags
+with the same rules as the app.
+
 ## [5.60.28] — 2026-11-16
 
 Ships in **iOS 3.13.44** (Capacitor, `MARKETING_VERSION` 3.13.43 → 3.13.44).

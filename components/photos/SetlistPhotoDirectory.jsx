@@ -22,7 +22,7 @@ import { Search, ScrollText, Heart, ChevronLeft, ChevronRight } from 'lucide-rea
 import { Card, EmptyState, Spinner, Input, Avatar, Modal } from '@/components/ui';
 import { useApp } from '@/context/AppContext';
 import { listAllSetlistPhotos, togglePhotoLike } from '@/lib/photos';
-import { createEngagementNotification } from '@/lib/notifications';
+import { notifyEngagement } from '@/lib/notifications';
 import { timeAgo } from '@/lib/utils';
 import { withoutBlocked } from '@/lib/moderation';
 import ReportButton from '@/components/moderation/ReportButton';
@@ -161,14 +161,8 @@ export default function SetlistPhotoDirectory() {
         ...p,
         likedBy: alreadyLiked ? p.likedBy.filter((u) => u !== user.uid) : [...(p.likedBy || []), user.uid],
       }));
-      if (!alreadyLiked) {
-        const likerName = user.displayName || 'Anonymous';
-        createEngagementNotification(item.uploadedBy, 'photo_like', {
-          concertKey: item.concertKey, artist: item.artist, venue: item.venue, date: item.date,
-          fromUid: user.uid, fromName: likerName,
-          message: `${likerName} liked your setlist photo from ${item.artist}`,
-        });
-      }
+      // The server checks the like is stored and notifies the uploader.
+      if (!alreadyLiked) notifyEngagement('photo_like', item.id);
     } catch (err) {
       setToast?.("Couldn't update your like. Please try again.");
     }
