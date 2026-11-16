@@ -21,3 +21,25 @@ public extension DocumentSnapshot {
         return profile
     }
 }
+
+public extension DocumentSnapshot {
+    /// A friend-list entry. Its id is the friend's uid; older entries
+    /// without `friendUid` take it from the document id.
+    func decodeFriend() throws -> FriendEdge {
+        var edge = try data(as: FriendEdge.self)
+        if edge.friendUid.isEmpty { edge.friendUid = documentID }
+        return edge
+    }
+
+    func decodeFriendRequest() throws -> FriendRequest {
+        var request = try data(as: FriendRequest.self)
+        request.id = documentID
+        return request
+    }
+
+    func decodeInvite() throws -> Invite {
+        var invite = try data(as: Invite.self)
+        invite.id = documentID
+        return invite
+    }
+}
