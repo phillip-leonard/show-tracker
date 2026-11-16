@@ -2406,53 +2406,30 @@ export function AppProvider({ children }) {
 
   // === FRIEND FUNCTIONS ===
 
-  const sendFriendRequest = async (targetUid, targetName) => {
+  // The server reads both names itself, so only the uid goes.
+  const sendFriendRequest = async (targetUid) => {
     if (!user || targetUid === user.uid) {
       alert('You cannot send a friend request to yourself.');
       return;
     }
-
     try {
-      const friendRef = doc(db, 'users', user.uid, 'friends', targetUid);
-      const existingFriend = await getDoc(friendRef);
-      if (existingFriend.exists()) {
+      // The server checks for a friendship, a request either way and a
+      // block, and writes the request (5.60.28). If they had already asked,
+      // it accepts theirs instead.
+      const { result } = await callFriends('request', { toUid: targetUid });
+      if (result === 'already-friends') {
         alert('You are already friends with this user.');
-        return;
+      } else if (result === 'already-requested') {
+        alert('Friend request already sent.');
+      } else if (result === 'friends') {
+        await loadFriends();
+        alert('You are now friends!');
+      } else {
+        alert('Friend request sent!');
       }
-
-      // Only requests this user is party to can be read (5.59.7), so look
-      // each way rather than through the whole collection.
-      try {
-        const [fromUs, fromThem] = await Promise.all([
-          getDocs(query(collection(db, 'friendRequests'), where('from', '==', user.uid), where('to', '==', targetUid))),
-          getDocs(query(collection(db, 'friendRequests'), where('from', '==', targetUid), where('to', '==', user.uid))),
-        ]);
-        if (fromUs.docs.some(d => d.data().status === 'pending')) {
-          alert('Friend request already sent.');
-          return;
-        }
-        const pendingFromThem = fromThem.docs.find(d => d.data().status === 'pending');
-        if (pendingFromThem) {
-          await acceptFriendRequest(pendingFromThem.id);
-          return;
-        }
-      } catch (readError) {
-        console.log('Could not check existing requests, proceeding:', readError.message);
-      }
-
-      // No addresses on the request (5.59.7, S-01): names only.
-      await addDoc(collection(db, 'friendRequests'), {
-        from: user.uid,
-        to: targetUid,
-        fromName: user.displayName || 'Anonymous',
-        toName: targetName || '',
-        status: 'pending',
-        createdAt: serverTimestamp(),
-      });
-      alert('Friend request sent!');
     } catch (error) {
       console.error('Failed to send friend request:', error);
-      alert('Failed to send friend request. Check the browser console for details — you may need to update Firestore security rules to allow the "friendRequests" collection.');
+      alert(error.status === 429 || error.status === 404 ? error.message : 'Failed to send friend request. Please try again.');
     }
   };
 
@@ -2476,7 +2453,7 @@ export function AppProvider({ children }) {
         alert('No user found with that email address. They may need to sign up first.');
         return;
       }
-      await sendFriendRequest(match.uid, match.displayName);
+      await sendFriendRequest(match.uid);
     } catch (error) {
       console.error('Failed to find user or send request:', error);
       alert(error.status === 429 ? error.message : 'Something went wrong. Please try again.');
@@ -2497,8 +2474,7 @@ export function AppProvider({ children }) {
 
   const declineFriendRequest = async (requestId) => {
     try {
-      const reqRef = doc(db, 'friendRequests', requestId);
-      await setDoc(reqRef, { status: 'declined' }, { merge: true });
+      await callFriends('decline', { requestId });
     } catch (error) {
       console.error('Failed to decline friend request:', error);
     }
@@ -3055,6 +3031,9 @@ export function AppProvider({ children }) {
     }
   };
 
+  // Invites are written and emailed by the server (5.60.28). Until then
+  // the browser wrote them, and a resend's lastSentAt update was refused by
+  // the rules, so resending never sent anything.
   const sendInvite = async (email) => {
     if (!user) return { error: 'Not signed in' };
     const toEmail = email.trim().toLowerCase();
@@ -3065,52 +3044,37 @@ export function AppProvider({ children }) {
     }
 
     try {
-      const inviterDisplayName = user.displayName || 'A friend';
-      const inviteRef = await addDoc(collection(db, 'invites'), {
-        inviterUid: user.uid,
-        inviterName: inviterDisplayName,
-        inviteeEmail: toEmail,
-        status: 'pending',
-        createdAt: serverTimestamp(),
-      });
-      await sendNotification({ type: 'invite', inviteId: inviteRef.id });
+      await callFriends('invite', { email: toEmail });
       loadInviteStats(user.uid);
       return { success: true };
     } catch (err) {
       console.error('Invite send failed:', err);
-      return { error: 'Failed to send invite. Please try again.' };
+      return { error: err.status && err.status < 500 ? err.message : 'Failed to send invite. Please try again.' };
     }
   };
 
   const resendInvite = async (invite) => {
     if (!user) return;
-    const lastSent = invite.lastSentAt?.toMillis?.() ?? invite.createdAt?.toMillis?.() ?? 0;
-    if (Date.now() - lastSent < 24 * 60 * 60 * 1000) {
-      setToast('You can only resend to the same person once per 24 hours.');
-      return false;
-    }
     try {
-      const res = await sendNotification({ type: 'invite', inviteId: invite.id });
-      if (res && !res.ok) throw new Error('Email send failed');
-      // 200 { skipped: 'already sent' } means the server's own 24-hour
-      // limit for this address caught it.
-      if (res && (await res.clone().json().catch(() => ({}))).reason === 'already sent') {
-        setToast('You can only resend to the same person once per 24 hours.');
-        return false;
+      const res = await callFriends('resendInvite', { inviteId: invite.id });
+      if (res.resent) {
+        setToast(`Invite resent to ${invite.inviteeEmail}`);
+        return true;
       }
-      await updateDoc(doc(db, 'invites', invite.id), { lastSentAt: serverTimestamp() });
-      setToast(`Invite resent to ${invite.inviteeEmail}`);
-      return true;
+      setToast(res.reason === 'recipient opted out'
+        ? 'That address has turned off emails from MySetlists.'
+        : 'You can only resend to the same person once per 24 hours.');
+      return false;
     } catch (err) {
       console.error('Resend invite failed:', err);
-      setToast('Failed to resend invite. Please try again.');
+      setToast(err.status === 429 ? err.message : 'Failed to resend invite. Please try again.');
       return false;
     }
   };
 
   const cancelInvite = async (inviteId) => {
     try {
-      await deleteDoc(doc(db, 'invites', inviteId));
+      await callFriends('cancelInvite', { inviteId });
     } catch (err) {
       console.error('Cancel invite failed:', err);
       setToast('Failed to cancel invite. Please try again.');

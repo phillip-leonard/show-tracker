@@ -33,51 +33,10 @@
 const { getDb, getAdminAuth } = require('./lib/firebaseAdmin');
 const { requireAccount } = require('./lib/requestAuth');
 const { corsHeaders, ALLOWED_ORIGINS } = require('./lib/cors');
-const { canEmail } = require('./lib/emailPolicy');
-const { buildEmail, sendOne } = require('./lib/outgoingEmail');
-const { authorizeEmail, DAILY_LIMITS } = require('./lib/emailAuthorization');
-const { takeDailyQuota } = require('./lib/rateLimit');
-
-const RATE_LIMIT_PER_HOUR = 30;
-const WINDOW_MS = 60 * 60 * 1000;
-
-/** Fixed hourly window per sender, in emailRateLimits/{uid}. */
-async function takeRateLimit(db, uid, now = Date.now()) {
-  const ref = db.doc(`emailRateLimits/${uid}`);
-  return db.runTransaction(async (tx) => {
-    const snap = await tx.get(ref);
-    const d = snap.exists ? snap.data() : null;
-    const fresh = !d || now - (d.windowStart || 0) >= WINDOW_MS;
-    const count = fresh ? 0 : d.count || 0;
-    if (count >= RATE_LIMIT_PER_HOUR) return false;
-    tx.set(ref, { uid, windowStart: fresh ? now : d.windowStart, count: count + 1, updatedAt: new Date(now) });
-    return true;
-  });
-}
-
-/**
- * Take the one-time marker for this email. False if it's already taken
- * (and, with a ttl, was taken less than ttl ago).
- */
-async function claimSend(db, key, { ttlMs = null, now = Date.now(), type, uid = null } = {}) {
-  if (!key) return true;
-  const ref = db.doc(`emailSends/${key}`);
-  return db.runTransaction(async (tx) => {
-    const snap = await tx.get(ref);
-    if (snap.exists) {
-      const sentAt = Number(snap.data().sentAtMs) || 0;
-      if (!ttlMs || now - sentAt < ttlMs) return false;
-    }
-    // uid = the sender, so delete-account's purge can find their markers.
-    tx.set(ref, { type: type || null, uid: uid || null, sentAtMs: now, sentAt: new Date(now) });
-    return true;
-  });
-}
-
-async function releaseSend(db, key) {
-  if (!key) return;
-  try { await db.doc(`emailSends/${key}`).delete(); } catch { /* best effort */ }
-}
+const { authorizeEmail } = require('./lib/emailAuthorization');
+// The limits, opt-out, one-time marker and send live in
+// lib/notificationDelivery.js (5.60.28), shared with friends.js's invites.
+const { deliverAuthorized, takeRateLimit, claimSend, emailConfigured, RATE_LIMIT_PER_HOUR } = require('./lib/notificationDelivery');
 
 exports.handler = async function (event) {
   const headers = corsHeaders(event, { methods: 'POST, OPTIONS' });
@@ -94,7 +53,7 @@ exports.handler = async function (event) {
   try { body = JSON.parse(event.body || '{}'); } catch { return reply(400, { error: 'Invalid request' }); }
   if (!body || typeof body !== 'object' || Array.isArray(body)) return reply(400, { error: 'Invalid request' });
 
-  if (!process.env.RESEND_API_KEY || !process.env.UNSUBSCRIBE_SECRET) {
+  if (!emailConfigured()) {
     console.error('[send-email] RESEND_API_KEY or UNSUBSCRIBE_SECRET is not set');
     return reply(503, { error: 'Email is unavailable right now' });
   }
@@ -119,44 +78,16 @@ exports.handler = async function (event) {
     return reply(decision.status || 403, { error: decision.status === 400 ? 'Invalid request' : 'Not allowed' });
   }
 
+  let outcome;
   try {
-    if (!caller.isAdmin) {
-      if (!(await takeRateLimit(db, caller.uid, now))) {
-        return reply(429, { error: `Too many emails — the limit is ${RATE_LIMIT_PER_HOUR} per hour.` });
-      }
-      const daily = DAILY_LIMITS[decision.type];
-      if (Number.isFinite(daily)) {
-        const q = await takeDailyQuota(db, `email_${decision.type}_${caller.uid}`, daily, { now, uid: caller.uid });
-        if (!q.allowed) return reply(429, { error: 'You’ve sent the most emails of this kind for today. Try again tomorrow.' });
-      }
-    }
+    outcome = await deliverAuthorized({ db, now }, caller, decision);
   } catch (e) {
-    console.error('[send-email] rate limit check failed:', e.message);
+    console.error('[send-email] delivery failed:', e.message);
     return reply(500, { error: 'Could not send right now' });
   }
-
-  const { recipient } = decision;
-  if (!(await canEmail({ uid: recipient.uid, email: recipient.email, category: 'notification' }, { db }))) {
-    return skipped('recipient opted out');
-  }
-
-  if (!(await claimSend(db, decision.dedupeKey, { ttlMs: decision.dedupeTtlMs, now, type: decision.type, uid: caller.uid }))) {
-    return skipped('already sent');
-  }
-
-  const payload = buildEmail({
-    recipient,
-    subject: decision.email.subject,
-    html: decision.email.html,
-    scope: 'all',
-    source: `notification:${decision.source}`,
-  });
-
-  const result = await sendOne(payload);
-  if (result.ok) return reply(200, { success: true });
-  await releaseSend(db, decision.dedupeKey);
-  console.error(`[send-email] Resend ${result.status} for ${decision.type}`);
-  return reply(502, { error: 'Email send failed' });
+  if (outcome.sent) return reply(200, { success: true });
+  if (outcome.skipped) return skipped(outcome.skipped);
+  return reply(outcome.error, { error: outcome.message });
 };
 
 exports.takeRateLimit = takeRateLimit;

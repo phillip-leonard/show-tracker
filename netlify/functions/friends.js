@@ -51,6 +51,31 @@
  *                           best-effort. Never tells the blocked user.
  *   unblock  { targetUid }  takes them off the list. The friendship isn't
  *                           restored: that goes back through a request.
+ * And, since 5.60.28 (Stage 3, 2a), the rest of the friend writes the
+ * browser used to make itself, so the native app makes none:
+ *   request       { toUid }      a friend request. Accepts theirs if they
+ *                                already asked you. Across a block it
+ *                                answers "requested" and writes nothing, so
+ *                                the block isn't revealed
+ *   decline       { requestId }  a pending request to the caller
+ *   cancel        { requestId }  a request the caller sent
+ *   invite        { email }      an email invite: the invites document,
+ *                                then the email (lib/emailAuthorization.js
+ *                                builds it, lib/notificationDelivery.js
+ *                                sends it with send-email's limits)
+ *   resendInvite  { inviteId }   the email again, at most once a day per
+ *                                address; stamps lastSentAt. The rules
+ *                                refuse client updates of an invite, so
+ *                                the web's resend failed from 5.59.7 until
+ *                                this
+ *   cancelInvite  { inviteId }   the caller's own invite
+ *   lookupByHandle { handle }    an exact, claimed handle → uid and name
+ *                                (Stage 3, C-6). Shares lookupByEmail's
+ *                                daily limit
+ * The rules still allow the old client writes (friendRequests create,
+ * decline and delete; invites create and delete) for iOS builds before
+ * 5.60.28 (docs/ios-native/GATED-CLEANUPS.md).
+ *
  * The rules still let the app write its own userBlocks document and remove
  * itself from someone's friends list, because iOS 3.13.42 and earlier
  * block that way; tightening waits for minSupportedIosVersion
@@ -61,7 +86,9 @@
  * Auth header: Authorization: Bearer {idToken}
  */
 
-const { getDb, getAdminAuth, verifyUser, isAnonymous } = require('./lib/firebaseAdmin');
+const { getDb, getAdminAuth, verifyUser, isAnonymous, isAdmin, isAnonymousAuthUser } = require('./lib/firebaseAdmin');
+const { authorizeEmail } = require('./lib/emailAuthorization');
+const { deliverAuthorized } = require('./lib/notificationDelivery');
 const { normalizeEmail, isValidEmail } = require('./lib/unsubscribeToken');
 const { signReferral, readReferral } = require('./lib/referralToken');
 const { corsHeaders: baseCors } = require('./lib/cors');
@@ -83,6 +110,11 @@ const LOOKUPS_PER_DAY = 50;
 // keep a script from turning them into a crawler (per user per UTC day).
 const TOGETHER_PER_DAY = 500;
 const SUGGESTION_SCANS_PER_DAY = 300;
+// Friend requests per user per UTC day (a request names its sender to the
+// recipient, so a script mustn't be able to spray them).
+const REQUESTS_PER_DAY = 100;
+// The handle rule moderate-content.js claims with (3–20 of a-z, 0-9, _).
+const HANDLE_RE = /^[a-z0-9_]{3,20}$/;
 
 const corsHeaders = (event) => baseCors(event, { methods: 'POST, OPTIONS' });
 
@@ -300,6 +332,47 @@ async function requestFriendship(db, from, to) {
   return true;
 }
 
+/** A document id from the body, or a 400. */
+function docId(value, what) {
+  const id = typeof value === 'string' ? value : '';
+  if (!id || id.includes('/') || id.length > 128) refuse(400, `${what} is required`);
+  return id;
+}
+
+/** The other person in a request: an account (not a guest), never the caller. */
+async function requestTarget(auth, uid, body) {
+  const to = String(body.toUid || '');
+  if (!to || to.includes('/') || to.length > 128) refuse(400, 'Who should the request go to?');
+  if (to === uid) refuse(400, 'You can’t send a friend request to yourself.');
+  const user = await auth.getUser(to).catch(() => null);
+  if (!user || isAnonymousAuthUser(user)) refuse(404, 'No account found.');
+  return to;
+}
+
+/** The caller's own invite, or a refusal. */
+async function ownInvite(db, uid, inviteId) {
+  const ref = db.collection('invites').doc(docId(inviteId, 'inviteId'));
+  const snap = await ref.get();
+  if (!snap.exists) refuse(404, 'Invite not found');
+  if (snap.data().inviterUid !== uid) refuse(403, 'Not your invite');
+  return { ref, invite: snap.data() };
+}
+
+/**
+ * Emails an invite the caller owns, as send-email would. Resolves
+ * 'sent' | 'already sent' | 'recipient opted out', or throws a Refusal
+ * for a limit (429) or a failed send (502/503).
+ */
+async function emailInvite(db, auth, caller, inviteId) {
+  const now = Date.now();
+  const decision = await authorizeEmail({ db, auth, now }, caller, { type: 'invite', inviteId });
+  if (!decision.ok) refuse(decision.status === 400 ? 400 : 403, 'This invite can’t be emailed.');
+  const outcome = await deliverAuthorized({ db, now }, caller, decision);
+  if (outcome.sent) return 'sent';
+  if (outcome.skipped) return outcome.skipped;
+  refuse(outcome.error, outcome.message);
+}
+
 const ACTIONS = {
   // Accept a pending friend request sent to the caller.
   async accept({ db, auth, uid, body }) {
@@ -421,6 +494,127 @@ const ACTIONS = {
     return { blocked: false };
   },
 
+  // ── Requests and invites (5.60.28) ──────────────────────────────
+
+  // A friend request from the caller. `result`: 'requested',
+  // 'already-requested', 'already-friends', or 'friends' when the other
+  // person had already asked (their request is accepted instead).
+  async request({ db, auth, uid, body }) {
+    const to = await requestTarget(auth, uid, body);
+    if (!(await takeDailyQuota(db, `friend_request_${uid}`, REQUESTS_PER_DAY, { uid })).allowed) {
+      refuse(429, 'Too many friend requests today. Please try again tomorrow.');
+    }
+    // Across a block: the same answer as a sent request, and nothing written.
+    if (await blockedBetween(db, uid, to)) return { result: 'requested' };
+    const [mineEdge, theirEdge] = await Promise.all([
+      db.doc(`users/${uid}/friends/${to}`).get(),
+      db.doc(`users/${to}/friends/${uid}`).get(),
+    ]);
+    if (mineEdge.exists && theirEdge.exists) return { result: 'already-friends', friendUid: to };
+    const theirs = await db.collection('friendRequests')
+      .where('from', '==', to).where('to', '==', uid).where('status', '==', 'pending').limit(1).get();
+    if (!theirs.empty) {
+      await makeFriends(db, auth, uid, to);
+      await theirs.docs[0].ref.update({ status: 'accepted', acceptedAt: new Date() });
+      return { result: 'friends', friendUid: to };
+    }
+    const sent = await requestFriendship(db, uid, to);
+    return { result: sent ? 'requested' : 'already-requested', friendUid: to };
+  },
+
+  // The recipient says no. The sender isn't told; the request stays, declined.
+  async decline({ db, uid, body }) {
+    const ref = db.collection('friendRequests').doc(docId(body.requestId, 'requestId'));
+    const snap = await ref.get();
+    if (!snap.exists) refuse(404, 'Request not found');
+    const req = snap.data();
+    if (req.to !== uid) refuse(403, 'Not your request');
+    if (req.status !== 'pending') refuse(409, 'Request is no longer pending');
+    await ref.update({ status: 'declined', declinedAt: new Date() });
+    return { declined: true };
+  },
+
+  // The sender takes a request back.
+  async cancel({ db, uid, body }) {
+    const ref = db.collection('friendRequests').doc(docId(body.requestId, 'requestId'));
+    const snap = await ref.get();
+    if (!snap.exists) return { cancelled: true }; // already gone
+    if (snap.data().from !== uid) refuse(403, 'Not your request');
+    await ref.delete();
+    return { cancelled: true };
+  },
+
+  // An email invite to join. One pending invite per address per inviter.
+  // `emailed`: 'sent', 'already sent' (that address had one from you in
+  // the last day) or 'recipient opted out'.
+  async invite({ db, auth, uid, email, caller, body }) {
+    const to = normalizeEmail(body.email);
+    if (!isValidEmail(to)) refuse(400, 'Enter a valid email address');
+    if (email && to === email) refuse(400, 'You can’t invite yourself.');
+    const existing = await db.collection('invites')
+      .where('inviterUid', '==', uid).where('inviteeEmail', '==', to).where('status', '==', 'pending').limit(1).get();
+    if (!existing.empty) {
+      refuse(409, 'You already have a pending invite for this email. You can resend it from the Invites tab.');
+    }
+    const ref = db.collection('invites').doc();
+    await ref.set({
+      inviterUid: uid,
+      inviterName: profileName(await getProfile(db, uid), 'A friend'),
+      inviteeEmail: to,
+      status: 'pending',
+      createdAt: new Date(),
+    });
+    let emailed;
+    try {
+      emailed = await emailInvite(db, auth, caller, ref.id);
+    } catch (e) {
+      // Over a limit: no invite either, so trying again tomorrow is clean.
+      if (e instanceof Refusal && e.status === 429) await ref.delete().catch(() => {});
+      throw e;
+    }
+    if (emailed === 'sent') await ref.update({ lastSentAt: new Date() });
+    return { inviteId: ref.id, emailed };
+  },
+
+  // The invite email again. `resent` false with a `reason` when it can't go.
+  async resendInvite({ db, auth, uid, caller, body }) {
+    const { ref, invite } = await ownInvite(db, uid, body.inviteId);
+    if (invite.status !== 'pending') refuse(409, 'This invite has already been accepted.');
+    const emailed = await emailInvite(db, auth, caller, ref.id);
+    if (emailed !== 'sent') return { resent: false, reason: emailed };
+    await ref.update({ lastSentAt: new Date() });
+    return { resent: true };
+  },
+
+  async cancelInvite({ db, uid, body }) {
+    const ref = db.collection('invites').doc(docId(body.inviteId, 'inviteId'));
+    const snap = await ref.get();
+    if (!snap.exists) return { cancelled: true }; // already gone
+    if (snap.data().inviterUid !== uid) refuse(403, 'Not your invite');
+    await ref.delete();
+    return { cancelled: true };
+  },
+
+  // The account with exactly this claimed handle ("@" optional, any case).
+  async lookupByHandle({ db, auth, uid, body }) {
+    const handle = String(body.handle || '').trim().replace(/^@/, '').toLowerCase();
+    if (!HANDLE_RE.test(handle)) refuse(400, 'Enter a handle: 3–20 letters, numbers or underscores.');
+    if (!(await takeDailyQuota(db, `friend_lookup_${uid}`, LOOKUPS_PER_DAY, { uid })).allowed) {
+      refuse(429, 'Too many lookups today. Please try again tomorrow.');
+    }
+    const claim = await db.doc(`handles/${handle}`).get();
+    const owner = claim.exists ? String(claim.data().uid || '') : '';
+    if (!owner) return { found: false };
+    if (owner === uid) return { found: false, self: true };
+    const profile = await getProfile(db, owner);
+    // Claimed means the profile carries it too (moderate-content writes both).
+    if (String(profile.handleLower || '').toLowerCase() !== handle) return { found: false };
+    const user = await auth.getUser(owner).catch(() => null);
+    if (!user || isAnonymousAuthUser(user)) return { found: false };
+    if (await blockedBetween(db, uid, owner)) return { found: false };
+    return { found: true, uid: owner, displayName: profileName(profile, ''), handle: String(profile.handle || handle) };
+  },
+
   async showsTogether({ db, uid, body }) {
     const friendUid = String(body.friendUid || '');
     if (!(await takeDailyQuota(db, `together_${uid}`, TOGETHER_PER_DAY, { uid })).allowed) refuse(429, 'Too many requests today. Please try again tomorrow.');
@@ -502,6 +696,9 @@ exports.handler = async function (event) {
       auth: getAdminAuth(),
       uid: decoded.uid,
       email: normalizeEmail(decoded.email || ''),
+      // For the invite email (lib/emailAuthorization.js reads uid and name,
+      // lib/notificationDelivery.js uid and isAdmin).
+      caller: { uid: decoded.uid, email: decoded.email || null, name: decoded.name || null, isAdmin: isAdmin(decoded) },
       body,
     });
     return reply(200, { success: true, ...result });
@@ -514,4 +711,5 @@ exports.handler = async function (event) {
 
 exports.ACTIONS = ACTIONS;
 exports.LOOKUPS_PER_DAY = LOOKUPS_PER_DAY;
+exports.REQUESTS_PER_DAY = REQUESTS_PER_DAY;
 exports.suggestionDocId = suggestionDocId;
