@@ -73,7 +73,7 @@ public final class SessionStore {
         }
         Task { await refreshConfig() }
         foregroundObserver = NotificationCenter.default.addObserver(forName: UIApplication.willEnterForegroundNotification, object: nil, queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated { Task { await self?.refreshConfig() } }
+            Task { @MainActor [weak self] in await self?.refreshConfig() }
         }
     }
 
@@ -382,6 +382,12 @@ public final class SessionStore {
     public func signOut() async -> [(String, SignOutRunner.Outcome)] {
         let steps: [SignOutRunner.Step] = [
             .init("push token") { @MainActor in
+                // TODO(Stage 3): move push to Firebase Installation IDs when push work
+                // starts: register(completion:) with FirebaseMessagingInstallationIdEnabled
+                // in Info.plist, pushTokens keyed by the FID, the server sending by FID,
+                // and the Capacitor app's FCM-token writers retired. Until then token()
+                // (deprecated) is the only way to find this device's pushTokens document,
+                // which is keyed by its FCM token. docs/ios-native/GATED-CLEANUPS.md.
                 let token = try await Messaging.messaging().token()
                 try await Database.ready().document("pushTokens/\(token)").delete()
             },
