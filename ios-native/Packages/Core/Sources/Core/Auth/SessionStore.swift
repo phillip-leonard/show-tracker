@@ -1,5 +1,6 @@
 import FirebaseAuth
 import FirebaseCore
+import FirebaseCrashlytics
 import FirebaseFirestore
 import FirebaseMessaging
 import Foundation
@@ -44,6 +45,10 @@ public final class SessionStore {
 
     /// Ticked and signed in on this device; recorded on the profile.
     private var acceptedOnThisDevice = false
+    /// The accepted terms version this phone has seen, per account.
+    @ObservationIgnored private let termsRecord = TermsAcceptanceRecord()
+    /// Changes when the record does, so the gate recomputes.
+    private var termsRecordRevision = 0
     private var pendingName: String?
     private var authHandle: AuthStateDidChangeListenerHandle?
     private var profileListener: ListenerRegistration?
@@ -60,7 +65,10 @@ public final class SessionStore {
     public var versionStatus: AppVersion.Status { AppVersion.status(current: appVersion, config: appConfig) }
 
     public var gate: AccountGate {
-        AccountGate.compute(signedIn: signedIn, profile: profileState, acceptedOnThisDevice: acceptedOnThisDevice, version: versionStatus)
+        _ = termsRecordRevision
+        let recorded = user.map { termsRecord.hasAcceptedCurrent(uid: $0.uid) } ?? false
+        return AccountGate.compute(signedIn: signedIn, profile: profileState, acceptedOnThisDevice: acceptedOnThisDevice || recorded,
+                                   version: versionStatus)
     }
 
     // MARK: - Start
@@ -109,6 +117,7 @@ public final class SessionStore {
         signedIn = true
         if !next.isAnonymous { WelcomeBack.noteAccountSignIn() }
         if switched {
+            recordTickIfAny(uid: next.uid)
             profileState = .unknown
             listenToProfile(uid: next.uid)
             if !next.isAnonymous { Task { await afterAccountSignIn() } }
@@ -142,6 +151,7 @@ public final class SessionStore {
                 }
                 self.profile = profile
                 self.profileState = .loaded(banned: profile.banned, termsAcceptedVersion: profile.termsAcceptedVersion)
+                self.noteTerms(profile, uid: uid, fromServer: !snapshot.metadata.isFromCache && !snapshot.metadata.hasPendingWrites)
                 if first { first = false; Task { await self.prepareProfile(existing: profile) } }
             }
         }
@@ -203,13 +213,45 @@ public final class SessionStore {
     // MARK: - Terms
 
     /// The gate's "I agree", for an account that hasn't accepted this version.
+    /// Recorded on this phone at once, so the gate opens online or not; the
+    /// profile write is queued by Firestore and syncs when it can (it isn't
+    /// awaited, since offline that wait lasts until the connection is back).
     public func acceptTerms() async throws {
         guard let uid = user?.uid else { return }
         acceptedOnThisDevice = true
-        try await Database.ready().document("userProfiles/\(uid)").setData([
-            "termsAcceptedVersion": Terms.version,
-            "termsAcceptedAt": FieldValue.serverTimestamp(),
-        ], merge: true)
+        recordTerms(Terms.version, uid: uid)
+        writeTermsAcceptance(uid: uid)
+    }
+
+    private func writeTermsAcceptance(uid: String) {
+        Task {
+            do {
+                try await Database.ready().document("userProfiles/\(uid)").setData([
+                    "termsAcceptedVersion": Terms.version,
+                    "termsAcceptedAt": FieldValue.serverTimestamp(),
+                ], merge: true)
+            } catch {
+                Crashlytics.crashlytics().log("terms acceptance write: \(error.localizedDescription)")
+            }
+        }
+    }
+
+    private func recordTerms(_ version: Int, uid: String) {
+        termsRecord.record(version, uid: uid)
+        termsRecordRevision += 1
+    }
+
+    /// The profile as it arrives: an accepted version is remembered on this
+    /// phone; and when the server's copy lacks an acceptance this phone
+    /// recorded (agreed offline, and that queued write was lost), it is
+    /// written again.
+    private func noteTerms(_ profile: UserProfile, uid: String, fromServer: Bool) {
+        let stored = profile.termsAcceptedVersion ?? 0
+        if stored >= Terms.version {
+            recordTerms(stored, uid: uid)
+        } else if fromServer, termsRecord.hasAcceptedCurrent(uid: uid) {
+            writeTermsAcceptance(uid: uid)
+        }
     }
 
     private func requireTerms() throws(AuthFailure) {
@@ -217,6 +259,11 @@ public final class SessionStore {
         if Auth.auth().currentUser?.isAnonymous == true { return }
         guard termsTicked else { throw .other("Please agree to the Terms of Service first.") }
         acceptedOnThisDevice = true
+    }
+
+    /// The sign-in screen's tick, once the account it signed in is known.
+    private func recordTickIfAny(uid: String) {
+        if acceptedOnThisDevice { recordTerms(Terms.version, uid: uid) }
     }
 
     // MARK: - Sign in
@@ -404,6 +451,7 @@ public final class SessionStore {
                 if let user = self?.user, user.isAnonymous {
                     SetlistEditQueue.delete(uid: user.uid)
                     ShowOutbox.delete(uid: user.uid)
+                    self?.termsRecord.forget(uid: user.uid)
                 }
             },
             .init("firebase") { @MainActor in try Auth.auth().signOut() },
@@ -446,6 +494,7 @@ public final class SessionStore {
         } catch {
             throw .other(error.message ?? "Your account couldn't be deleted. Please try again.")
         }
+        termsRecord.forget(uid: user.uid)
         await signOut()
     }
 
