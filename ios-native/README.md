@@ -78,6 +78,7 @@ A Release build uploads its dSYM to Crashlytics (the "Upload dSYM to Crashlytics
 - **Same capabilities as the Capacitor app:** Sign in with Apple, push (development APNs in Debug, production in Release), and universal links for `mysetlists.net`. The App ID already has all three, so the developer portal needs no changes.
 - **Firestore offline persistence is on** (`AppBootstrap`). The web keeps it off. Sign-out clears it (`Database`).
 - **Crashlytics collects from Release builds only.** Debug builds don't report.
+- **Ticket photos never touch the disk.** The scan resizes them in memory, sends them once when Scan is tapped, and drops them afterwards (`TicketScan`, `ScanTicketView`). The library uses `PhotosPicker`, which needs no photo permission; the camera asks with `NSCameraUsageDescription`.
 - **Dark only in v1.**
 
 ## Netlify skips native-only commits

@@ -26,6 +26,20 @@ struct AddShowSheet: View {
                     NavigationLink { ManualShowForm() } label: {
                         row("Add by hand", "Band, venue and date. The setlist comes from the band's archive when it has one.", "square.and.pencil")
                     }
+                    if isGuest {
+                        Button { upgrading = true } label: {
+                            row("Scan a ticket", "Create an account to scan tickets.", "ticket")
+                        }
+                    } else {
+                        NavigationLink {
+                            ScanTicketView { route in
+                                dismiss()
+                                if let route { router.tab = .shows; router.paths[.shows, default: []].append(route) }
+                            }
+                        } label: {
+                            row("Scan a ticket", "A photo of a ticket stub, wristband or mobile ticket.", "ticket")
+                        }
+                    }
                 } header: { Text("A show you went to") }
                 .brandRow()
 
