@@ -63,3 +63,11 @@ public extension DocumentSnapshot {
         return suggestion
     }
 }
+
+public extension DocumentSnapshot {
+    func decodeNotification() throws -> AppNotification {
+        var notification = try data(as: AppNotification.self)
+        notification.id = documentID
+        return notification
+    }
+}

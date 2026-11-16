@@ -7,7 +7,7 @@ All notable changes to mysetlists.net are documented here.
 ## [5.60.30] — 2026-11-16
 
 Ships in **iOS 3.13.46** (Capacitor, `MARKETING_VERSION` 3.13.45 → 3.13.46)
-and **native 4.0.24** (4.0.23 is taken by the open inbox PR, #449). Stage 3,
+and **native 4.0.24** (4.0.23 went to the inbox, #449). Stage 3,
 Part 5 (`docs/ios-native/STAGE3-AUDIT.md` §5, DECISIONS "Stage 3", C-7 and
 C-8).
 

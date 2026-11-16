@@ -17,6 +17,8 @@ public struct AppShell: View {
     /// Friends, requests, invites and blocks (Stage 3, Part 2b): accounts
     /// only, so a guest never starts it.
     @State private var friends = FriendsStore()
+    /// The inbox (Stage 3, Part 4): guests too, since band alerts reach them.
+    @State private var inbox = NotificationsStore()
 
     public init() {}
 
@@ -29,7 +31,7 @@ public struct AppShell: View {
             Tab("Friends", systemImage: "person.2", value: AppTab.friends) {
                 TabStack(tab: .friends) { FriendsHome() }
             }
-            .badge(friends.waitingCount)
+            .badge(friends.waitingCount + inbox.unreadCount)
             Tab("Stats", systemImage: "chart.bar", value: AppTab.stats) {
                 TabStack(tab: .stats) { StatsHome() }
             }
@@ -41,6 +43,7 @@ public struct AppShell: View {
             }
         }
         .environment(friends)
+        .environment(inbox)
         .tabViewStyle(.sidebarAdaptable)
         .tint(.brand)
         .task(id: session.user?.uid) {
@@ -51,10 +54,13 @@ public struct AppShell: View {
         .task(id: "\(session.user?.uid ?? "")|\(session.user?.isAnonymous == true)") {
             if let user = session.user, !user.isAnonymous { friends.start(uid: user.uid, api: session.api, email: user.email) } else { friends.stop() }
         }
+        .task(id: session.user?.uid) {
+            if let uid = session.user?.uid { inbox.start(uid: uid) } else { inbox.stop() }
+        }
         // Registers this device for push for whoever is signed in (guests
         // too), when notifications are allowed (Stage 3, Part 5).
         .task(id: session.user?.uid) { await PushCenter.shared.signedIn(uid: session.user?.uid) }
-        .onDisappear { shows.stop(); friends.stop() }
+        .onDisappear { shows.stop(); friends.stop(); inbox.stop() }
         .sheet(item: $router.web) { page in
             SafariView(url: page.url).ignoresSafeArea()
         }
@@ -91,6 +97,7 @@ struct RouteScreen: View {
         case .show(let id): ShowDetailScreen(id: id)
         case .upcomingShow(let id): UpcomingDetail(id: id)
         case .myShows(let filter): MyShowsList(filter: filter)
+        case .notifications: NotificationsView()
         default: RoutePlaceholder(route: route)
         }
     }
