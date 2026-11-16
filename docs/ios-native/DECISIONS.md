@@ -86,6 +86,7 @@ From Phillip's project copy.
 - **Discover** stays hidden.
 - **Festivals** in v1 are read-and-attach only: list, detail, attach a show, lineup. Create, join and picks are v1.x.
 - **Screenshot and CSV import** are v1.x. Until then, the app links to the web page.
+- **Comments, photos and meetups** on a show are v1.x (Stage 3, C-4). Until then, the show's row opens its web page.
 - **Any v1.x screen** opens its web page in `SFSafariViewController` until it exists natively.
 - **Year in Review** is in v1 only if v1 is ready before Dec 2. Otherwise it waits for next season.
 
@@ -181,3 +182,21 @@ From the Stage 2 Part 1 audit ([`STAGE2-AUDIT.md`](STAGE2-AUDIT.md)), approved w
 - **Debug rows stay as they are:** both behind five taps on the version; "Developer" is Debug-only; the first-launch report stays until the cutover numbers are in.
 - **The deletion PR fixes three native bugs:** deletion clears the outbox and the edit queue; a deletion that times out checks whether the account is gone before reporting a failure; guest changes are flushed before adoption, or adoption doesn't start. The suspended screen gets "Delete my account" and the support email (deletion works there while the session lasts; after that, through support).
 - **PR order:** server PR (top songs, top 10, block side effects, the two fixtures) → Stats → Me → deletion and upgrade fixes.
+
+## Stage 3: friends, notifications, push (2026-11-16)
+
+From the Stage 3 Part 1 audit ([`STAGE3-AUDIT.md`](STAGE3-AUDIT.md)), approved with these calls:
+
+- **Friend requests go through the server** (C-1): `friends.js` gains `request`, `decline` and `cancel`. `request` checks for a block and, if there is one, answers as if the request were sent, so the block isn't revealed. The web switches to them in the same PR.
+- **Invites go through the server** (C-1, §8 of the audit): `invite`, `resendInvite` and `cancelInvite`. `resendInvite` fixes the web's resend, refused by the `invites` rule since 5.59.7 (2a).
+- **Tags go through the server** (C-2): `tag`, `respondTag` and `revokeTag`, with `showData` built from the tagger's own stored show, never from the request. Accepting a past tag stays `normalize-show` kind `tag`.
+- **Suggestion answers go through the server** (C-3): `respondSuggestion`, which sends the nudge email once.
+- **Comments, photos and meetups stay on the web in Stage 3** (C-4) and are on the v1.x list (above). Native doesn't post, like or report them yet.
+- **Engagement notifications are a security fix** (C-5): today any account can write a notification into anyone's inbox. In 3a, `moderate-content` writes the reply and mention notifications when it creates a comment, and a server action writes like and meetup-join notifications after checking the like or join happened. The web stops writing them. Refusing client creates on `notifications` goes in GATED-CLEANUPS, safe from the Capacitor version 3a ships in, since older builds still write them.
+- **Old client-write rules wait the same way:** 2a and 3a each add a GATED-CLEANUPS row for the client creates they replace (`friendRequests`, `invites`, `showTags`, `pendingEmailTags`), safe from the Capacitor version that PR ships in. No rule is loosened.
+- **Find friends by handle** (C-6): `lookupByHandle`, an exact match only, and only accounts with a claimed handle. Email lookup stays.
+- **Test push** (C-7): an admin-only `send-test-push` function, gated on the `admin` claim, sends to the caller's own devices with a chosen link; the native debug rows (behind five taps) call it.
+- **Push stays on FCM tokens; `token()` stays** (C-8). Firebase deprecated the token APIs (Messaging 12.18.0) in favour of installation IDs, but those work only with `FirebaseMessagingInstallationIdEnabled` on, which makes every token API fail and needs the server to send by installation ID. `firebase-admin` 12.7 can't (its `send()` takes a token, topic or condition), and the Capacitor app's `pushTokens` documents are keyed by FCM token. With the setting off (the default), the token APIs work as they do in the Capacitor app, so there's no server change. Native calls them from one file, which keeps the deprecation warnings in one place. The move to installation IDs stays in GATED-CLEANUPS, for when Firebase removes `token()` or the Admin SDK sends by installation ID, and after the Capacitor builds retire.
+- **`iosPushOfferEnabled` stays off**, and native follows it: no permission prompt while it's off. A device that already allowed push (in the Capacitor app) registers without asking.
+- **Guests:** no Friends, requests, invites, tags or UGC (the Friends tab keeps "Friends need an account"). Guests follow bands and get band alerts in the app and by push, never by email (no address); the server needs no change for that (D-2).
+- **PR order:** 2a (friends server actions, the invite resend fix) → 2b (native Friends, block, report) → 3a (show social server actions, engagement notifications) → 3b (native show social) → 4 (notifications inbox) → 5 (push) → 6 (band alerts and links). Parts 2 and 3 are two PRs each: the server actions change the web and carry its versions.
