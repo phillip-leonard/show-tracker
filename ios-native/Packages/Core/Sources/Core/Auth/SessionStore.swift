@@ -454,12 +454,9 @@ public final class SessionStore {
     public func signOut() async -> [(String, SignOutRunner.Outcome)] {
         let steps: [SignOutRunner.Step] = [
             .init("push token") { @MainActor in
-                // TODO(Stage 3): move push to Firebase Installation IDs when push work
-                // starts: register(completion:) with FirebaseMessagingInstallationIdEnabled
-                // in Info.plist, pushTokens keyed by the FID, the server sending by FID,
-                // and the Capacitor app's FCM-token writers retired. Until then token()
-                // (deprecated) is the only way to find this device's pushTokens document,
-                // which is keyed by its FCM token. docs/ios-native/GATED-CLEANUPS.md.
+                // This device's pushTokens document is keyed by its FCM token, so
+                // token() finds it. Push stays on FCM tokens (DECISIONS, Stage 3
+                // C-8): installation IDs would need the server to send by them.
                 let token = try await Messaging.messaging().token()
                 try await Database.ready().document("pushTokens/\(token)").delete()
             },
