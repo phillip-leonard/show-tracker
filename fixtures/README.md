@@ -57,9 +57,10 @@ how a setlist is split into sets and encores and rearranged in the editor
 (`lib/setlistGrouping.js`). The edits run on the device, inside a
 Firestore transaction against the stored setlist, so both apps have their
 own copy of these rules; these files keep them the same (5.60.22). The
-web side runs them in `lib/__tests__/setlistFixtures.test.js`; the Swift
-side decodes them now (`SetlistAndUpcomingFixtureTests`) and runs them
-with its port (Part 3b).
+web side runs them in `lib/__tests__/setlistFixtures.test.js`. The Swift
+side decodes all of them (`SetlistAndUpcomingFixtureTests`), runs
+`groups.json` with its port `SetGroups` (`SetGroupsTests`, 5.60.25), and
+runs the edits with its port in Part 3b.
 
 `setlist-edits/<type>.json`, one file per edit type (`rate`, `comment`,
 `rate-unrated`, `add`, `delete`, `restore`, `reorder`), each with `cases`:
@@ -93,11 +94,25 @@ with a fixed `today`) and `duplicate.json` (`findDuplicateUpcoming`).
 file's `now` (an ISO string) here. The web side runs them in
 `lib/__tests__/upcomingFixtures.test.js`.
 
+## `show-edits/`
+
+`fields.json`: the one-field write the native show page sends when the
+show rating, the venue rating or the note (`comment`) changes
+(`lib/showFieldEdits.js showFieldEdit`, 5.60.25), and the stored show
+after it. `expected.edit` is `{ ok, set: { field: value } }`, `{ ok,
+remove: [field] }` (Firestore's `deleteField()`: a cleared value is
+absent, never `0` or `''`) or `{ ok: false, error }`; `expected.show` is
+`show` with only that field changed. Every other field must come through
+untouched, which the test checks on its own (R-06). The web side runs it
+in `lib/__tests__/showEditFixtures.test.js`, the Swift side in
+`ShowFieldEditTests`.
+
 To regenerate any of these after a deliberate change:
 
 ```
 UPDATE_FIXTURES=1 node --experimental-loader ./lib/__tests__/alias-loader.mjs lib/__tests__/setlistFixtures.test.js
 UPDATE_FIXTURES=1 node --experimental-loader ./lib/__tests__/alias-loader.mjs lib/__tests__/upcomingFixtures.test.js
+UPDATE_FIXTURES=1 node lib/__tests__/showEditFixtures.test.js
 ```
 
 ## `year-in-review/`

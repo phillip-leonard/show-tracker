@@ -2,55 +2,6 @@ import Core
 import DesignSystem
 import SwiftUI
 
-/// Where `/shows/?show=<id>` and a row lead until the show page is built
-/// (Part 3a): the show's header, or "Show not found". Waits for the shows
-/// to load, which always ends (`ShowsStore`).
-struct ShowDetailPlaceholder: View {
-    @Environment(ShowsStore.self) private var store
-    let id: String
-
-    var body: some View {
-        Group {
-            if let show = store.show(id: id) {
-                List {
-                    Section {
-                        VStack(alignment: .leading, spacing: Space.x2) {
-                            Text(show.artist.isEmpty ? "Unknown band" : show.artist)
-                                .font(.jakarta(size: 24, weight: .bold, relativeTo: .title2))
-                                .foregroundStyle(Color.amber)
-                            Text(ShowDateText.display(show.date))
-                                .font(.jakarta(size: 16, relativeTo: .body))
-                                .foregroundStyle(Color.textSecondary)
-                            let place = venueLine(show.venue, show.city)
-                            if !place.isEmpty { Text(place).font(.jakarta(size: 16, relativeTo: .body)).foregroundStyle(Color.textSecondary) }
-                            if let tour = show.tour { Text("Tour: \(tour)").font(.jakarta(size: 16, weight: .medium, relativeTo: .body)).foregroundStyle(Color.brand) }
-                            HStack {
-                                SetlistStatusLabel(status: ShowList.setlistStatus(show))
-                                Spacer()
-                                if let rating = show.rating { RatingBadge(rating: rating) }
-                            }
-                        }
-                        .padding(.vertical, Space.x2)
-                    } footer: {
-                        Text("The full show page, with the setlist, ratings and notes, comes in the next build.")
-                    }
-                    .brandRow()
-                }
-                .navigationTitle(show.artist)
-            } else if !store.showsLoaded {
-                ProgressView("Loading the show")
-            } else {
-                ContentUnavailableView {
-                    Label("Show not found", systemImage: "music.mic")
-                } description: {
-                    Text("It may have been deleted, or it belongs to another account.")
-                }
-            }
-        }
-        .navigationBarTitleDisplayMode(.inline)
-    }
-}
-
 /// `/shows/?upcoming=<id>` and an upcoming row, until its screen is built.
 struct UpcomingDetailPlaceholder: View {
     @Environment(ShowsStore.self) private var store

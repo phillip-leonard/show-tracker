@@ -122,22 +122,6 @@ struct RatingText: View {
     }
 }
 
-/// "8/10", the show's own rating, as a badge (the detail placeholder).
-struct RatingBadge: View {
-    let rating: Int
-
-    var body: some View {
-        Text("\(rating)/10")
-            .font(.jakarta(size: 14, weight: .bold, relativeTo: .subheadline))
-            .monospacedDigit()
-            .foregroundStyle(Color.amber)
-            .padding(.horizontal, Space.x2)
-            .padding(.vertical, 2)
-            .background(Color.amberSubtle, in: Capsule())
-            .accessibilityLabel("Rated \(rating) out of 10")
-    }
-}
-
 /// Setlist (green), Proposal waiting (amber) or No setlist yet (muted).
 struct SetlistStatusLabel: View {
     let status: ShowList.SetlistStatus

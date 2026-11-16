@@ -4,6 +4,53 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.60.25] — 2026-11-15
+
+Ships in **iOS 3.13.41** (Capacitor, `MARKETING_VERSION` 3.13.40 → 3.13.41)
+and **native 4.0.9** (4.0.8 → 4.0.9). Nothing changes in the web or
+Capacitor apps.
+
+**Native app Stage 1, Part 3a: the show page and its field edits.**
+
+- **The show page**, laid out as in the Stage 1 mockup: "SAT, NOV 8, 2026 ·
+  FALL TOUR", the band, venue and city, and the festival it was part of
+  (read from the attendance record and the shared festival, name only).
+  Then your ratings and note, the setlist by set and encore, the source's
+  notes (`setlistNotes`) and its credit.
+- **Setlist, read-only in 3a:** grouped by `SetGroups`, the Swift copy of
+  `lib/setGroups.js`, checked against `fixtures/setlist-grouping/groups.json`.
+  Songs are numbered through the show. Each song shows its segue mark ('>'
+  or the band source's own '->'), a cover's original artist, footnote, jam
+  chart, debut, and your song rating and comment. Notices for a setlist
+  waiting for review and for an Archive setlist to check. Rating songs and
+  editing the setlist come in 3b.
+- **Credit:** "Source: <band> setlist on setlist.fm" (setlist.fm's terms),
+  "Setlist via <band source>", or the Internet Archive's tape line. Each is
+  linked, and the "Now sourced from the Internet Archive" line appears when
+  the credit changed. The model now reads `setlistSourceChange`, and
+  `populatedFrom` is a known ignored field (audit §5).
+- **Field edits, one field each:** show rating, venue rating (1–10, "No
+  rating" clears) and your note (`comment`). Each is one `updateData` of
+  that field only; a cleared value is removed, never written as 0 or ""
+  (S-8). The rule is the new `lib/showFieldEdits.js` (CommonJS), with
+  golden cases in `fixtures/show-edits/fields.json`, run by
+  `lib/__tests__/showEditFixtures.test.js` and the Swift `ShowFieldEditTests`.
+  Offline, Firestore queues the write; the page shows it at once. After any
+  change, `recompute-my-stats` runs 3 s later, as on the web.
+- **Re-sync button:** shown when `setlist-source` offers one, with its label
+  ("Re-fetch from El Goose", "Get setlist from Phish.net"). The answer is
+  cached per band for the session (`SetlistSourceCache`, using a new GET in
+  `APIClient`). Tapping it says it starts working in the next build (3b).
+- **Delete show**, from the ••• menu, with a confirmation that names the
+  show. It deletes the document and recomputes stats. The native app never
+  rewrites the legacy profile counters. **Share** (accounts only) shares
+  `https://mysetlists.net/shows/?show=<id>`.
+- **Waiting to sync:** a show still in this device's outbox opens
+  read-only, with a "Waiting to sync" notice. The outbox file is
+  `Application Support/outbox-<uid>.json` (`ShowOutbox`, `QueuedShow`).
+  3a reads it; Part 4 writes and sends it.
+- **Search tab:** "Search is coming soon. Use the search field on Shows for now."
+
 ## [5.60.24] — 2026-11-15
 
 Ships in **iOS 3.13.40** (Capacitor, `MARKETING_VERSION` 3.13.39 → 3.13.40)
