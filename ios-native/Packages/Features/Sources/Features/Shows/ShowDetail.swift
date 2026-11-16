@@ -479,10 +479,16 @@ struct SetlistSection: View {
                     }
                 }
                 if store.isSavingSetlist(showId: show.id) {
-                    // Until the transaction lands; online it keeps retrying.
+                    // Until the queued edits land: online it keeps retrying;
+                    // offline they wait on this phone for the connection.
                     HStack(spacing: Space.x2) {
-                        ProgressView().controlSize(.small)
-                        Text("Saving…")
+                        if Connectivity.shared.isOnline {
+                            ProgressView().controlSize(.small)
+                            Text("Saving…")
+                        } else {
+                            Image(systemName: "icloud.and.arrow.up").foregroundStyle(Color.amber)
+                            Text("Saved on this iPhone. It syncs when you're back online.")
+                        }
                     }
                     .font(.jakarta(size: 12, weight: .semibold, relativeTo: .caption))
                     .foregroundStyle(Color.textSecondary)

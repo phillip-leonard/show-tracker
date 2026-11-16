@@ -105,4 +105,54 @@ struct SetlistTransactionEmulatorTests {
         #expect(byId["s1"]?["rating"] == .number(8) && byId["s1"]?["comment"] == .string("Huge jam"), "an untouched rating and comment survive")
         #expect(byId["s1"]?["cover"] == .null && byId["s1"]?["tape"] == .bool(false), "fields the app doesn't edit come through as they were")
     }
+
+    /// Device A is offline and its song edits wait in its queue; device B
+    /// rates another song meanwhile. When A is back, its queue replays as
+    /// transactions: both ratings stick. Writing A's whole device copy (what
+    /// the app did before the queue) would have erased B's rating.
+    @Test func anOfflineDevicesQueuedEditsReplayWithoutErasingAnotherDevicesRating() async throws {
+        let a = Self.device("deviceA"), b = Self.device("deviceB")
+        let email = "offline-queue-\(UUID().uuidString.prefix(8))@example.test"
+        let created = try await Auth.auth(app: a).createUser(withEmail: email, password: "emulator-only-123")
+        _ = try await Auth.auth(app: b).signIn(withEmail: email, password: "emulator-only-123")
+        let path = "users/\(created.user.uid)/shows/1730000000002"
+        let refA = Firestore.firestore(app: a).document(path)
+        let refB = Firestore.firestore(app: b).document(path)
+        try await refA.setData([
+            "artist": "Goose", "venue": "Red Rocks Amphitheatre", "city": "Morrison", "date": "2026-06-13", "taggedFriendUids": [],
+            "setlist": [Self.song("s1", "Hot Tea", "Set I"), Self.song("s2", "Rockdale", "Set I"), Self.song("s3", "Dripfield", "Set II")],
+        ])
+        let before = try #require(SetlistTransaction.setlist(in: try await refA.getDocument(source: .server).data()))
+
+        // A, offline: two edits queued, in order, and its own copy updated.
+        var queue = [
+            QueuedSetlistEdit(showId: "1730000000002", edit: .rate(songId: "s1", rating: 6)),
+            QueuedSetlistEdit(showId: "1730000000002", edit: .rate(songId: "s1", rating: 9)),
+        ]
+        let deviceCopy = SetlistEditQueue.overlay(before, queue)
+
+        // B, online, rates another song.
+        _ = try await SetlistTransaction.run(.rate(songId: "s3", rating: 8), on: refB)
+
+        // A is back: the queue replays.
+        var gaveUp: [String] = []
+        await SetlistEditReplay.run(
+            next: { queue.first },
+            canRun: { true },
+            attempt: { entry in
+                do { _ = try await SetlistTransaction.run(entry.setlistEdit!, on: refA); return .landed } catch { return .failed(error) }
+            },
+            sleep: { _ in },
+            landed: { e in queue.removeAll { $0.id == e.id } },
+            gaveUp: { e, _ in gaveUp.append(e.id); queue.removeAll { $0.id == e.id } }
+        )
+        #expect(queue.isEmpty && gaveUp.isEmpty)
+
+        let stored = try #require(SetlistTransaction.setlist(in: try await refB.getDocument(source: .server).data()))
+        let byId = Dictionary(uniqueKeysWithValues: stored.compactMap { song in SetlistEdits.songId(song).map { ($0, song) } })
+        #expect(byId["s1"]?["rating"] == .number(9), "A's edits landed, the later one last")
+        #expect(byId["s3"]?["rating"] == .number(8), "B's rating made while A was offline stuck")
+        #expect(deviceCopy.first { SetlistEdits.songId($0) == "s3" }?["rating"] == nil,
+                "A's whole device copy doesn't have B's rating: writing it would have erased it")
+    }
 }

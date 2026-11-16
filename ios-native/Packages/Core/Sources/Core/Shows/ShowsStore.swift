@@ -2,6 +2,7 @@ import FirebaseCrashlytics
 import FirebaseFirestore
 import Foundation
 import Observation
+import UIKit
 
 /// The signed-in person's shows, upcoming shows and server stats, kept live.
 ///
@@ -52,13 +53,17 @@ public final class ShowsStore {
     private var sources: SetlistSourceCache?
     private var recompute: Task<Void, Never>?
     private var festivalNames: [String: String] = [:]
-    /// Setlist edits in flight (Part 3b): this device's copy of a show's
-    /// setlist, shown until the stored one comes back, so a transaction that
-    /// hasn't committed yet doesn't make the screen flick back
-    /// (`mergeShowsSnapshot` in lib/liveShows.js).
+    /// Song edits not yet applied to the stored setlist, oldest first
+    /// (`SetlistEditQueue`, saved to a file on every change).
+    public private(set) var queuedEdits: [QueuedSetlistEdit] = []
+    /// This device's copy of a show's setlist while edits of it wait, so the
+    /// screen shows them at once and doesn't flick back before the stored
+    /// setlist has them (`mergeShowsSnapshot` in lib/liveShows.js).
     private var pendingSetlists: [String: (raw: [JSONValue], songs: [Song])] = [:]
-    private var setlistInFlight: [String: Int] = [:]
     private var settleTasks: [String: Task<Void, Never>] = [:]
+    private var flushing = false
+    private var flushAgain = false
+    private var flushHooksInstalled = false
 
     struct Snapshot<T> {
         var items: [T]
@@ -80,7 +85,13 @@ public final class ShowsStore {
         stop()
         self.uid = uid
         queued = ShowOutbox.load(uid: uid)
-        Task { await attach(uid: uid) }
+        queuedEdits = SetlistEditQueue.load(uid: uid)
+        installFlushHooks()
+        Task {
+            await attach(uid: uid)
+            await rebuildOverlays(uid: uid)
+            flushEdits()
+        }
     }
 
     /// Stops listening and forgets everything (sign-out, another person).
@@ -101,10 +112,11 @@ public final class ShowsStore {
         writeProblem = nil
         festivalNames = [:]
         recompute?.cancel(); recompute = nil
+        queuedEdits = []
         pendingSetlists = [:]
-        setlistInFlight = [:]
         settleTasks.values.forEach { $0.cancel() }
         settleTasks = [:]
+        flushAgain = false
     }
 
     /// The show, with this device's setlist while an edit of it is in flight.
@@ -296,12 +308,14 @@ public final class ShowsStore {
     // MARK: Setlist edits
 
     /// Applies a song edit (`SetlistEdit`): on this device's copy at once,
-    /// then to the setlist as stored in a transaction, so another device's
-    /// rating made meanwhile is kept. Offline, or when the transaction can't
-    /// run within 10 s, this device's copy is written instead (last write
-    /// wins, queued by Firestore), as the web does. Returns the edit's result
-    /// on this device (a delete's `removed` and `index`, for the undo), or
-    /// nil when the setlist couldn't be read.
+    /// then queued (`SetlistEditQueue`, saved to a file) and replayed in
+    /// order as a transaction against the setlist as stored, so another
+    /// device's rating made meanwhile is kept. Online it lands straight away,
+    /// retrying while the server is slow; offline it waits for the
+    /// connection, across a force-quit. The whole setlist is never written
+    /// from this device's copy. Returns the edit's result on this device (a
+    /// delete's `removed` and `index`, for the undo), or nil when the
+    /// setlist couldn't be read.
     @discardableResult
     public func editSetlist(showId: String, _ edit: SetlistEdit) async -> SetlistEditResult? {
         await editSetlist(showId: showId) { _ in edit }
@@ -313,20 +327,13 @@ public final class ShowsStore {
     @discardableResult
     public func editSetlist(showId: String, building build: ([JSONValue]) -> SetlistEdit) async -> SetlistEditResult? {
         guard let uid else { return nil }
-        let db = await Database.ready()
-        guard self.uid == uid else { return nil }
-        let ref = db.collection("users").document(uid).collection("shows").document(showId)
         let base: [JSONValue]
         if let pending = pendingSetlists[showId]?.raw {
             base = pending
-        } else if let cached = try? await ref.getDocument(source: .cache), cached.exists,
-                  let list = SetlistTransaction.setlist(in: cached.data()) {
-            base = list
-        } else if let fresh = try? await withDeadline(.seconds(10), { try await ref.getDocument() }), fresh.exists,
-                  let list = SetlistTransaction.setlist(in: fresh.data()) {
-            base = list
+        } else if let stored = await storedSetlist(showId: showId, uid: uid, serverIfNotCached: true) {
+            base = stored
         } else {
-            writeProblem = "That change wasn't saved: the setlist couldn't be read."
+            if self.uid == uid { writeProblem = "That change wasn't saved: the setlist couldn't be read." }
             return nil
         }
         guard self.uid == uid else { return nil }
@@ -336,66 +343,134 @@ public final class ShowsStore {
 
         pendingSetlists[showId] = (result.setlist, Self.songs(result.setlist))
         settleTasks[showId]?.cancel()
-        setlistInFlight[showId, default: 0] += 1
-        let deviceCopy = result.setlist
-        Task { [weak self] in
-            await self?.commit(edit, deviceCopy: deviceCopy, ref: ref, showId: showId, uid: uid)
-        }
+        queuedEdits.append(QueuedSetlistEdit(showId: showId, edit: edit))
+        saveQueue(uid: uid)
+        flushEdits()
         requestStatsRecompute()
         return result
     }
 
-    /// Runs the edit's transaction until it lands. Online, a slow or failed
-    /// attempt is retried with backoff (`SetlistSavePolicy`), never replaced by
-    /// a whole-setlist write. If the phone goes offline before it lands, this
-    /// device's latest copy is written instead, queued by Firestore.
-    private func commit(_ edit: SetlistEdit, deviceCopy: [JSONValue], ref: DocumentReference, showId: String, uid: String) async {
-        defer { if self.uid == uid { finishSetlistEdit(showId: showId) } }
-        var attempt = 0
-        while self.uid == uid {
-            guard Connectivity.shared.isOnline else { writeDeviceCopy(showId: showId, fallback: deviceCopy, ref: ref, uid: uid); return }
-            attempt += 1
-            switch await Self.transactionOrOffline(edit, on: ref) {
-            case .landed:
-                return
-            case .wentOffline:
-                // The attempt may still land once the phone is back; every edit
-                // is safe to apply twice (the fixtures' rules), so writing this
-                // device's copy now loses nothing.
-                writeDeviceCopy(showId: showId, fallback: deviceCopy, ref: ref, uid: uid)
-                return
-            case .failed(let error):
-                Self.log(error, stage: "setlist transaction attempt \(attempt)")
-                switch SetlistSavePolicy.next(after: error, attempt: attempt, online: Connectivity.shared.isOnline) {
-                case .retry(let delay):
-                    try? await Task.sleep(for: delay)
-                case .writeDeviceCopy:
-                    writeDeviceCopy(showId: showId, fallback: deviceCopy, ref: ref, uid: uid)
-                    return
-                case .giveUp:
-                    guard self.uid == uid else { return }
-                    writeProblem = error is SetlistTransaction.Failure
-                        ? "That change wasn't saved: this setlist has data the app can't read."
-                        : "That change wasn't saved. \(error.localizedDescription)"
-                    return
-                }
-            }
+    /// Song edits of this show are waiting to land ("Saving…", or, offline,
+    /// "Saved on this iPhone").
+    public func isSavingSetlist(showId: String) -> Bool { queuedEdits.contains { $0.showId == showId } }
+
+    /// Every song edit waiting, on any show (the sign-out warning reads the file).
+    public var queuedEditCount: Int { queuedEdits.count }
+
+    /// Replays the queue (`SetlistEditReplay`), one transaction at a time, in
+    /// order. One run at a time; a request during a run starts another after it.
+    public func flushEdits() {
+        guard let uid else { return }
+        guard !flushing else { flushAgain = true; return }
+        flushing = true
+        Task { [weak self] in
+            guard let self else { return }
+            repeat {
+                self.flushAgain = false
+                let db = await Database.ready()
+                guard self.uid == uid else { break }
+                await SetlistEditReplay.run(
+                    next: { self.uid == uid ? self.queuedEdits.first : nil },
+                    canRun: { self.uid == uid && Connectivity.shared.isOnline },
+                    attempt: { entry in
+                        guard let edit = entry.setlistEdit else { return .landed }
+                        let ref = db.collection("users").document(uid).collection("shows").document(entry.showId)
+                        return await Self.transactionOrOffline(edit, on: ref)
+                    },
+                    landed: { entry in self.finish(entry, uid: uid) },
+                    gaveUp: { entry, error in
+                        self.writeProblem = error is SetlistTransaction.Failure
+                            ? "A change to a setlist wasn't saved: it has data the app can't read."
+                            : "A change to a setlist wasn't saved. \(error.localizedDescription)"
+                        Self.log(error, stage: "setlist edit given up")
+                        self.finish(entry, uid: uid, landed: false)
+                    },
+                    failed: { error, n in Self.log(error, stage: "setlist transaction attempt \(n)") }
+                )
+            } while self.flushAgain && self.uid == uid
+            self.flushing = false
         }
     }
 
-    enum Attempt { case landed, wentOffline, failed(Error) }
+    /// Replays when the phone gets its connection back and when the app
+    /// returns to the foreground (installed once).
+    private func installFlushHooks() {
+        guard !flushHooksInstalled else { return }
+        flushHooksInstalled = true
+        Connectivity.shared.onReconnect { [weak self] in self?.flushEdits() }
+        NotificationCenter.default.addObserver(forName: UIApplication.willEnterForegroundNotification, object: nil, queue: .main) { [weak self] _ in
+            Task { @MainActor in self?.flushEdits() }
+        }
+    }
+
+    /// An entry is done: out of the queue (and the file). When it was the
+    /// show's last, this device's copy is kept until the listener has the
+    /// stored setlist (at most 3 s). An edit given up is taken off this
+    /// device's copy too.
+    private func finish(_ entry: QueuedSetlistEdit, uid: String, landed: Bool = true) {
+        guard self.uid == uid else { return }
+        queuedEdits.removeAll { $0.id == entry.id }
+        saveQueue(uid: uid)
+        if !landed {
+            Task { await self.rebuildOverlay(showId: entry.showId, uid: uid) }
+            return
+        }
+        guard !isSavingSetlist(showId: entry.showId) else { return }
+        settleTasks[entry.showId]?.cancel()
+        settleTasks[entry.showId] = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(3))
+            guard !Task.isCancelled, let self, !self.isSavingSetlist(showId: entry.showId) else { return }
+            self.pendingSetlists[entry.showId] = nil
+            self.settleTasks[entry.showId] = nil
+        }
+        settlePendingSetlists()
+    }
+
+    /// At launch: this device's copy of every show with queued edits, from
+    /// the cached setlist with those edits on top.
+    private func rebuildOverlays(uid: String) async {
+        for showId in Set(queuedEdits.map(\.showId)) { await rebuildOverlay(showId: showId, uid: uid) }
+    }
+
+    private func rebuildOverlay(showId: String, uid: String) async {
+        let edits = queuedEdits.filter { $0.showId == showId }
+        guard !edits.isEmpty else { pendingSetlists[showId] = nil; return }
+        guard let stored = await storedSetlist(showId: showId, uid: uid, serverIfNotCached: false), self.uid == uid else { return }
+        let overlay = SetlistEditQueue.overlay(stored, queuedEdits.filter { $0.showId == showId })
+        pendingSetlists[showId] = (overlay, Self.songs(overlay))
+    }
+
+    /// The setlist as stored: the cached copy, or (when asked) the server's
+    /// within 10 s. Nil when neither can be read.
+    private func storedSetlist(showId: String, uid: String, serverIfNotCached: Bool) async -> [JSONValue]? {
+        let db = await Database.ready()
+        let ref = db.collection("users").document(uid).collection("shows").document(showId)
+        if let cached = try? await ref.getDocument(source: .cache), cached.exists,
+           let list = SetlistTransaction.setlist(in: cached.data()) {
+            return list
+        }
+        guard serverIfNotCached,
+              let fresh = try? await withDeadline(.seconds(10), { try await ref.getDocument() }), fresh.exists else { return nil }
+        return SetlistTransaction.setlist(in: fresh.data())
+    }
+
+    private func saveQueue(uid: String) {
+        do { try SetlistEditQueue.save(queuedEdits, uid: uid) } catch { Self.log(error, stage: "setlist edit queue file") }
+    }
 
     /// One transaction attempt, or `.wentOffline` as soon as the phone loses
     /// its network path while it runs (a transaction can't finish offline).
-    static func transactionOrOffline(_ edit: SetlistEdit, on ref: DocumentReference) async -> Attempt {
+    /// An attempt cut off that way may still land later; replaying it is
+    /// harmless (the fixtures' rules).
+    static func transactionOrOffline(_ edit: SetlistEdit, on ref: DocumentReference) async -> SetlistEditReplay.Outcome {
         let once = Once()
-        return await withCheckedContinuation { (continuation: CheckedContinuation<Attempt, Never>) in
+        return await withCheckedContinuation { (continuation: CheckedContinuation<SetlistEditReplay.Outcome, Never>) in
             let watch = Task { @MainActor in
                 await Connectivity.shared.waitUntilOffline()
                 if !Task.isCancelled, once.claim() { continuation.resume(returning: .wentOffline) }
             }
             Task { @MainActor in
-                let result: Attempt
+                let result: SetlistEditReplay.Outcome
                 do { _ = try await SetlistTransaction.run(edit, on: ref); result = .landed } catch { result = .failed(error) }
                 watch.cancel()
                 if once.claim() { continuation.resume(returning: result) }
@@ -403,39 +478,9 @@ public final class ShowsStore {
         }
     }
 
-    /// Offline: this device's latest copy of the setlist (every edit made
-    /// so far), applied to the cache now and sent when the phone is back.
-    private func writeDeviceCopy(showId: String, fallback: [JSONValue], ref: DocumentReference, uid: String) {
-        let copy = pendingSetlists[showId]?.raw ?? fallback
-        Task { [weak self] in
-            do { try await SetlistTransaction.writeDeviceCopy(copy, to: ref) } catch {
-                guard let self, self.uid == uid else { return }
-                self.writeProblem = "That change wasn't saved. \(error.localizedDescription)"
-                Self.log(error, stage: "setlist device copy")
-            }
-        }
-    }
-
-    /// A song edit of this show hasn't landed yet ("Saving…").
-    public func isSavingSetlist(showId: String) -> Bool { (setlistInFlight[showId] ?? 0) > 0 }
-
-    private func finishSetlistEdit(showId: String) {
-        let left = (setlistInFlight[showId] ?? 1) - 1
-        guard left <= 0 else { setlistInFlight[showId] = left; return }
-        setlistInFlight[showId] = nil
-        // Kept until the listener has the stored setlist, at most 3 s.
-        settleTasks[showId] = Task { [weak self] in
-            try? await Task.sleep(for: .seconds(3))
-            guard !Task.isCancelled else { return }
-            self?.pendingSetlists[showId] = nil
-            self?.settleTasks[showId] = nil
-        }
-        settlePendingSetlists()
-    }
-
-    /// Drops this device's copy once the stored setlist matches it.
+    /// Drops this device's copy once nothing waits and the stored setlist matches it.
     private func settlePendingSetlists() {
-        for (id, pending) in pendingSetlists where setlistInFlight[id] == nil {
+        for (id, pending) in pendingSetlists where !isSavingSetlist(showId: id) {
             if shows.first(where: { $0.id == id })?.setlist == pending.songs {
                 pendingSetlists[id] = nil
                 settleTasks[id]?.cancel()

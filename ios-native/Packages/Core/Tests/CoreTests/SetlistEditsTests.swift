@@ -112,7 +112,7 @@ import Testing
 }
 
 /// When a song edit's transaction fails: retry online (with backoff),
-/// write this device's copy only offline, stop on what retrying can't fix.
+/// wait for the connection offline, stop on what retrying can't fix.
 @Suite struct SetlistSavePolicyTests {
     static func firestore(_ code: Int) -> NSError { NSError(domain: FirestoreErrorDomain, code: code) }
 
@@ -123,8 +123,8 @@ import Testing
         #expect(SetlistSavePolicy.next(after: URLError(.timedOut), attempt: 3, online: true) == .retry(after: .seconds(4)))
     }
 
-    @Test func offlineWritesTheDeviceCopy() {
-        #expect(SetlistSavePolicy.next(after: Self.firestore(14), attempt: 1, online: false) == .writeDeviceCopy)
+    @Test func offlineWaitsForTheConnection() {
+        #expect(SetlistSavePolicy.next(after: Self.firestore(14), attempt: 1, online: false) == .waitForConnection)
     }
 
     @Test func whatRetryingCantFixStops() {

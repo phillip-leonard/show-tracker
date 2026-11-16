@@ -1,6 +1,7 @@
 import FirebaseFirestore
 import Foundation
 import Network
+import Observation
 
 /// A setlist edit applied to the setlist *as stored*, in a Firestore
 /// transaction (`lib/setlistEdits.js`, as the web's `editSetlist` does):
@@ -32,13 +33,6 @@ public enum SetlistTransaction {
             }
         }
         return (answer as? Box)?.setlist
-    }
-
-    /// Writes this device's copy of the setlist (offline, or when the
-    /// transaction can't run): last write wins, as on the web. With
-    /// persistence on, Firestore queues it across a force-quit.
-    public static func writeDeviceCopy(_ setlist: [JSONValue], to ref: DocumentReference) async throws {
-        try await ref.updateData(["setlist": setlist.map(\.firestoreValue)])
     }
 
     /// The stored `setlist` as raw JSON; empty when absent; nil when a song
@@ -92,18 +86,19 @@ extension JSONValue {
     }
 }
 
-/// What to do after a transaction attempt fails (`ShowsStore` song edits).
+/// What to do after a queued song edit's transaction fails
+/// (`SetlistEditReplay`).
 ///
 /// Online, a slow or failed transaction is retried, with backoff, for as
-/// long as the phone stays online: this device's copy is never written over
-/// the stored setlist just because the server was slow. Only when the phone
-/// is offline is this device's copy written (queued by Firestore, last write
-/// wins). An error that retrying can't fix (no permission, the show is gone,
-/// a setlist the app can't read) stops it and says so.
+/// long as the phone stays online. Offline, the edit waits in the queue for
+/// the connection (`SetlistEditQueue`); this device's copy is never written
+/// over the stored setlist. An error that retrying can't fix (no permission,
+/// the show is gone, a setlist the app can't read) gives that edit up and
+/// says so.
 public enum SetlistSavePolicy {
     public enum Next: Equatable, Sendable {
         case retry(after: Duration)
-        case writeDeviceCopy
+        case waitForConnection
         case giveUp
     }
 
@@ -116,7 +111,7 @@ public enum SetlistSavePolicy {
     /// After attempt number `attempt` (from 1) failed with `error`.
     public static func next(after error: Error, attempt: Int, online: Bool) -> Next {
         if case SetlistTransaction.Failure.unreadableSetlist? = error as? SetlistTransaction.Failure { return .giveUp }
-        guard online else { return .writeDeviceCopy }
+        guard online else { return .waitForConnection }
         let ns = error as NSError
         if ns.domain == FirestoreErrorDomain, permanentCodes.contains(ns.code) { return .giveUp }
         return .retry(after: backoff(attempt: attempt))
@@ -129,12 +124,25 @@ public enum SetlistSavePolicy {
 }
 
 /// Whether the phone has a network path: a transaction can't run offline,
-/// so a setlist edit goes straight to the device-copy write.
+/// so queued song edits wait, and are replayed when the path comes back.
 @MainActor
+@Observable
 public final class Connectivity {
     public static let shared = Connectivity()
     public private(set) var isOnline = true
-    private let monitor = NWPathMonitor()
+    @ObservationIgnored private let monitor = NWPathMonitor()
+    @ObservationIgnored private var reconnectHandlers: [@MainActor () -> Void] = []
+
+    /// Called each time the phone gets a network path back.
+    public func onReconnect(_ handler: @escaping @MainActor () -> Void) {
+        reconnectHandlers.append(handler)
+    }
+
+    private func set(_ online: Bool) {
+        let cameBack = online && !isOnline
+        isOnline = online
+        if cameBack { reconnectHandlers.forEach { $0() } }
+    }
 
     /// Returns once the phone has no network path (checked twice a second).
     public func waitUntilOffline() async {
@@ -144,7 +152,7 @@ public final class Connectivity {
     private init() {
         monitor.pathUpdateHandler = { [weak self] path in
             let online = path.status == .satisfied
-            Task { @MainActor in self?.isOnline = online }
+            Task { @MainActor in self?.set(online) }
         }
         monitor.start(queue: DispatchQueue(label: "Connectivity"))
     }
