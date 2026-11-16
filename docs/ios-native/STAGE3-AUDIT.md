@@ -260,7 +260,7 @@ The existing `ShowTag`, `PendingEmailTag` and `ShowSuggestion` decode today's do
 | Part | PR | Touches | Versions |
 |---|---|---|---|
 | 2a | **Friends server actions**: `request`, `decline`, `cancel`, `invite`, `resendInvite`, `cancelInvite` (+ `lookupByHandle` if C-6); web switched to them (fixes resend); GATED-CLEANUPS rows; tests in `tests/security` | `netlify/`, `lib/`, `context/`, `firestore.rules` (none loosened), docs | web, Capacitor, native |
-| 2b | **Native Friends, block, report**: list, requests in and out, find by email (and handle), invite and referral share, remove, block from the row and the person sheet, report a profile, Me → Blocked accounts, guest screen | `ios-native/` | native only |
+| 2b | **Native Friends, block, report**: list, requests in and out, find by email (and handle), invite and referral share, remove, block from the row and the person sheet, report a profile, Me → Blocked accounts, guest screen. **Built in native 4.0.21.** | `ios-native/` | native only |
 | 3a | **Show social server actions**: `tag`, `respondTag`, `revokeTag`, `respondSuggestion`; web switched; plus C-5 if approved (engagement notifications written by the server). **Built in 5.60.29 (iOS 3.13.45).** | server, web | all three |
 | 3b | **Native show social**: tag friends from a show, accept, decline and revoke, Shows Together on a friend, suggestions | `ios-native/` | native only |
 | 4 | **Native notifications inbox**: the list, read and unread, mark all read, per-type rows and destinations, tags and requests and suggestions in the same place, `/notifications` routing, badge | `ios-native/` | native only |

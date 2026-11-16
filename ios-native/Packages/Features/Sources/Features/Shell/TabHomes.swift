@@ -6,30 +6,7 @@ import SwiftUI
 
 // ShowsHome is Features/Shows/ShowsHome.swift (Stage 1, Part 2).
 
-struct FriendsHome: View {
-    @Environment(SessionStore.self) private var session
-    @State private var showUpgrade = false
-
-    var body: some View {
-        Group {
-            if session.user?.isAnonymous == true {
-                // Guests have no friends list (DECISIONS.md, "Guests").
-                ContentUnavailableView {
-                    Label("Friends need an account", systemImage: "person.2")
-                } description: {
-                    Text("Create an account to add friends and see the shows you've been to together. Your shows come with you.")
-                } actions: {
-                    Button("Create your account") { showUpgrade = true }
-                        .buttonStyle(.borderedProminent)
-                }
-            } else {
-                ContentUnavailableView("Friends", systemImage: "person.2", description: Text("Your friends, requests and shows together."))
-            }
-        }
-        .navigationTitle("Friends")
-        .sheet(isPresented: $showUpgrade) { GuestUpgradeView() }
-    }
-}
+// FriendsHome is Features/Friends/FriendsHome.swift (Stage 3, Part 2b).
 
 /// The system Search tab, until search is built: points to the Shows
 /// tab's own search field meanwhile.

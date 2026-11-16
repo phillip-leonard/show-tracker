@@ -14,6 +14,9 @@ public struct AppShell: View {
     /// `AppRootView` (the adoption sheet sends a guest's queue through it);
     /// started and stopped here, with the shell.
     @Environment(ShowsStore.self) private var shows
+    /// Friends, requests, invites and blocks (Stage 3, Part 2b): accounts
+    /// only, so a guest never starts it.
+    @State private var friends = FriendsStore()
 
     public init() {}
 
@@ -26,6 +29,7 @@ public struct AppShell: View {
             Tab("Friends", systemImage: "person.2", value: AppTab.friends) {
                 TabStack(tab: .friends) { FriendsHome() }
             }
+            .badge(friends.incoming.count)
             Tab("Stats", systemImage: "chart.bar", value: AppTab.stats) {
                 TabStack(tab: .stats) { StatsHome() }
             }
@@ -36,12 +40,18 @@ public struct AppShell: View {
                 TabStack(tab: .search) { SearchHome() }
             }
         }
+        .environment(friends)
         .tabViewStyle(.sidebarAdaptable)
         .tint(.brand)
         .task(id: session.user?.uid) {
             if let uid = session.user?.uid { shows.start(uid: uid, api: session.api) } else { shows.stop() }
         }
-        .onDisappear { shows.stop() }
+        // A guest who creates an account keeps their uid, so the key includes
+        // whether it's still a guest.
+        .task(id: "\(session.user?.uid ?? "")|\(session.user?.isAnonymous == true)") {
+            if let user = session.user, !user.isAnonymous { friends.start(uid: user.uid, api: session.api) } else { friends.stop() }
+        }
+        .onDisappear { shows.stop(); friends.stop() }
         .sheet(item: $router.web) { page in
             SafariView(url: page.url).ignoresSafeArea()
         }

@@ -37,6 +37,7 @@ struct MeView: View {
             } else {
                 ProfileSection()
                 EmailPreferencesSection()
+                BlockedAccountsLink()
             }
 
             ConnectedAccountsSection(user: session.user)
@@ -127,6 +128,20 @@ struct MeView: View {
             await session.signOut()
             signingOut = false
         }
+    }
+}
+
+/// Me → Blocked accounts, with how many (accounts only).
+private struct BlockedAccountsLink: View {
+    @Environment(FriendsStore.self) private var friends
+
+    var body: some View {
+        Section {
+            NavigationLink { BlockedAccountsView().brandScreen() } label: {
+                LabeledContent("Blocked accounts", value: friends.blockedUids.isEmpty ? "None" : "\(friends.blockedUids.count)")
+            }
+        }
+        .brandRow()
     }
 }
 
