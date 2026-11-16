@@ -19,7 +19,7 @@ import { MessageSquare, Heart, Trash2, CornerDownRight, Send } from 'lucide-reac
 import { Card, Avatar, Button, Textarea, Tabs, Spinner } from '@/components/ui';
 import { useApp } from '@/context/AppContext';
 import { subscribeComments, postComment, toggleCommentLike, deleteComment } from '@/lib/comments';
-import { createEngagementNotification } from '@/lib/notifications';
+import { notifyEngagement } from '@/lib/notifications';
 import { logActivity } from '@/lib/activityFeed';
 import { getLastViewed, markViewed } from '@/lib/commentViews';
 import { contentProblem } from '@/lib/contentFilter';
@@ -302,32 +302,18 @@ export default function CommentsSection({ show }) {
       .filter((c) => c.parentId === commentId)
       .sort((a, b) => (a.createdAt?.toMillis?.() || 0) - (b.createdAt?.toMillis?.() || 0));
 
-  // Fires a notification for every friend whose name appears as "@Name"
-  // in the just-posted text — best-effort, matched against the same
-  // `friends` list the mention autocomplete suggested from, so it only
-  // ever fires for someone actually in your friends list, not any
-  // substring that happens to start with "@".
-  const notifyMentions = (text, authorName) => {
-    (friends || []).forEach((f) => {
-      if (f.friendUid === user.uid) return;
-      if (text.includes(`@${f.friendName}`)) {
-        createEngagementNotification(f.friendUid, 'comment_mention', {
-          concertKey, artist: show.artist, venue: show.venue, date: show.date,
-          fromUid: user.uid, fromName: authorName,
-          message: `${authorName} mentioned you in a comment on ${show.artist}`,
-        });
-      }
-    });
-  };
+  // Replies and mentions are notified by the server when it creates the
+  // comment (moderate-content, 5.60.29): the parent's author, and any of
+  // your friends named as "@Name" in the text.
+  const showForComment = { artist: show.artist, venue: show.venue, date: show.date };
 
   const handlePost = async (text) => {
     const authorName = user.displayName || 'Anonymous';
     try {
-      await postComment(concertKey, user.uid, authorName, text);
+      await postComment(concertKey, user.uid, authorName, text, null, showForComment);
       logActivity(user.uid, authorName, 'commented', {
         showId: show.id, artist: show.artist, venue: show.venue || null,
       });
-      notifyMentions(text, authorName);
     } catch (err) {
       // Rethrown rather than swallowed into a toast: postComment now
       // goes through a function that can reject the text on its own
@@ -340,16 +326,10 @@ export default function CommentsSection({ show }) {
   const handleReply = async (parent, text) => {
     const authorName = user.displayName || 'Anonymous';
     try {
-      await postComment(concertKey, user.uid, authorName, text, parent.id);
-      createEngagementNotification(parent.authorUid, 'comment_reply', {
-        concertKey, artist: show.artist, venue: show.venue, date: show.date,
-        fromUid: user.uid, fromName: authorName,
-        message: `${authorName} replied to your comment on ${show.artist}`,
-      });
+      await postComment(concertKey, user.uid, authorName, text, parent.id, showForComment);
       logActivity(user.uid, authorName, 'commented', {
         showId: show.id, artist: show.artist, venue: show.venue || null,
       });
-      notifyMentions(text, authorName);
     } catch (err) {
       throw err;
     }
@@ -360,14 +340,7 @@ export default function CommentsSection({ show }) {
     const alreadyLiked = (comment.likedBy || []).includes(user.uid);
     try {
       await toggleCommentLike(comment.id, user.uid, alreadyLiked);
-      if (!alreadyLiked) {
-        const likerName = user.displayName || 'Anonymous';
-        createEngagementNotification(comment.authorUid, 'comment_like', {
-          concertKey, artist: show.artist, venue: show.venue, date: show.date,
-          fromUid: user.uid, fromName: likerName,
-          message: `${likerName} liked your comment on ${show.artist}`,
-        });
-      }
+      if (!alreadyLiked) notifyEngagement('comment_like', comment.id, showForComment);
     } catch (err) {
       setToast?.("Couldn't update your like. Please try again.");
     }

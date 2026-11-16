@@ -56,7 +56,8 @@
  *     written here.
  */
 
-const { isAnonymous } = require('./lib/firebaseAdmin');
+const { isAnonymous, isAdmin } = require('./lib/firebaseAdmin');
+const { notifyEngagement, MESSAGES } = require('./lib/engagementNotifications');
 const { withCors } = require('./lib/cors');
 const { checkContent } = require('./lib/contentFilterRule');
 
@@ -147,6 +148,54 @@ async function isBanned(db, uid) {
   }
 }
 
+function shortText(value, max = 200) {
+  return typeof value === 'string' && value.trim() ? value.trim().slice(0, max) : null;
+}
+
+/**
+ * The reply and mention notifications for a new comment (5.60.29, Stage 3
+ * C-5), written here rather than by the browser. A reply notifies the
+ * parent comment's author; a mention notifies each of the author's own
+ * friends whose name follows an "@" in the text, as the web's mention
+ * autocomplete matched. Best effort: a notification that fails never
+ * fails the comment.
+ */
+async function notifyCommentPeople(db, decoded, authorName, { concertKey, parentId, text, show }) {
+  try {
+    const { getAuth } = require('firebase-admin/auth');
+    const ctx = { db, auth: getAuth() };
+    const caller = { uid: decoded.uid, name: authorName, displayName: authorName, isAdmin: isAdmin(decoded) };
+    const artist = show.artist || 'a show';
+    const notified = new Set();
+    if (parentId) {
+      const parent = await db.collection('showComments').doc(parentId).get();
+      const parentAuthor = parent.exists ? parent.data().authorUid : null;
+      if (parentAuthor && parent.data().concertKey === concertKey) {
+        const result = await notifyEngagement(ctx, caller, {
+          recipientUid: parentAuthor, type: 'comment_reply', show: { concertKey, ...show },
+          message: MESSAGES.comment_reply(authorName, artist),
+        });
+        if (result.written) notified.add(parentAuthor);
+      }
+    }
+    if (text.includes('@')) {
+      const friends = await db.collection(`users/${decoded.uid}/friends`).get();
+      for (const f of friends.docs) {
+        const friend = f.data();
+        const name = friend.friendName;
+        if (!name || notified.has(f.id) || !text.includes(`@${name}`)) continue;
+        await notifyEngagement(ctx, caller, {
+          recipientUid: f.id, type: 'comment_mention', show: { concertKey, ...show },
+          message: MESSAGES.comment_mention(authorName, artist),
+        });
+        notified.add(f.id);
+      }
+    }
+  } catch (e) {
+    console.error('[moderate-content] comment notifications failed (the comment stands):', e.message);
+  }
+}
+
 exports.handler = async function (event) {
   if (event.httpMethod === 'OPTIONS') {
     return { statusCode: 204, headers: CORS_HEADERS, body: '' };
@@ -160,11 +209,12 @@ exports.handler = async function (event) {
 
   let uid;
   let db;
+  let decoded;
   let guest = false;
   try {
     initFirebase();
     const { getAuth } = require('firebase-admin/auth');
-    const decoded = await getAuth().verifyIdToken(token);
+    decoded = await getAuth().verifyIdToken(token);
     uid = decoded.uid;
     guest = isAnonymous(decoded);
     const { getFirestore } = require('firebase-admin/firestore');
@@ -202,14 +252,27 @@ exports.handler = async function (event) {
       const verdict = checkContent(text);
       if (!verdict.ok) return json(422, { error: verdict.message, code: verdict.code });
 
+      // The show's band, venue and date, as showMedia stores them, so a
+      // reply, mention or like notification can name the show (5.60.29).
+      const show = body.show && typeof body.show === 'object' ? body.show : {};
+      const authorName = await resolveAuthorName(db, uid, body.authorName);
       const ref = await db.collection('showComments').add({
         concertKey: String(body.concertKey),
         parentId: body.parentId ? String(body.parentId) : null,
         authorUid: uid,
-        authorName: await resolveAuthorName(db, uid, body.authorName),
+        authorName,
         text,
+        artist: shortText(show.artist),
+        venue: shortText(show.venue),
+        date: shortText(show.date, 40),
         likedBy: [],
         createdAt: now,
+      });
+      await notifyCommentPeople(db, decoded, authorName, {
+        concertKey: String(body.concertKey),
+        parentId: body.parentId ? String(body.parentId) : null,
+        text,
+        show: { artist: shortText(show.artist), venue: shortText(show.venue), date: shortText(show.date, 40) },
       });
       return json(200, { id: ref.id });
     }
