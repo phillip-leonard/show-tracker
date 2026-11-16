@@ -29,6 +29,15 @@ Only `Core` depends on Firebase (13.x) and GoogleSignIn (10.x). Features and the
 
 ## The app shell (Part 6)
 
+`Features/Shows` (Stage 1, Part 2): the Shows tab. `Core/Shows/ShowsStore` keeps the signed-in person's `users/{uid}/shows`, `upcomingShows` and `userStats/{uid}` live (cache first; `LiveLoad` makes sure loading always ends, as `lib/liveShows.js` does), and `Core/Shows/ShowList` holds the list rules (order, years, search, filters, setlist status), unit-tested.
+
+To try it with data, without production: run the Auth and Firestore emulators with the app's project id (the Firestore emulator needs Java, e.g. Homebrew's `openjdk@21`), launch a Debug build with `MYSETLISTS_EMULATORS=127.0.0.1`, continue as a guest, then write shows under that guest's uid in the emulator (REST with `Authorization: Bearer owner`):
+
+```
+PATH="/opt/homebrew/opt/openjdk@21/bin:$PATH" npx firebase emulators:start --only auth,firestore --project show-tracker-d7a4d
+SIMCTL_CHILD_MYSETLISTS_EMULATORS=127.0.0.1 xcrun simctl launch booted com.mysetlists.app
+```
+
 `Features/Shell`: `AppShell` (Shows · Friends · Stats · Me, and the system Search tab), `AppRouter` (the selected tab, each tab's stack, the web page on top). Links arrive in `MySetlistsApp.onOpenURL`; `Core/Navigation/DeepLink` decides where they go, from the table `lib/deepLinks.js` shares (`fixtures/deep-links/links.json`). `Features/Me` has the account actions and a hidden menu (tap the version five times): **First-launch sign-in** in every build, and, in Debug builds, a Developer screen for testing Crashlytics.
 
 `DesignSystem` holds the web's colors (`Colors.xcassets`, checked against `fixtures/design/tokens.json`), spacing, radii, the type scale (`Font.brand(.sm)`) and `brandScreen()` / `brandRow()` / `brandCard()`.

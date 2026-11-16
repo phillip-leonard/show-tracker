@@ -148,7 +148,9 @@ public struct ShowSuggestion: Decodable, Hashable, Sendable {
 }
 
 /// `users/{uid}/upcomingShows/{id}`: a show the user is going to.
-public struct UpcomingShow: Decodable, Hashable, Sendable {
+public struct UpcomingShow: Decodable, Identifiable, Hashable, Sendable {
+    /// The document id, from the snapshot (`decodeUpcomingShow`); not stored.
+    public var id: String = ""
     public var artist: String
     public var venue: String
     public var city: String

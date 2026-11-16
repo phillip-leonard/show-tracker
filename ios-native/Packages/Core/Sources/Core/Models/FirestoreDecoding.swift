@@ -9,6 +9,12 @@ public extension DocumentSnapshot {
         return show
     }
 
+    func decodeUpcomingShow() throws -> UpcomingShow {
+        var show = try data(as: UpcomingShow.self)
+        show.id = documentID
+        return show
+    }
+
     func decodeProfile() throws -> UserProfile {
         var profile = try data(as: UserProfile.self)
         profile.id = documentID
