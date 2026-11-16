@@ -2,11 +2,14 @@ import Core
 import DesignSystem
 import SwiftUI
 
-/// Me: who is signed in, and the account actions that must always be
+/// Me: who is signed in; the profile and email settings (Stage 2, Part 3,
+/// each through the web's own path: `ProfileSettings`); connected accounts;
+/// help and legal pages; and the account actions that must always be
 /// reachable: create an account (a guest), sign out, delete the account
 /// (Guideline 5.1.1(v); DECISIONS.md, "Data export and the offline cache").
 struct MeView: View {
     @Environment(SessionStore.self) private var session
+    @Environment(AppRouter.self) private var router
     @State private var showUpgrade = false
     @State private var showDelete = false
     @State private var confirmGuestSignOut = false
@@ -28,10 +31,25 @@ struct MeView: View {
                 Section {
                     Button("Create your account") { showUpgrade = true }
                 } footer: {
-                    Text("Your shows stay with you. Friends, ticket scanning and anything other people see need an account.")
+                    Text("Your shows stay with you. Your name, a public profile, friends, ticket scanning and anything other people see need an account.")
                 }
                 .brandRow()
+            } else {
+                ProfileSection()
+                EmailPreferencesSection()
             }
+
+            ConnectedAccountsSection(user: session.user)
+
+            Section("Help") {
+                Button("How to use MySetlists") { router.show(MeLinks.howToUse) }
+                Button("Terms of Service") { router.show(Terms.url) }
+                Button("Privacy Policy") { router.show(Terms.privacyURL) }
+                Link("Contact support", destination: URL(string: "mailto:\(Terms.supportEmail)")!)
+                Link("Request a copy of your data",
+                     destination: ProfileSettings.dataRequestEmail(email: session.user?.email, uid: session.user?.uid))
+            }
+            .brandRow()
 
             Section {
                 Button {
@@ -61,12 +79,6 @@ struct MeView: View {
             }
             .brandRow()
 
-            Section {
-                Link("Terms of Service", destination: Terms.url)
-                Link("Privacy Policy", destination: Terms.privacyURL)
-                Link("Contact support", destination: URL(string: "mailto:\(Terms.supportEmail)")!)
-            }
-            .brandRow()
 
             Section {
                 LabeledContent("Version", value: "\(AppInfo.current.version) (\(AppInfo.current.build))")
