@@ -8,7 +8,7 @@ import { nativeOAuthSignIn, isNativePlatform, nativeSignOut } from '@/lib/native
 import {
   collection, doc, setDoc, getDoc, getDocs, deleteDoc, updateDoc,
   serverTimestamp, onSnapshot, query, where, addDoc, writeBatch, runTransaction,
-  arrayUnion, arrayRemove, Timestamp, deleteField,
+  Timestamp, deleteField,
 } from 'firebase/firestore';
 import { auth, db, googleProvider, browserPopupRedirectResolver } from '@/lib/firebase';
 import { parseDate } from '@/lib/utils';
@@ -20,7 +20,7 @@ import { loadAlertSettings } from '@/lib/alertSettings';
 import { showHref, upcomingShowHref } from '@/lib/showRouting';
 import {
   UPCOMING_COLLECTION, normalizeUpcomingInput, validateUpcomingInput, sortUpcoming,
-  upcomingTagShowData, upcomingInputFromTag, findSetlistForDate,
+  findSetlistForDate,
   newUpcomingRecord, upcomingUpdate, findDuplicateUpcoming,
 } from '@/lib/upcomingShows';
 import { isReturningUser as checkIsReturningUser } from '@/lib/popupManager';
@@ -85,26 +85,13 @@ async function writeShowDoc(uid, show) {
 }
 
 // ── Helpers: pending tags a tagger takes back ───────────────────────────
-// Status 'revoked' rather than a delete: the recipient's listener filters
-// on status === 'pending', so the tag disappears from their Requests, and
-// the record of who tagged whom stays for the account-deletion purge
-// (showTags is purged by fromUid/toUid). Best-effort — a failure here never
+// On the server since 5.60.29 (friends.js revokeTag): status 'revoked'
+// rather than a delete, so the recipient's list drops it and the record
+// stays for the account-deletion purge. Best-effort: a failure here never
 // blocks the action that triggered it.
-//
-// Both queries are equality-only, which Firestore serves from single-field
-// indexes; no composite index is needed.
-async function revokePendingTags(constraints, keep = () => true) {
+async function revokeUpcomingTags(upcomingId, toUid = null) {
   try {
-    const snap = await getDocs(query(collection(db, 'showTags'), ...constraints));
-    const batch = writeBatch(db);
-    let count = 0;
-    snap.docs.forEach(d => {
-      const tag = d.data();
-      if (tag.status !== 'pending' || !keep(tag)) return;
-      batch.update(d.ref, { status: 'revoked', revokedAt: serverTimestamp() });
-      count++;
-    });
-    if (count) await batch.commit();
+    await callFriends('revokeTag', toUid ? { upcomingId, toUid } : { upcomingId });
   } catch (e) {
     console.error('Failed to revoke pending tags:', e);
   }
@@ -2495,66 +2482,25 @@ export function AppProvider({ children }) {
 
   // === SHOW TAGGING FUNCTIONS ===
 
-  const sanitizeShowForTag = (show) => ({
-    artist: show.artist,
-    venue: show.venue,
-    date: show.date,
-    city: show.city || '',
-    tour: show.tour || '',
-    setlistfmId: show.setlistfmId || null,
-    setlistfmUrl: show.setlistfmUrl || null,
-    isManual: show.isManual || false,
-    setlist: (show.setlist || []).map(song => ({
-      id: song.id,
-      name: song.name,
-    })),
-  });
-
+  // Tags are written and emailed by the server (5.60.29, friends.js tag),
+  // from the show as stored, never from this copy, and only to mutual
+  // friends with no block either way.
   const tagFriendsAtShow = async (show, selectedFriendUids) => {
     if (!user || selectedFriendUids.length === 0) return;
-    const sanitizedShow = sanitizeShowForTag(show);
     try {
-      const batch = writeBatch(db);
-      const tagIds = {};
-      for (const friendUid of selectedFriendUids) {
-        const ref = doc(collection(db, 'showTags'));
-        tagIds[friendUid] = ref.id;
-        batch.set(ref, {
-          fromUid: user.uid,
-          fromName: user.displayName || 'Anonymous',
-          toUid: friendUid,
-          showData: sanitizedShow,
-          status: 'pending',
-          createdAt: serverTimestamp(),
-        });
-      }
-      await batch.commit();
-
-      // Email each tagged friend. The server reads the tag it names,
-      // checks we sent it, and looks the friend's address up itself.
-      for (const friendUid of selectedFriendUids) {
-        try {
-          await sendNotification({ type: 'tag', tagId: tagIds[friendUid] });
-        } catch (emailErr) {
-          console.error('[TagEmail] Failed to send tag notification email:', emailErr);
-        }
-      }
-
+      const { tagged = [] } = await callFriends('tag', { showId: show.id, friendUids: selectedFriendUids });
       // Functional update: the manual add form tags straight after addShow,
       // from a closure whose `shows` predates the new show. Mapping that
-      // stale list would drop the show it just added.
+      // stale list would drop the show it just added. The server has added
+      // the same uids to the stored list.
       setShows(prev => prev.map(s => (s.id === show.id
-        ? { ...s, taggedFriendUids: [...new Set([...(s.taggedFriendUids || []), ...selectedFriendUids])] }
+        ? { ...s, taggedFriendUids: [...new Set([...(s.taggedFriendUids || []), ...tagged])] }
         : s)));
-      // Added to the stored list, not written over it (5.60.9): a friend
-      // tagged from another device meanwhile stays tagged.
-      await updateDoc(doc(db, 'users', user.uid, 'shows', show.id), { taggedFriendUids: arrayUnion(...selectedFriendUids) });
-
       setTagFriendsShow(null);
-      setToast(`Tagged ${selectedFriendUids.length} friend${selectedFriendUids.length !== 1 ? 's' : ''} at ${show.artist}!`);
+      setToast(`Tagged ${tagged.length} friend${tagged.length !== 1 ? 's' : ''} at ${show.artist}!`);
     } catch (error) {
       console.error('Failed to tag friends:', error);
-      alert('Failed to tag friends. Please try again.');
+      alert(error.status && error.status < 500 ? error.message : 'Failed to tag friends. Please try again.');
     }
   };
 
@@ -2614,17 +2560,10 @@ export function AppProvider({ children }) {
     setUpcomingShows(prev => sortUpcoming(prev.map(u => (u.id === show.id ? { ...u, ...data } : u))));
 
     // A friend who hasn't answered yet should be answering about the right
-    // date and venue. Accepted copies are theirs and are left alone.
+    // date and venue. Accepted copies are theirs and are left alone. The
+    // server rebuilds the pending tags from the show as now stored.
     try {
-      const snap = await getDocs(query(
-        collection(db, 'showTags'),
-        where('fromUid', '==', user.uid),
-        where('upcomingShowId', '==', show.id),
-      ));
-      const updated = upcomingTagShowData({ ...show, ...data });
-      await Promise.all(snap.docs
-        .filter(d => d.data().status === 'pending')
-        .map(d => updateDoc(d.ref, { showData: updated })));
+      await callFriends('refreshUpcomingTags', { upcomingId: show.id });
     } catch (e) {
       console.error('Failed to update pending tags for upcoming show:', e);
     }
@@ -2635,9 +2574,7 @@ export function AppProvider({ children }) {
     if (!user || !show?.id) return;
     await deleteDoc(upcomingRef(show.id));
     setUpcomingShows(prev => prev.filter(u => u.id !== show.id));
-    revokePendingTags(
-      [where('fromUid', '==', user.uid), where('upcomingShowId', '==', show.id)],
-    );
+    revokeUpcomingTags(show.id);
     if (!silent) setToast('Upcoming show deleted.');
   };
 
@@ -2646,65 +2583,31 @@ export function AppProvider({ children }) {
   // the email copy) that this is "going to", not "was at".
   const tagFriendsAtUpcomingShow = async (show, selectedFriendUids) => {
     if (!user || !show?.id || selectedFriendUids.length === 0) return;
-    // Never a blocked account, even if a stale friend list still holds one.
+    // Never a blocked account, even if a stale friend list still holds one
+    // (the server checks too).
     const uids = selectedFriendUids.filter(uid => !blockedUserIds.includes(uid));
     if (uids.length === 0) return;
-    const showData = upcomingTagShowData(show);
     try {
-      const batch = writeBatch(db);
-      const tagIds = {};
-      uids.forEach(friendUid => {
-        const ref = doc(collection(db, 'showTags'));
-        tagIds[friendUid] = ref.id;
-        batch.set(ref, {
-          fromUid: user.uid,
-          fromName: user.displayName || 'Anonymous',
-          toUid: friendUid,
-          showData,
-          upcomingShowId: show.id,
-          status: 'pending',
-          createdAt: serverTimestamp(),
-        });
-      });
-      batch.update(upcomingRef(show.id), {
-        taggedFriendUids: arrayUnion(...uids),
-        updatedAt: serverTimestamp(),
-      });
-      await batch.commit();
+      const { tagged = [] } = await callFriends('tag', { upcomingId: show.id, friendUids: uids });
       setUpcomingShows(prev => prev.map(u => (u.id === show.id
-        ? { ...u, taggedFriendUids: [...new Set([...(u.taggedFriendUids || []), ...uids])] }
+        ? { ...u, taggedFriendUids: [...new Set([...(u.taggedFriendUids || []), ...tagged])] }
         : u)));
-
-      for (const friendUid of uids) {
-        try {
-          await sendNotification({ type: 'tag', tagId: tagIds[friendUid] });
-        } catch (emailErr) {
-          console.error('[TagEmail] Failed to send upcoming tag email:', emailErr);
-        }
-      }
-
       setTagFriendsShow(null);
-      setToast(`Tagged ${uids.length} friend${uids.length !== 1 ? 's' : ''} as going to ${show.artist}!`);
+      setToast(`Tagged ${tagged.length} friend${tagged.length !== 1 ? 's' : ''} as going to ${show.artist}!`);
     } catch (error) {
       console.error('Failed to tag friends at upcoming show:', error);
-      setToast({ message: 'Failed to tag friends. Please try again.', type: 'error' });
+      setToast({ message: error.status && error.status < 500 ? error.message : 'Failed to tag friends. Please try again.', type: 'error' });
     }
   };
 
   const untagFriendFromUpcomingShow = async (show, friendUid) => {
     if (!user || !show?.id || !friendUid) return;
     try {
-      await updateDoc(upcomingRef(show.id), {
-        taggedFriendUids: arrayRemove(friendUid),
-        updatedAt: serverTimestamp(),
-      });
+      // The server takes them off the show and revokes their pending tag.
+      await callFriends('revokeTag', { upcomingId: show.id, toUid: friendUid });
       setUpcomingShows(prev => prev.map(u => (u.id === show.id
         ? { ...u, taggedFriendUids: (u.taggedFriendUids || []).filter(uid => uid !== friendUid) }
         : u)));
-      await revokePendingTags(
-        [where('fromUid', '==', user.uid), where('toUid', '==', friendUid)],
-        tag => tag.upcomingShowId === show.id,
-      );
     } catch (error) {
       console.error('Failed to remove tagged friend:', error);
       setToast({ message: 'Failed to remove that friend. Please try again.', type: 'error' });
@@ -2838,32 +2741,16 @@ export function AppProvider({ children }) {
     }
   };
 
+  // The answer, the overall status and the one-time nudge email are the
+  // server's (5.60.29, friends.js respondSuggestion): the suggestion is a
+  // document both friends share.
   const respondToSuggestion = async (suggestion, response) => {
     if (!user) return;
-    const friendUid = suggestion.participants.find(uid => uid !== user.uid);
-    const theirResponse = suggestion.responses?.[friendUid];
-    let newOverallStatus;
-    if (response === 'declined') {
-      newOverallStatus = 'declined';
-    } else if (theirResponse === 'confirmed') {
-      newOverallStatus = 'confirmed';
-    } else {
-      newOverallStatus = 'partially_confirmed';
-    }
-    const ref = doc(db, 'showSuggestions', suggestion.id);
     try {
-      await updateDoc(ref, {
-        [`responses.${user.uid}`]: response,
-        overallStatus: newOverallStatus,
-        updatedAt: serverTimestamp(),
-      });
-      // Send email nudge when we confirm and friend hasn't responded yet
-      if (response === 'confirmed' && theirResponse === 'pending' && !suggestion.emailSentToUid) {
-        const res = await sendNotification({ type: 'suggestion_nudge', suggestionId: suggestion.id });
-        if (res?.ok) await updateDoc(ref, { emailSentToUid: friendUid, emailSentAt: serverTimestamp() });
-      }
+      await callFriends('respondSuggestion', { suggestionId: suggestion.id, response });
     } catch (e) {
       console.error('Failed to respond to suggestion:', e);
+      setToast({ message: e.status && e.status < 500 ? e.message : 'Couldn’t save your answer. Please try again.', type: 'error' });
     }
   };
 
@@ -2877,17 +2764,15 @@ export function AppProvider({ children }) {
       const tagData = tagSnap.data();
 
       // A tag on an upcoming show goes to the upcoming list, not history.
+      // The server adds it (or credits the one already there) and marks the
+      // tag accepted (5.60.29). A tag accepted after the date has passed
+      // belongs in history instead: normalize-show marks it accepted then.
       if (tagData.showData?.upcoming) {
-        const input = upcomingInputFromTag({ id: tagId, ...tagData });
-        const { taggedBy, taggedByUid, originUpcomingId, ...fields } = input;
-        // A tag accepted after the date has passed would fail validation;
-        // a show that already happened belongs in history instead.
-        if (validateUpcomingInput(fields)) {
-          // normalize-show marks the tag accepted with the write.
+        try {
+          await callFriends('respondTag', { tagId, response: 'accepted' });
+        } catch (e) {
+          if (e.code !== 'date_passed') throw e;
           await addShow({ kind: 'tag', tagId, asPastShow: true }, { silent: true });
-        } else {
-          await addUpcomingShow(fields, { silent: true, extra: { taggedBy, taggedByUid, originUpcomingId } });
-          await setDoc(tagRef, { status: 'accepted' }, { merge: true });
         }
         if (!silent) {
           setToast(`${tagData.showData.artist || 'Show'} added to your upcoming shows!`);
@@ -2919,8 +2804,7 @@ export function AppProvider({ children }) {
 
   const declineShowTag = async (tagId) => {
     try {
-      const tagRef = doc(db, 'showTags', tagId);
-      await setDoc(tagRef, { status: 'declined' }, { merge: true });
+      await callFriends('respondTag', { tagId, response: 'declined' });
     } catch (error) {
       console.error('Failed to decline show tag:', error);
     }
@@ -2973,31 +2857,21 @@ export function AppProvider({ children }) {
 
   const declinePendingEmailTag = async (tag) => {
     try {
-      await setDoc(doc(db, 'pendingEmailTags', tag.id), { status: 'declined' }, { merge: true });
+      await callFriends('respondTag', { pendingEmailTagId: tag.id, response: 'declined' });
       setPendingTagsForReview(prev => prev.filter(t => t.id !== tag.id));
     } catch (error) {
       console.error('Failed to decline pending email tag:', error);
     }
   };
 
-  // Tag a non-registered friend at a show and send them an invite email
+  // Tag a non-registered friend at a show and send them an invite email.
+  // The server writes the pending tag from the stored show and emails it
+  // (5.60.29, friends.js tag with `emails`).
   const tagFriendByEmail = async ({ name, email: toEmailRaw, message, show }) => {
     if (!user) return;
     const toEmail = toEmailRaw.trim().toLowerCase();
-    const sanitizedShow = sanitizeShowForTag(show);
     try {
-      const pendingRef = await addDoc(collection(db, 'pendingEmailTags'), {
-        fromUid: user.uid,
-        fromName: user.displayName || 'Anonymous',
-        toEmail,
-        toName: name,
-        showData: sanitizedShow,
-        personalMessage: message || null,
-        status: 'pending',
-        createdAt: serverTimestamp(),
-      });
-
-      await sendNotification({ type: 'tag_email', pendingTagId: pendingRef.id });
+      await callFriends('tag', { showId: show.id, emails: [{ email: toEmail, name, message: message || null }] });
     } catch (error) {
       console.error('Failed to tag friend by email:', error);
       throw error;

@@ -76,6 +76,13 @@
  * decline and delete; invites create and delete) for iOS builds before
  * 5.60.28 (docs/ios-native/GATED-CLEANUPS.md).
  *
+ * Since 5.60.29 (Stage 3, 3a), tags and suggestion answers too, in
+ * lib/showSocialActions.js: tag, respondTag, revokeTag,
+ * refreshUpcomingTags and respondSuggestion. A tag carries the tagger's
+ * own stored show, never the request's. The rules still allow the old
+ * client writes (showTags and pendingEmailTags create and update,
+ * showSuggestions update) for iOS builds before 3.13.45.
+ *
  * The rules still let the app write its own userBlocks document and remove
  * itself from someone's friends list, because iOS 3.13.42 and earlier
  * block that way; tightening waits for minSupportedIosVersion
@@ -96,6 +103,9 @@ const { takeDailyQuota } = require('./lib/rateLimit');
 const { showMatchKey } = require('../../lib/showIdentity');
 const { suggestionDocId, suggestionDoc, planSuggestions } = require('./lib/showSuggestions');
 const { recordBlockNotice } = require('./lib/blockNotice');
+const showSocialActions = require('./lib/showSocialActions');
+// True if either has blocked the other (userBlocks/{uid}.blockedUserIds).
+const { blockedBetween } = require('./lib/blocks');
 
 const APP_URL = 'https://mysetlists.net';
 // A referral or invite names its inviter on the new account's profile
@@ -119,9 +129,9 @@ const HANDLE_RE = /^[a-z0-9_]{3,20}$/;
 const corsHeaders = (event) => baseCors(event, { methods: 'POST, OPTIONS' });
 
 class Refusal extends Error {
-  constructor(status, message) { super(message); this.status = status; }
+  constructor(status, message, code = null) { super(message); this.status = status; this.code = code; }
 }
-const refuse = (status, message) => { throw new Refusal(status, message); };
+const refuse = (status, message, code = null) => { throw new Refusal(status, message, code); };
 
 function profileName(p, fallback) {
   return String((p && (p.displayName || p.firstName)) || fallback).slice(0, 80);
@@ -141,12 +151,6 @@ async function authEmail(auth, uid) {
   }
 }
 
-/** True if either has blocked the other (userBlocks/{uid}.blockedUserIds). */
-async function blockedBetween(db, a, b) {
-  const [sa, sb] = await Promise.all([db.doc(`userBlocks/${a}`).get(), db.doc(`userBlocks/${b}`).get()]);
-  const list = (s) => (s.exists && Array.isArray(s.data().blockedUserIds) ? s.data().blockedUserIds : []);
-  return list(sa).includes(b) || list(sb).includes(a);
-}
 
 /** The friend-list entry `owner` keeps for `friendUid`. */
 async function friendEntry(db, auth, friendUid) {
@@ -669,6 +673,10 @@ const ACTIONS = {
   },
 };
 
+// Tags and suggestion answers (5.60.29): lib/showSocialActions.js, with
+// this file's checks.
+Object.assign(ACTIONS, showSocialActions({ refuse, docId, blockedBetween, mutualFriends, getProfile, profileName }));
+
 exports.handler = async function (event) {
   const headers = corsHeaders(event);
   const reply = (statusCode, body) => ({ statusCode, headers, body: JSON.stringify(body) });
@@ -703,7 +711,7 @@ exports.handler = async function (event) {
     });
     return reply(200, { success: true, ...result });
   } catch (e) {
-    if (e instanceof Refusal) return reply(e.status, { error: e.message });
+    if (e instanceof Refusal) return reply(e.status, e.code ? { error: e.message, code: e.code } : { error: e.message });
     console.error(`[friends] ${body.action} failed:`, e.message);
     return reply(500, { error: 'Something went wrong. Please try again.' });
   }

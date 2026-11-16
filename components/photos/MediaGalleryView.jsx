@@ -18,7 +18,7 @@ import { Heart, Trash2, ChevronLeft, ChevronRight, Play, Plus } from 'lucide-rea
 import { Card, Avatar, Button, Modal, Spinner, Tabs } from '@/components/ui';
 import { useApp } from '@/context/AppContext';
 import { togglePhotoLike, deletePhoto, extractYoutubeId } from '@/lib/photos';
-import { createEngagementNotification } from '@/lib/notifications';
+import { notifyEngagement } from '@/lib/notifications';
 import { logActivity } from '@/lib/activityFeed';
 import { timeAgo } from '@/lib/utils';
 import { withoutBlocked } from '@/lib/moderation';
@@ -27,7 +27,6 @@ import UserLink from '@/components/moderation/UserLink';
 
 import UploadMediaModal from './UploadMediaModal';
 
-const LABEL_BY_CATEGORY = { poster: 'poster', setlist: 'setlist photo' };
 const SORTS = [
   { id: 'newest', label: 'Newest' },
   { id: 'liked', label: 'Most Liked' },
@@ -222,15 +221,8 @@ export default function MediaGalleryView({ show, concertKey, category, title, ic
     const alreadyLiked = (item.likedBy || []).includes(user.uid);
     try {
       await togglePhotoLike(item.id, user.uid, alreadyLiked);
-      if (!alreadyLiked) {
-        const likerName = user.displayName || 'Anonymous';
-        const noun = LABEL_BY_CATEGORY[category] || (item.type === 'image' ? 'photo' : 'video');
-        createEngagementNotification(item.uploadedBy, 'photo_like', {
-          concertKey, artist: show.artist, venue: show.venue, date: show.date,
-          fromUid: user.uid, fromName: likerName,
-          message: `${likerName} liked your ${noun} from ${show.artist}`,
-        });
-      }
+      // The server checks the like is stored and notifies the uploader.
+      if (!alreadyLiked) notifyEngagement('photo_like', item.id);
     } catch (err) {
       setToast?.("Couldn't update your like. Please try again.");
     }
