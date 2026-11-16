@@ -28,6 +28,9 @@ public struct NormalizeShowResult: Decodable, Sendable {
     /// The show matched one already logged; nothing new was written.
     public var mergedInto: String?
     public var alreadyNormalized: Bool?
+    /// A `possible` duplicate: nothing written until the person says it's
+    /// a different show (`confirmPossible`).
+    public var needsConfirmation: Bool?
     /// An input the server refused (`bad-input`, `bad-kind`, `tag-not-found`…).
     public var error: InputError?
 
