@@ -15,6 +15,9 @@ public enum AppRoute: Hashable, Sendable {
     case song(band: String?, song: String)
     case venue(key: String)
     case yearInReview(user: String, year: String)
+    /// Your shows for one band, song or venue, from Stats (Stage 2). Not a
+    /// link target: nothing on the web opens it.
+    case myShows(ShowsFilter)
 }
 
 /// What opening a link does (FOUNDATION-AUDIT.md §1.4).
@@ -109,6 +112,7 @@ public extension AppRoute {
         case .song(nil, let song): path = "/songs"; params.set("song", song)
         case .venue(let key): path = "/venues"; params.set("venue", key)
         case .yearInReview(let user, let year): path = "/year-in-review"; params.set("user", user); params.set("year", year)
+        case .myShows: path = "/stats"
         }
         return DeepLink.webURL(path: path, params: params)
     }

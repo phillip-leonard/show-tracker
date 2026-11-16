@@ -77,6 +77,7 @@ struct RouteScreen: View {
         switch route {
         case .show(let id): ShowDetailScreen(id: id)
         case .upcomingShow(let id): UpcomingDetail(id: id)
+        case .myShows(let filter): MyShowsList(filter: filter)
         default: RoutePlaceholder(route: route)
         }
     }
