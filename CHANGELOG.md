@@ -4,6 +4,41 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.60.28] — 2026-11-16
+
+Ships in **iOS 3.13.44** (Capacitor, `MARKETING_VERSION` 3.13.43 → 3.13.44).
+Native unchanged. Stage 3, Part 2a (`docs/ios-native/STAGE3-AUDIT.md`,
+DECISIONS "Stage 3").
+
+**Resending an invite works again.** Since 5.59.7 the `invites` rule refuses
+client updates, so the resend's `lastSentAt` update failed before the email
+went out, and every resend did nothing. Invites are now written, emailed and
+resent by the server.
+
+**Friend requests and invites go through the server.** `friends.js` gains
+`request`, `decline`, `cancel`, `invite`, `resendInvite` and `cancelInvite`,
+and the web uses them, so no app writes a friend request or an invite itself.
+
+- **Requests:** `request` checks for an existing friendship and a request
+  either way; if the other person had already asked, it accepts theirs. It is
+  limited to 100 a day per sender.
+- **Blocks:** across a block, `request` answers as if the request were sent
+  and writes nothing, so a block isn't revealed. Until now someone you had
+  blocked could still send you a request: the browser can't read the other
+  side's block list.
+- **Invite emails:** sent with send-email's checks: the same template, the
+  signed referral link, the hourly and daily limits, opt-out and once a day
+  per address. Those checks moved into `lib/notificationDelivery.js`, which
+  both functions use.
+
+**Find a friend by handle.** `lookupByHandle`: an exact, claimed handle (with
+or without the @, any case) returns the account's id and name. It shares
+`lookupByEmail`'s daily limit and never returns an address. The native app
+uses it; the web's search is unchanged.
+
+The rules still allow the old client writes for iOS 3.13.43 and earlier, and
+GATED-CLEANUPS lists closing them.
+
 ## [5.60.27] — 2026-11-16
 
 Ships in **iOS 3.13.43** (Capacitor, `MARKETING_VERSION` 3.13.42 → 3.13.43)
