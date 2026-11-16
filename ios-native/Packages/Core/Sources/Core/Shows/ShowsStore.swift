@@ -40,7 +40,7 @@ public final class ShowsStore {
     public private(set) var refreshProblem: String?
     /// Shows added on this device that the server hasn't built yet
     /// (`ShowOutbox`), oldest first.
-    public private(set) var queued: [QueuedShow] = []
+    public internal(set) var queued: [QueuedShow] = []
     /// The server refused the last edit or delete (it stays on screen until
     /// the listener brings the stored value back).
     public var writeProblem: String?
@@ -49,7 +49,7 @@ public final class ShowsStore {
     private var upcomingLoad: LiveLoad<Snapshot<UpcomingShow>>?
     private var statsListener: ListenerRegistration?
     private var reportedDecodeFailure = false
-    private var api: APIClient?
+    var api: APIClient?
     private var sources: SetlistSourceCache?
     private var recompute: Task<Void, Never>?
     private var festivalNames: [String: String] = [:]
@@ -64,6 +64,11 @@ public final class ShowsStore {
     private var flushing = false
     private var flushAgain = false
     private var flushHooksInstalled = false
+    /// Adds (Part 4): the outbox flush, one run at a time.
+    var outboxFlushing = false
+    var outboxFlushAgain = false
+    /// Shows just added, until the listener has them (the page waits).
+    public internal(set) var justAdded: Set<String> = []
 
     struct Snapshot<T> {
         var items: [T]
@@ -91,6 +96,7 @@ public final class ShowsStore {
             await attach(uid: uid)
             await rebuildOverlays(uid: uid)
             flushEdits()
+            flushOutbox()
         }
     }
 
@@ -113,6 +119,8 @@ public final class ShowsStore {
         festivalNames = [:]
         recompute?.cancel(); recompute = nil
         queuedEdits = []
+        justAdded = []
+        outboxFlushAgain = false
         pendingSetlists = [:]
         settleTasks.values.forEach { $0.cancel() }
         settleTasks = [:]
@@ -221,6 +229,8 @@ public final class ShowsStore {
     public func refresh() async {
         guard let uid else { return }
         refreshProblem = nil
+        flushOutbox()
+        flushEdits()
         let db = await Database.ready()
         let base = db.collection("users").document(uid)
         do {
@@ -397,9 +407,9 @@ public final class ShowsStore {
     private func installFlushHooks() {
         guard !flushHooksInstalled else { return }
         flushHooksInstalled = true
-        Connectivity.shared.onReconnect { [weak self] in self?.flushEdits() }
+        Connectivity.shared.onReconnect { [weak self] in self?.flushEdits(); self?.flushOutbox() }
         NotificationCenter.default.addObserver(forName: UIApplication.willEnterForegroundNotification, object: nil, queue: .main) { [weak self] _ in
-            Task { @MainActor in self?.flushEdits() }
+            Task { @MainActor in self?.flushEdits(); self?.flushOutbox() }
         }
     }
 
@@ -515,7 +525,7 @@ public final class ShowsStore {
     /// `recompute-my-stats`, 3 s after the last change (the web's debounce),
     /// so `userStats/{uid}` (and the header's numbers) follow. Offline it
     /// fails quietly; the 6-hourly `community-stats` job catches up.
-    private func requestStatsRecompute() {
+    func requestStatsRecompute() {
         recompute?.cancel()
         guard let api else { return }
         recompute = Task {
@@ -573,7 +583,7 @@ public final class ShowsStore {
         ]))
     }
 
-    private static func log(_ error: Error, stage: String) {
+    static func log(_ error: Error, stage: String) {
         Crashlytics.crashlytics().log("ShowsStore \(stage): \(error.localizedDescription)")
     }
 }

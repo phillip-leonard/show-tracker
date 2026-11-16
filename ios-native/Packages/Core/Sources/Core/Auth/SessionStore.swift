@@ -412,12 +412,12 @@ public final class SessionStore {
     /// What "Sign out" should ask first (`SignOutPrompt`): a guest always,
     /// an account only with writes that haven't synced, since sign-out
     /// clears the offline cache they're kept in. Song edits still waiting in
-    /// `SetlistEditQueue` count as unsynced too: they'd wait in this phone's
-    /// file until this account signs in here again.
+    /// `SetlistEditQueue` and shows still in `ShowOutbox` count as unsynced
+    /// too: they'd wait in this phone's files until this account signs in here again.
     public func signOutPrompt() async -> SignOutPrompt {
         guard let user else { return .signOut }
         if user.isAnonymous { return .guestLosesEverything }
-        let queuedEdits = !SetlistEditQueue.load(uid: user.uid).isEmpty
+        let queuedEdits = !SetlistEditQueue.load(uid: user.uid).isEmpty || !ShowOutbox.load(uid: user.uid).isEmpty
         let unsyncedWrites = await Database.hasUnsyncedWrites()
         return SignOutPrompt.decide(isGuest: false, hasUnsyncedWrites: queuedEdits || unsyncedWrites)
     }
@@ -450,6 +450,7 @@ public final class SessionStore {
             .init("queued edits") { @MainActor [weak self] in
                 if let user = self?.user, user.isAnonymous {
                     SetlistEditQueue.delete(uid: user.uid)
+                    ShowOutbox.delete(uid: user.uid)
                     self?.termsRecord.forget(uid: user.uid)
                 }
             },

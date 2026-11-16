@@ -21,7 +21,20 @@ public struct APIClient: Sendable {
     let session: URLSession
     let tokens: IDTokenProvider?
 
-    public init(baseURL: URL = productionBaseURL, session: URLSession = .shared, tokens: IDTokenProvider?) {
+    /// The functions this build calls: mysetlists.net, or in a Debug build
+    /// launched with `MYSETLISTS_API_BASE=<url>`, that address (functions run
+    /// locally against the emulators, with `MYSETLISTS_EMULATORS`; see
+    /// ios-native/README.md). Release builds always use production.
+    public static var baseURLForThisBuild: URL {
+        #if DEBUG
+        if let raw = ProcessInfo.processInfo.environment["MYSETLISTS_API_BASE"], let url = URL(string: raw), url.scheme != nil {
+            return url
+        }
+        #endif
+        return productionBaseURL
+    }
+
+    public init(baseURL: URL = baseURLForThisBuild, session: URLSession = .shared, tokens: IDTokenProvider?) {
         self.baseURL = baseURL
         self.session = session
         self.tokens = tokens

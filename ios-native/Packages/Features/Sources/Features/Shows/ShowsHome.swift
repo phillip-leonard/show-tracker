@@ -43,7 +43,7 @@ struct ShowsHome: View {
                     .tint(.brand)
             }
         }
-        .sheet(isPresented: $adding) { AddShowPlaceholder(isGuest: isGuest) }
+        .sheet(isPresented: $adding) { AddShowSheet() }
         .sheet(isPresented: $upgrading) { GuestUpgradeView() }
         .task(id: store.fromCache) {
             // A launch's first snapshot is often the cache for a moment; only
@@ -155,6 +155,16 @@ struct ShowsHome: View {
                 }
                 .brandRow()
             }
+            if !store.waitingShows.isEmpty {
+                Section {
+                    ForEach(store.waitingShows) { entry in
+                        NavigationLink(value: AppRoute.show(id: entry.showId)) { WaitingShowRow(entry: entry) }
+                    }
+                } header: {
+                    Text("Waiting to sync").textCase(nil)
+                }
+                .brandRow()
+            }
             ForEach(sections) { section in
                 Section {
                     ForEach(section.shows) { show in
@@ -169,7 +179,7 @@ struct ShowsHome: View {
             }
         }
         .overlay {
-            if store.shows.isEmpty {
+            if store.shows.isEmpty, store.waitingShows.isEmpty {
                 if !store.showsLoaded {
                     ProgressView("Loading your shows")
                 } else if let problem = store.loadProblem {
