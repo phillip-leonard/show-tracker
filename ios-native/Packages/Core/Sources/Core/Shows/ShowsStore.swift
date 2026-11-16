@@ -74,6 +74,9 @@ public final class ShowsStore {
     /// Adds (Part 4): the outbox flush, one run at a time.
     var outboxFlushing = false
     var outboxFlushAgain = false
+    /// The running flushes, so `sendQueued` can wait for them.
+    var outboxTask: Task<Void, Never>?
+    private var editsTask: Task<Void, Never>?
     /// Shows just added, until the listener has them (the page waits).
     public internal(set) var justAdded: Set<String> = []
 
@@ -392,7 +395,7 @@ public final class ShowsStore {
         guard let uid else { return }
         guard !flushing else { flushAgain = true; return }
         flushing = true
-        Task { [weak self] in
+        editsTask = Task { [weak self] in
             guard let self else { return }
             repeat {
                 self.flushAgain = false
@@ -419,6 +422,19 @@ public final class ShowsStore {
             } while self.flushAgain && self.uid == uid
             self.flushing = false
         }
+    }
+
+    /// Sends everything this phone is holding for the account (queued adds
+    /// and song edits) and waits for it, then returns how many are still
+    /// waiting: offline, a show waiting for an answer, or one the server
+    /// refused. Before a guest's shows move to another account
+    /// (`SessionStore.startAdoption`), so nothing is left behind.
+    public func sendQueued() async -> Int {
+        flushEdits()
+        flushOutbox()
+        await editsTask?.value
+        await outboxTask?.value
+        return queued.count + queuedEdits.count
     }
 
     /// Replays when the phone gets its connection back and when the app

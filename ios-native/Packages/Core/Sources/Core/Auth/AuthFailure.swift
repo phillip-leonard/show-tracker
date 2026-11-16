@@ -26,7 +26,7 @@ public enum AuthFailure: Error, Equatable, Sendable {
         case .invalidEmail: return "That doesn't look like an email address."
         case .credentialInUse: return "That sign-in already belongs to a MySetlists account."
         case .recentLoginRequired: return "Please sign in again, then try once more."
-        case .accountDisabled: return "This account has been disabled."
+        case .accountDisabled: return "This account has been disabled. To delete it or get a copy of your data, email \(Terms.supportEmail)."
         case .tooManyAttempts: return "Too many attempts. Wait a moment and try again."
         case .offline: return "You're offline. Try again when you're connected."
         case .other(let m): return m
