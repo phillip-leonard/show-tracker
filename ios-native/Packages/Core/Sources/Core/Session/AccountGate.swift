@@ -9,7 +9,9 @@ import Foundation
 ///   2. signed out: the sign-in screen
 ///   3. suspended: `userProfiles.banned` (ahead of the terms gate)
 ///   4. terms: no acceptance of `Terms.version` on the profile, and none
-///      ticked on this device just now
+///      on this phone (ticked just now, or seen earlier and recorded in
+///      `TermsAcceptanceRecord`, so an offline launch never stops here for
+///      someone who has agreed)
 ///   5. the app
 ///
 /// The profile is tri-state, as on the web: until it has been read there is

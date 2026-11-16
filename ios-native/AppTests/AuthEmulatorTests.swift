@@ -162,6 +162,39 @@ struct AuthEmulatorTests {
         #expect(try await after.document("cacheProbe/next").getDocument(source: .cache).exists)
     }
 
+    /// Offline (Firestore here is a dead address, so the profile can't be
+    /// read): a relaunch for an account this phone has seen accept the terms
+    /// goes straight in; one that hasn't stops at the gate, and "I agree"
+    /// opens it at once instead of waiting for the server.
+    @Test func theTermsGateNeverBlocksAnOfflineLaunchAfterAcceptance() async throws {
+        store.termsTicked = true
+        try await store.createAccount(email: newEmail(), password: "correct-horse-9")
+        try await waitFor { store.user?.isAnonymous == false }
+        let uid = try #require(store.user?.uid)
+        #expect(TermsAcceptanceRecord().hasAcceptedCurrent(uid: uid), "the sign-in screen's tick is recorded on this phone")
+
+        // "Relaunch": a new session store, same signed-in account, profile unreadable.
+        let relaunched = SessionStore(api: APIClient(baseURL: URL(string: "http://127.0.0.1:9")!, tokens: FirebaseIDTokens()), appVersion: "4.0.2")
+        relaunched.start()
+        try await waitFor { relaunched.user?.uid == uid && relaunched.gate != .loading }
+        #expect(relaunched.gate == .ready, "accepted before: no terms gate offline")
+
+        // The same, for an account this phone has never seen accept: no
+        // record, and the profile (here, the cached copy) without it.
+        TermsAcceptanceRecord().forget(uid: uid)
+        await Database.ready().document("userProfiles/\(uid)").setData(["termsAcceptedVersion": 0], merge: true, completion: { _ in })
+        let fresh = SessionStore(api: APIClient(baseURL: URL(string: "http://127.0.0.1:9")!, tokens: FirebaseIDTokens()), appVersion: "4.0.2")
+        fresh.start()
+        try await waitFor { fresh.user?.uid == uid && fresh.gate != .loading }
+        #expect(fresh.gate == .termsRequired)
+        let started = ContinuousClock.now
+        try await fresh.acceptTerms()
+        #expect(ContinuousClock.now - started < .seconds(2), "\"I agree\" doesn't wait for the server")
+        #expect(fresh.gate == .ready)
+        #expect(TermsAcceptanceRecord().hasAcceptedCurrent(uid: uid))
+        #expect(await Database.hasUnsyncedWrites(), "the profile write is queued to sync later")
+    }
+
     /// "Sign out" asks first when Firestore holds writes the server hasn't
     /// acknowledged (the server here is a dead address, so nothing syncs),
     /// and a guest is always asked.

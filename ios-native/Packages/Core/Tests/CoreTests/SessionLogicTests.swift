@@ -134,3 +134,39 @@ import Testing
         #expect(await UnsyncedWrites.exist(within: .milliseconds(200)) { throw UserChanged() } == false)
     }
 }
+
+/// The terms version this phone has seen an account accept.
+@Suite struct TermsAcceptanceRecordTests {
+    func record() -> TermsAcceptanceRecord {
+        let name = "TermsAcceptanceRecordTests.\(UUID().uuidString)"
+        return TermsAcceptanceRecord(defaults: UserDefaults(suiteName: name)!)
+    }
+
+    @Test func perAccountAndCurrentVersionOnly() {
+        let r = record()
+        #expect(!r.hasAcceptedCurrent(uid: "a"))
+        r.record(Terms.version, uid: "a")
+        #expect(r.hasAcceptedCurrent(uid: "a"))
+        #expect(!r.hasAcceptedCurrent(uid: "b"), "another account on this phone isn't let through")
+        r.record(Terms.version - 1, uid: "b")
+        #expect(!r.hasAcceptedCurrent(uid: "b"), "an older version doesn't count after a terms bump")
+    }
+
+    @Test func neverLowersAndForgets() {
+        let r = record()
+        r.record(Terms.version, uid: "a")
+        r.record(Terms.version - 1, uid: "a")
+        #expect(r.version(uid: "a") == Terms.version)
+        r.forget(uid: "a")
+        #expect(r.version(uid: "a") == nil)
+    }
+
+    @Test func aRecordedAcceptanceOpensTheGateWhateverTheProfileSays() {
+        // SessionStore passes the record in as acceptance on this phone.
+        for profile: AccountGate.ProfileState in [.missing, .unreadable, .loaded(banned: false, termsAcceptedVersion: nil)] {
+            #expect(AccountGate.compute(signedIn: true, profile: profile, acceptedOnThisDevice: true, version: .ok) == .ready)
+        }
+        #expect(AccountGate.compute(signedIn: true, profile: .loaded(banned: true, termsAcceptedVersion: nil), acceptedOnThisDevice: true, version: .ok)
+                == .suspended, "suspension still comes first")
+    }
+}
