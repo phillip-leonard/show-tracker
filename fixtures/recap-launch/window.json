@@ -1,0 +1,33 @@
+{
+  "description": "When Stats promotes the year's recap (lib/recapLaunch.js recapPromoActive): from promoStartsAt (inclusive) until promoEndsAt (exclusive), UTC. The link is https://mysetlists.net + path. Each case is [moment, promoted].",
+  "year": 2026,
+  "promoStartsAt": "2026-12-02T08:00:00.000Z",
+  "promoEndsAt": "2027-01-16T08:00:00.000Z",
+  "path": "/year-in-review/?year=2026",
+  "cases": [
+    [
+      "2026-12-01T07:59:59.999Z",
+      false
+    ],
+    [
+      "2026-12-02T08:00:00.000Z",
+      true
+    ],
+    [
+      "2026-12-25T12:00:00.000Z",
+      true
+    ],
+    [
+      "2027-01-16T07:59:59.999Z",
+      true
+    ],
+    [
+      "2027-01-16T08:00:00.000Z",
+      false
+    ],
+    [
+      "2027-06-01T00:00:00.000Z",
+      false
+    ]
+  ]
+}

@@ -596,31 +596,13 @@ export function AppProvider({ children }) {
       // pressed rather than after a Firestore round trip.
       setBlockedUserIds(prev => (prev.includes(targetUid) ? prev : [...prev, targetUid]));
       setFriends(prev => prev.filter(f => f.friendUid !== targetUid));
-      // Anything still on its way to them from us goes too: pending tags
-      // (past or upcoming) are revoked, and they come off the "who's going"
-      // list of every upcoming show we tagged them on. Best-effort and not
-      // awaited — the block itself has already happened.
-      revokePendingTags([where('fromUid', '==', user.uid), where('toUid', '==', targetUid)]);
-      getDocs(query(
-        collection(db, 'users', user.uid, UPCOMING_COLLECTION),
-        where('taggedFriendUids', 'array-contains', targetUid),
-      )).then(snap => Promise.all(snap.docs.map(d =>
-        updateDoc(d.ref, { taggedFriendUids: arrayRemove(targetUid) })
-      ))).catch(e => console.error('Failed to remove blocked user from upcoming shows:', e));
+      // The server has already removed the friendship on both sides, friend
+      // requests and show tags either way, and them from our upcoming shows'
+      // "who's going" lists (friends.js `block`, 5.60.27).
       setToast('Blocked. You won\u2019t see their posts, and they\u2019ve been removed from your friends.');
     } catch (error) {
       console.error('Failed to block user:', error);
-      // "Please try again" is wrong for a rules denial — retrying never
-      // clears it. Same reasoning as createFestival below, and the same
-      // cause: `userBlocks` is a new collection in v5.32.0, and Firestore
-      // denies any path with no matching rule, so this is exactly what an
-      // undeployed firestore.rules looks like from the UI.
-      setToast({
-        message: error?.code === 'permission-denied'
-          ? "Couldn't block that account — the app doesn't have permission to save your block list."
-          : 'Failed to block that account. Please try again.',
-        type: 'error',
-      });
+      setToast({ message: error?.message && error.status && error.status < 500 ? error.message : 'Failed to block that account. Please try again.', type: 'error' });
       throw error;
     }
   }, [user]);
@@ -633,12 +615,7 @@ export function AppProvider({ children }) {
       setToast('Unblocked. You can send a friend request if you want to reconnect.');
     } catch (error) {
       console.error('Failed to unblock user:', error);
-      setToast({
-        message: error?.code === 'permission-denied'
-          ? "Couldn't unblock that account — the app doesn't have permission to save your block list."
-          : 'Failed to unblock that account. Please try again.',
-        type: 'error',
-      });
+      setToast({ message: error?.message && error.status && error.status < 500 ? error.message : 'Failed to unblock that account. Please try again.', type: 'error' });
       throw error;
     }
   }, [user]);

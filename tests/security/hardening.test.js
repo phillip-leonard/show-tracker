@@ -330,7 +330,7 @@ test('no function carries its own admin list or check', () => {
   for (const f of fs.readdirSync(FN).filter((n) => n.endsWith('.js'))) {
     const src = fs.readFileSync(path.join(FN, f), 'utf8');
     assert.ok(!/ADMIN_EMAILS\.includes\(/.test(src), `${f} checks admin inline`);
-    assert.ok(!/const ADMIN_EMAILS\s*=/.test(src) || f === 'report-content.js' || f === 'moderation-sla-reminder.js' || f === 'notify-block.js', `${f} keeps its own list`);
+    assert.ok(!/const ADMIN_EMAILS\s*=/.test(src) || f === 'report-content.js' || f === 'moderation-sla-reminder.js', `${f} keeps its own list`);
   }
   const rules = fs.readFileSync(path.join(__dirname, '../../firestore.rules'), 'utf8');
   assert.ok(rules.includes("request.auth.token.get('admin', false) == true"));

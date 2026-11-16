@@ -117,6 +117,35 @@ UPDATE_FIXTURES=1 node --experimental-loader ./lib/__tests__/alias-loader.mjs li
 UPDATE_FIXTURES=1 node lib/__tests__/showEditFixtures.test.js
 ```
 
+## `user-stats/`, `stats-keys/` and `recap-launch/` (5.60.27, Stage 2)
+
+`user-stats/*.json`: `{ name, description, shows, expected }`, where
+`expected` is `computeUserStats(shows)` (`lib/stats/index.js`), the numbers
+the server writes to `userStats/{uid}` (plus `ranked`, `rank`, `rankedOf`
+and `computedAt`, which depend on other users). The top lists are the top
+10, all time: `topBands` and `topVenues` as `{ name, count }`, `topSongs` as
+`{ name, artist, count }` counted by shows (a reprise is one show), per band.
+The Swift side decodes each `expected` in `UserStatsFixtureTests`.
+
+`stats-keys/keys.json`: `[input, key]` rows for `bandKey` and `songKey`
+(`lib/stats/keys.js`) and `venueCountKey` (`lib/venueCount.js`), the
+identities those numbers count by. The native app uses them to list your
+shows for a band, song or venue.
+
+`recap-launch/window.json`: when Stats promotes the year's recap
+(`lib/recapLaunch.js` `recapPromoActive`, an ES module the native app can't
+run): `promoStartsAt` (inclusive) and `promoEndsAt` (exclusive), UTC, the
+link's `path`, and `[moment, promoted]` cases.
+
+The web side checks all three in `lib/__tests__/statsFixtures.test.js` and
+`lib/__tests__/recapLaunchFixture.test.js`. To regenerate after a deliberate
+change:
+
+```
+UPDATE_FIXTURES=1 node lib/__tests__/statsFixtures.test.js
+UPDATE_FIXTURES=1 node --experimental-loader ./lib/__tests__/alias-loader.mjs lib/__tests__/recapLaunchFixture.test.js
+```
+
 ## `year-in-review/`
 
 Each file is one case:

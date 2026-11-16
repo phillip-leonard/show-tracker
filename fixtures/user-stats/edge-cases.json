@@ -1,0 +1,168 @@
+{
+  "name": "edge-cases",
+  "description": "Every edge case production data has: legacy DD-MM-YYYY dates, an ambiguous NN-NN-YYYY date read day-first, a festival import, the same night logged twice, a sandwich (one show for topSongs), one band in two spellings, two bands playing a song with one name, an unreadable date, a show with no venue, blank song names and an out-of-range rating.",
+  "shows": [
+    {
+      "artist": "Goose",
+      "venue": "Red Rocks Amphitheatre",
+      "city": "Morrison",
+      "date": "2025-06-01",
+      "rating": 9,
+      "setlist": [
+        {
+          "name": "Arcadia",
+          "rating": 10
+        },
+        {
+          "name": "Hungersite"
+        },
+        {
+          "name": "Arcadia"
+        }
+      ]
+    },
+    {
+      "artist": "goose (US)",
+      "venue": "red rocks  amphitheatre ",
+      "city": "morrison",
+      "date": "02-06-2025",
+      "rating": 7,
+      "setlist": [
+        {
+          "name": "Ashes//Dust",
+          "rating": 8
+        }
+      ]
+    },
+    {
+      "artist": "Phish",
+      "venue": "MSG",
+      "city": "New York",
+      "date": "03-04-2024",
+      "setlist": [
+        {
+          "name": "Ashes // Dust"
+        },
+        {
+          "name": "Tweezer"
+        }
+      ]
+    },
+    {
+      "artist": "The Band",
+      "venue": "Bonnaroo Farm",
+      "city": "Manchester",
+      "date": "2023-06-15",
+      "festivalId": "f1",
+      "setlistfmId": "x1",
+      "setlist": [
+        {
+          "name": "The Weight - Live"
+        }
+      ]
+    },
+    {
+      "artist": "Band",
+      "venue": "Bonnaroo Farm",
+      "city": "Manchester",
+      "date": "15-06-2023",
+      "setlist": []
+    },
+    {
+      "artist": "Goose",
+      "venue": "",
+      "city": "Austin",
+      "date": "TBA",
+      "rating": 11,
+      "setlist": [
+        {
+          "name": ""
+        },
+        {},
+        {
+          "name": "Hungersite",
+          "rating": 6
+        }
+      ]
+    }
+  ],
+  "expected": {
+    "statsVersion": 2,
+    "showCount": 6,
+    "songCount": 10,
+    "ratedSongCount": 3,
+    "uniqueSongCount": 5,
+    "bandCount": 3,
+    "venueCount": 3,
+    "yearsActive": 3,
+    "showsByYear": {
+      "2023": 2,
+      "2024": 1,
+      "2025": 2
+    },
+    "firstShowDate": "2023-06-15",
+    "lastShowDate": "2025-06-02",
+    "avgShowRating": 8,
+    "ratedShowCount": 2,
+    "topBands": [
+      {
+        "name": "Goose",
+        "count": 3
+      },
+      {
+        "name": "The Band",
+        "count": 2
+      },
+      {
+        "name": "Phish",
+        "count": 1
+      }
+    ],
+    "topVenues": [
+      {
+        "name": "Bonnaroo Farm, Manchester",
+        "count": 2
+      },
+      {
+        "name": "Red Rocks Amphitheatre, Morrison",
+        "count": 2
+      },
+      {
+        "name": "MSG, New York",
+        "count": 1
+      }
+    ],
+    "topSongs": [
+      {
+        "name": "Hungersite",
+        "artist": "Goose",
+        "count": 2
+      },
+      {
+        "name": "Arcadia",
+        "artist": "Goose",
+        "count": 1
+      },
+      {
+        "name": "Ashes // Dust",
+        "artist": "Phish",
+        "count": 1
+      },
+      {
+        "name": "Ashes//Dust",
+        "artist": "goose (US)",
+        "count": 1
+      },
+      {
+        "name": "The Weight - Live",
+        "artist": "The Band",
+        "count": 1
+      },
+      {
+        "name": "Tweezer",
+        "artist": "Phish",
+        "count": 1
+      }
+    ]
+  }
+}

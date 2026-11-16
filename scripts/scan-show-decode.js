@@ -116,6 +116,8 @@ const TAG_SHOW = obj({
 }, { required: true });
 
 const NAME_COUNT = { name: R.string, count: R.intRequired };
+// userStats.topSongs (5.60.27): `artist` is '' for a show with no band.
+const SONG_COUNT = { name: R.string, artist: R.string, count: R.intRequired };
 
 const SCHEMAS = {
   shows: { fields: SHOW, ignore: SHOW_IGNORED, dates: true },
@@ -145,7 +147,7 @@ const SCHEMAS = {
       statsVersion: R.int, showCount: R.int, songCount: R.int, ratedSongCount: R.int, uniqueSongCount: R.int,
       bandCount: R.int, venueCount: R.int, yearsActive: R.int, showsByYear: R.intMap, firstShowDate: R.text,
       lastShowDate: R.text, avgShowRating: R.numberOrNumericString, ratedShowCount: R.int,
-      topBands: list(NAME_COUNT), topVenues: list(NAME_COUNT), ranked: R.flag, rank: R.int, rankedOf: R.int, computedAt: R.moment,
+      topBands: list(NAME_COUNT), topVenues: list(NAME_COUNT), topSongs: list(SONG_COUNT), ranked: R.flag, rank: R.int, rankedOf: R.int, computedAt: R.moment,
     },
   },
   publicUserStats: {

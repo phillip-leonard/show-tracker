@@ -12,6 +12,7 @@ const { createFakeDb, createFakeAuth } = require('../email/fakeFirestore');
 const { __setTestFirebase } = require('../../netlify/functions/lib/firebaseAdmin');
 const { rebuildAllStats, recomputeUserStats } = require('../../netlify/functions/lib/userStats');
 const { parityReport } = require('../../scripts/backfill-user-stats');
+const { changeReport } = require('../../scripts/recompute-user-stats');
 const { parityReport: yearInReviewParity } = require('../../scripts/year-in-review-parity');
 const { computeYearInReview } = require('../../lib/yearInReviewStats');
 const { computeYearRecap } = require('../../lib/yearRecap');
@@ -262,6 +263,35 @@ test('the written recap is fixtures/year-in-review expected.recap for every fixt
     assert.deepStrictEqual(stored.recap, fx.expected.recap, `${f} recap`);
     assert.deepStrictEqual(stored.stats, fx.expected.yearInReview, `${f} stats`);
   }
+});
+
+test('rebuild writes topSongs and top-10 lists; recompute-user-stats reports what changes, counts only (5.60.27)', async () => {
+  const db = seed();
+  // A document from before 5.60.27: the same numbers, no topSongs.
+  const before = await rebuildAllStats(db, { write: false });
+  const old = { ...before.statsByUid.get('alice') };
+  delete old.topSongs;
+  const storedByUid = new Map([['alice', { ...old, ranked: true, rank: 1, rankedOf: 3, computedAt: 'then' }]]);
+
+  const report = changeReport(storedByUid, before.statsByUid, before.ranks);
+  assert.strictEqual(report.users, before.statsByUid.size);
+  assert.deepStrictEqual(report.fields.topSongs.added, before.statsByUid.size, 'every document gains topSongs');
+  assert.strictEqual(report.fields.showCount.same, 1, "alice's counts are unchanged");
+  assert.strictEqual(report.lengths.topSongs['2'], 1, 'alice saw two songs');
+  assert.ok(!JSON.stringify(report).includes('alice') && !JSON.stringify(report).includes('Arcadia'), 'no identities or songs');
+
+  await rebuildAllStats(db);
+  const alice = db._get('userStats/alice');
+  assert.deepStrictEqual(alice.topSongs, [
+    { name: 'Arcadia', artist: 'Goose', count: 1 },
+    { name: 'Tweezer', artist: 'Phish', count: 1 },
+  ]);
+  assert.strictEqual(db._get('publicUserStats/alice').topSongs, undefined, 'the public copy stays four counts and the rank');
+
+  // After the write, nothing is left to change.
+  const stored = new Map([...before.statsByUid.keys()].map((uid) => [uid, db._get(`userStats/${uid}`)]));
+  const again = await rebuildAllStats(db, { write: false });
+  assert.strictEqual(changeReport(stored, again.statsByUid, again.ranks).changing, 0);
 });
 
 run('Server stats (5.59.15, Year in Review 5.60.4, recap 5.60.16)');
