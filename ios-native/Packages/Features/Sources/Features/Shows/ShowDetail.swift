@@ -38,9 +38,11 @@ struct ShowDetailScreen: View {
 /// The show page, as the Stage 1 mockup lays it out: the header, your
 /// ratings and note, the setlist by set, the source's notes and credit.
 /// The ratings and the note are each one field written on its own
-/// (`ShowFieldEdit`); the setlist is read-only until Part 3b, and the
-/// re-sync button shows what it will do (`setlist-source`) without doing
-/// it yet.
+/// (`ShowFieldEdit`). Song edits (Part 3b) run as transactions on the
+/// setlist as stored (`ShowsStore.editSetlist`). Re-sync, the Archive
+/// review and a waiting proposal go through the server's setlist
+/// operations (`SetlistOps`); the app writes nothing to `setlist` after
+/// one, and the listener brings the result.
 struct ShowDetailView: View {
     @Environment(ShowsStore.self) private var store
     @Environment(SessionStore.self) private var session
@@ -52,7 +54,13 @@ struct ShowDetailView: View {
     @State private var festival: String?
     @State private var editingNote = false
     @State private var confirmingDelete = false
-    @State private var showingResync = false
+    /// A setlist operation is running (its busy label shows).
+    @State private var opBusy = false
+    /// What an operation did, said once.
+    @State private var opMessage: String?
+    @State private var review: ProposalReview?
+    /// The song just deleted, for 12 s of Undo.
+    @State private var undo: DeletedSong?
 
     private var isGuest: Bool { session.user?.isAnonymous == true }
 
@@ -62,7 +70,7 @@ struct ShowDetailView: View {
                 ShowHeader(date: show.date, tour: show.tour, artist: show.artist, venue: show.venue,
                            city: show.city, state: show.state, festival: festival)
                 YourRatingsCard(show: show, editNote: { editingNote = true })
-                SetlistSection(show: show, source: source)
+                SetlistSection(show: show, source: source, undo: $undo, reviewStoredProposal: { review = .stored })
             }
             .padding(.horizontal, Space.x5)
             .padding(.top, Space.x2)
@@ -77,7 +85,11 @@ struct ShowDetailView: View {
             ToolbarItem(placement: .principal) { Text("").accessibilityHidden(true) }
             if let resync = source?.resync, resync.offered, let label = resync.label {
                 ToolbarItem(placement: .primaryAction) {
-                    Button { showingResync = true } label: { Label(label, systemImage: "arrow.triangle.2.circlepath") }
+                    if opBusy {
+                        ProgressView().accessibilityLabel(resync.busyLabel ?? "Working")
+                    } else {
+                        Button { Task { await runResync() } } label: { Label(label, systemImage: "arrow.triangle.2.circlepath") }
+                    }
                 }
             }
             ToolbarItem(placement: .primaryAction) { moreMenu }
@@ -87,10 +99,32 @@ struct ShowDetailView: View {
                 store.update(ShowFieldEdit.comment(text), showId: show.id)
             }
         }
-        .alert(source?.resync.label ?? "Re-sync", isPresented: $showingResync) {
+        .safeAreaInset(edge: .bottom) {
+            if let undo {
+                UndoBar(deleted: undo) {
+                    self.undo = nil
+                    Task { await store.editSetlist(showId: show.id, .restore(song: undo.song, index: undo.index)) }
+                }
+                .padding(.horizontal, Space.x4)
+                .padding(.bottom, Space.x2)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
+        .animation(.default, value: undo?.id)
+        .task(id: undo?.id) {
+            guard undo != nil else { return }
+            try? await Task.sleep(for: .seconds(12))
+            if !Task.isCancelled { undo = nil }
+        }
+        .sheet(item: $review) { item in
+            ProposalReviewSheet(review: item, show: show, sourceName: sourceName) { message in
+                opMessage = message
+            }
+        }
+        .alert(source?.resync.label ?? "Setlist", isPresented: Binding(get: { opMessage != nil }, set: { if !$0 { opMessage = nil } })) {
             Button("OK", role: .cancel) {}
         } message: {
-            Text([source?.resync.hint, "Re-syncing starts working in the next TestFlight build."].compactMap { $0 }.joined(separator: "\n\n"))
+            Text(opMessage ?? "")
         }
         .alert("Not saved", isPresented: Binding(get: { store.writeProblem != nil }, set: { if !$0 { store.writeProblem = nil } })) {
             Button("OK", role: .cancel) {}
@@ -124,6 +158,29 @@ struct ShowDetailView: View {
             }
         } message: {
             Text("\(describe(show)), with its setlist, ratings and note. This can't be undone.")
+        }
+    }
+
+    private var sourceName: String { source?.source.label ?? "the band's archive" }
+
+    /// The ⟳ button: `resync-show` for a band source; for `review` (the
+    /// Internet Archive), `propose-setlist` and the review sheet first.
+    private func runResync() async {
+        guard let ops = store.setlistOps, let resync = source?.resync, resync.offered else { return }
+        opBusy = true
+        defer { opBusy = false }
+        let date = ShowDateText.display(show.date)
+        do {
+            if resync.action == .review {
+                let answer = try await ops.propose(showId: show.id)
+                if answer.ok, answer.result != nil { review = .proposed(answer) } else { opMessage = answer.describe(sourceName: sourceName, date: date) }
+            } else {
+                let answer = try await ops.resync(showId: show.id)
+                if answer.ok { store.noteSetlistChangedOnServer() }
+                opMessage = answer.describe(sourceName: sourceName, date: date)
+            }
+        } catch {
+            opMessage = error.message ?? "Couldn't reach the server. Nothing was changed."
         }
     }
 
@@ -360,24 +417,33 @@ struct NoteEditor: View {
 
 // MARK: - Setlist
 
-/// The setlist by set and encore (read-only in 3a), the source's notes,
-/// and its credit.
+/// The setlist by set and encore: tap a song to rate it, long-press to
+/// edit (the Stage 1 mockup). Every change is one `SetlistEdit`.
 struct SetlistSection: View {
+    @Environment(ShowsStore.self) private var store
     let show: Show
     let source: SetlistSourceAnswer?
+    @Binding var undo: DeletedSong?
+    let reviewStoredProposal: () -> Void
+
+    @State private var editingSong: Song?
+    @State private var addingSong = false
+    @State private var ratingUnrated = false
 
     var body: some View {
         let groups = SetGroups.group(show.setlist)
+        let options = SetlistEdits.setOptions(existing: groups.map(\.label))
         VStack(alignment: .leading, spacing: Space.x4) {
             if show.setlistProposal?.status == "pending" {
                 Notice(title: "A setlist is waiting for your review",
-                       text: "A setlist from \(sourceName(show.setlistProposal?.source)) was found for this show. Reviewing it here comes in the next TestFlight build.",
-                       symbol: "tray.and.arrow.down", tint: .amber)
+                       text: "A setlist from \(sourceName(show.setlistProposal?.source)) was found for this show. Your ratings and comments are kept if you accept it.",
+                       symbol: "tray.and.arrow.down", tint: .amber, action: ("Review", reviewStoredProposal))
             }
             if show.needsReview == true, show.setlistSource == "archive" {
                 Notice(title: "Check this setlist",
-                       text: "The Internet Archive's recordings of this show don't agree on the setlist, so one was picked.",
-                       symbol: "exclamationmark.bubble", tint: .amber)
+                       text: "The Internet Archive's recordings of this show don't agree on the setlist, so one was picked. You can edit any song.",
+                       symbol: "exclamationmark.bubble", tint: .amber,
+                       action: ("It looks right", { store.markSetlistReviewed(showId: show.id) }))
             }
 
             if groups.isEmpty {
@@ -401,8 +467,9 @@ struct SetlistSection: View {
                             .foregroundStyle(Color.brandLight)
                             .accessibilityAddTraits(.isHeader)
                         VStack(spacing: 0) {
-                            ForEach(Array(group.songs.enumerated()), id: \.offset) { index, song in
-                                SongRow(number: numbers[song.id] ?? index + 1, song: song)
+                            ForEach(Array(group.songs.enumerated()), id: \.element.id) { index, song in
+                                SongRow(number: numbers[song.id] ?? index + 1, song: song) { editingSong = song }
+                                    .contextMenu { songMenu(song, group: group, index: index, options: options) }
                                 if index < group.songs.count - 1 { Divider().overlay(Color.borderSubtle) }
                             }
                         }
@@ -411,7 +478,37 @@ struct SetlistSection: View {
                         .background(Color.surface, in: RoundedRectangle.brand(Radius.xl2))
                     }
                 }
+                if store.isSavingSetlist(showId: show.id) {
+                    // Until the queued edits land: online it keeps retrying;
+                    // offline they wait on this phone for the connection.
+                    HStack(spacing: Space.x2) {
+                        if Connectivity.shared.isOnline {
+                            ProgressView().controlSize(.small)
+                            Text("Saving…")
+                        } else {
+                            Image(systemName: "icloud.and.arrow.up").foregroundStyle(Color.amber)
+                            Text("Saved on this iPhone. It syncs when you're back online.")
+                        }
+                    }
+                    .font(.jakarta(size: 12, weight: .semibold, relativeTo: .caption))
+                    .foregroundStyle(Color.textSecondary)
+                    .accessibilityElement(children: .combine)
+                } else {
+                    Text("Tap a song to rate it · Long-press to edit")
+                        .font(.jakarta(size: 12, relativeTo: .caption))
+                        .foregroundStyle(Color.textMuted)
+                }
             }
+
+            HStack(spacing: Space.x3) {
+                Button { addingSong = true } label: { Label("Add a song", systemImage: "plus") }
+                if show.setlist.contains(where: { $0.rating == nil }) {
+                    Button { ratingUnrated = true } label: { Label("Rate unrated", systemImage: "star") }
+                }
+            }
+            .font(.jakarta(size: 14, weight: .semibold, relativeTo: .subheadline))
+            .buttonStyle(.bordered)
+            .tint(.brand)
 
             if let notes = show.setlistNotes {
                 Text(notes)
@@ -423,6 +520,40 @@ struct SetlistSection: View {
             }
 
             SetlistCredit(show: show, source: source)
+        }
+        .sheet(item: $editingSong) { song in SongSheet(showId: show.id, song: song) }
+        .sheet(isPresented: $addingSong) { AddSongSheet(showId: show.id, options: options, defaultSet: groups.last?.label ?? "Set I") }
+        .sheet(isPresented: $ratingUnrated) {
+            RateUnratedSheet(showId: show.id, count: show.setlist.filter { $0.rating == nil }.count)
+        }
+    }
+
+    @ViewBuilder
+    private func songMenu(_ song: Song, group: SetGroups.Group, index: Int, options: [String]) -> some View {
+        Button { editingSong = song } label: { Label(song.rating == nil ? "Rate and comment" : "Change rating or comment", systemImage: "star") }
+        Button { move(group.label, index, -1) } label: { Label("Move up", systemImage: "arrow.up") }
+            .disabled(index == 0)
+        Button { move(group.label, index, 1) } label: { Label("Move down", systemImage: "arrow.down") }
+            .disabled(index == group.songs.count - 1)
+        Menu {
+            ForEach(options.filter { $0 != group.label }, id: \.self) { label in
+                Button(label) { Task { await store.editSetlist(showId: show.id) { .reorder(setlist: SetlistEdits.moveSong($0, songId: song.id, toSet: label)) } } }
+            }
+        } label: { Label("Move to set", systemImage: "arrow.left.arrow.right") }
+        Divider()
+        Button(role: .destructive) { delete(song) } label: { Label("Delete song", systemImage: "trash") }
+    }
+
+    private func move(_ label: String, _ index: Int, _ direction: Int) {
+        Task { await store.editSetlist(showId: show.id) { .reorder(setlist: SetlistEdits.moveSong($0, inSet: label, at: index, by: direction)) } }
+    }
+
+    private func delete(_ song: Song) {
+        Task {
+            let result = await store.editSetlist(showId: show.id, .delete(songId: song.id))
+            if let removed = result?.removed, let index = result?.index, index >= 0 {
+                undo = DeletedSong(song: removed, index: index, name: song.name)
+            }
         }
     }
 
@@ -445,51 +576,62 @@ struct SetlistSection: View {
 
 /// One song: its number, title and segue mark, a cover's original artist,
 /// a band source's footnote, jam chart and debut marks, and your rating
-/// and comment (shown, not changed, until Part 3b).
+/// and comment. Tapping it opens the rating sheet.
 struct SongRow: View {
     let number: Int
     let song: Song
+    let onTap: () -> Void
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: Space.x3) {
-            Text("\(number)")
-                .font(.jakarta(size: 13, relativeTo: .footnote))
-                .monospacedDigit()
-                .foregroundStyle(Color.textMuted)
-                .frame(minWidth: 20, alignment: .trailing)
-            VStack(alignment: .leading, spacing: 2) {
-                (Text(song.name.isEmpty ? "Untitled" : song.name).foregroundStyle(Color.textPrimary)
-                 + Text(segue.map { " \($0)" } ?? "").foregroundStyle(Color.brandLight).fontWeight(.bold))
-                    .font(.jakarta(size: 15, weight: .medium, relativeTo: .body))
-                let marks = self.marks
-                if !marks.isEmpty {
-                    Text(marks.joined(separator: " · "))
-                        .font(.jakarta(size: 12, relativeTo: .caption))
+        Button(action: onTap) {
+            HStack(alignment: .firstTextBaseline, spacing: Space.x3) {
+                Text("\(number)")
+                    .font(.jakarta(size: 13, relativeTo: .footnote))
+                    .monospacedDigit()
+                    .foregroundStyle(Color.textMuted)
+                    .frame(minWidth: 20, alignment: .trailing)
+                VStack(alignment: .leading, spacing: 2) {
+                    (Text(song.name.isEmpty ? "Untitled" : song.name).foregroundStyle(Color.textPrimary)
+                     + Text(segue.map { " \($0)" } ?? "").foregroundStyle(Color.brandLight).fontWeight(.bold))
+                        .font(.jakarta(size: 15, weight: .medium, relativeTo: .body))
+                    let marks = self.marks
+                    if !marks.isEmpty {
+                        Text(marks.joined(separator: " · "))
+                            .font(.jakarta(size: 12, relativeTo: .caption))
+                            .foregroundStyle(Color.textMuted)
+                    }
+                    if let footnote = song.footnote, !footnote.isEmpty {
+                        Text(footnote)
+                            .font(.jakarta(size: 12, relativeTo: .caption))
+                            .foregroundStyle(Color.textSecondary)
+                    }
+                    if let comment = song.comment {
+                        Text(comment)
+                            .italic()
+                            .font(.jakarta(size: 12, relativeTo: .caption))
+                            .foregroundStyle(Color.textSecondary)
+                    }
+                }
+                .multilineTextAlignment(.leading)
+                Spacer(minLength: Space.x2)
+                if let rating = song.rating {
+                    Text("★ \(rating)")
+                        .font(.jakarta(size: 13, weight: .bold, relativeTo: .footnote))
+                        .monospacedDigit()
+                        .foregroundStyle(Color.amber)
+                } else {
+                    Text("Rate")
+                        .font(.jakarta(size: 13, relativeTo: .footnote))
                         .foregroundStyle(Color.textMuted)
                 }
-                if let footnote = song.footnote, !footnote.isEmpty {
-                    Text(footnote)
-                        .font(.jakarta(size: 12, relativeTo: .caption))
-                        .foregroundStyle(Color.textSecondary)
-                }
-                if let comment = song.comment {
-                    Text(comment)
-                        .italic()
-                        .font(.jakarta(size: 12, relativeTo: .caption))
-                        .foregroundStyle(Color.textSecondary)
-                }
             }
-            Spacer(minLength: Space.x2)
-            if let rating = song.rating {
-                Text("★ \(rating)")
-                    .font(.jakarta(size: 13, weight: .bold, relativeTo: .footnote))
-                    .monospacedDigit()
-                    .foregroundStyle(Color.amber)
-            }
+            .padding(.vertical, Space.x2)
+            .frame(minHeight: TouchTarget.minimum)
+            .contentShape(Rectangle())
         }
-        .padding(.vertical, Space.x2)
-        .frame(minHeight: TouchTarget.minimum)
+        .buttonStyle(.plain)
         .accessibilityElement(children: .combine)
+        .accessibilityHint("Rate this song. Touch and hold for more.")
     }
 
     /// A segue to the next song: the mark the band source recorded ('>' and
@@ -589,23 +731,32 @@ struct Notice: View {
     let text: String
     let symbol: String
     let tint: Color
+    var action: (label: String, run: () -> Void)?
 
     var body: some View {
         HStack(alignment: .top, spacing: Space.x3) {
-            Image(systemName: symbol).foregroundStyle(tint).imageScale(.large)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.jakarta(size: 15, weight: .semibold, relativeTo: .body))
-                    .foregroundStyle(Color.textPrimary)
-                Text(text)
-                    .font(.jakarta(size: 13, relativeTo: .footnote))
-                    .foregroundStyle(Color.textSecondary)
+            Image(systemName: symbol).foregroundStyle(tint).imageScale(.large).accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: Space.x2) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.jakarta(size: 15, weight: .semibold, relativeTo: .body))
+                        .foregroundStyle(Color.textPrimary)
+                    Text(text)
+                        .font(.jakarta(size: 13, relativeTo: .footnote))
+                        .foregroundStyle(Color.textSecondary)
+                }
+                .accessibilityElement(children: .combine)
+                if let action {
+                    Button(action.label, action: action.run)
+                        .font(.jakarta(size: 14, weight: .semibold, relativeTo: .subheadline))
+                        .buttonStyle(.borderedProminent)
+                        .tint(.brand)
+                }
             }
             Spacer(minLength: 0)
         }
         .padding(Space.x3)
         .background(Color.surfaceHover, in: RoundedRectangle.brand(Radius.xl))
-        .accessibilityElement(children: .combine)
     }
 }
 

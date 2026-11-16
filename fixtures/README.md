@@ -60,7 +60,9 @@ own copy of these rules; these files keep them the same (5.60.22). The
 web side runs them in `lib/__tests__/setlistFixtures.test.js`. The Swift
 side decodes all of them (`SetlistAndUpcomingFixtureTests`), runs
 `groups.json` with its port `SetGroups` (`SetGroupsTests`, 5.60.25), and
-runs the edits with its port in Part 3b.
+every edit case plus `move.json`, `reorder.json` and `options.json` with
+its port `SetlistEdits` (`SetlistEditsTests`, native 4.0.11), survive-checks
+included.
 
 `setlist-edits/<type>.json`, one file per edit type (`rate`, `comment`,
 `rate-unrated`, `add`, `delete`, `restore`, `reorder`), each with `cases`:

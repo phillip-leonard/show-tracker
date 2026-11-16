@@ -364,11 +364,15 @@ public final class SessionStore {
 
     /// What "Sign out" should ask first (`SignOutPrompt`): a guest always,
     /// an account only with writes that haven't synced, since sign-out
-    /// clears the offline cache they're kept in.
+    /// clears the offline cache they're kept in. Song edits still waiting in
+    /// `SetlistEditQueue` count as unsynced too: they'd wait in this phone's
+    /// file until this account signs in here again.
     public func signOutPrompt() async -> SignOutPrompt {
         guard let user else { return .signOut }
         if user.isAnonymous { return .guestLosesEverything }
-        return SignOutPrompt.decide(isGuest: false, hasUnsyncedWrites: await Database.hasUnsyncedWrites())
+        let queuedEdits = !SetlistEditQueue.load(uid: user.uid).isEmpty
+        let unsyncedWrites = await Database.hasUnsyncedWrites()
+        return SignOutPrompt.decide(isGuest: false, hasUnsyncedWrites: queuedEdits || unsyncedWrites)
     }
 
     /// Never hangs (`SignOutRunner`): what needs the session first (the push
@@ -394,6 +398,11 @@ public final class SessionStore {
             // Offline, this times out and those writes go with the cache:
             // they would fail under the next account anyway.
             .init("pending writes") { @MainActor in try await Database.ready().waitForPendingWrites() },
+            // A guest account can't be signed back into: its queued song
+            // edits could never be sent. An account's stay for its next sign-in.
+            .init("queued edits") { @MainActor [weak self] in
+                if let user = self?.user, user.isAnonymous { SetlistEditQueue.delete(uid: user.uid) }
+            },
             .init("firebase") { @MainActor in try Auth.auth().signOut() },
             .init("offline cache") { @MainActor [weak self] in
                 self?.stopListening()
