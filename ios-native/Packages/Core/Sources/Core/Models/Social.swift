@@ -2,8 +2,9 @@ import Foundation
 
 /// `users/{uid}/friends/{friendUid}`. The stored `friendEmail` is not read:
 /// addresses come from the server when needed.
-public struct FriendEdge: Decodable, Hashable, Sendable {
+public struct FriendEdge: Decodable, Identifiable, Hashable, Sendable {
     public var friendUid: String
+    public var id: String { friendUid }
     public var friendName: String?
     public var friendPhotoURL: String?
     public var addedAt: Date?
@@ -16,6 +17,80 @@ public struct FriendEdge: Decodable, Hashable, Sendable {
         friendName = try c.optionalText(.friendName)
         friendPhotoURL = try c.optionalText(.friendPhotoURL)
         addedAt = try c.moment(.addedAt)
+    }
+
+    public init(friendUid: String, friendName: String?, friendPhotoURL: String? = nil, addedAt: Date? = nil) {
+        self.friendUid = friendUid
+        self.friendName = friendName
+        self.friendPhotoURL = friendPhotoURL
+        self.addedAt = addedAt
+    }
+
+    /// The name to show; the server stores "Friend" when there was none.
+    public var name: String { friendName ?? "Friend" }
+}
+
+/// `friendRequests/{id}`, readable by its two people. Written only by the
+/// server (`friends.js` `request`, `decline`, `cancel`, `accept`, 5.60.28).
+public struct FriendRequest: Decodable, Identifiable, Hashable, Sendable {
+    /// The document id, from the snapshot; not stored.
+    public var id: String = ""
+    public var from: String
+    public var to: String
+    public var fromName: String?
+    public var toName: String?
+    /// pending, accepted or declined.
+    public var status: String
+    public var createdAt: Date?
+
+    public var isPending: Bool { status == "pending" }
+
+    enum CodingKeys: String, CodingKey { case from, to, fromName, toName, status, createdAt }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        from = try c.text(.from)
+        to = try c.text(.to)
+        fromName = try c.optionalText(.fromName)
+        toName = try c.optionalText(.toName)
+        status = try c.optionalText(.status) ?? "pending"
+        createdAt = try c.moment(.createdAt)
+    }
+}
+
+/// `invites/{id}`: an invitation the signed-in person emailed. Only its
+/// inviter (and an admin) can read it, so the address is theirs to see.
+public struct Invite: Decodable, Identifiable, Hashable, Sendable {
+    public var id: String = ""
+    public var inviteeEmail: String
+    /// pending or accepted.
+    public var status: String
+    public var createdAt: Date?
+    public var lastSentAt: Date?
+
+    enum CodingKeys: String, CodingKey { case inviteeEmail, status, createdAt, lastSentAt }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        inviteeEmail = try c.text(.inviteeEmail)
+        status = try c.optionalText(.status) ?? "pending"
+        createdAt = try c.moment(.createdAt)
+        lastSentAt = try c.moment(.lastSentAt)
+    }
+}
+
+/// `userBlocks/{uid}`: who the signed-in person has blocked. Only they can
+/// read it; only `friends.js` `block` / `unblock` change it (5.60.27).
+public struct UserBlocks: Decodable, Hashable, Sendable {
+    public var blockedUserIds: [String]
+
+    public init(blockedUserIds: [String] = []) { self.blockedUserIds = blockedUserIds }
+
+    enum CodingKeys: String, CodingKey { case blockedUserIds }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        blockedUserIds = try c.list(.blockedUserIds)
     }
 }
 
