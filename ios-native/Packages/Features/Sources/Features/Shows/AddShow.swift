@@ -214,6 +214,8 @@ struct SetlistfmSearchView: View {
             Section {
                 TextField("Band", text: $band)
                     .textInputAutocapitalization(.words)
+                    .submitLabel(.search)
+                    .onSubmit { Task { await search() } }
                     .onChange(of: band) { _, _ in artist = nil; choices = [] }
                 if let artist {
                     Label(artist.disambiguation.map { "\(artist.name) (\($0))" } ?? artist.name, systemImage: "checkmark.circle.fill")
@@ -221,7 +223,9 @@ struct SetlistfmSearchView: View {
                 }
                 TextField("Year (optional)", text: $year).keyboardType(.numberPad)
                 TextField("Venue (optional)", text: $venue).textInputAutocapitalization(.words)
+                    .submitLabel(.search).onSubmit { Task { await search() } }
                 TextField("City (optional)", text: $city).textInputAutocapitalization(.words)
+                    .submitLabel(.search).onSubmit { Task { await search() } }
                 Button {
                     Task { await search() }
                 } label: {
@@ -296,7 +300,7 @@ struct SetlistfmSearchView: View {
     /// With a band typed and none picked yet: its artists first; one match
     /// (or an exact name) goes straight to its setlists.
     private func search() async {
-        guard let search = store.setlistfmSearch else { return }
+        guard !searching, !query.isEmpty, let search = store.setlistfmSearch else { return }
         let name = band.trimmingCharacters(in: .whitespaces)
         if artist == nil, !name.isEmpty {
             searching = true
@@ -334,6 +338,7 @@ struct SetlistfmSearchView: View {
     }
 
     private func add(_ setlist: SetlistfmSearch.Setlist) {
+        guard !flow.busy else { return }
         let input = ShowInput(.setlistfm(.setlist(setlist.raw), .none))
         let display = QueuedShow.Display(artist: setlist.artist, venue: setlist.venue, city: setlist.city, date: setlist.date)
         flow.run { await store.addShow(input, display: display) }
@@ -371,6 +376,9 @@ struct ManualShowForm: View {
     @State private var city = ""
     @State private var date = Date()
     @State private var rating: Int?
+    @FocusState private var focus: Field?
+
+    enum Field { case band, venue, city }
 
     private var trimmed: (band: String, venue: String) {
         (band.trimmingCharacters(in: .whitespaces), venue.trimmingCharacters(in: .whitespaces))
@@ -380,8 +388,11 @@ struct ManualShowForm: View {
         Form {
             Section {
                 TextField("Band", text: $band).textInputAutocapitalization(.words)
+                    .focused($focus, equals: .band).submitLabel(.next).onSubmit { focus = .venue }
                 TextField("Venue", text: $venue).textInputAutocapitalization(.words)
+                    .focused($focus, equals: .venue).submitLabel(.next).onSubmit { focus = .city }
                 TextField("City (optional)", text: $city).textInputAutocapitalization(.words)
+                    .focused($focus, equals: .city).submitLabel(.done).onSubmit(add)
                 DatePicker("Date", selection: $date, in: ...Date(), displayedComponents: .date)
             } footer: {
                 Text("For a show coming up, add an upcoming show instead.")
@@ -400,14 +411,19 @@ struct ManualShowForm: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
-                if flow.busy { ProgressView() } else {
-                    Button("Add") { add() }.disabled(trimmed.band.isEmpty || trimmed.venue.isEmpty)
+                // One button throughout (no swap to a spinner view), so a tap
+                // while the keyboard is up lands on it; disabled while sending.
+                Button(action: add) {
+                    if flow.busy { ProgressView() } else { Text("Add") }
                 }
+                .disabled(flow.busy || trimmed.band.isEmpty || trimmed.venue.isEmpty)
             }
         }
     }
 
     private func add() {
+        guard !flow.busy, !trimmed.band.isEmpty, !trimmed.venue.isEmpty else { return }
+        focus = nil
         let day = Self.isoDay(date)
         let cityText = city.trimmingCharacters(in: .whitespaces)
         let input = ShowInput(.manual(.init(artist: trimmed.band, venue: trimmed.venue, city: cityText.isEmpty ? nil : cityText, date: day),

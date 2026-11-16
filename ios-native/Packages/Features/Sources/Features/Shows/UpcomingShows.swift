@@ -20,19 +20,32 @@ struct UpcomingForm: View {
     @State private var problem: String?
     @State private var duplicateId: String?
     @State private var loaded = false
+    @State private var saving = false
+    @FocusState private var focus: Field?
+
+    enum Field { case band, venue, city, time, notes }
+
+    private var canSave: Bool {
+        !band.trimmingCharacters(in: .whitespaces).isEmpty && !venue.trimmingCharacters(in: .whitespaces).isEmpty
+    }
 
     var body: some View {
         Form {
             Section {
                 TextField("Band", text: $band).textInputAutocapitalization(.words)
+                    .focused($focus, equals: .band).submitLabel(.next).onSubmit { focus = .venue }
                 TextField("Venue", text: $venue).textInputAutocapitalization(.words)
+                    .focused($focus, equals: .venue).submitLabel(.next).onSubmit { focus = .city }
                 TextField("City (optional)", text: $city).textInputAutocapitalization(.words)
+                    .focused($focus, equals: .city).submitLabel(.next).onSubmit { focus = .time }
                 DatePicker("Date", selection: $date, in: Calendar.current.startOfDay(for: Date())..., displayedComponents: .date)
                 TextField("Time (optional)", text: $time)
+                    .focused($focus, equals: .time).submitLabel(.done).onSubmit { Task { await save() } }
             }
             .brandRow()
             Section {
                 TextField("Notes (seats, who's going)", text: $notes, axis: .vertical).lineLimit(2...5)
+                    .focused($focus, equals: .notes)
             }
             .brandRow()
         }
@@ -40,7 +53,12 @@ struct UpcomingForm: View {
         .navigationTitle(editing == nil ? "Upcoming show" : "Edit upcoming show")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .confirmationAction) { Button(editing == nil ? "Add" : "Save") { Task { await save() } } }
+            ToolbarItem(placement: .confirmationAction) {
+                Button { Task { await save() } } label: {
+                    if saving { ProgressView() } else { Text(editing == nil ? "Add" : "Save") }
+                }
+                .disabled(saving || !canSave)
+            }
             if editing != nil {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
             }
@@ -64,6 +82,10 @@ struct UpcomingForm: View {
     }
 
     private func save() async {
+        guard !saving, canSave else { return }
+        saving = true
+        defer { saving = false }
+        focus = nil
         var input = editing.map(UpcomingInput.init) ?? UpcomingInput()
         input.artist = band; input.venue = venue; input.city = city
         input.date = ManualShowForm.isoDay(date); input.time = time; input.notes = notes
