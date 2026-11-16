@@ -26,6 +26,13 @@ public final class ShowsStore {
     public private(set) var shows: [Show] = []
     public private(set) var upcoming: [UpcomingShow] = []
     public private(set) var stats: UserStats?
+    /// The first answer for `userStats/{uid}` has arrived (a document or
+    /// none). Stats waits for it, never longer than the listener's first
+    /// cached or server answer.
+    public private(set) var statsLoaded = false
+    /// The numbers on screen came from this device's cache.
+    public private(set) var statsFromCache = false
+    private var askedForStats = false
 
     /// The first answer for the shows (live, cached, or the one-time read)
     /// has arrived, or loading gave up. Never false for longer than ~25 s.
@@ -109,6 +116,9 @@ public final class ShowsStore {
         shows = []
         upcoming = []
         stats = nil
+        statsLoaded = false
+        statsFromCache = false
+        askedForStats = false
         showsLoaded = false
         upcomingLoaded = false
         fromCache = false
@@ -187,14 +197,23 @@ public final class ShowsStore {
             onError: { error, stage in Self.log(error, stage: "upcoming \(stage)") }
         )
 
-        statsListener = db.document("userStats/\(uid)").addSnapshotListener { [weak self] snapshot, _ in
+        statsListener = db.document("userStats/\(uid)").addSnapshotListener(includeMetadataChanges: true) { [weak self] snapshot, error in
             MainActor.assumeIsolated {
                 guard let self, self.uid == uid else { return }
+                if let error { Self.log(error, stage: "userStats") }
+                guard let snapshot else { self.statsLoaded = true; return }
+                self.statsFromCache = snapshot.metadata.isFromCache
                 // Absent until the server's first recompute; the header shows
                 // the count from the list and leaves the rest out.
-                if let snapshot, snapshot.exists, let stats = try? snapshot.data(as: UserStats.self) {
+                if snapshot.exists, let stats = try? snapshot.data(as: UserStats.self) {
                     self.stats = stats
+                } else if !snapshot.metadata.isFromCache, !self.askedForStats {
+                    // The server says there's none yet (a new account, or a
+                    // guest who hasn't added a show): ask once, as the web does.
+                    self.askedForStats = true
+                    self.requestStatsRecompute()
                 }
+                self.statsLoaded = true
             }
         }
     }

@@ -31,13 +31,6 @@ struct FriendsHome: View {
     }
 }
 
-struct StatsHome: View {
-    var body: some View {
-        ContentUnavailableView("Stats", systemImage: "chart.bar", description: Text("Songs, bands, venues and your year in review."))
-            .navigationTitle("Stats")
-    }
-}
-
 /// The system Search tab, until search is built: points to the Shows
 /// tab's own search field meanwhile.
 struct SearchHome: View {
@@ -73,6 +66,7 @@ struct RoutePlaceholder: View {
         case .song: "Song"
         case .venue: "Venue"
         case .yearInReview(_, let year): "\(year) in Review"
+        case .myShows(let filter): filter.title
         }
     }
 
@@ -84,6 +78,7 @@ struct RoutePlaceholder: View {
         case .song: "music.note"
         case .venue: "building.columns"
         case .yearInReview: "sparkles"
+        case .myShows: "list.bullet"
         }
     }
 
@@ -94,6 +89,7 @@ struct RoutePlaceholder: View {
         case .song(let band, let song): [band, song].compactMap { $0 }.joined(separator: " · ")
         case .venue(let key): key
         case .yearInReview: "A year of shows"
+        case .myShows(let filter): filter.artist ?? ""
         }
     }
 }
