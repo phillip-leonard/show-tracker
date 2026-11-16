@@ -362,6 +362,20 @@ public struct RecomputeStatsRequest: Encodable, Sendable {
     public static let function = "recompute-my-stats"
 }
 
+/// `send-test-push` (5.60.30, C-7): a test push to the caller's own
+/// devices with a link to open. Admins with the claim only.
+public struct SendTestPushRequest: Encodable, Sendable {
+    public var link: String
+    public static let function = "send-test-push"
+    public init(link: String) { self.link = link }
+}
+
+public struct SendTestPushResponse: Decodable, Sendable {
+    public var devices: Int
+    public var reached: Bool
+    public var dead: Int
+}
+
 /// Many functions answer `{ ok: true, … }` and nothing the caller reads.
 public struct OKResponse: Decodable, Sendable {
     public var ok: Bool?

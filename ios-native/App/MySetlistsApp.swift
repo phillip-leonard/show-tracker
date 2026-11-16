@@ -9,6 +9,7 @@ struct MySetlistsApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @State private var session = SessionStore()
     @State private var router = AppRouter()
+    private let push = PushCenter.shared
 
     var body: some Scene {
         WindowGroup {
@@ -25,6 +26,12 @@ struct MySetlistsApp: App {
                     // next account sign-in, or used now if one is signed in.
                     guard router.handle(url) else { return }
                     Task { await session.useReferralIfSignedIn() }
+                }
+                // A tapped push opens its link like any other (Stage 3, Part 5).
+                .onChange(of: push.pendingLink) { _, url in
+                    guard let url else { return }
+                    push.pendingLink = nil
+                    router.handle(url)
                 }
         }
     }

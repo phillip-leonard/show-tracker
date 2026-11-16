@@ -51,6 +51,9 @@ public struct AppShell: View {
         .task(id: "\(session.user?.uid ?? "")|\(session.user?.isAnonymous == true)") {
             if let user = session.user, !user.isAnonymous { friends.start(uid: user.uid, api: session.api, email: user.email) } else { friends.stop() }
         }
+        // Registers this device for push for whoever is signed in (guests
+        // too), when notifications are allowed (Stage 3, Part 5).
+        .task(id: session.user?.uid) { await PushCenter.shared.signedIn(uid: session.user?.uid) }
         .onDisappear { shows.stop(); friends.stop() }
         .sheet(item: $router.web) { page in
             SafariView(url: page.url).ignoresSafeArea()
