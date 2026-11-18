@@ -37,6 +37,19 @@ struct NotificationsTests {
         #expect(NotificationDestination.of(n, myShows: []) == .none)
     }
 
+    /// Band alerts open the band's page (Stage 4, 4-5): a public band by
+    /// its config slug, any other band by its own.
+    @Test func bandAlertsOpenTheBand() throws {
+        let tour = try note(#"{"type":"followed_band_tour","message":"Goose announced a tour","artist":"Goose","read":false}"#)
+        #expect(NotificationDestination.of(tour, myShows: []) == .route(.shows, .band(slug: "goose")))
+        let sale = try note(#"{"type":"onsale_alert","message":"m","artist":"King Gizzard & the Lizard Wizard","read":false}"#)
+        #expect(NotificationDestination.of(sale, myShows: []) == .route(.shows, .band(slug: "king-gizzard-and-the-lizard-wizard")))
+        let other = try note(#"{"type":"followed_band_tour","message":"m","artist":"Some Local Band","read":false}"#)
+        #expect(NotificationDestination.of(other, myShows: []) == .route(.shows, .band(slug: "some-local-band")))
+        let noBand = try note(#"{"type":"onsale_alert","message":"m","read":false}"#)
+        #expect(NotificationDestination.of(noBand, myShows: []) == .none)
+    }
+
     @Test func oddShapesDontBreakDecoding() throws {
         // No read flag (treated as unread), dates that aren't a list, a string count.
         let n = try note(#"{"type":"followed_band_tour","message":"m","dates":"oops","dateCount":"3","windows":null}"#)

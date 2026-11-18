@@ -62,6 +62,23 @@ public struct APIClient: Sendable {
     /// How long a request may take before it's given up on.
     public static let defaultTimeout: Duration = .seconds(30)
 
+    /// GET one of the site's public JSON paths (`/api/artist?slug=…`), the
+    /// same URL the web asks for, so both share the CDN's cached copy.
+    /// No sign-in. A 404 or 503 comes back as `.server(status:…)`.
+    public func get<Response: Decodable & Sendable>(
+        path: String, query: [String: String], as: Response.Type = Response.self
+    ) async throws(APIError) -> Response {
+        var components = URLComponents(url: baseURL.appendingPathComponent(path), resolvingAgainstBaseURL: false)
+        components?.queryItems = query.isEmpty ? nil : query.sorted { $0.key < $1.key }.map { URLQueryItem(name: $0.key, value: $0.value) }
+        guard let url = components?.url else { throw .invalidResponse("\(path): bad query") }
+        let data = try await perform(path, url: url, method: "GET", payload: nil, token: nil)
+        do {
+            return try JSONDecoder().decode(Response.self, from: data)
+        } catch {
+            throw .invalidResponse("\(path): \(error)")
+        }
+    }
+
     /// GET `/.netlify/functions/<function>?<query>` (a read-only, cacheable
     /// function such as `setlist-source`) and decode the answer.
     public func get<Response: Decodable & Sendable>(

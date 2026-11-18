@@ -295,6 +295,17 @@ struct MyShowsList: View {
         let shows = filter.shows(in: store.shows)
         let today = ShowDate.today()
         List {
+            if filter.kind == .band, !filter.title.isEmpty {
+                // The band's page (Stage 4, 4-5): the web's "Band stats" link.
+                Section {
+                    NavigationLink(value: AppRoute.band(slug: BandDirectory.slug(forArtist: filter.title))) {
+                        Label("\(filter.title)'s page", systemImage: "guitars")
+                            .font(.jakarta(size: 15, weight: .semibold, relativeTo: .body))
+                            .foregroundStyle(Color.textPrimary)
+                    }
+                }
+                .brandRow()
+            }
             Section {
                 ForEach(shows) { show in
                     NavigationLink(value: AppRoute.show(id: show.id)) { ShowRow(show: show, today: today) }

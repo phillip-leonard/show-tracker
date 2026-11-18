@@ -56,7 +56,12 @@ public enum NotificationDestination: Equatable, Sendable {
             return .web(AppRoute.show(id: show.id).webURL)
         case .roadmapPublished:
             return .web(DeepLink.webURL(path: "/roadmap", params: SearchParams(nil)))
-        case .followedBandTour, .onsaleAlert, .other:
+        case .followedBandTour, .onsaleAlert:
+            // The band's page (Stage 4, 4-5); the dates and ticket links
+            // stay in the row.
+            guard let artist = n.artist?.trimmingCharacters(in: .whitespacesAndNewlines), !artist.isEmpty else { return .none }
+            return .route(.shows, .band(slug: BandDirectory.slug(forArtist: artist)))
+        case .other:
             return .none
         }
     }

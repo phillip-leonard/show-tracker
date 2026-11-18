@@ -202,13 +202,13 @@ Two gaps aren't screens, and both should be fixed whatever else is decided:
 
 | Item | Web / Capacitor | Native today | Status | Size | Server work | Stage |
 |---|---|---|---|---|---|---|
-| Band page: your shows, songs heard, your first and last, your most heard; the band's own stats (shows, first and last show, top songs) | `BandScreen`, public snapshot | Stand-in: Follow + web link | Planned | L | none: reads the snapshot through `/api/artist` (CDN-cached JSON) | 4 |
-| Band song page: times heard, first and last heard, your gap; times played, last played, shows since, longest gap, recent performances | `BandSongScreen` | None | Planned | M | none (`public-artist-song`) | 4 |
-| Artist info: Wikipedia summary, members, MusicBrainz and Discogs links | `EntityInfoPanel`, `get-entity-info` | None | Missing | S | none | 4 |
+| Band page: your shows, songs heard, your first and last, your most heard; the band's own stats (shows, first and last show, top songs) | `BandScreen`, public snapshot | `BandScreen` (any band; the snapshot for public bands) | Native 4-5 | | none: reads the snapshot through `/api/artist` (CDN-cached JSON) | |
+| Band song page: times heard, first and last heard, your gap; times played, last played, shows since, longest gap, recent performances | `BandSongScreen` | `BandSongScreen` (`/api/artist-song`) | Native 4-5 | | none | |
+| Artist info: Wikipedia summary, members, MusicBrainz and Discogs links | `EntityInfoPanel`, `get-entity-info` | "About <band>" on the band page (`get-entity-info`, `enrich-artist`) | Native 4-5 | | none | |
 | Follow | Yes | Yes | Native #451 | | | |
 | "Fans also see" | `FansAlsoSee` (Discover) | None | Flag F-4 | | | |
 | Make my poster | `MakePosterButton` | None | Missing | (with posters) | | 6 |
-| "Band stats" link from Stats | `BandStatsLink` | None | Planned | S | | 4 |
+| "Band stats" link from Stats | `BandStatsLink` | "<band>'s page" on your shows of a band | Native 4-5 | | | |
 
 ### 2.10 Runs and tours (`/runs?run=`, `/tours?tour=`)
 
