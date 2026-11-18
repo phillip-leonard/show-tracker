@@ -44,6 +44,53 @@ struct PushTests {
         #expect(await PushCenter.shared.requestPermission(offerEnabled: false) == false)
     }
 
+    // MARK: Registration (4.0.24: "Registered token: None yet", silently)
+
+    @Test func eachStepSaysWhereItStands() {
+        var r = PushRegistration()
+        #expect(r.apnsStatus == "No: not asked")
+        r.apnsRequested(at: Date())
+        #expect(r.apnsStatus == "No: asked, no answer yet")
+        #expect(!r.apnsReceived, "no FCM token is asked for before APNs answers")
+        r.apnsRegistered(at: Date())
+        #expect(r.apnsReceived && r.apnsStatus == "Yes")
+        r.fcmArrived("fcm-token-abc123")
+        #expect(r.fcmToken == "fcm-token-abc123" && r.fcmError == nil)
+    }
+
+    @Test func aFailureIsKeptWithItsDomainAndCode() throws {
+        // What iOS gives a build signed without the push entitlement.
+        let refused = NSError(domain: NSCocoaErrorDomain, code: 3000, userInfo: [
+            NSLocalizedDescriptionKey: "no valid \u{201C}aps-environment\u{201D} entitlement string found for application"])
+        var r = PushRegistration()
+        r.apnsRequested(at: Date())
+        r.apnsFailed(refused)
+        #expect(r.apnsStatus == "No: iOS refused")
+        let error = try #require(r.apnsError)
+        #expect(error.hasSuffix("(NSCocoaErrorDomain 3000)"))
+        #expect(PushRegistration.hint(forAPNsError: error)?.contains("entitlement") == true)
+
+        // FCM's failure is its own line; a later success clears it.
+        r.fcmFailed(NSError(domain: "com.google.fcm", code: 505, userInfo: [NSLocalizedDescriptionKey: "No APNS token specified"]))
+        #expect(r.fcmError == "No APNS token specified (com.google.fcm 505)")
+        r.apnsRegistered(at: Date())
+        r.fcmArrived("t")
+        #expect(r.apnsError == nil && r.fcmError == nil)
+    }
+
+    @Test func registerAgainStartsAfreshAndSignOutForgetsTheToken() {
+        var r = PushRegistration()
+        r.apnsFailed(NSError(domain: NSCocoaErrorDomain, code: 3010))
+        r.fcmFailed(NSError(domain: "com.google.fcm", code: 1))
+        #expect(PushRegistration.hint(forAPNsError: r.apnsError!) != nil)
+        r.clearErrors()
+        #expect(r.apnsError == nil && r.fcmError == nil)
+        r.fcmArrived("t")
+        r.fcmForgotten()
+        #expect(r.fcmToken == nil)
+        #expect(PushRegistration.hint(forAPNsError: "The request timed out. (NSURLErrorDomain -1001)") == nil)
+    }
+
     @Test func testPushBody() throws {
         let data = try JSONEncoder().encode(SendTestPushRequest(link: "/notifications/"))
         #expect(try JSONSerialization.jsonObject(with: data) as? NSDictionary == ["link": "/notifications/"])
