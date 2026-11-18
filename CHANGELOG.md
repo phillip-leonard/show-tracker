@@ -26,10 +26,20 @@ links to (its `discogs` url-rel: "Goose (6)", id 1198062):
   a week.
 
 MusicBrainz is now asked before Discogs instead of at the same time, so a
-cache miss takes one more round trip. Every request names the app the way
-MusicBrainz's rate-limit rules ask, with the site's own version:
-`MySetlists/5.60.33 ( https://mysetlists.net; support@mysetlists.net )`
-(it was `MySetlistsApp/1.0 (show-tracker; contact@mysetlists.net)`). Discogs' numbering of shared names is
+cache miss takes one more round trip.
+
+**One User-Agent for every outside source.** Every function that fetches from
+an outside data source (Wikipedia, MusicBrainz, Discogs, archive.org,
+Relisten, setlist.fm, the Songfish archives, phish.net, Ticketmaster) now
+sends `MySetlists/<version> ( https://mysetlists.net; support@mysetlists.net )`
+from `netlify/functions/lib/userAgent.js`, the version read from
+`package.json`: the form MusicBrainz's rate-limit rules ask for. It replaces
+`ShowTrackerApp/1.0`, `MySetlistsApp/1.0` and stale `MySetlists/5.33`-style
+strings in 18 files; `resolve-artist` (Ticketmaster) sent none.
+`get-entity-info` calls only Wikipedia, not MusicBrainz. Calls to our own
+site (`run-tests`, `admin-resync-setlists`) keep their own agents, and vendor
+APIs that know us by key (Anthropic, Resend, Spotify) are unchanged.
+`tests/metadata/userAgent.test.js` fails if a function hard-codes another. Discogs' numbering of shared names is
 dropped from members ("Chris Enright (2)" is "Chris Enright"), and a member
 both sources list shows once however the dash or accent is written
 ("Kenny‐Smith" and "Kenny-Smith"). The cache key is now `enrich_v2_…`, so

@@ -30,6 +30,7 @@ const https = require('https');
 const crypto = require('crypto');
 const { setlistfmKey, missingSetlistfmKey } = require('./lib/setlistfmKey');
 const { readFresh, writeEntry } = require('./lib/setlistCache');
+const { USER_AGENT } = require('./lib/userAgent');
 
 const CORS_HEADERS = { 'Content-Type': 'application/json' };
 
@@ -70,7 +71,7 @@ function fetchJSON(path) {
       headers: {
         'x-api-key': setlistfmKey(),
         Accept: 'application/json',
-        'User-Agent': 'ShowTrackerApp/1.0',
+        'User-Agent': USER_AGENT,
       },
     }, (res) => {
       let data = '';

@@ -2,6 +2,7 @@ const { withCors } = require('./lib/cors');
 const { checkProxyLimit } = require('./lib/proxyLimit');
 const { cacheName, cacheable } = require('./lib/cacheGuard');
 const https = require('https');
+const { USER_AGENT } = require('./lib/userAgent');
 
 const CORS_HEADERS = {
   'Content-Type': 'application/json',
@@ -9,11 +10,8 @@ const CORS_HEADERS = {
 
 const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 // MusicBrainz asks every client to name itself as "Application/version
-// ( contact )" and throttles or blocks generic agents
-// (https://musicbrainz.org/doc/MusicBrainz_API/Rate_Limiting). Sent on every
-// request here, MusicBrainz and Discogs alike; the version is the site's own.
-const { version: APP_VERSION } = require('../../package.json');
-const USER_AGENT = `MySetlists/${APP_VERSION} ( https://mysetlists.net; support@mysetlists.net )`;
+// ( contact )" and throttles or blocks generic agents; the shared agent
+// (lib/userAgent.js) goes on every request here, MusicBrainz and Discogs alike.
 
 // --- Firebase Admin (lazy init, graceful degradation if env vars missing) ---
 

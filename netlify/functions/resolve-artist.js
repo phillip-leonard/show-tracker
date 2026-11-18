@@ -11,6 +11,7 @@ const { withCors } = require('./lib/cors');
 const { getDb, verifyUser } = require('./lib/firebaseAdmin');
 const { artistKey, ledgerId } = require('./lib/followedBandAlerts');
 const { resolveAttraction } = require('./lib/ticketmasterEvents');
+const { USER_AGENT } = require('./lib/userAgent');
 
 const CORS_HEADERS = {
   'Content-Type': 'application/json',
@@ -44,7 +45,7 @@ exports.handler = async function (event) {
     if (!apiKey) return reply(200, { resolved: false });
 
     const get = async (url) => {
-      const res = await fetch(url, { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(8000) });
+      const res = await fetch(url, { headers: { Accept: 'application/json', 'User-Agent': USER_AGENT }, signal: AbortSignal.timeout(8000) });
       return { statusCode: res.status, body: await res.json() };
     };
     const { id, confidence } = await resolveAttraction(name, apiKey, get);
