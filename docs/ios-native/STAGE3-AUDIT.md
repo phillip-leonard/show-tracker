@@ -194,7 +194,7 @@ Every push carries `data.link`, a universal link. Native resolves it with the sa
 ## 7. Referral and share links
 
 - **`/?ref=`:**
-  - **Built (D-6):** `DeepLink.resolve` strips `ref` and keeps it (`Referral`), `SessionStore` posts `friends.js referral` after an account sign-in, and `account-linked` takes it on sign-up.
+  - **Built (D-6):** `DeepLink.resolve` strips `ref` and keeps it (`Referral`), `SessionStore` posts `friends.js referral` after an account sign-in, and `account-linked` takes it on sign-up. Since native 4.0.25 the kept referral stays on the phone until the server has answered, so a sign-up that's offline or meets a server error is credited on the next launch (the web forgets it before asking).
   - **Left:**
     - "Invite friends" in the Friends tab gets the link from `friends.js referralLink` and shares it with `ShareLink`. It's signed (`signReferral`), so it auto-friends.
     - Guests can't get one (`requireAccount`).
