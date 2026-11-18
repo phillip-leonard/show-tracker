@@ -37,6 +37,11 @@ public struct WishlistSummary: Hashable, Sendable, Identifiable {
     public var artist: WishlistArtist
     public var songCount: Int
     public var id: String { artist.key }
+
+    public init(artist: WishlistArtist, songCount: Int) {
+        self.artist = artist
+        self.songCount = songCount
+    }
 }
 
 /// A starred song.
@@ -45,6 +50,13 @@ public struct WishlistEntry: Hashable, Sendable, Identifiable {
     public var title: String
     public var addedAt: String?
     public var id: String { key }
+
+    /// The app makes one while a star is saving (it shows at once).
+    public init(key: String, title: String, addedAt: String?) {
+        self.key = key
+        self.title = title
+        self.addedAt = addedAt
+    }
 }
 
 public enum Wishlist {
