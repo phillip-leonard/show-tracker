@@ -16,8 +16,8 @@
  *   GET https://archive.org/metadata/<identifier>
  *   GET https://archive.org/download/<identifier>/<file>.txt
  *
- * No key and no auth. One identifying User-Agent, the same one
- * archival-audio-lookup.js sends.
+ * No key and no auth. One identifying User-Agent, the one every function
+ * sends to an outside source (lib/userAgent.js).
  *
  * A creator search on archive.org is a phrase match, so creator:"Jerry
  * Garcia Band" also returns "Rosebud (Jerry Garcia Band Tribute)" and
@@ -85,13 +85,13 @@
  *                     only, never written without the user saying so.
  */
 
+const { USER_AGENT } = require('./userAgent');
 const https = require('https');
 const { buildSetlist, cleanStr, pickSetLabel, setSortKey } = require('./bandSetlistShape');
 
 const CONFIG = require('../../../config/internet-archive.json');
 
 const HOSTNAME = 'archive.org';
-const USER_AGENT = 'MySetlistsApp/1.0 (https://mysetlists.net; contact@mysetlists.net)';
 const REQUEST_TIMEOUT_MS = 10000;
 const SEARCH_ROWS = 50;
 // How many items' info files to read when no description has set headers.

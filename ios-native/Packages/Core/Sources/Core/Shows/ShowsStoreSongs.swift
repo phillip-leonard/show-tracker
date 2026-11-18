@@ -17,6 +17,35 @@ public extension ShowsStore {
         return index
     }
 
+    /// Your runs (`RunIndex`), newest first, from the shows on this device.
+    var runs: [RunIndex.Run] {
+        let list = shows
+        if let cache = runsCache { return cache }
+        let built = RunIndex.build(list)
+        runsCache = built
+        return built
+    }
+
+    /// Your tours (`TourIndex`), by tour key.
+    var tours: [String: TourIndex.Tour] {
+        let list = shows
+        if let cache = toursCache { return cache }
+        let built = TourIndex.build(list)
+        toursCache = built
+        return built
+    }
+
+    /// The run a show is a night of, if any.
+    func run(containing showId: String) -> RunIndex.Run? {
+        runs.first { $0.nightNumber(of: showId) != nil }
+    }
+
+    /// The tour a show's tour line names, when it's one of yours.
+    func tour(for show: Show) -> TourIndex.Tour? {
+        guard let name = show.tour, let key = TourIndex.key(artist: show.artist, tour: name) else { return nil }
+        return tours[key]
+    }
+
     /// The song a `/songs/?artist=&song=` link or a setlist row names.
     func song(key: String?) -> SongIndex.Entry? {
         guard let key else { return nil }

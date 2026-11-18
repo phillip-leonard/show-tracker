@@ -49,6 +49,7 @@
  */
 
 const https = require('https');
+const { USER_AGENT } = require('./userAgent');
 const {
   buildSetlist, cleanStr, pickSetLabel, setSortKey, stripHtml, toBool, toIntOrNull,
 } = require('./bandSetlistShape');
@@ -57,7 +58,6 @@ const API_PATH = '/api/v2/setlists/showdate';
 
 // A real User-Agent identifying the app. These are volunteer-run archives;
 // an anonymous scraper is a bad neighbour.
-const USER_AGENT = 'MySetlists/5.33 (+https://mysetlists.net)';
 
 const REQUEST_TIMEOUT_MS = 10000;
 

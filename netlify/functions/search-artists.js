@@ -2,6 +2,7 @@ const { withCors } = require('./lib/cors');
 const { withProxyLimit } = require('./lib/proxyLimit');
 const https = require('https');
 const { setlistfmKey, missingSetlistfmKey } = require('./lib/setlistfmKey');
+const { USER_AGENT } = require('./lib/userAgent');
 
 exports.handler = async function(event, context) {
   const missingKey = missingSetlistfmKey();
@@ -37,7 +38,7 @@ exports.handler = async function(event, context) {
       headers: {
         'x-api-key': setlistfmKey(),
         'Accept': 'application/json',
-        'User-Agent': 'ShowTrackerApp/1.0'
+        'User-Agent': USER_AGENT
       }
     };
 

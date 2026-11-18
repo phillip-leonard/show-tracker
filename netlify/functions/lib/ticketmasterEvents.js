@@ -12,10 +12,11 @@
  */
 
 const https = require('https');
+const { USER_AGENT } = require('./userAgent');
 
 function httpsGetJson(url) {
   return new Promise((resolve, reject) => {
-    const req = https.get(url, { headers: { Accept: 'application/json', 'User-Agent': 'MySetlistsApp/1.0' } }, (res) => {
+    const req = https.get(url, { headers: { Accept: 'application/json', 'User-Agent': USER_AGENT } }, (res) => {
       let data = '';
       res.on('data', (c) => { data += c; });
       res.on('end', () => {

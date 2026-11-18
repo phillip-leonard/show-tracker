@@ -38,7 +38,16 @@ struct LibraryRow: View {
     let item: LibraryDestination
 
     var body: some View {
-        Button { router.show(item.webURL) } label: {
+        if let route = item.route {
+            NavigationLink(value: route) { label(native: true) }
+        } else {
+            Button { router.show(item.webURL) } label: { label(native: false) }
+                .buttonStyle(.plain)
+                .accessibilityHint("Opens on mysetlists.net")
+        }
+    }
+
+    private func label(native: Bool) -> some View {
             HStack(spacing: Space.x3) {
                 Image(systemName: item.systemImage)
                     .foregroundStyle(Color.brand)
@@ -53,16 +62,15 @@ struct LibraryRow: View {
                 }
                 Spacer(minLength: Space.x2)
                 // Until its native screen ships, the row says it leaves the app.
-                Image(systemName: "arrow.up.forward.square")
-                    .font(.footnote)
-                    .foregroundStyle(Color.textSecondary)
-                    .accessibilityHidden(true)
+                if !native {
+                    Image(systemName: "arrow.up.forward.square")
+                        .font(.footnote)
+                        .foregroundStyle(Color.textSecondary)
+                        .accessibilityHidden(true)
+                }
             }
             .padding(.vertical, Space.x1)
             .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .accessibilityHint("Opens on mysetlists.net")
     }
 }
 
@@ -73,6 +81,14 @@ struct LibraryTabRoot: View {
     let item: LibraryDestination
 
     var body: some View {
+        switch item.route {
+        case .tours?: ToursListView()
+        case .runs?: RunListView()
+        default: placeholder
+        }
+    }
+
+    private var placeholder: some View {
         ContentUnavailableView {
             Label(item.title, systemImage: item.systemImage)
         } description: {

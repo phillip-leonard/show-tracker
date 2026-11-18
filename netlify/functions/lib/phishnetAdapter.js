@@ -38,6 +38,7 @@
  */
 
 const https = require('https');
+const { USER_AGENT } = require('./userAgent');
 const {
   buildSetlist, pickSetLabel, setSortKey, stripHtml, toBool, toIntOrNull,
 } = require('./bandSetlistShape');
@@ -45,7 +46,6 @@ const {
 const HOSTNAME = 'api.phish.net';
 const API_PATH = '/v5/setlists/showdate';
 
-const USER_AGENT = 'MySetlists/5.33 (+https://mysetlists.net)';
 const REQUEST_TIMEOUT_MS = 10000;
 
 // ── The one place an upstream key name appears ────────────────────────

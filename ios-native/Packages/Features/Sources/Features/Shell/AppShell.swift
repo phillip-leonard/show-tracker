@@ -23,6 +23,8 @@ public struct AppShell: View {
     @State private var friends = FriendsStore()
     /// The inbox (Stage 3, Part 4): guests too, since band alerts reach them.
     @State private var inbox = NotificationsStore()
+    /// Starred tours (Stage 4, 4-6): guests too, on their own document.
+    @State private var favoriteTours = FavoriteToursStore()
 
     public init() {}
 
@@ -79,6 +81,7 @@ public struct AppShell: View {
         .tabViewCustomization($tabCustomization)
         .environment(friends)
         .environment(inbox)
+        .environment(favoriteTours)
         .tabViewStyle(.sidebarAdaptable)
         .tint(.brand)
         // A window made narrow while a Library item is open: the sidebar is
@@ -97,10 +100,13 @@ public struct AppShell: View {
         .task(id: session.user?.uid) {
             if let uid = session.user?.uid { inbox.start(uid: uid) } else { inbox.stop() }
         }
+        .task(id: session.user?.uid) {
+            if let uid = session.user?.uid { favoriteTours.start(uid: uid) } else { favoriteTours.stop() }
+        }
         // Registers this device for push for whoever is signed in (guests
         // too), when notifications are allowed (Stage 3, Part 5).
         .task(id: session.user?.uid) { await PushCenter.shared.signedIn(uid: session.user?.uid) }
-        .onDisappear { shows.stop(); friends.stop(); inbox.stop() }
+        .onDisappear { shows.stop(); friends.stop(); inbox.stop(); favoriteTours.stop() }
         .sheet(item: $router.web) { page in
             SafariView(url: page.url).ignoresSafeArea()
         }
@@ -142,6 +148,10 @@ struct RouteScreen: View {
         case .bandSong(let band, let song): BandSongScreen(band: band, song: song)
         case .song(let artist, let song): SongScreen(artist: artist, song: song)
         case .songs: SongListView()
+        case .runs: RunListView()
+        case .run(let key): RunScreen(key: key)
+        case .tours: ToursListView()
+        case .tour(let key): TourScreen(key: key)
         default: RoutePlaceholder(route: route)
         }
     }

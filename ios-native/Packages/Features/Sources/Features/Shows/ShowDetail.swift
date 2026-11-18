@@ -81,6 +81,7 @@ struct ShowDetailView: View {
                 ShowHeader(date: show.date, tour: show.tour, artist: show.artist, venue: show.venue,
                            city: show.city, state: show.state, festival: festival,
                            bandSlug: show.artist.isEmpty ? nil : BandDirectory.slug(forArtist: show.artist))
+                ShowPlaceLinks(show: show)
                 YourRatingsCard(show: show, editNote: { editingNote = true })
                 if !isGuest {
                     // Friends who were there (Stage 3, Part 3b): accounts only.
@@ -246,6 +247,73 @@ struct ShowDetailView: View {
         let band = show.artist.isEmpty ? "This show" : show.artist
         let at = show.venue.isEmpty ? "" : " at \(show.venue)"
         return "\(band)\(at), \(ShowDateText.display(show.date))"
+    }
+}
+
+// MARK: - Tour, run and venue
+
+/// The show's tour (when it's one of yours), "Night 2 of 3" when it's part
+/// of a run, and its venue (Stage 4, 4-6). The venue opens its web page
+/// until the native venue page (4-7).
+struct ShowPlaceLinks: View {
+    @Environment(ShowsStore.self) private var store
+    @Environment(AppRouter.self) private var router
+    let show: Show
+
+    var body: some View {
+        let tour = store.tour(for: show)
+        let run = store.run(containing: show.id)
+        let venueKey = VenueNames.venueKey(name: show.venue, city: show.city)
+        if tour != nil || run != nil || (venueKey != nil && !show.venue.isEmpty) {
+            VStack(alignment: .leading, spacing: 0) {
+                if let tour {
+                    linkRow(NavigationLink(value: AppRoute.tour(key: tour.key)) {
+                        rowLabel(tour.tourName, detail: "\(tour.stopCount) stop\(tour.stopCount == 1 ? "" : "s") you caught", symbol: "map", outward: false)
+                    })
+                }
+                if let run, let night = run.nightNumber(of: show.id) {
+                    if tour != nil { Divider().overlay(Color.borderSubtle) }
+                    linkRow(NavigationLink(value: AppRoute.run(key: run.key)) {
+                        rowLabel("Night \(night) of \(run.nightCount)", detail: "View the full run", symbol: "calendar.day.timeline.left", outward: false)
+                    })
+                }
+                if let venueKey, !show.venue.isEmpty {
+                    if tour != nil || run != nil { Divider().overlay(Color.borderSubtle) }
+                    linkRow(Button { router.show(AppRoute.venue(key: venueKey).webURL) } label: {
+                        rowLabel(show.venue, detail: "Venue page on mysetlists.net", symbol: "building.columns", outward: true)
+                    }
+                    .accessibilityHint("Opens on mysetlists.net"))
+                }
+            }
+            .padding(.horizontal, Space.x3)
+            .background(Color.surface, in: RoundedRectangle.brand(Radius.xl2))
+        }
+    }
+
+    private func linkRow<V: View>(_ content: V) -> some View {
+        content.buttonStyle(.plain)
+    }
+
+    private func rowLabel(_ title: String, detail: String, symbol: String, outward: Bool) -> some View {
+        HStack(spacing: Space.x3) {
+            Image(systemName: symbol).foregroundStyle(Color.brand).frame(width: 22)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title)
+                    .font(.jakarta(size: 15, weight: .semibold, relativeTo: .body))
+                    .foregroundStyle(Color.textPrimary)
+                    .lineLimit(2)
+                Text(detail)
+                    .font(.jakarta(size: 12, relativeTo: .caption))
+                    .foregroundStyle(Color.textSecondary)
+            }
+            Spacer(minLength: Space.x2)
+            Image(systemName: outward ? "arrow.up.forward.square" : "chevron.right")
+                .font(.footnote)
+                .foregroundStyle(Color.textMuted)
+                .accessibilityHidden(true)
+        }
+        .frame(minHeight: TouchTarget.minimum + 8)
+        .contentShape(Rectangle())
     }
 }
 

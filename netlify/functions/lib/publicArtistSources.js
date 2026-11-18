@@ -44,8 +44,8 @@ const { normalizeSongTitle } = require('../../../lib/stats/keys');
 const { isoDate } = require('./publicPageHtml');
 const { slugify } = require('./artistSnapshotStats');
 const { pickSetLabel, setSortKey } = require('./bandSetlistShape');
+const { USER_AGENT } = require('./userAgent');
 
-const USER_AGENT = 'MySetlists/5.45 (+https://mysetlists.net)';
 const TIMEOUT_MS = 30000;
 // Songfish answers a plain artist query with at most this many rows, and a
 // year query is the same endpoint, so a year at the cap may be cut short.

@@ -24,6 +24,7 @@
 const https = require('https');
 const { setlistfmKey } = require('./setlistfmKey');
 const { readFresh, writeEntry } = require('./setlistCache');
+const { USER_AGENT } = require('./userAgent');
 
 const REQUEST_GAP_MS = 550;
 const REQUEST_TIMEOUT_MS = 5000;
@@ -52,7 +53,7 @@ function fetchSetlist(id) {
       hostname: 'api.setlist.fm',
       path: `/rest/1.0/setlist/${encodeURIComponent(id)}`,
       method: 'GET',
-      headers: { 'x-api-key': setlistfmKey(), Accept: 'application/json', 'User-Agent': 'MySetlists/1.0 (+https://mysetlists.net)' },
+      headers: { 'x-api-key': setlistfmKey(), Accept: 'application/json', 'User-Agent': USER_AGENT },
       timeout: REQUEST_TIMEOUT_MS,
     }, (res) => {
       let body = '';

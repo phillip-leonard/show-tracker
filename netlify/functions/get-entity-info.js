@@ -2,6 +2,7 @@ const { withCors } = require('./lib/cors');
 const { checkProxyLimit } = require('./lib/proxyLimit');
 const { cacheName, cacheable } = require('./lib/cacheGuard');
 const https = require('https');
+const { USER_AGENT } = require('./lib/userAgent');
 
 const CORS_HEADERS = {
   'Content-Type': 'application/json',
@@ -55,7 +56,7 @@ function httpsGet(url) {
     const options = {
       headers: {
         Accept: 'application/json',
-        'User-Agent': 'MySetlistsApp/1.0 (show-tracker; contact@mysetlists.net)',
+        'User-Agent': USER_AGENT,
       },
     };
     https.get(url, options, (res) => {

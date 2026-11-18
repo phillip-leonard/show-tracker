@@ -54,6 +54,18 @@ import Testing
         #expect(AppRoute.songs.webURL.absoluteString == "https://mysetlists.net/stats/songs/")
     }
 
+    /// Runs and tours (Stage 4, 4-6): Library in Me; the runs list is on Stats too.
+    @Test func runsAndTours() {
+        #expect(action("https://mysetlists.net/tours/") == .open(.me, .tours))
+        #expect(action("https://mysetlists.net/tours/?tour=goose%3Asummer-tour-2025") == .open(.me, .tour(key: "goose:summer-tour-2025")))
+        #expect(action("mysetlists://localhost/runs/?run=x") == .open(.me, .run(key: "x")))
+        #expect(action("https://mysetlists.net/runs/") == .open(.me, .runs))
+        #expect(action("https://mysetlists.net/stats/runs/") == .open(.stats, .runs))
+        #expect(AppRoute.tour(key: "goose:summer-tour-2025").webURL.absoluteString == "https://mysetlists.net/tours/?tour=goose%3Asummer-tour-2025")
+        #expect(AppRoute.run(key: "goose:dicks:2025-08-29").webURL.absoluteString.hasPrefix("https://mysetlists.net/runs/?run=goose"))
+        #expect(AppRoute.runs.webURL.absoluteString == "https://mysetlists.net/stats/runs/")
+    }
+
     @Test func tabs() {
         #expect(action("mysetlists://") == .open(.shows, nil))
         #expect(action("https://mysetlists.net/upcoming") == .open(.shows, nil))
