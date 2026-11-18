@@ -1,6 +1,8 @@
 # Native parity audit (2026-11-17)
 
-**The requirement (Phillip, 2026-11-17):** before launch, the native app reaches full parity with the web and Capacitor app, except the admin portal. Several "web link" and "v1.x" calls in [`DECISIONS.md`](DECISIONS.md) are reversed by this. This document lists everything the web and Capacitor app does, says where native stands on each item, and proposes the work to close the gap. **No code changes, and DECISIONS.md is untouched** until Phillip decides the flags in §3.
+**The requirement (Phillip, 2026-11-17):** before launch, the native app reaches full parity with the web and Capacitor app, except the admin portal. Several "web link" and "v1.x" calls in [`DECISIONS.md`](DECISIONS.md) are reversed by this. This document lists everything the web and Capacitor app does, says where native stands on each item, and proposes the work to close the gap. No code changes.
+
+**Decided 2026-11-17:** Phillip accepted every recommendation in §3 except F-9: **playlists are left out of the native app** and out of the plan. DECISIONS.md records the calls ("Parity before launch").
 
 Read against `main` at 083e0e8 (#450 merged) plus open PR #451 (native 4.0.25).
 
@@ -30,8 +32,8 @@ Counted from the rows in §2 (the admin portal excluded; the public pages in §2
 | Native (merged, or in #451), some partly | 81 |
 | Planned (Stage 4 or 5) | 38 |
 | Web link today | 7 |
-| Missing | 57 |
-| Waiting on a flag in §3 | 4 |
+| Missing | 56 |
+| Decided in §3: no native build, or the web (Hours of live music, Fans also see, Discover, venue owner tools, playlists) | 5 |
 | Web by design | 3 |
 | Other (the first-show animation, which the web removed; help links, partly native) | 2 |
 | **Total** | **192** |
@@ -41,8 +43,10 @@ What's left falls into five groups:
 1. **Stage 4 as planned, plus four additions:** a way to reach the secondary screens (native has no equivalent of the web's menu drawer), per-year stats, advanced search, and adding a whole tour at once.
 2. **Stage 5 grows** from "read and attach" to everything Festivals does on the web: create, join, leave, notes, lineup search and picks.
 3. **User content** (comments, photos, videos, posters, setlist photos, meetups), which was v1.x (C-4) and is now required. This is the largest single block.
-4. **Imports, playlists, posters and Year in Review**, which were web links or v1.x.
+4. **Imports, posters and Year in Review**, which were web links or v1.x.
 5. **Many small items** on the show page, profile and help screens (streaming links, archive audio, play counts, achievements, roadmap, feedback).
+
+Playlists were in group 4; they're left out by decision (F-9).
 
 Two gaps aren't screens, and both should be fixed whatever else is decided:
 - **The welcome email after a first show** is requested by the web client (`requestWelcomeEmail` in `AppContext`). Native never asks for it, so a native-only user never gets it. **Fix:** move the trigger into `normalize-show`, on the server.
@@ -119,7 +123,7 @@ Two gaps aren't screens, and both should be fixed whatever else is decided:
 | Follow the band (bell) | `FollowBandButton` | Show ⋯ menu | Native #451 | | | |
 | Tag friends | Yes | Yes | Native #448 | | | |
 | Share | Owner link | Public show page, or how to get one | Native #451 | | | |
-| Create playlist (Spotify, Apple Music) | `PlaylistCreatorModal`, `/spotify-callback` | None | Missing | L | `spotify-token` must accept a native redirect URI; Spotify app settings | 6 (flag F-9) |
+| Create playlist (Spotify, Apple Music) | `PlaylistCreatorModal`, `/spotify-callback` | None | Left out of native (F-9, decided) | | | |
 | Play counts toggle (#: how many times you've seen each song) | Yes | None | Missing | S | none (counts from cached shows with the shared song key) | 6 |
 | Delete show | Yes | Yes | Native #433 | | | |
 | Show rating, venue rating | Yes | Yes | Native #433 | | | |
@@ -366,7 +370,7 @@ Landing page, `/compare/*`, `/switch/*`, `/best-concert-tracker-apps-jam-bands`,
 
 ## 3. Where exact parity is a bad idea: flags for Phillip
 
-Each flag has a recommendation. None of these is decided yet.
+Each flag has a recommendation. **Decided 2026-11-17:** every recommendation is accepted except F-9, where playlists are left out of native instead.
 
 **F-1. A home for the secondary screens.** Native has four tabs and Search. Tours, Runs, Songs, Venues, Festivals, Wishlist, Bucket List, Community, Setlist Photos and Activity need a way in, like the Capacitor menu drawer. **Recommend:** don't add a drawer, which isn't an iOS pattern. Instead:
 - a **Library** section at the top of Me: Tours, Runs, Festivals, Wishlist, Bucket List, Setlist Photos;
@@ -399,6 +403,8 @@ Exact parity here is a large form-heavy build for very few people.
 **F-9. Playlists.** The web uses Spotify's web sign-in and an Apple Music web token. **Recommend:**
 - Apple Music natively with MusicKit (better: no sign-in sheet, uses the phone's own subscription);
 - Spotify through `ASWebAuthenticationSession` against the existing `spotify-token` function, which needs a native redirect URI registered with Spotify.
+
+**Decided:** not accepted. Playlists are left out of the native app and out of the plan. The show page has no playlist button, and there's no web link in its place.
 
 **F-10. CSV and Excel import.** The web parses the file in the browser. A Swift copy of the parser, column matching and date-format guessing would be a second implementation to keep in step, which CLAUDE.md steers away from. **Recommend:** a server function that parses the file with the web's own code and returns the rows, and a native file picker and review screen on top. The alternative is to keep it a web link, since most people import from a computer.
 
@@ -437,7 +443,7 @@ The numbers below are placeholders: each PR takes the next free number from `mai
 | PR | Contents | Kind |
 |---|---|---|
 | 4-1 | **Stage 4 audit.** Confirms the server needs below and the F-1 navigation. | docs |
-| 4-2 | **Server:** per-year block in `userStats` (F-15); the welcome email from `normalize-show`; fixtures for runs (`lib/runIndex.js`), the song key and gaps, and the user-count threshold. | server (web + Capacitor + native bump) |
+| 4-2 | **Server:** per-year block in `userStats` (F-15); the welcome email from `normalize-show`; "Hours of live music" off the web's Stats page (F-3); fixtures for runs (`lib/runIndex.js`), the song key and gaps, and the user-count threshold. | server (web + Capacitor + native bump) |
 | 4-3 | **Navigation:** the Library section, Community on Stats (F-1); the guest's first-show account prompt. | native |
 | 4-4 | **Songs:** the full song list and the song page. | native |
 | 4-5 | **Bands:** the band page from the public snapshot, the band song page, artist info. Replaces the #451 stand-in. | native |
@@ -462,25 +468,24 @@ The numbers below are placeholders: each PR takes the next free number from `mai
 
 | PR | Contents | Kind |
 |---|---|---|
-| 6-1 | **Stage 6 audit.** Covers the activity feed's reads (§2.17), the rules native needs for Storage and announcements, the Spotify redirect, and the import parse function (F-10). | docs |
-| 6-2 | **Server:** the import parse function; the Spotify native redirect; any rules change from 6-1. | server |
+| 6-1 | **Stage 6 audit.** Covers the activity feed's reads (§2.17), the rules native needs for Storage and announcements, and the import parse function (F-10). | docs |
+| 6-2 | **Server:** the import parse function; any rules change from 6-1. | server |
 | 6-3 | **Comments** on shows: post, reply, like, delete, report. | native |
 | 6-4 | **Photos, videos, posters and setlist photos** on shows: upload, gallery, like, report; the setlist photo directory. | native |
 | 6-5 | **Meetups.** | native |
 | 6-6 | **Activity feed** and the "Show my activity" setting. | native |
 | 6-7 | **Imports:** screenshot import and CSV/Excel import (F-10). | native |
 | 6-8 | **Show extras:** streaming links, "Listen to this night", play counts, archive backfill card, "Relive this night" card, the anniversary calendar. | native |
-| 6-9 | **Playlists** (F-9). | native |
-| 6-10 | **Posters:** my poster, share image, share link, Save to "Songs I've heard". | native |
-| 6-11 | **Year in Review** natively, with its share image (F-13). | native |
-| 6-12 | **Profile and help:** achievements, notes list, public profile preview, feedback, roadmap and voting, How to Use (F-7), What's New (F-5), announcements popups, Community Guidelines link, guest banner, haptics (F-8). | native |
-| 6-13 | **Parity check:** this table re-run against the build, every row native, web by design, or a decided flag. | docs |
+| 6-9 | **Posters:** my poster, share image, share link, Save to "Songs I've heard". | native |
+| 6-10 | **Year in Review** natively, with its share image (F-13). | native |
+| 6-11 | **Profile and help:** achievements, notes list, public profile preview, feedback, roadmap and voting, How to Use (F-7), What's New (F-5), announcements popups, Community Guidelines link, guest banner, haptics (F-8). | native |
+| 6-12 | **Parity check:** this table re-run against the build, every row native, web by design, or a decided flag. | docs |
 
 Then **internal TestFlight and cutover** (DECISIONS, Build order item 6), after the Year in Review peak.
 
-### What changes in DECISIONS.md once the flags are decided
+### What changed in DECISIONS.md
 
-Not done yet. Listed so the edit is easy to review later.
+Done 2026-11-17, in "Parity before launch" and in notes on each call it reverses:
 
 - **"v1 scope":**
   - Festivals become full;
