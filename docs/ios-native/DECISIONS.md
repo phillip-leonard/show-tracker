@@ -244,3 +244,24 @@ From the Stage 3 Part 1 audit ([`STAGE3-AUDIT.md`](STAGE3-AUDIT.md)), approved w
   - the welcome email after a first show moves to the server (`normalize-show`), because native never asked for it;
   - a guest's first show opens the account prompt, as on the web.
 - **PR order:** Stage 4 (12 PRs, starting with its audit and a server PR) → Stage 5 (4) → Stage 6 (12) → internal TestFlight and cutover. Each PR is listed in `PARITY-AUDIT.md` §4.
+
+## Stage 4: library screens (2026-11-18)
+
+From the Stage 4 audit ([`STAGE4-AUDIT.md`](STAGE4-AUDIT.md)), approved with these calls:
+
+- **Listening moves into Stage 4.** "Listen to this night" (Relisten and the Internet Archive) and "Where to stream this show" leave Stage 6 (6-8) and go in 4-4, with Songs.
+- **The streaming list comes from the server** (A). `lib/streamingPlatforms.js` becomes CommonJS, and `archival-audio-lookup` adds a `streaming` list to its answer, built on every call and never cached. No Swift copy, and adding a band needs no app release.
+- **Library rows for screens not built yet** (B): Festivals and Setlist Photos open the web until Stages 5 and 6. Guests don't see either row.
+- **Both song keys stay** (C). The song page keys on the strict artist slug (`artistSlugFromName`: "goose (US)" is its own page); Stats keys on the loose band key (`bandKey`: merged). Stats' top songs keep opening the filtered show list. Unifying them is on the post-launch list (below).
+- **The welcome email** is sent by `normalize-show` (an account's first show) and by `adopt-guest-shows` (shows moved into an account with none), as well as by `account-linked`. **The web keeps its own call** (D), for its offline adds and old Capacitor builds; the send is claimed in a transaction, so extra calls send nothing.
+- **Per-year stats** are a `years` map on `userStats`, each entry `computeUserStats` on that year's shows plus `showsByMonth`. Additive, so `STATS_VERSION` stays 2.
+- **`lib/songIndex.js` becomes CommonJS**, with a shared fixture for the song key and the gap rules; runs get a fixture for `lib/runIndex.js` (with `venuesFuzzyMatch`), and the user count one for `lib/userCount.js`.
+- **The web's "Listen to this night"** is checked for a `DD-MM-YYYY` date in 4-2; `archival-audio-lookup` accepts only ISO.
+- **PR order:** 4-1 audit → 4-2 server → 4-3 navigation → 4-4 songs and listening → 4-5 bands → 4-6 runs and tours → 4-7 venues → 4-8 stats → 4-9 wishlist → 4-10 bucket list → 4-11 Community → 4-12 Search tab.
+
+## Post-launch list
+
+Work decided for after cutover, not before:
+
+- **`export-my-data`** (Data export, above; Stage 2 C-1).
+- **Unify the song keys** (Stage 4 C): one key for the song page and Stats, with redirects for the old `/songs?song=` links.
