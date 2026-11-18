@@ -4,6 +4,39 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.60.33] — 2026-11-18
+
+Ships in **iOS 3.13.49** (Capacitor, `MARKETING_VERSION` 3.13.48 → 3.13.49).
+Native unchanged.
+
+**"About <band>" shows the right band's Discogs data.** `enrich-artist` used
+to search Discogs by name and take the first exact title, so "Goose" was the
+Belgian electro band Goose: its members (Tom Coghe, Dave Martijn, Bert
+Libeert, Mickael Karkousse) were mixed into the American Goose's list and its
+profile shown when Wikipedia had none. Eggy was an Australian garage-rock
+band the same way. Now the Discogs side is the artist MusicBrainz itself
+links to (its `discogs` url-rel: "Goose (6)", id 1198062):
+- MusicBrainz found the artist and links to Discogs: that artist, no search;
+- MusicBrainz found the artist but has no Discogs link: no Discogs at all,
+  rather than a name-matched guess;
+- MusicBrainz has no such artist: the name search, as before;
+- MusicBrainz didn't answer (it allows about a request a second and answers
+  503 past that): one retry after a second, then "not found", which isn't
+  cached. Before, this fell back to the name search and cached the guess for
+  a week.
+
+MusicBrainz is now asked before Discogs instead of at the same time, so a
+cache miss takes one more round trip. Discogs' numbering of shared names is
+dropped from members ("Chris Enright (2)" is "Chris Enright"), and a member
+both sources list shows once however the dash or accent is written
+("Kenny‐Smith" and "Kenny-Smith"). The cache key is now `enrich_v2_…`, so
+answers cached with the wrong Discogs act aren't served; the old
+`artistEnrichCache` documents expire on their own and are never read again.
+The web's About panel and the native band page (Stage 4, 4-5) both read
+this function. `tests/metadata/enrichArtist.test.js`, in `npm run test:unit`.
+
+---
+
 ## [5.60.32] — 2026-11-18
 
 Ships in **iOS 3.13.48** (Capacitor, `MARKETING_VERSION` 3.13.47 → 3.13.48)
