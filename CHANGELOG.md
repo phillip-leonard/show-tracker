@@ -6,8 +6,8 @@ All notable changes to mysetlists.net are documented here.
 
 ## [5.60.32] — 2026-11-18
 
-Ships in **iOS 3.13.48** (Capacitor, `MARKETING_VERSION` 3.13.47 → 3.13.48).
-Native unchanged (native 4.0.28 is the Stage 4 audit, #455). Stage 4,
+Ships in **iOS 3.13.48** (Capacitor, `MARKETING_VERSION` 3.13.47 → 3.13.48)
+and **native 4.0.29** (4.0.28 is the Stage 4 audit, #455). Stage 4,
 PR 4-2: the server work the native library screens need
 (`docs/ios-native/STAGE4-AUDIT.md` §1, DECISIONS "Stage 4").
 
@@ -47,11 +47,21 @@ guess shown as a number. Stats shows the same three tiles as the native
 app: shows, songs heard, artists (two columns on a phone, so a four-digit
 song count fits). The landing page no longer promises it.
 
+**Artist slugs trim first.** `artistSlugFromName` (`lib/artistSlug.js`)
+turned spaces into hyphens before trimming, so " Phish " was `-phish-`: its
+own band page, song keys and runs. It now trims first, as Stats' `bandKey`
+always did, and so does the native port (`BandFollows.slug`), which now
+tests against the shared fixture row for row. Production had no padded
+artist names (shows, upcoming shows, followed bands, favorite tours,
+wishlists, bucket list: 0 each), so nothing needed cleaning up.
+`lib/wishlist.js` `artistKeyFor` keeps its rule, since it names stored
+wishlist documents.
+
 **Shared fixtures for the library screens** (`fixtures/README.md`):
 - `song-index/`: `lib/songIndex.js`, now CommonJS with `today` passed in,
   pins the song page's times seen, first and last, current and longest gap
   and performances, and its keys (`artistSlugFromName`, song slugs). These
-  are not Stats' `bandKey` (Stage 4 call C).
+  are not Stats' `bandKey` (Stage 4 call C), though both now trim.
 - `runs/`: `buildRunIndex`, `buildTourIndex`, `newSongsOnTour` and the
   `venuesFuzzyMatch` venue pairs they rely on.
 - `user-count/`: `shouldShowUserCount`, never below 1,000 users.
