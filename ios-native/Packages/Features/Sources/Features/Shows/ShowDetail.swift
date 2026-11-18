@@ -67,6 +67,9 @@ struct ShowDetailView: View {
     @State private var socialNotice: String?
     @State private var follow = FollowFlow()
     @State private var shareNeedsPublicProfile = false
+    /// Recordings and streaming links (Stage 4, 4-4); nil until answered,
+    /// or when the server can't be reached.
+    @State private var listening: Listening?
 
     private var isGuest: Bool { session.user?.isAnonymous == true }
 
@@ -81,6 +84,10 @@ struct ShowDetailView: View {
                     TaggedWithCard(taggedUids: show.taggedFriendUids, taggedBy: show.taggedBy, upcoming: false) { tagging = true }
                 }
                 SetlistSection(show: show, source: source, undo: $undo, reviewStoredProposal: { review = .stored })
+                if let listening {
+                    ListenSection(show: show, listening: listening)
+                    StreamingSection(platforms: listening.streaming)
+                }
             }
             .padding(.horizontal, Space.x5)
             .padding(.top, Space.x2)
@@ -153,6 +160,10 @@ struct ShowDetailView: View {
         }
         .task(id: SetlistSourceAnswer.query(for: show)) { source = await store.setlistSource(for: show) }
         .task(id: show.festivalId) { festival = await store.festivalName(for: show) }
+        // The ISO day, so a legacy stored date asks the same question.
+        .task(id: "\(show.artist)|\(show.isoDate)") {
+            listening = await Listening.lookup(artist: show.artist, date: show.date, api: session.api)
+        }
     }
 
     private var moreMenu: some View {
@@ -456,6 +467,7 @@ struct NoteEditor: View {
 /// edit (the Stage 1 mockup). Every change is one `SetlistEdit`.
 struct SetlistSection: View {
     @Environment(ShowsStore.self) private var store
+    @Environment(AppRouter.self) private var router
     let show: Show
     let source: SetlistSourceAnswer?
     @Binding var undo: DeletedSong?
@@ -529,7 +541,7 @@ struct SetlistSection: View {
                     .foregroundStyle(Color.textSecondary)
                     .accessibilityElement(children: .combine)
                 } else {
-                    Text("Tap a song to rate it · Long-press to edit")
+                    Text("Tap a song to rate it · Touch and hold for its history and edits")
                         .font(.jakarta(size: 12, relativeTo: .caption))
                         .foregroundStyle(Color.textMuted)
                 }
@@ -566,6 +578,12 @@ struct SetlistSection: View {
     @ViewBuilder
     private func songMenu(_ song: Song, group: SetGroups.Group, index: Int, options: [String]) -> some View {
         Button { editingSong = song } label: { Label(song.rating == nil ? "Rate and comment" : "Change rating or comment", systemImage: "star") }
+        // Your history with this song (Stage 4, 4-4).
+        if SongIndex.key(artist: show.artist, title: song.name) != nil {
+            Button { router.push(.song(artist: SongIndex.artistSlug(show.artist), song: SongIndex.songSlug(song.name))) } label: {
+                Label("Your history with this song", systemImage: "music.note")
+            }
+        }
         Button { move(group.label, index, -1) } label: { Label("Move up", systemImage: "arrow.up") }
             .disabled(index == 0)
         Button { move(group.label, index, 1) } label: { Label("Move down", systemImage: "arrow.down") }

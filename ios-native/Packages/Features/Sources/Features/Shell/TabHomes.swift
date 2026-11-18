@@ -40,7 +40,8 @@ struct RoutePlaceholder: View {
         switch route {
         case .show, .upcomingShow: "Show"
         case .band: "Band"
-        case .song: "Song"
+        case .song, .bandSong: "Song"
+        case .songs: "Songs"
         case .venue: "Venue"
         case .yearInReview(_, let year): "\(year) in Review"
         case .myShows(let filter): filter.title
@@ -53,7 +54,7 @@ struct RoutePlaceholder: View {
         case .show: "music.mic"
         case .upcomingShow: "calendar"
         case .band: "guitars"
-        case .song: "music.note"
+        case .song, .bandSong, .songs: "music.note"
         case .venue: "building.columns"
         case .yearInReview: "sparkles"
         case .myShows: "list.bullet"
@@ -66,6 +67,8 @@ struct RoutePlaceholder: View {
         case .show(let id), .upcomingShow(let id): "Show \(id)"
         case .band(let slug): slug
         case .song(let band, let song): [band, song].compactMap { $0 }.joined(separator: " · ")
+        case .bandSong(let band, let song): "\(band) · \(song)"
+        case .songs: ""
         case .venue(let key): key
         case .yearInReview: "A year of shows"
         case .myShows(let filter): filter.artist ?? ""

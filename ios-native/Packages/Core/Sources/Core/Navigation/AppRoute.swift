@@ -14,7 +14,14 @@ public enum AppRoute: Hashable, Sendable {
     case show(id: String)
     case upcomingShow(id: String)
     case band(slug: String)
-    case song(band: String?, song: String)
+    /// Your history with one song: `/songs/?artist=<slug>&song=<slug>`
+    /// (Stage 4, 4-4). `artist` is the strict artist slug (`SongIndex`).
+    case song(artist: String?, song: String)
+    /// The band's own song page from its public snapshot:
+    /// `/bands/?band=&song=` (Stage 4, 4-5; the web until then).
+    case bandSong(band: String, song: String)
+    /// Every song you've seen (Stage 4, 4-4): `/stats/songs`.
+    case songs
     case venue(key: String)
     case yearInReview(user: String, year: String)
     /// Your shows for one band, song or venue, from Stats (Stage 2). Not a
@@ -73,17 +80,19 @@ public extension DeepLink {
             if value("venueKey") == nil { return .open(.shows, nil) } // ?venueKey= is web-only for now
         case "/bands":
             if let band = value("band") {
-                if let song = value("song") { return .open(.shows, .song(band: band, song: song)) }
+                if let song = value("song") { return .open(.shows, .bandSong(band: band, song: song)) }
                 return .open(.shows, .band(slug: band))
             }
         case "/songs":
-            if let song = value("song") { return .open(.shows, .song(band: value("artist"), song: song)) }
+            if let song = value("song") { return .open(.stats, .song(artist: value("artist"), song: song)) }
         case "/venues":
             if let key = value("venue") { return .open(.shows, .venue(key: key)) }
         case "/year-in-review":
             if let user = value("user"), let year = value("year") { return .open(.stats, .yearInReview(user: user, year: year)) }
         case "/stats":
             return .open(.stats, nil)
+        case "/stats/songs":
+            return .open(.stats, .songs)
         case "/friends":
             return .open(.friends, nil)
         case "/notifications":
@@ -115,8 +124,12 @@ public extension AppRoute {
         case .show(let id): path = "/shows"; params.set("show", id)
         case .upcomingShow(let id): path = "/shows"; params.set("upcoming", id)
         case .band(let slug): path = "/bands"; params.set("band", slug)
-        case .song(let band?, let song): path = "/bands"; params.set("band", band); params.set("song", song)
-        case .song(nil, let song): path = "/songs"; params.set("song", song)
+        case .song(let artist, let song):
+            path = "/songs"
+            if let artist { params.set("artist", artist) }
+            params.set("song", song)
+        case .bandSong(let band, let song): path = "/bands"; params.set("band", band); params.set("song", song)
+        case .songs: path = "/stats/songs"
         case .venue(let key): path = "/venues"; params.set("venue", key)
         case .yearInReview(let user, let year): path = "/year-in-review"; params.set("user", user); params.set("year", year)
         case .myShows: path = "/stats"

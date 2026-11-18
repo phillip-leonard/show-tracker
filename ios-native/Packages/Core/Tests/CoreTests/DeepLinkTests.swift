@@ -38,10 +38,20 @@ import Testing
         #expect(action("https://mysetlists.net/shows/abc") == .open(.shows, .show(id: "abc")))
         #expect(action("https://mysetlists.net/shows/?upcoming=u1") == .open(.shows, .upcomingShow(id: "u1")))
         #expect(action("https://mysetlists.net/bands/?band=goose") == .open(.shows, .band(slug: "goose")))
-        #expect(action("https://mysetlists.net/bands/?band=goose&song=arcadia") == .open(.shows, .song(band: "goose", song: "arcadia")))
-        #expect(action("mysetlists://songs/?song=arcadia") == .open(.shows, .song(band: nil, song: "arcadia")))
+        #expect(action("https://mysetlists.net/bands/?band=goose&song=arcadia") == .open(.shows, .bandSong(band: "goose", song: "arcadia")))
         #expect(action("https://mysetlists.net/venues/red%20rocks::morrison/") == .open(.shows, .venue(key: "red rocks::morrison")))
         #expect(action("https://mysetlists.net/year-in-review/u1/2026") == .open(.stats, .yearInReview(user: "u1", year: "2026")))
+    }
+
+    /// Songs (Stage 4, 4-4): the song page and the list, on Stats.
+    @Test func songs() {
+        #expect(action("https://mysetlists.net/songs/?artist=goose&song=arcadia") == .open(.stats, .song(artist: "goose", song: "arcadia")))
+        #expect(action("mysetlists://songs/?song=arcadia") == .open(.stats, .song(artist: nil, song: "arcadia")))
+        #expect(action("https://mysetlists.net/stats/songs/") == .open(.stats, .songs))
+        // The web's own links back, for "Open on mysetlists.net".
+        #expect(AppRoute.song(artist: "goose", song: "arcadia").webURL.absoluteString == "https://mysetlists.net/songs/?artist=goose&song=arcadia")
+        #expect(AppRoute.bandSong(band: "goose", song: "arcadia").webURL.absoluteString == "https://mysetlists.net/bands/?band=goose&song=arcadia")
+        #expect(AppRoute.songs.webURL.absoluteString == "https://mysetlists.net/stats/songs/")
     }
 
     @Test func tabs() {

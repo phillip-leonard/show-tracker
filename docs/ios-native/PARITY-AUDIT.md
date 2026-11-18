@@ -131,15 +131,15 @@ Two gaps aren't screens, and both should be fixed whatever else is decided:
 | Setlist by set, encore labels | `SetlistView` | Yes | Native #433 | | | |
 | Edit setlist: add, delete, reorder, move to set | Yes | Yes | Native #435 | | | |
 | Song ratings | No (web rates in the editor) | Yes | Native #433 | | | |
-| Song → song page | Yes | None | Planned | | | 4 |
+| Song → song page | Yes | Touch and hold → "Your history with this song" | Native 4-4 | | | |
 | setlist.fm and band-source attribution | Yes | Yes | Native #433, #435 | | | |
 | "Check this setlist" (needs review, compare with archive.org) | Yes | Yes | Native #435 | | | |
 | Proposal diff, accept, decline; re-sync | Yes | Yes | Native #435 | | | |
 | Show stats: songs, duration, tour, debuts | Sidebar card | Songs and debuts | Native #433, partly | S | none | 4 |
 | Friends who were there | Yes | Yes | Native #448 | | | |
 | Shows to confirm (suggestions) | Yes | Yes | Native #448 | | | |
-| "Where to stream this show" (nugs.net, playdead, Relisten, archive.org) | `StreamingLinks`, `lib/streamingPlatforms.js` | None | Missing | S | `archival-audio-lookup` answers the list (Stage 4 call A) | 4 |
-| "Listen to this night" (Relisten / Internet Archive recordings, link-out) | `ArchivalAudioSection`, `archival-audio-lookup` | None | Missing | S | none | 4 |
+| "Where to stream this show" (nugs.net, playdead, Relisten, archive.org) | `StreamingLinks`, `lib/streamingPlatforms.js` | `StreamingSection`, from the lookup's `streaming` | Native 4-4 | | `archival-audio-lookup` answers the list (Stage 4 call A, 5.60.32) | |
+| "Listen to this night" (Relisten / Internet Archive recordings, link-out) | `ArchivalAudioSection`, `archival-audio-lookup` | `ListenSection`: the pick is saved (`archivalAudioPick`), three rows then "Show all" | Native 4-4 | | none | |
 | Photos and videos | `ShowMediaSection` | Hidden (C-4) | Missing (was v1.x) | L | none beyond today's: Storage upload, `moderate-content`, `report-content` | 6 |
 | Posters | `ShowMediaSection` | Hidden (C-4) | Missing (was v1.x) | (with photos) | | 6 |
 | Setlist photos | `ShowMediaSection` | Hidden (C-4) | Missing (was v1.x) | (with photos) | | 6 |
@@ -194,8 +194,9 @@ Two gaps aren't screens, and both should be fixed whatever else is decided:
 
 | Item | Web / Capacitor | Native today | Status | Size | Server work | Stage |
 |---|---|---|---|---|---|---|
-| Song page: times seen, first, last, current gap, every time seen, by year, where it lands in the set, your best versions | `SongDetailView`, `SongHistoryModal` | Placeholder (web link) | Planned | M | none; fixture for the song key and gap rules | 4 |
-| Empty state: "No dated performances yet" | Yes | | Planned | | | 4 |
+| Song page: times seen, first, last, current gap, every time seen, by year, where it lands in the set, your best versions | `SongDetailView`, `SongHistoryModal` | `SongPage` (`SongIndex`, `fixtures/song-index/`) | Native 4-4 | | none | |
+| Empty state: "No dated performances yet" | Yes | By year is left out when no performance has a date | Native 4-4 | | | |
+| Every song you've seen: times seen, average rating, search, sort | Stats → Songs tab (title only), `/stats/songs` (per band, gap) | `SongListView` from Stats → All your songs, `/stats/songs` | Native 4-4 (one row per song page, below) | | none | |
 
 ### 2.9 Bands (`/bands?band=`, `&song=`)
 
