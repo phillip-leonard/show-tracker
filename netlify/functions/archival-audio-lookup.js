@@ -37,6 +37,7 @@
 const { withCors } = require('./lib/cors');
 const { checkProxyLimit } = require('./lib/proxyLimit');
 const { cacheName, isoDay, cacheable } = require('./lib/cacheGuard');
+const { getStreamingPlatforms } = require('../../lib/streamingPlatforms');
 
 // More recordings than any real show has; keeps a cached entry bounded.
 const MAX_RECORDINGS = 50;
@@ -250,30 +251,28 @@ exports.handler = async function (event) {
     }
   };
 
+  // "Where to stream this show" (5.60.32, Stage 4 call A): the same list
+  // the web's StreamingLinks draws, built on every call from
+  // lib/streamingPlatforms.js and never cached, so the native app shows it
+  // without a Swift copy. Every 200 answer carries it, whatever Relisten
+  // says, since it doesn't depend on a recording existing.
+  const streaming = getStreamingPlatforms(artist, date);
+  const answer = (body) => ({ statusCode: 200, headers: CORS_HEADERS, body: JSON.stringify({ ...body, streaming }) });
+
   try {
     const db = getDb();
     const relistenSlug = await resolveArtistSlug(db, artist, beforeFetch);
 
-    if (!relistenSlug) {
-      return {
-        statusCode: 200,
-        headers: CORS_HEADERS,
-        body: JSON.stringify({ found: false, reason: 'artist_not_carried' }),
-      };
-    }
+    if (!relistenSlug) return answer({ found: false, reason: 'artist_not_carried' });
 
     const result = await lookupShow(db, relistenSlug, date, beforeFetch);
-    return {
-      statusCode: 200,
-      headers: CORS_HEADERS,
-      body: JSON.stringify(result),
-    };
+    return answer(result);
   } catch (err) {
     if (err && err.response) return err.response;
     console.error('archival-audio-lookup error:', err);
     // Degrade to the no-audio state rather than surfacing an error — a
     // source being down shouldn't read as a broken feature.
-    return { statusCode: 200, headers: CORS_HEADERS, body: JSON.stringify({ found: false }) };
+    return answer({ found: false });
   }
 };
 

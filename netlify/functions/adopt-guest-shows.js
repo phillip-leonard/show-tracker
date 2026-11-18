@@ -38,6 +38,8 @@ const { requireAccount } = require('./lib/requestAuth');
 const { takeDailyQuota } = require('./lib/rateLimit');
 const { purgeUserData } = require('./lib/userDataPurge');
 const { recomputeUserStats } = require('./lib/userStats');
+const { welcomeEmailAfterAdd } = require('./lib/welcomeEmail');
+const { openBlobStore, loadIndex } = require('./lib/publicArtistSnapshot');
 const { classifyDuplicate } = require('../../lib/showIdentity');
 const { mintShowId } = require('../../lib/showDoc');
 const { toIsoDate } = require('../../lib/showDate');
@@ -127,10 +129,15 @@ async function writeAll(db, writes) {
 }
 
 /**
- * adopt({ db, auth, accountUid, guestUid, mode, includePossible, bucket, serverTimestamp, purge })
+ * adopt({ db, auth, accountUid, guestUid, mode, includePossible, bucket, serverTimestamp, purge, welcome })
  * → the preview, or what the commit did.
+ *
+ * `welcome(showId)` (Stage 4, 5.60.32) runs when the commit moved shows
+ * into an account that had none: the welcome email, which a sign-in to an
+ * existing account never sent (lib/welcomeEmail.js decides whether it's
+ * due). Its outcome is `welcomeEmail` in the answer.
  */
-async function adopt({ db, auth, accountUid, guestUid, mode, includePossible = [], bucket = null, serverTimestamp = () => new Date(), purge = purgeUserData }) {
+async function adopt({ db, auth, accountUid, guestUid, mode, includePossible = [], bucket = null, serverTimestamp = () => new Date(), purge = purgeUserData, welcome = null }) {
   const [guestShows, accountShows, guestUpcoming, accountUpcoming, guestProfile, accountProfile] = await Promise.all([
     readAll(db, `users/${guestUid}/shows`),
     readAll(db, `users/${accountUid}/shows`),
@@ -181,8 +188,19 @@ async function adopt({ db, auth, accountUid, guestUid, mode, includePossible = [
     console.error('[adopt-guest-shows] stats recompute failed:', e && e.message);
   }
 
+  let welcomeEmail = null;
+  if (welcome && accountShows.length === 0 && showWrites.length > 0) {
+    try {
+      welcomeEmail = (await welcome(showWrites[0][0].id)).status || null;
+    } catch (e) {
+      console.error('[adopt-guest-shows] welcome email failed:', e && e.message);
+      welcomeEmail = 'error';
+    }
+  }
+
   return {
     mode: 'commit',
+    welcomeEmail,
     moved: showWrites.length,
     duplicates: plan.duplicates.length,
     possibleDropped: plan.possible.length,
@@ -236,6 +254,9 @@ exports.handler = async function (event) {
       includePossible,
       bucket,
       serverTimestamp: () => FieldValue.serverTimestamp(),
+      welcome: (showId) => welcomeEmailAfterAdd({
+        db, auth: getAdminAuth(), uid: user.uid, showId, readBandIndex: () => loadIndex(openBlobStore(event)),
+      }),
     });
     return reply(200, { ok: true, ...result });
   } catch (e) {

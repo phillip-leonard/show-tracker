@@ -1480,6 +1480,170 @@
         "artist": "Band 08",
         "count": 8
       }
-    ]
+    ],
+    "years": {
+      "2025": {
+        "showCount": 78,
+        "songCount": 234,
+        "ratedSongCount": 0,
+        "uniqueSongCount": 13,
+        "bandCount": 12,
+        "venueCount": 12,
+        "firstShowDate": "2025-01-01",
+        "lastShowDate": "2025-01-12",
+        "avgShowRating": null,
+        "ratedShowCount": 0,
+        "topBands": [
+          {
+            "name": "Band 12",
+            "count": 12
+          },
+          {
+            "name": "Band 11",
+            "count": 11
+          },
+          {
+            "name": "Band 10",
+            "count": 10
+          },
+          {
+            "name": "Band 09",
+            "count": 9
+          },
+          {
+            "name": "Band 08",
+            "count": 8
+          },
+          {
+            "name": "Band 07",
+            "count": 7
+          },
+          {
+            "name": "Band 06",
+            "count": 6
+          },
+          {
+            "name": "Band 05",
+            "count": 5
+          },
+          {
+            "name": "Band 04",
+            "count": 4
+          },
+          {
+            "name": "Band 03",
+            "count": 3
+          }
+        ],
+        "topVenues": [
+          {
+            "name": "Venue 12, Town",
+            "count": 12
+          },
+          {
+            "name": "Venue 11, Town",
+            "count": 11
+          },
+          {
+            "name": "Venue 10, Town",
+            "count": 10
+          },
+          {
+            "name": "Venue 9, Town",
+            "count": 9
+          },
+          {
+            "name": "Venue 8, Town",
+            "count": 8
+          },
+          {
+            "name": "Venue 7, Town",
+            "count": 7
+          },
+          {
+            "name": "Venue 6, Town",
+            "count": 6
+          },
+          {
+            "name": "Venue 5, Town",
+            "count": 5
+          },
+          {
+            "name": "Venue 4, Town",
+            "count": 4
+          },
+          {
+            "name": "Venue 3, Town",
+            "count": 3
+          }
+        ],
+        "topSongs": [
+          {
+            "name": "Intro",
+            "artist": "Band 12",
+            "count": 12
+          },
+          {
+            "name": "S12",
+            "artist": "Band 12",
+            "count": 12
+          },
+          {
+            "name": "Intro",
+            "artist": "Band 11",
+            "count": 11
+          },
+          {
+            "name": "S11",
+            "artist": "Band 11",
+            "count": 11
+          },
+          {
+            "name": "Intro",
+            "artist": "Band 10",
+            "count": 10
+          },
+          {
+            "name": "S10",
+            "artist": "Band 10",
+            "count": 10
+          },
+          {
+            "name": "Intro",
+            "artist": "Band 09",
+            "count": 9
+          },
+          {
+            "name": "S9",
+            "artist": "Band 09",
+            "count": 9
+          },
+          {
+            "name": "Intro",
+            "artist": "Band 08",
+            "count": 8
+          },
+          {
+            "name": "S8",
+            "artist": "Band 08",
+            "count": 8
+          }
+        ],
+        "showsByMonth": [
+          78,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    }
   }
 }

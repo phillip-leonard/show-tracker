@@ -4,6 +4,62 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.60.32] — 2026-11-18
+
+Ships in **iOS 3.13.48** (Capacitor, `MARKETING_VERSION` 3.13.47 → 3.13.48).
+Native unchanged (native 4.0.28 is the Stage 4 audit, #455). Stage 4,
+PR 4-2: the server work the native library screens need
+(`docs/ios-native/STAGE4-AUDIT.md` §1, DECISIONS "Stage 4").
+
+**Per-year stats on the server.** `userStats/{uid}` gains `years`: for each
+year with a dated show, that year's numbers by the same definitions as all
+time (counts, first and last show, average rating, top 10 bands, venues and
+songs) plus `showsByMonth`, twelve counts for the heatmap. Computed by
+`lib/stats` (`computeUserStats`), so every recompute writes it; additive,
+so `STATS_VERSION` stays 2. The native year picker reads it (Stage 4, 4-8).
+
+**The welcome email from the server's add paths.** `normalize-show` sends
+it when a commit writes an account's first show, and `adopt-guest-shows`
+when it moves shows into an account that had none
+(`welcomeEmailAfterAdd`, `netlify/functions/lib/welcomeEmail.js`). Native
+users never got it before: only the web asked. The web keeps its own call
+(Stage 4 call D); the send is claimed in a transaction, so one email goes.
+Skipped without the Resend key or unsubscribe secret, so a missing secret
+never uses up an account's attempts. A guest's still waits for
+`account-linked`.
+
+**"Where to stream this show" from the server.** `archival-audio-lookup`
+answers `streaming` with every 200, the same list the web's
+`StreamingLinks` draws (`lib/streamingPlatforms.js`, now CommonJS), built
+on each call and never cached (Stage 4 call A). The native app shows it
+without a Swift copy.
+
+**"Listen to this night" always sends an ISO date.** The function refuses
+`DD-MM-YYYY` with a 400, which read as "no recording". The web sent the
+stored date as is; stored dates are ISO since 5.60.12, but an old iOS build
+can still write the legacy shape until the nightly sweep fixes it, so
+`useArchivalAudio` now converts with `toIsoDate`. Checked against
+production: Grateful Dead 1977-05-08 finds its recordings; the same day as
+`08-05-1977` is refused.
+
+**"Hours of live music" is gone** from Stats (F-3): it was shows × 2, a
+guess shown as a number. Stats shows the same three tiles as the native
+app: shows, songs heard, artists (two columns on a phone, so a four-digit
+song count fits). The landing page no longer promises it.
+
+**Shared fixtures for the library screens** (`fixtures/README.md`):
+- `song-index/`: `lib/songIndex.js`, now CommonJS with `today` passed in,
+  pins the song page's times seen, first and last, current and longest gap
+  and performances, and its keys (`artistSlugFromName`, song slugs). These
+  are not Stats' `bandKey` (Stage 4 call C).
+- `runs/`: `buildRunIndex`, `buildTourIndex`, `newSongsOnTour` and the
+  `venuesFuzzyMatch` venue pairs they rely on.
+- `user-count/`: `shouldShowUserCount`, never below 1,000 users.
+- `user-stats/`: every case now carries `years`; `years.json` is new.
+
+All run in `lib/__tests__/libraryFixtures.test.js` and
+`statsFixtures.test.js`; the native PRs add the Swift side.
+
 ## [5.60.31] — 2026-11-18
 
 Ships in **iOS 3.13.47** (Capacitor, `MARKETING_VERSION` 3.13.46 → 3.13.47).

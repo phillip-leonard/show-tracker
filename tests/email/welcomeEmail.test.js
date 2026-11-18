@@ -21,7 +21,7 @@ const { __setTestTransport, buildEmail } = require('../../netlify/functions/lib/
 const { hashEmail, verify } = require('../../netlify/functions/lib/unsubscribeToken');
 const { FOOTER_MARKER } = require('../../netlify/functions/lib/emailLayout');
 const {
-  welcomeEmail, processWelcomeEmail, decideClaim, bandPageFor,
+  welcomeEmail, processWelcomeEmail, welcomeEmailAfterAdd, decideClaim, bandPageFor,
   WELCOME_EMAIL_START, MAX_ATTEMPTS, SUBJECT, PREHEADER, LINKS, SAMPLES,
 } = require('../../netlify/functions/lib/welcomeEmail');
 const { findArtistByName } = require('../../netlify/functions/lib/publicArtistSnapshot');
@@ -491,6 +491,33 @@ function handlerSetup() {
   __setTestFirebase({ db: ctx.db, auth });
   handlerMod.__setTestBandIndexReader(() => readIndex());
   return ctx;
+}
+
+test('welcomeEmailAfterAdd (5.60.32): sends through the same claim; skips without the secrets; never throws', async () => {
+  const ctx = setup();
+  const first = await welcomeEmailAfterAdd({ db: ctx.db, auth: ctx.auth, uid: ctx.uid, showId: 'show_0', now: NOW, readBandIndex: readIndex() });
+  assert.strictEqual(first.status, 'sent');
+  assert.strictEqual(ctx.sent.length, 1);
+  const again = await welcomeEmailAfterAdd({ db: ctx.db, auth: ctx.auth, uid: ctx.uid, now: NOW });
+  assert.notStrictEqual(again.status, 'sent', 'the claim holds: one email');
+  assert.strictEqual(ctx.sent.length, 1);
+
+  const fresh = setup();
+  const saved = process.env.RESEND_API_KEY;
+  delete process.env.RESEND_API_KEY;
+  try {
+    assert.deepStrictEqual(await welcomeEmailAfterAdd({ db: fresh.db, auth: fresh.auth, uid: fresh.uid, now: NOW }), { status: 'not_configured' });
+  } finally { process.env.RESEND_API_KEY = saved; }
+  assert.strictEqual(fresh.db._get(`userProfiles/${fresh.uid}`).welcomeEmail, undefined, 'no attempt used up');
+
+  const broken = { doc: () => { throw new Error('db down'); }, collection: () => { throw new Error('db down'); } };
+  assert.deepStrictEqual(await quietly(() => welcomeEmailAfterAdd({ db: broken, auth: fresh.auth, uid: fresh.uid, now: NOW })), { status: 'error' });
+});
+
+async function quietly(fn) {
+  const err = console.error;
+  console.error = () => {};
+  try { return await fn(); } finally { console.error = err; }
 }
 
 test('handler: no token → 401; bad token → 401; nothing sent', async () => {

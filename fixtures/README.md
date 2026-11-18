@@ -126,6 +126,9 @@ and `computedAt`, which depend on other users). The top lists are the top
 10, all time: `topBands` and `topVenues` as `{ name, count }`, `topSongs` as
 `{ name, artist, count }` counted by shows (a reprise is one show), per band.
 The Swift side decodes each `expected` in `UserStatsFixtureTests`.
+Since 5.60.32 (Stage 4) `expected.years` holds each dated year's numbers by
+the same definitions, plus `showsByMonth` (twelve counts, January first);
+`years.json` covers a legacy date and a show with no readable date.
 
 `stats-keys/keys.json`: `[input, key]` rows for `bandKey` and `songKey`
 (`lib/stats/keys.js`) and `venueCountKey` (`lib/venueCount.js`), the
@@ -145,6 +148,32 @@ change:
 UPDATE_FIXTURES=1 node lib/__tests__/statsFixtures.test.js
 UPDATE_FIXTURES=1 node --experimental-loader ./lib/__tests__/alias-loader.mjs lib/__tests__/recapLaunchFixture.test.js
 ```
+
+## `song-index/`, `runs/` and `user-count/` (5.60.32, Stage 4)
+
+`song-index/gaps.json`: `{ today, shows, expected }`, where `expected` is
+`buildSongIndex(shows, { today })` (`lib/songIndex.js`): per song key, times
+seen (distinct shows), first and last seen, the current gap (shows of that
+band since, days to `today`), the longest gap, and every performance with
+its set label, position, opener, closer, encore and segues. Gaps count only
+this person's own shows of the band.
+
+`song-index/keys.json`: rows for `artistSlugFromName`, `songSlugFromTitle`,
+`songKeyFor` and `songKeyFromParams`, the song page's identity. It is not
+Stats' `bandKey` (Stage 4 call C): "goose (US)" is its own song page.
+
+`runs/*.json`: `{ today, shows, venuePairs, expected }`, where
+`expected.runs` is `buildRunIndex`, `expected.tours` `buildTourIndex` and
+`expected.newSongsOnTour` each tour's `newSongsOnTour` against the song
+index (`lib/runIndex.js`); `venuePairs` are `[a, b, venuesFuzzyMatch(a, b)]`
+(`lib/showIdentity.js`), the venue rule a run uses.
+
+`user-count/threshold.json`: `[totalUsers, show]` rows for
+`shouldShowUserCount` (`lib/userCount.js`): never below 1,000 users.
+
+All three run in `lib/__tests__/libraryFixtures.test.js`
+(`UPDATE_FIXTURES=1` to regenerate); the native app's Stage 4 PRs add the
+Swift side.
 
 ## `year-in-review/`
 

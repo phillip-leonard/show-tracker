@@ -44,7 +44,7 @@ const { findArtistByName } = require('./publicArtistSnapshot');
 const { buildEmail, sendOne } = require('./outgoingEmail');
 const { canEmail } = require('./emailPolicy');
 const { normalizeEmail } = require('./unsubscribeToken');
-const { isAnonymousAuthUser } = require('./firebaseAdmin');
+const { isAnonymousAuthUser, ADMIN_EMAILS } = require('./firebaseAdmin');
 
 // Accounts created before this never get the welcome email. It went out
 // in 5.55.0; everyone already signed up by then has seen the app.
@@ -216,8 +216,32 @@ async function processWelcomeEmail({ db, auth, uid, showId = null, now = new Dat
   return { status: 'failed', error, attempts };
 }
 
+/**
+ * welcomeEmailAfterAdd({ db, auth, uid, showId, readBandIndex, now })
+ * → processWelcomeEmail's outcome, from a server add path (Stage 4, 5.60.32):
+ * normalize-show after an account's first show, and adopt-guest-shows after
+ * moving shows into an account that had none. The native app never asks
+ * send-welcome-email itself; the web still does (Stage 4 call D), and the
+ * claim above makes the second ask send nothing.
+ *
+ * Skips with { status: 'not_configured' } when the Resend key or the
+ * unsubscribe secret is missing, as send-welcome-email refuses then too, so
+ * a missing secret never uses up an account's attempts. Never throws: an
+ * add never fails because of the email.
+ */
+async function welcomeEmailAfterAdd({ db, auth, uid, showId = null, readBandIndex = null, now = new Date() }) {
+  if (!process.env.RESEND_API_KEY || !process.env.UNSUBSCRIBE_SECRET) return { status: 'not_configured' };
+  try {
+    const replyTo = process.env.ANNOUNCEMENT_REPLY_TO || ADMIN_EMAILS[0];
+    return await processWelcomeEmail({ db, auth, uid, showId, now, replyTo, readBandIndex });
+  } catch (e) {
+    console.error('[welcome-email] after add failed:', e && e.message);
+    return { status: 'error' };
+  }
+}
+
 module.exports = {
-  welcomeEmail, processWelcomeEmail, decideClaim, bandPageFor,
+  welcomeEmail, processWelcomeEmail, welcomeEmailAfterAdd, decideClaim, bandPageFor,
   WELCOME_EMAIL_START, MAX_ATTEMPTS, BAND_LOOKUP_TIMEOUT_MS,
   SUBJECT, PREHEADER, LINKS, SAMPLE, SAMPLE_NO_BAND_PAGE, SAMPLES, showLink, bandLink,
 };

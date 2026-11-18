@@ -149,6 +149,9 @@ const SCHEMAS = {
       lastShowDate: R.text, avgShowRating: R.numberOrNumericString, ratedShowCount: R.int,
       topBands: list(NAME_COUNT), topVenues: list(NAME_COUNT), topSongs: list(SONG_COUNT), ranked: R.flag, rank: R.int, rankedOf: R.int, computedAt: R.moment,
     },
+    // `years` (5.60.32): the per-year block. The Swift model reads it from
+    // Stage 4's Stats PR (4-8); it moves into `fields` then.
+    ignore: ['years'],
   },
   publicUserStats: {
     fields: {

@@ -20,6 +20,7 @@ const normalizeShow = require('../../netlify/functions/normalize-show');
 
 const ALICE = { uid: 'aliceUid000001', email: 'alice@example.com' };
 const BOB = { uid: 'bobUid00000001', email: 'bob@example.com' };
+const GUEST = { uid: 'guestUid000001', firebase: { sign_in_provider: 'anonymous', identities: {} } };
 
 const PHISH = {
   id: '63de4613', eventDate: '31-12-2024', url: 'https://www.setlist.fm/setlist/63de4613.html',
@@ -31,12 +32,14 @@ const NO_SHOW = { ok: false, songs: [], shows: [] };
 
 function setup({ band = NO_SHOW } = {}) {
   const db = createFakeDb();
-  const auth = createFakeAuth({ tokens: { 'alice-token': ALICE, 'bob-token': BOB }, users: [ALICE, BOB] });
+  const auth = createFakeAuth({ tokens: { 'alice-token': ALICE, 'bob-token': BOB, 'guest-token': GUEST }, users: [ALICE, BOB, GUEST] });
   __setTestFirebase({ db, auth });
   __setTestDeps(() => ({
     setlistfmSetlist: async (id) => (id === PHISH.id ? PHISH : null),
     bandSetlist: async () => band,
   }));
+  // The harness sets a Resend key; no test here sends a real email.
+  normalizeShow.__setTestWelcomeEmail(async () => ({ status: 'stubbed' }));
   return db;
 }
 
@@ -201,6 +204,43 @@ test('sweep: the stored pass fixes only the date, isManual and a missing setlist
   const fixed = db._get(`users/${ALICE.uid}/shows/1`);
   assert.deepStrictEqual([fixed.date, fixed.isManual, fixed.artist, fixed.tour, fixed.rating, fixed.setlist], ['2024-12-31', false, ' Phish ', '', 9, [{ name: '' }]]);
   assert.strictEqual((await sweepStored(db, { write: false })).changed, 0);
+});
+
+test('the welcome email: an account\'s first commit asks once; later adds, previews and guests never do (5.60.32)', async () => {
+  const calls = [];
+  const spy = async ({ uid, showId }) => { calls.push([uid, showId]); return { status: 'sent' }; };
+  setup();
+  normalizeShow.__setTestWelcomeEmail(spy);
+  const preview = json(await call('alice-token', { mode: 'preview', input: { kind: 'setlistfm', setlistfmId: PHISH.id } }));
+  assert.strictEqual(preview.welcomeEmail, undefined);
+  assert.deepStrictEqual(calls, [], 'a preview writes nothing and sends nothing');
+
+  const first = json(await call('alice-token', { mode: 'commit', input: { kind: 'setlistfm', setlistfmId: PHISH.id, showId: SHOW_ID } }));
+  assert.strictEqual(first.welcomeEmail, 'sent');
+  assert.deepStrictEqual(calls, [[ALICE.uid, SHOW_ID]]);
+
+  const second = json(await call('alice-token', { mode: 'commit', input: { kind: 'manual', artist: 'Goose', venue: 'Red Rocks', city: 'Morrison', date: '2024-06-14' } }));
+  assert.strictEqual(second.created, true, JSON.stringify(second));
+  assert.strictEqual(second.welcomeEmail, undefined);
+  assert.strictEqual(calls.length, 1, 'the account already had a show');
+
+  // A batch asks once, for the first show it created.
+  setup();
+  normalizeShow.__setTestWelcomeEmail(spy);
+  calls.length = 0;
+  const batch = json(await call('bob-token', { mode: 'commit', inputs: [
+    { kind: 'manual', artist: 'Goose', venue: 'Red Rocks', city: 'Morrison', date: '2024-06-14', showId: '1763121600001' },
+    { kind: 'manual', artist: 'Phish', venue: 'MSG', city: 'New York', date: '2024-12-31', showId: '1763121600002' },
+  ] }));
+  assert.strictEqual(batch.welcomeEmail, 'sent');
+  assert.deepStrictEqual(calls, [[BOB.uid, '1763121600001']], 'once per request, with the first created show');
+
+  // A guest's first show: nothing yet (account-linked sends it after a link).
+  calls.length = 0;
+  const guest = json(await call('guest-token', { mode: 'commit', input: { kind: 'manual', artist: 'Goose', venue: 'Red Rocks', city: 'Morrison', date: '2024-06-14' } }));
+  assert.strictEqual(guest.created, true, JSON.stringify(guest));
+  assert.strictEqual(guest.welcomeEmail, undefined);
+  assert.deepStrictEqual(calls, []);
 });
 
 run('normalize-show (5.60.5)');

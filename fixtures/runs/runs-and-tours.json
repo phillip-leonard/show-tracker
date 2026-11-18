@@ -1,0 +1,601 @@
+{
+  "name": "runs-and-tours",
+  "description": "lib/runIndex.js: runs are two or more nights of one artist (exact string) at one venue (venuesFuzzyMatch, so a sponsor rename stays one run) with at most one day between nights; tours group by artist slug + tour name. A Friday and the next Friday are not a run; Dec 30 to Jan 1 is one. expected.runs is buildRunIndex, expected.tours buildTourIndex, expected.newSongsOnTour each tour's newSongsOnTour against buildSongIndex(shows, { today }). Phish's Dec 30 – Jan 1 at Madison Square Garden is one three-night run across the year; \"phish\" on Jan 2 is another artist string, so not part of it. \"MSG\" and \"Madison Square Garden\" don't match (venuePairs), so a night logged as MSG would split a run.",
+  "today": "2026-11-18",
+  "shows": [
+    {
+      "id": "d1",
+      "artist": "Goose",
+      "venue": "Dick's Sporting Goods Park",
+      "city": "Commerce City",
+      "date": "2025-08-29",
+      "rating": 8,
+      "tour": "Summer Tour 2025",
+      "setlist": [
+        {
+          "id": "1",
+          "name": "Arcadia"
+        },
+        {
+          "id": "2",
+          "name": "Hot Tea"
+        }
+      ]
+    },
+    {
+      "id": "d2",
+      "artist": "Goose",
+      "venue": "Dick's",
+      "city": "Commerce City",
+      "date": "2025-08-30",
+      "rating": 9,
+      "tour": "Summer Tour 2025",
+      "setlist": [
+        {
+          "id": "3",
+          "name": "Tumble"
+        },
+        {
+          "id": "4",
+          "name": "Arcadia"
+        }
+      ]
+    },
+    {
+      "id": "d3",
+      "artist": "Goose",
+      "venue": "Dick's Sporting Goods Park",
+      "city": "Commerce City",
+      "date": "31-08-2025",
+      "tour": "Summer Tour 2025",
+      "setlist": []
+    },
+    {
+      "id": "r1",
+      "artist": "Goose",
+      "venue": "Red Rocks",
+      "city": "Morrison",
+      "date": "2025-06-06",
+      "rating": 7,
+      "tour": "Summer Tour 2025",
+      "setlist": [
+        {
+          "id": "5",
+          "name": "Arcadia"
+        }
+      ]
+    },
+    {
+      "id": "r2",
+      "artist": "Goose",
+      "venue": "Red Rocks",
+      "city": "Morrison",
+      "date": "2025-06-13",
+      "tour": "Summer Tour 2025",
+      "setlist": [
+        {
+          "id": "6",
+          "name": "Madhuvan"
+        }
+      ]
+    },
+    {
+      "id": "n1",
+      "artist": "Phish",
+      "venue": "Madison Square Garden",
+      "city": "New York",
+      "date": "2024-12-30",
+      "rating": 9,
+      "tour": "NYE Run",
+      "setlist": [
+        {
+          "id": "7",
+          "name": "Tweezer"
+        },
+        {
+          "id": "8",
+          "name": "Ghost"
+        }
+      ]
+    },
+    {
+      "id": "n2",
+      "artist": "Phish",
+      "venue": "Madison Square Garden",
+      "city": "New York",
+      "date": "2024-12-31",
+      "rating": 9,
+      "tour": "NYE Run",
+      "setlist": [
+        {
+          "id": "9",
+          "name": "Tweezer Reprise"
+        }
+      ]
+    },
+    {
+      "id": "n3",
+      "artist": "Phish",
+      "venue": "Madison Square Garden",
+      "city": "New York",
+      "date": "2025-01-01",
+      "rating": 10,
+      "tour": "nye run",
+      "setlist": [
+        {
+          "id": "10",
+          "name": "Tweezer"
+        }
+      ]
+    },
+    {
+      "id": "x1",
+      "artist": "phish",
+      "venue": "Madison Square Garden",
+      "city": "New York",
+      "date": "2025-01-02",
+      "setlist": []
+    }
+  ],
+  "venuePairs": [
+    [
+      "Dick's",
+      "Dick's Sporting Goods Park",
+      true
+    ],
+    [
+      "MSG",
+      "Madison Square Garden",
+      false
+    ],
+    [
+      "Red Rocks Amphitheatre",
+      "Red Rocks",
+      true
+    ],
+    [
+      "The Fillmore",
+      "Fillmore Auditorium",
+      false
+    ],
+    [
+      "",
+      "",
+      false
+    ],
+    [
+      "Ryman",
+      "Ryman Auditorium",
+      true
+    ]
+  ],
+  "expected": {
+    "runs": {
+      "goose:dicks-sporting-goods-park:2025-08-29": {
+        "key": "goose:dicks-sporting-goods-park:2025-08-29",
+        "artistName": "Goose",
+        "artistSlug": "goose",
+        "venueName": "Dick's Sporting Goods Park",
+        "city": "Commerce City",
+        "nights": [
+          {
+            "showId": "d1",
+            "date": "2025-08-29",
+            "venue": "Dick's Sporting Goods Park",
+            "city": "Commerce City",
+            "rating": 8,
+            "setlist": [
+              {
+                "id": "1",
+                "name": "Arcadia"
+              },
+              {
+                "id": "2",
+                "name": "Hot Tea"
+              }
+            ],
+            "hasSetlist": true,
+            "artist": "Goose",
+            "setlistfmId": null,
+            "setlistfmUrl": null,
+            "setlistSource": null,
+            "sourceShowId": null,
+            "sourcePermalink": null
+          },
+          {
+            "showId": "d2",
+            "date": "2025-08-30",
+            "venue": "Dick's",
+            "city": "Commerce City",
+            "rating": 9,
+            "setlist": [
+              {
+                "id": "3",
+                "name": "Tumble"
+              },
+              {
+                "id": "4",
+                "name": "Arcadia"
+              }
+            ],
+            "hasSetlist": true,
+            "artist": "Goose",
+            "setlistfmId": null,
+            "setlistfmUrl": null,
+            "setlistSource": null,
+            "sourceShowId": null,
+            "sourcePermalink": null
+          },
+          {
+            "showId": "d3",
+            "date": "31-08-2025",
+            "venue": "Dick's Sporting Goods Park",
+            "city": "Commerce City",
+            "rating": null,
+            "setlist": [],
+            "hasSetlist": false,
+            "artist": "Goose",
+            "setlistfmId": null,
+            "setlistfmUrl": null,
+            "setlistSource": null,
+            "sourceShowId": null,
+            "sourcePermalink": null
+          }
+        ],
+        "nightCount": 3,
+        "dateRange": {
+          "start": "2025-08-29",
+          "end": "31-08-2025"
+        },
+        "totalSongs": 4,
+        "uniqueSongs": 3,
+        "hasIncompleteData": true,
+        "noRepeat": null,
+        "repeats": [
+          {
+            "key": "arcadia",
+            "title": "Arcadia",
+            "nightNumbers": [
+              1,
+              2
+            ]
+          }
+        ],
+        "combinedSetlist": [
+          {
+            "key": "arcadia",
+            "title": "Arcadia",
+            "nightNumbers": [
+              1,
+              2
+            ]
+          },
+          {
+            "key": "hot tea",
+            "title": "Hot Tea",
+            "nightNumbers": [
+              1
+            ]
+          },
+          {
+            "key": "tumble",
+            "title": "Tumble",
+            "nightNumbers": [
+              2
+            ]
+          }
+        ],
+        "avgRating": 8.5,
+        "bestNightIndex": 1
+      },
+      "phish:madison-square-garden:2024-12-30": {
+        "key": "phish:madison-square-garden:2024-12-30",
+        "artistName": "Phish",
+        "artistSlug": "phish",
+        "venueName": "Madison Square Garden",
+        "city": "New York",
+        "nights": [
+          {
+            "showId": "n1",
+            "date": "2024-12-30",
+            "venue": "Madison Square Garden",
+            "city": "New York",
+            "rating": 9,
+            "setlist": [
+              {
+                "id": "7",
+                "name": "Tweezer"
+              },
+              {
+                "id": "8",
+                "name": "Ghost"
+              }
+            ],
+            "hasSetlist": true,
+            "artist": "Phish",
+            "setlistfmId": null,
+            "setlistfmUrl": null,
+            "setlistSource": null,
+            "sourceShowId": null,
+            "sourcePermalink": null
+          },
+          {
+            "showId": "n2",
+            "date": "2024-12-31",
+            "venue": "Madison Square Garden",
+            "city": "New York",
+            "rating": 9,
+            "setlist": [
+              {
+                "id": "9",
+                "name": "Tweezer Reprise"
+              }
+            ],
+            "hasSetlist": true,
+            "artist": "Phish",
+            "setlistfmId": null,
+            "setlistfmUrl": null,
+            "setlistSource": null,
+            "sourceShowId": null,
+            "sourcePermalink": null
+          },
+          {
+            "showId": "n3",
+            "date": "2025-01-01",
+            "venue": "Madison Square Garden",
+            "city": "New York",
+            "rating": 10,
+            "setlist": [
+              {
+                "id": "10",
+                "name": "Tweezer"
+              }
+            ],
+            "hasSetlist": true,
+            "artist": "Phish",
+            "setlistfmId": null,
+            "setlistfmUrl": null,
+            "setlistSource": null,
+            "sourceShowId": null,
+            "sourcePermalink": null
+          }
+        ],
+        "nightCount": 3,
+        "dateRange": {
+          "start": "2024-12-30",
+          "end": "2025-01-01"
+        },
+        "totalSongs": 4,
+        "uniqueSongs": 3,
+        "hasIncompleteData": false,
+        "noRepeat": false,
+        "repeats": [
+          {
+            "key": "tweezer",
+            "title": "Tweezer",
+            "nightNumbers": [
+              1,
+              3
+            ]
+          }
+        ],
+        "combinedSetlist": [
+          {
+            "key": "ghost",
+            "title": "Ghost",
+            "nightNumbers": [
+              1
+            ]
+          },
+          {
+            "key": "tweezer",
+            "title": "Tweezer",
+            "nightNumbers": [
+              1,
+              3
+            ]
+          },
+          {
+            "key": "tweezer reprise",
+            "title": "Tweezer Reprise",
+            "nightNumbers": [
+              2
+            ]
+          }
+        ],
+        "avgRating": 9.333333333333334,
+        "bestNightIndex": 2
+      }
+    },
+    "tours": {
+      "goose:summer-tour-2025": {
+        "key": "goose:summer-tour-2025",
+        "artistName": "Goose",
+        "artistSlug": "goose",
+        "tourName": "Summer Tour 2025",
+        "stops": [
+          {
+            "showId": "r1",
+            "date": "2025-06-06",
+            "venue": "Red Rocks",
+            "city": "Morrison",
+            "country": "",
+            "rating": 7
+          },
+          {
+            "showId": "r2",
+            "date": "2025-06-13",
+            "venue": "Red Rocks",
+            "city": "Morrison",
+            "country": "",
+            "rating": null
+          },
+          {
+            "showId": "d1",
+            "date": "2025-08-29",
+            "venue": "Dick's Sporting Goods Park",
+            "city": "Commerce City",
+            "country": "",
+            "rating": 8
+          },
+          {
+            "showId": "d2",
+            "date": "2025-08-30",
+            "venue": "Dick's",
+            "city": "Commerce City",
+            "country": "",
+            "rating": 9
+          },
+          {
+            "showId": "d3",
+            "date": "31-08-2025",
+            "venue": "Dick's Sporting Goods Park",
+            "city": "Commerce City",
+            "country": "",
+            "rating": null
+          }
+        ],
+        "stopCount": 5,
+        "dateRange": {
+          "start": "2025-06-06",
+          "end": "31-08-2025"
+        },
+        "uniqueSongs": 4,
+        "avgRating": 8,
+        "venuesCount": 3,
+        "countriesVisited": 0,
+        "years": [
+          "2025"
+        ]
+      },
+      "phish:nye-run": {
+        "key": "phish:nye-run",
+        "artistName": "Phish",
+        "artistSlug": "phish",
+        "tourName": "NYE Run",
+        "stops": [
+          {
+            "showId": "n1",
+            "date": "2024-12-30",
+            "venue": "Madison Square Garden",
+            "city": "New York",
+            "country": "",
+            "rating": 9
+          },
+          {
+            "showId": "n2",
+            "date": "2024-12-31",
+            "venue": "Madison Square Garden",
+            "city": "New York",
+            "country": "",
+            "rating": 9
+          },
+          {
+            "showId": "n3",
+            "date": "2025-01-01",
+            "venue": "Madison Square Garden",
+            "city": "New York",
+            "country": "",
+            "rating": 10
+          }
+        ],
+        "stopCount": 3,
+        "dateRange": {
+          "start": "2024-12-30",
+          "end": "2025-01-01"
+        },
+        "uniqueSongs": 3,
+        "avgRating": 9.333333333333334,
+        "venuesCount": 1,
+        "countriesVisited": 0,
+        "years": [
+          "2024",
+          "2025"
+        ]
+      }
+    },
+    "newSongsOnTour": {
+      "goose:summer-tour-2025": [
+        {
+          "key": "goose:arcadia",
+          "title": "Arcadia",
+          "timesSeen": 3,
+          "firstSeen": {
+            "date": "2025-06-06",
+            "venue": "Red Rocks",
+            "city": "Morrison",
+            "showId": "r1"
+          }
+        },
+        {
+          "key": "goose:madhuvan",
+          "title": "Madhuvan",
+          "timesSeen": 1,
+          "firstSeen": {
+            "date": "2025-06-13",
+            "venue": "Red Rocks",
+            "city": "Morrison",
+            "showId": "r2"
+          }
+        },
+        {
+          "key": "goose:hot tea",
+          "title": "Hot Tea",
+          "timesSeen": 1,
+          "firstSeen": {
+            "date": "2025-08-29",
+            "venue": "Dick's Sporting Goods Park",
+            "city": "Commerce City",
+            "showId": "d1"
+          }
+        },
+        {
+          "key": "goose:tumble",
+          "title": "Tumble",
+          "timesSeen": 1,
+          "firstSeen": {
+            "date": "2025-08-30",
+            "venue": "Dick's",
+            "city": "Commerce City",
+            "showId": "d2"
+          }
+        }
+      ],
+      "phish:nye-run": [
+        {
+          "key": "phish:ghost",
+          "title": "Ghost",
+          "timesSeen": 1,
+          "firstSeen": {
+            "date": "2024-12-30",
+            "venue": "Madison Square Garden",
+            "city": "New York",
+            "showId": "n1"
+          }
+        },
+        {
+          "key": "phish:tweezer",
+          "title": "Tweezer",
+          "timesSeen": 2,
+          "firstSeen": {
+            "date": "2024-12-30",
+            "venue": "Madison Square Garden",
+            "city": "New York",
+            "showId": "n1"
+          }
+        },
+        {
+          "key": "phish:tweezer reprise",
+          "title": "Tweezer Reprise",
+          "timesSeen": 1,
+          "firstSeen": {
+            "date": "2024-12-31",
+            "venue": "Madison Square Garden",
+            "city": "New York",
+            "showId": "n2"
+          }
+        }
+      ]
+    }
+  }
+}
