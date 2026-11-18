@@ -138,8 +138,8 @@ Two gaps aren't screens, and both should be fixed whatever else is decided:
 | Show stats: songs, duration, tour, debuts | Sidebar card | Songs and debuts | Native #433, partly | S | none | 4 |
 | Friends who were there | Yes | Yes | Native #448 | | | |
 | Shows to confirm (suggestions) | Yes | Yes | Native #448 | | | |
-| "Where to stream this show" (nugs.net, playdead, Relisten, archive.org) | `StreamingLinks`, `lib/streamingPlatforms.js` | None | Missing | S | Shared fixture for `getStreamingPlatforms` (or make the module CommonJS and port it) | 6 |
-| "Listen to this night" (Relisten / Internet Archive recordings, link-out) | `ArchivalAudioSection`, `archival-audio-lookup` | None | Missing | S | none | 6 |
+| "Where to stream this show" (nugs.net, playdead, Relisten, archive.org) | `StreamingLinks`, `lib/streamingPlatforms.js` | None | Missing | S | `archival-audio-lookup` answers the list (Stage 4 call A) | 4 |
+| "Listen to this night" (Relisten / Internet Archive recordings, link-out) | `ArchivalAudioSection`, `archival-audio-lookup` | None | Missing | S | none | 4 |
 | Photos and videos | `ShowMediaSection` | Hidden (C-4) | Missing (was v1.x) | L | none beyond today's: Storage upload, `moderate-content`, `report-content` | 6 |
 | Posters | `ShowMediaSection` | Hidden (C-4) | Missing (was v1.x) | (with photos) | | 6 |
 | Setlist photos | `ShowMediaSection` | Hidden (C-4) | Missing (was v1.x) | (with photos) | | 6 |
@@ -445,7 +445,7 @@ The numbers below are placeholders: each PR takes the next free number from `mai
 | 4-1 | **Stage 4 audit.** Confirms the server needs below and the F-1 navigation. | docs |
 | 4-2 | **Server:** per-year block in `userStats` (F-15); the welcome email from `normalize-show`; "Hours of live music" off the web's Stats page (F-3); fixtures for runs (`lib/runIndex.js`), the song key and gaps, and the user-count threshold. | server (web + Capacitor + native bump) |
 | 4-3 | **Navigation:** the Library section, Community on Stats (F-1); the guest's first-show account prompt. | native |
-| 4-4 | **Songs:** the full song list and the song page. | native |
+| 4-4 | **Songs and listening:** the full song list and the song page; "Listen to this night" and "Where to stream this show" (moved from 6-8, 2026-11-18). | native |
 | 4-5 | **Bands:** the band page from the public snapshot, the band song page, artist info. Replaces the #451 stand-in. | native |
 | 4-6 | **Runs and tours:** run page, tours list, tour page, favorite tours, tour info; show-page links for tour, run and venue. | native |
 | 4-7 | **Venues:** venue page, community ratings, rate a venue, photos and announcements (read), report; manage and verify open the web (F-6). | native |
@@ -475,7 +475,7 @@ The numbers below are placeholders: each PR takes the next free number from `mai
 | 6-5 | **Meetups.** | native |
 | 6-6 | **Activity feed** and the "Show my activity" setting. | native |
 | 6-7 | **Imports:** screenshot import and CSV/Excel import (F-10). | native |
-| 6-8 | **Show extras:** streaming links, "Listen to this night", play counts, archive backfill card, "Relive this night" card, the anniversary calendar. | native |
+| 6-8 | **Show extras:** play counts, archive backfill card, "Relive this night" card, the anniversary calendar. | native |
 | 6-9 | **Posters:** my poster, share image, share link, Save to "Songs I've heard". | native |
 | 6-10 | **Year in Review** natively, with its share image (F-13). | native |
 | 6-11 | **Profile and help:** achievements, notes list, public profile preview, feedback, roadmap and voting, How to Use (F-7), What's New (F-5), announcements popups, Community Guidelines link, guest banner, haptics (F-8). | native |
