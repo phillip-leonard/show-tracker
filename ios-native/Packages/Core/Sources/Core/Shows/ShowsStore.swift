@@ -25,7 +25,7 @@ public final class ShowsStore {
     public private(set) var uid: String?
     public private(set) var shows: [Show] = [] {
         // The song index is built again from the new list when next read.
-        didSet { songIndexCache = nil }
+        didSet { songIndexCache = nil; runsCache = nil; toursCache = nil }
     }
     public private(set) var upcoming: [UpcomingShow] = []
     public private(set) var stats: UserStats?
@@ -56,6 +56,9 @@ public final class ShowsStore {
     public var writeProblem: String?
     /// `songIndex`, built once per list of shows and day.
     @ObservationIgnored var songIndexCache: (today: String, index: [String: SongIndex.Entry])?
+    /// `runs` and `tours`, built once per list of shows (Stage 4, 4-6).
+    @ObservationIgnored var runsCache: [RunIndex.Run]?
+    @ObservationIgnored var toursCache: [String: TourIndex.Tour]?
 
     private var showsLoad: LiveLoad<Snapshot<Show>>?
     private var upcomingLoad: LiveLoad<Snapshot<UpcomingShow>>?

@@ -89,9 +89,14 @@ public enum LibraryDestination: String, CaseIterable, Hashable, Sendable, Identi
     /// Built natively yet. Until its PR, an item opens its web page
     /// (Stage 4 call B for Festivals and Setlist Photos, which wait for
     /// Stages 5 and 6; the rest until their Stage 4 PRs).
-    public var native: Bool {
+    public var native: Bool { route != nil }
+
+    /// Its native screen, once built: Tours and Runs since 4-6.
+    public var route: AppRoute? {
         switch self {
-        case .tours, .runs, .festivals, .wishlist, .bucketList, .setlistPhotos, .community: false
+        case .tours: .tours
+        case .runs: .runs
+        case .festivals, .wishlist, .bucketList, .setlistPhotos, .community: nil
         }
     }
 }
