@@ -17,6 +17,7 @@ struct MeView: View {
     @State private var signingOut = false
     @State private var versionTaps = 0
     @State private var showHidden = false
+    @State private var isAdmin = false
 
     private var isGuest: Bool { session.user?.isAnonymous == true }
 
@@ -39,6 +40,8 @@ struct MeView: View {
                 EmailPreferencesSection()
                 BlockedAccountsLink()
             }
+
+            PushSettingsSection()
 
             ConnectedAccountsSection(user: session.user)
 
@@ -93,6 +96,10 @@ struct MeView: View {
                     // Q-01, in every build (TestFlight is Release): what this
                     // install found on its first launch. No personal data.
                     NavigationLink("First-launch sign-in") { FirstLaunchReportView() }
+                    if isAdmin {
+                        // C-7: test pushes, for admins with the claim.
+                        NavigationLink("Push") { PushDiagnosticsView() }
+                    }
                     #if DEBUG
                     NavigationLink("Developer") { DeveloperSettingsView() }
                     #endif
@@ -101,6 +108,7 @@ struct MeView: View {
             .brandRow()
         }
         .navigationTitle("Me")
+        .task(id: showHidden) { if showHidden { isAdmin = await session.hasAdminClaim() } }
         .safeAreaInset(edge: .top, spacing: 0) { UpdateBanner() }
         .sheet(isPresented: $showUpgrade) { GuestUpgradeView() }
         .sheet(isPresented: $showDelete) { DeleteAccountView() }

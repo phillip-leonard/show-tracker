@@ -2,9 +2,10 @@ import Core
 import DesignSystem
 import UIKit
 
-/// Launch-time setup: fonts and Firebase. Links are followed in
-/// `MySetlistsApp` (`onOpenURL`, `AppRouter`). Push registration isn't
-/// wired yet.
+/// Launch-time setup: fonts, Firebase and push (Stage 3, Part 5:
+/// `PushCenter` takes the notification and Messaging delegates and
+/// registers with APNs, which shows nothing). Links, push taps included,
+/// are followed in `MySetlistsApp` (`AppRouter`).
 final class AppDelegate: NSObject, UIApplicationDelegate {
     func application(
         _ application: UIApplication,
@@ -16,6 +17,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         AppBootstrap.configureFirebase()
         // Q-01: which auth state this install found the first time it ran.
         FirstLaunchAuthRecorder.start()
+        PushCenter.shared.configureAtLaunch(application)
         return true
     }
 }

@@ -4,6 +4,40 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.60.30] — 2026-11-16
+
+Ships in **iOS 3.13.46** (Capacitor, `MARKETING_VERSION` 3.13.45 → 3.13.46)
+and **native 4.0.24** (4.0.23 went to the inbox, #449). Stage 3,
+Part 5 (`docs/ios-native/STAGE3-AUDIT.md` §5, DECISIONS "Stage 3", C-7 and
+C-8).
+
+**A test push for admins.** The new `send-test-push` function sends a test
+push to the caller's own devices, with a mysetlists.net link to open, so
+push delivery and where a tap lands can be checked on a real iPhone.
+
+- **Who can use it:** only an account with the `admin` custom claim
+  (`hasAdminClaim`, the claim without `isAdmin`'s allowlisted-address
+  fallback).
+- **What it sends:** a fixed test message, only to the caller's own
+  `pushTokens`, in the same shape the alert jobs send.
+- **Limits:** 100 a day. A token FCM reports dead is deleted.
+
+**Native push.** The native app registers for push as the Capacitor app does:
+
+- **Registration:** with APNs at launch. Then, for whoever is signed in
+  (guests too) once notifications are allowed, it writes
+  `pushTokens/{fcmToken}` on every launch and on rotation. A tester who
+  allowed push in the Capacitor app is registered without being asked again.
+- **Asking:** permission is asked only while `iosPushOfferEnabled` is on (off
+  today), from Me → Turn on push notifications.
+- **Banners and taps:** banners show in the foreground too. A tap opens the
+  push's link through the same routing as links, and marks the notification
+  it's about read.
+- **Sign-out:** deletes this device's token document and, new, the FCM token
+  itself, so the next account on the phone starts fresh.
+- **The token APIs:** `PushToken` is the one file that calls Messaging's
+  deprecated token APIs (C-8).
+
 ## [5.60.29] — 2026-11-16
 
 Ships in **iOS 3.13.45** (Capacitor, `MARKETING_VERSION` 3.13.44 → 3.13.45).

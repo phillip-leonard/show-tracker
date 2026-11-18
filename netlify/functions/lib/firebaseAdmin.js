@@ -126,9 +126,19 @@ async function listAnonymousUids(auth) {
 // The 5.59.6 name, kept for the functions that already use it.
 const isAdminClaims = isAdmin;
 
+/**
+ * hasAdminClaim(decodedToken) — the `admin` custom claim alone, without
+ * isAdmin()'s allowlisted-address fallback. For tools the Stage 3 calls
+ * gate on the claim (C-7: send-test-push), which only an account given
+ * the claim with scripts/set-admin-claim.js can use.
+ */
+function hasAdminClaim(decoded) {
+  return !!decoded && decoded.admin === true;
+}
+
 function __setTestFirebase({ db = null, auth = null } = {}) {
   testDb = db;
   testAuth = auth;
 }
 
-module.exports = { getDb, getAdminAuth, verifyUser, isAdmin, isAdminClaims, isAnonymous, isAnonymousAuthUser, listAnonymousUids, bearerToken, ADMIN_EMAILS, __setTestFirebase };
+module.exports = { getDb, getAdminAuth, verifyUser, isAdmin, isAdminClaims, hasAdminClaim, isAnonymous, isAnonymousAuthUser, listAnonymousUids, bearerToken, ADMIN_EMAILS, __setTestFirebase };

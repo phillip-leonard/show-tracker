@@ -57,6 +57,9 @@ public struct AppShell: View {
         .task(id: session.user?.uid) {
             if let uid = session.user?.uid { inbox.start(uid: uid) } else { inbox.stop() }
         }
+        // Registers this device for push for whoever is signed in (guests
+        // too), when notifications are allowed (Stage 3, Part 5).
+        .task(id: session.user?.uid) { await PushCenter.shared.signedIn(uid: session.user?.uid) }
         .onDisappear { shows.stop(); friends.stop(); inbox.stop() }
         .sheet(item: $router.web) { page in
             SafariView(url: page.url).ignoresSafeArea()

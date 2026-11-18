@@ -2,7 +2,6 @@ import FirebaseAuth
 import FirebaseCore
 import FirebaseCrashlytics
 import FirebaseFirestore
-import FirebaseMessaging
 import Foundation
 import os
 import GoogleSignIn
@@ -206,6 +205,14 @@ public final class SessionStore {
     /// once, as the web does whenever an account session is present
     /// (AppContext). Signed out or a guest, it waits for the next account
     /// sign-in or the guest's upgrade (`afterAccountSignIn`, `upgrade`).
+    /// The `admin` custom claim on this session's ID token, for the hidden
+    /// admin rows (the server checks it again: send-test-push, C-7).
+    public func hasAdminClaim() async -> Bool {
+        guard let current = Auth.auth().currentUser, !current.isAnonymous,
+              let result = try? await current.getIDTokenResult(forcingRefresh: false) else { return false }
+        return result.claims["admin"] as? Bool == true
+    }
+
     public func useReferralIfSignedIn() async {
         guard let user, !user.isAnonymous, let ref = Referral.take() else { return }
         _ = try? await api.post(FriendsRequest.function, FriendsRequest.referral(ref: ref), as: JSONValue.self)
@@ -454,11 +461,10 @@ public final class SessionStore {
     public func signOut() async -> [(String, SignOutRunner.Outcome)] {
         let steps: [SignOutRunner.Step] = [
             .init("push token") { @MainActor in
-                // This device's pushTokens document is keyed by its FCM token, so
-                // token() finds it. Push stays on FCM tokens (DECISIONS, Stage 3
-                // C-8): installation IDs would need the server to send by them.
-                let token = try await Messaging.messaging().token()
-                try await Database.ready().document("pushTokens/\(token)").delete()
+                // This device's pushTokens document (keyed by its FCM token,
+                // DECISIONS Stage 3 C-8), then the token itself, so the next
+                // account on this device gets a fresh one (lib/pushAlerts.js).
+                try await PushCenter.shared.forgetForSignOut()
             },
             // Offline, this times out and those writes go with the cache:
             // they would fail under the next account anyway.
