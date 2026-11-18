@@ -78,10 +78,20 @@ import Testing
 
     @Test func claimedPathsWithoutAScreenOpenTheWeb() {
         #expect(action("https://mysetlists.net/roadmap") == .web(URL(string: "https://mysetlists.net/roadmap/")!))
-        #expect(action("mysetlists://stats/top-artists") == .web(URL(string: "https://mysetlists.net/stats/top-artists/")!))
         #expect(action("https://mysetlists.net/festivals/f9") == .web(URL(string: "https://mysetlists.net/festivals/?festival=f9")!))
         #expect(action("https://mysetlists.net/shows/?venueKey=k") == .web(URL(string: "https://mysetlists.net/shows/?venueKey=k")!))
         #expect(action("https://mysetlists.net/bands/") == .web(URL(string: "https://mysetlists.net/bands/")!), "no band named")
+    }
+
+    /// Every /stats/* page is native (Stage 4, 4-8): songs and runs since
+    /// 4-4 and 4-6, top artists and venues as the full lists.
+    @Test func statsPagesOpenNatively() {
+        #expect(action("mysetlists://stats/top-artists") == .open(.stats, .statsList(.bands, year: nil)))
+        #expect(action("https://mysetlists.net/stats/top-venues/") == .open(.stats, .statsList(.venues, year: nil)))
+        #expect(action("https://mysetlists.net/stats/songs/") == .open(.stats, .songs))
+        #expect(action("https://mysetlists.net/stats/runs/") == .open(.stats, .runs))
+        #expect(AppRoute.statsList(.bands, year: "2024").webURL.absoluteString == "https://mysetlists.net/stats/top-artists/")
+        #expect(AppRoute.statsList(.venues, year: nil).webURL.absoluteString == "https://mysetlists.net/stats/top-venues/")
     }
 
     @Test func ourUnclaimedPagesStayOnTheWeb() {

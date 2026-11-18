@@ -177,14 +177,14 @@ Two gaps aren't screens, and both should be fixed whatever else is decided:
 |---|---|---|---|---|---|---|
 | Headline tiles: shows, songs heard, artists | Yes | Yes | Native #441 | | | |
 | "Hours of live music" | Shows × 2 | Dropped (C-4) | Flag F-3 | | | |
-| Period picker: each year, or all time | `useStatsPeriod` | All time only (C-3) | Missing | M | A per-year block in `userStats` (C-3 named it) | 4 |
-| Show frequency by month (heatmap) | `YearHeatmap` | Shows by year chart only | Missing | S | (per-year block) | 4 |
-| Shows by year | Yes | Yes | Native #441 | | | |
+| Period picker: each year, or all time | `useStatsPeriod` | Chips: All time and each year (`userStats.years`) | Native 4-8 | | per-year block (4-2) | |
+| Show frequency by month (heatmap) | `YearHeatmap` | `MonthHeatmap`, the web's shades | Native 4-8 | | per-year block | |
+| Shows by year | Yes | Every year incl. empty ones, read by touch and drag, tap to pick the year | Native #441, 4-8 | | | |
 | Rank | Profile tile | "#N" only (C-5) | Native #441 | | | |
 | Top artists, top venues, top songs (with tap-through) | `/stats/top-artists`, `/stats/top-venues`, Songs tab | Top 10 each, tap-through | Native #441 | | | |
-| Full lists: every artist, venue, song (times played, average rating) | `StatsView` tabs, `/stats/songs` | Top 10 only | Missing | M | none (from cached shows with shared keys; counts that are shown come from the server's lists where they exist) | 4 |
-| Top-rated shows | `StatsView` | None | Missing | S | none | 4 |
-| Runs list (`/stats/runs`) | Yes | None | Planned | | | 4 |
+| Full lists: every artist, venue, song (times played, average rating) | `StatsView` tabs, `/stats/songs` | `StatsListScreen` for the period (`StatsLists`); songs per year | Native 4-8 | | none | |
+| Top-rated shows | `StatsView` | Top 3 on Stats, all 10 behind it, for the period | Native 4-8 | | none | |
+| Runs list (`/stats/runs`) | Yes | `RunListView` (4-6), linked from Stats | Native 4-6, 4-8 | | | |
 | Venue tab: "Rate Venue", community average | `VenueRatingModal` | On the venue page; Stats' venue rows still open your shows there | Native 4-7 (venue page) | | | |
 | "How many Goose songs have you heard?" (Songs I've heard tool) | `HeardToolCard`, a web tool | None | Missing | S | none; the tool is a web page (flag F-11) | 6 |
 | Year in Review entry | Card | Card, Dec 2 – Jan 15, opens the web (C-9) | Native #441 (web link) | | | |

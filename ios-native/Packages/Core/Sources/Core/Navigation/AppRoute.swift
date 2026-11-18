@@ -28,6 +28,10 @@ public enum AppRoute: Hashable, Sendable {
     /// Your tours and one tour (Stage 4, 4-6): `/tours`, `/tours/?tour=`.
     case tours
     case tour(key: String)
+    /// One of the period's full lists on Stats (Stage 4, 4-8): every band
+    /// (`/stats/top-artists`), venue (`/stats/top-venues`) or song, or the
+    /// top-rated shows, for a year or (nil) all time.
+    case statsList(StatsLists.Kind, year: String?)
     case venue(key: String)
     case yearInReview(user: String, year: String)
     /// Your shows for one band, song or venue, from Stats (Stage 2). Not a
@@ -101,6 +105,10 @@ public extension DeepLink {
             return .open(.stats, .songs)
         case "/stats/runs":
             return .open(.stats, .runs)
+        case "/stats/top-artists":
+            return .open(.stats, .statsList(.bands, year: nil))
+        case "/stats/top-venues":
+            return .open(.stats, .statsList(.venues, year: nil))
         // Library in Me (Stage 4, 4-6).
         case "/runs":
             if let key = value("run") { return .open(.me, .run(key: key)) }
@@ -149,6 +157,13 @@ public extension AppRoute {
         case .run(let key): path = "/runs"; params.set("run", key)
         case .tours: path = "/tours"
         case .tour(let key): path = "/tours"; params.set("tour", key)
+        case .statsList(let kind, _):
+            switch kind {
+            case .bands: path = "/stats/top-artists"
+            case .venues: path = "/stats/top-venues"
+            case .songs: path = "/stats/songs"
+            case .topShows: path = "/stats"
+            }
         case .venue(let key): path = "/venues"; params.set("venue", key)
         case .yearInReview(let user, let year): path = "/year-in-review"; params.set("user", user); params.set("year", year)
         case .myShows: path = "/stats"

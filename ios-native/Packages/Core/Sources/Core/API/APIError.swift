@@ -29,6 +29,16 @@ public enum APIError: Error, Equatable, Sendable {
         }
     }
 
+    /// The request was cancelled (its task ended: a view went away, a
+    /// newer request replaced it). Nothing went wrong, so say nothing.
+    public var isCancellation: Bool {
+        if case .server(0, _, Self.cancelledCode) = self { return true }
+        return false
+    }
+
+    static let cancelledCode = "cancelled"
+    static let cancelled = APIError.server(status: 0, message: nil, code: cancelledCode)
+
     /// From an HTTP answer. Functions say what went wrong as `{ error, code }`,
     /// or `{ error: { code, message } }` (normalize-show), or
     /// `{ ok: false, error: 'code', code }` (my-poster).
@@ -61,6 +71,9 @@ public enum APIError: Error, Equatable, Sendable {
 
     static func from(urlError: URLError) -> APIError {
         switch urlError.code {
+        case .cancelled:
+            // Its localizedDescription is the bare word "cancelled".
+            return .cancelled
         case .notConnectedToInternet, .networkConnectionLost, .timedOut, .cannotFindHost, .cannotConnectToHost,
              .dnsLookupFailed, .dataNotAllowed, .internationalRoamingOff, .callIsActive:
             return .offline

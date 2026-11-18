@@ -310,7 +310,31 @@ struct EmailPreferencesSection: View {
 
     private func load() async {
         problem = nil
-        do { prefs = try await settings.emailPreferences() } catch { problem = error.message }
+        do throws(ProfileSettingError) {
+            prefs = try await settings.emailPreferences()
+            problem = nil
+        } catch {
+            problem = Self.describe(error, saving: false)
+        }
+    }
+
+    /// What to say when loading or saving fails: nothing for a cancelled
+    /// request (the section went off screen), else a sentence that says
+    /// what didn't happen.
+    static func describe(_ error: ProfileSettingError, saving: Bool) -> String? {
+        switch error {
+        case .cancelled:
+            return nil
+        case .offline:
+            return saving ? "You're offline, so that change wasn't saved. Connect and try again."
+                          : "You're offline. Your email settings load when you're connected."
+        case .invalid(let message), .refused(let message):
+            return message
+        case .accountRequired:
+            return error.message
+        case .failed:
+            return saving ? "Couldn't save that change. Try again." : "Couldn't load your email settings. Try again."
+        }
     }
 
     private enum Switch { case allEmails, announcements }
@@ -321,13 +345,14 @@ struct EmailPreferencesSection: View {
             saving = true
             defer { saving = false }
             problem = nil
-            do {
+            do throws(ProfileSettingError) {
                 switch which {
                 case .allEmails: prefs = try await settings.setAllEmails(on)
                 case .announcements: prefs = try await settings.setAnnouncements(on)
                 }
+                problem = nil
             } catch {
-                problem = "Couldn't save that change. \((error as? ProfileSettingError)?.message ?? "Please try again.")"
+                problem = Self.describe(error, saving: true)
             }
         }
     }

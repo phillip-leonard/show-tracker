@@ -106,4 +106,16 @@ extension APIClientTests {
         let body = try JSONDecoder().decode(JSONValue.self, from: try #require(post.httpBody))
         #expect(body == .object(["emailOptOut": .bool(true)]))
     }
+
+    /// A request cut off by its view going away isn't an error to show
+    /// (Me → Email showed a grey "cancelled" under the switches).
+    @Test func aCancelledRequestSaysNothing() {
+        let cancelled = APIError.from(urlError: URLError(.cancelled))
+        #expect(cancelled.isCancellation)
+        #expect(cancelled.message == nil)
+        #expect(ProfileSettingError(cancelled) == .cancelled)
+        #expect(!APIError.from(urlError: URLError(.badServerResponse)).isCancellation)
+        #expect(APIError.from(urlError: URLError(.notConnectedToInternet)) == .offline)
+        #expect(ProfileSettingError(.offline) == .offline)
+    }
 }

@@ -31,11 +31,15 @@ public struct UserStats: Decodable, Hashable, Sendable {
     public var rank: Int?
     public var rankedOf: Int?
     public var computedAt: Date?
+    /// Each year with a readable show, by the same definitions applied to
+    /// that year's shows (5.60.32, F-15): what the year picker shows. Empty
+    /// on a document from before then, until the next recompute.
+    public var years: [String: YearStats]
 
     enum CodingKeys: String, CodingKey {
         case statsVersion, showCount, songCount, ratedSongCount, uniqueSongCount, bandCount, venueCount,
              yearsActive, showsByYear, firstShowDate, lastShowDate, avgShowRating, ratedShowCount, topBands,
-             topVenues, topSongs, ranked, rank, rankedOf, computedAt
+             topVenues, topSongs, ranked, rank, rankedOf, computedAt, years
     }
 
     public init(from decoder: Decoder) throws {
@@ -60,6 +64,51 @@ public struct UserStats: Decodable, Hashable, Sendable {
         rank = try c.decodeIfPresent(Int.self, forKey: .rank)
         rankedOf = try c.decodeIfPresent(Int.self, forKey: .rankedOf)
         computedAt = try c.moment(.computedAt)
+        // One year that doesn't decode drops the block, not the document.
+        years = (try? c.decodeIfPresent([String: YearStats].self, forKey: .years)) ?? [:]
+    }
+}
+
+/// One entry of `userStats.years` (lib/stats `yearStats`): that year's
+/// numbers and `showsByMonth`, twelve counts January first.
+public struct YearStats: Decodable, Hashable, Sendable {
+    public var showCount: Int
+    public var songCount: Int
+    public var ratedSongCount: Int
+    public var uniqueSongCount: Int
+    public var bandCount: Int
+    public var venueCount: Int
+    public var firstShowDate: String?
+    public var lastShowDate: String?
+    public var avgShowRating: Double?
+    public var ratedShowCount: Int
+    public var topBands: [NameCount]
+    public var topVenues: [NameCount]
+    public var topSongs: [SongCount]
+    public var showsByMonth: [Int]
+
+    enum CodingKeys: String, CodingKey {
+        case showCount, songCount, ratedSongCount, uniqueSongCount, bandCount, venueCount, firstShowDate,
+             lastShowDate, avgShowRating, ratedShowCount, topBands, topVenues, topSongs, showsByMonth
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        showCount = try c.decodeIfPresent(Int.self, forKey: .showCount) ?? 0
+        songCount = try c.decodeIfPresent(Int.self, forKey: .songCount) ?? 0
+        ratedSongCount = try c.decodeIfPresent(Int.self, forKey: .ratedSongCount) ?? 0
+        uniqueSongCount = try c.decodeIfPresent(Int.self, forKey: .uniqueSongCount) ?? 0
+        bandCount = try c.decodeIfPresent(Int.self, forKey: .bandCount) ?? 0
+        venueCount = try c.decodeIfPresent(Int.self, forKey: .venueCount) ?? 0
+        firstShowDate = try c.optionalText(.firstShowDate)
+        lastShowDate = try c.optionalText(.lastShowDate)
+        avgShowRating = try c.numberOrNumericString(.avgShowRating)
+        ratedShowCount = try c.decodeIfPresent(Int.self, forKey: .ratedShowCount) ?? 0
+        topBands = try c.list(.topBands, of: NameCount.self)
+        topVenues = try c.list(.topVenues, of: NameCount.self)
+        topSongs = try c.list(.topSongs, of: SongCount.self)
+        let months = try c.list(.showsByMonth, of: Int.self)
+        showsByMonth = months.count == 12 ? months : Array((months + Array(repeating: 0, count: 12)).prefix(12))
     }
 }
 

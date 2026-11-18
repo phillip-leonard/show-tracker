@@ -31,7 +31,6 @@ struct ShowsHome: View {
         .navigationTitle("Shows")
         .searchable(text: $query, prompt: segment == .past ? "Bands, venues, cities, songs" : "Bands, venues, cities")
         .refreshable { await store.refresh() }
-        .safeAreaInset(edge: .top, spacing: 0) { header }
         .toolbar {
             if segment == .past {
                 ToolbarItem(placement: .topBarLeading) { filterMenu }
@@ -56,6 +55,27 @@ struct ShowsHome: View {
     }
 
     // MARK: Header
+
+    /// The switch and active filters as the list's first row, so a pull to
+    /// refresh moves them with the list and the spinner shows above them
+    /// (they used to sit in a fixed inset the list slid under).
+    private var headerSection: some View {
+        Section { header }
+            .listRowInsets(EdgeInsets())
+            .listRowBackground(Color.clear)
+            .listRowSeparator(.hidden)
+    }
+
+    /// An empty, loading or no-results state as a row under the switch, so
+    /// the switch stays reachable (an overlay would cover it).
+    private func stateSection<V: View>(@ViewBuilder _ content: () -> V) -> some View {
+        Section {
+            content()
+                .frame(maxWidth: .infinity, minHeight: 320)
+        }
+        .listRowBackground(Color.clear)
+        .listRowSeparator(.hidden)
+    }
 
     private var header: some View {
         VStack(spacing: Space.x2) {
@@ -141,6 +161,14 @@ struct ShowsHome: View {
         let filtered = ShowList.filter(store.shows, pastFilter)
         let sections = ShowList.byYear(filtered)
         return List {
+            headerSection
+            if store.shows.isEmpty, store.waitingShows.isEmpty {
+                stateSection { pastEmptyState }
+            } else if !store.shows.isEmpty, filtered.isEmpty {
+                // Only a filter that hides stored shows; "Waiting to sync"
+                // rows alone aren't "no results".
+                stateSection { noResults }
+            }
             if !store.shows.isEmpty {
                 Section {
                     if pastFilter.isEmpty {
@@ -178,27 +206,22 @@ struct ShowsHome: View {
                 .brandRow()
             }
         }
-        .overlay {
-            if store.shows.isEmpty, store.waitingShows.isEmpty {
-                if !store.showsLoaded {
-                    ProgressView("Loading your shows")
-                } else if let problem = store.loadProblem {
-                    ContentUnavailableView {
-                        Label("Your shows couldn't be loaded", systemImage: "wifi.exclamationmark")
-                    } description: {
-                        Text("Check your connection and pull to try again. (\(problem))")
-                    } actions: {
-                        Button("Try again") { Task { await store.refresh() } }
-                            .buttonStyle(.borderedProminent)
-                    }
-                } else {
-                    firstShowEmptyState
-                }
-            } else if !store.shows.isEmpty, filtered.isEmpty {
-                // Only a filter that hides stored shows; "Waiting to sync"
-                // rows alone aren't "no results".
-                noResults
+    }
+
+    @ViewBuilder private var pastEmptyState: some View {
+        if !store.showsLoaded {
+            ProgressView("Loading your shows")
+        } else if let problem = store.loadProblem {
+            ContentUnavailableView {
+                Label("Your shows couldn't be loaded", systemImage: "wifi.exclamationmark")
+            } description: {
+                Text("Check your connection and pull to try again. (\(problem))")
+            } actions: {
+                Button("Try again") { Task { await store.refresh() } }
+                    .buttonStyle(.borderedProminent)
             }
+        } else {
+            firstShowEmptyState
         }
     }
 
@@ -223,6 +246,7 @@ struct ShowsHome: View {
                 .buttonStyle(.borderedProminent)
             if isGuest {
                 Button("Create your account") { upgrading = true }
+                    .buttonStyle(.borderless)
             }
         }
     }
@@ -234,6 +258,7 @@ struct ShowsHome: View {
             Text(query.isEmpty ? "Nothing matches these filters." : "Nothing matches \u{201C}\(query)\u{201D}\(filter.activeCount > 0 ? " with these filters" : "").")
         } actions: {
             Button("Clear search and filters") { clearFilters() }
+                .buttonStyle(.borderless)
             Button { adding = true } label: { Label("Add a show", systemImage: "plus") }
                 .buttonStyle(.borderedProminent)
         }
@@ -245,6 +270,23 @@ struct ShowsHome: View {
         let shown = ShowList.upcoming(store.upcoming, matching: query)
         let sections = ShowList.upcomingByYear(shown)
         return List {
+            headerSection
+            if store.upcoming.isEmpty {
+                stateSection { upcomingEmptyState }
+            } else if shown.isEmpty {
+                stateSection {
+                    ContentUnavailableView {
+                        Label("No upcoming shows match", systemImage: "magnifyingglass")
+                    } description: {
+                        Text("Nothing matches \u{201C}\(query)\u{201D}.")
+                    } actions: {
+                        Button("Clear search") { query = "" }
+                            .buttonStyle(.borderless)
+                        Button { adding = true } label: { Label("Add a show", systemImage: "plus") }
+                            .buttonStyle(.borderedProminent)
+                    }
+                }
+            }
             if !store.upcoming.isEmpty, !query.trimmingCharacters(in: .whitespaces).isEmpty {
                 Section {
                     Text("\(shown.count) of \(store.upcoming.count) upcoming")
@@ -266,30 +308,19 @@ struct ShowsHome: View {
                 .brandRow()
             }
         }
-        .overlay {
-            if store.upcoming.isEmpty {
-                if !store.upcomingLoaded {
-                    ProgressView("Loading your upcoming shows")
-                } else {
-                    ContentUnavailableView {
-                        Label("No upcoming shows", systemImage: "calendar")
-                    } description: {
-                        Text("Add the shows you have tickets for. After the night, move each one to your shows with its setlist.")
-                    } actions: {
-                        Button { adding = true } label: { Label("Add a show", systemImage: "plus") }
-                            .buttonStyle(.borderedProminent)
-                    }
-                }
-            } else if shown.isEmpty {
-                ContentUnavailableView {
-                    Label("No upcoming shows match", systemImage: "magnifyingglass")
-                } description: {
-                    Text("Nothing matches \u{201C}\(query)\u{201D}.")
-                } actions: {
-                    Button("Clear search") { query = "" }
-                    Button { adding = true } label: { Label("Add a show", systemImage: "plus") }
-                        .buttonStyle(.borderedProminent)
-                }
+    }
+
+    @ViewBuilder private var upcomingEmptyState: some View {
+        if !store.upcomingLoaded {
+            ProgressView("Loading your upcoming shows")
+        } else {
+            ContentUnavailableView {
+                Label("No upcoming shows", systemImage: "calendar")
+            } description: {
+                Text("Add the shows you have tickets for. After the night, move each one to your shows with its setlist.")
+            } actions: {
+                Button { adding = true } label: { Label("Add a show", systemImage: "plus") }
+                    .buttonStyle(.borderedProminent)
             }
         }
     }

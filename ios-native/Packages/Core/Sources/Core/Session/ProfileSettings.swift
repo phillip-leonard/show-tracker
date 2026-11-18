@@ -249,8 +249,11 @@ public enum ProfileSettingError: Error, Equatable {
     /// Guests can't set this.
     case accountRequired
     case failed(String)
+    /// The request was cancelled; nothing to tell anyone.
+    case cancelled
 
     init(_ error: APIError) {
+        if error.isCancellation { self = .cancelled; return }
         switch error {
         case .offline: self = .offline
         case .accountRequired: self = .accountRequired
@@ -265,6 +268,7 @@ public enum ProfileSettingError: Error, Equatable {
         case .invalid(let m), .refused(let m), .failed(let m): m
         case .offline: "You're offline. Connect and try again."
         case .accountRequired: "Create an account to change this."
+        case .cancelled: ""
         }
     }
 }
