@@ -4,7 +4,7 @@
 
 **Decided 2026-11-17:** Phillip accepted every recommendation in §3 except F-9: **playlists are left out of the native app** and out of the plan. DECISIONS.md records the calls ("Parity before launch").
 
-Read against `main` at 083e0e8 (#450 merged) plus open PR #451 (native 4.0.25).
+Read against `main` at 083e0e8 (#450 merged) plus #451 (native 4.0.25), which has since merged. Ships in native 4.0.27; web and Capacitor unchanged.
 
 ## How to read the tables
 
@@ -29,7 +29,7 @@ Counted from the rows in §2 (the admin portal excluded; the public pages in §2
 
 | Status | Rows |
 |---|---|
-| Native (merged, or in #451), some partly | 81 |
+| Native (merged), some partly | 81 |
 | Planned (Stage 4 or 5) | 38 |
 | Web link today | 7 |
 | Missing | 56 |
