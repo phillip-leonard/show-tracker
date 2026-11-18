@@ -154,6 +154,8 @@ public struct APIClient: Sendable {
             (data, response) = try await session.data(for: request)
         } catch let error as URLError {
             throw APIError.from(urlError: error)
+        } catch is CancellationError {
+            throw .cancelled
         } catch {
             throw .server(status: 0, message: error.localizedDescription, code: nil)
         }

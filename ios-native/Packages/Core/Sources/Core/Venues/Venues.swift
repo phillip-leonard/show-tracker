@@ -165,18 +165,7 @@ public enum VenueRatings {
     public static func average(_ ratings: [VenueRating]) -> String? {
         guard !ratings.isEmpty else { return nil }
         let mean = Double(ratings.reduce(0) { $0 + $1.overallRating }) / Double(ratings.count)
-        return toFixed1(mean)
-    }
-
-    /// JavaScript's `toFixed(1)`. It differs from `%.1f` only on an exact
-    /// tie, which it rounds up where `%.1f` rounds to even: 4.25 is "4.3"
-    /// on the web. A mean of whole numbers ties exactly only at .25 and .75.
-    static func toFixed1(_ x: Double) -> String {
-        let quarters = x * 4
-        if quarters == quarters.rounded(), Int(quarters) % 2 != 0 {
-            return String(format: "%.1f", (x * 10).rounded(.up) / 10)
-        }
-        return String(format: "%.1f", x)
+        return NumberText.toFixed1(mean)
     }
 
     /// The document a rating is saved as: the existing one when there is

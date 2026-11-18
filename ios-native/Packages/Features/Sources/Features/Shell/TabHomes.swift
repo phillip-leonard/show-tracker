@@ -44,6 +44,7 @@ struct RoutePlaceholder: View {
         case .songs: "Songs"
         case .runs, .run: "Runs"
         case .tours, .tour: "Tours"
+        case .statsList(let kind, _): kind.title
         case .venue: "Venue"
         case .yearInReview(_, let year): "\(year) in Review"
         case .myShows(let filter): filter.title
@@ -59,6 +60,7 @@ struct RoutePlaceholder: View {
         case .song, .bandSong, .songs: "music.note"
         case .runs, .run: "calendar.day.timeline.left"
         case .tours, .tour: "map"
+        case .statsList: "list.number"
         case .venue: "building.columns"
         case .yearInReview: "sparkles"
         case .myShows: "list.bullet"
@@ -74,6 +76,7 @@ struct RoutePlaceholder: View {
         case .bandSong(let band, let song): "\(band) · \(song)"
         case .songs, .runs, .tours: ""
         case .run(let key), .tour(let key): key
+        case .statsList(_, let year): year ?? "All time"
         case .venue(let key): key
         case .yearInReview: "A year of shows"
         case .myShows(let filter): filter.artist ?? ""

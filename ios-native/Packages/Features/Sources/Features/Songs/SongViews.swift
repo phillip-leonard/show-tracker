@@ -13,11 +13,17 @@ import SwiftUI
 /// two rows.
 struct SongListView: View {
     @Environment(ShowsStore.self) private var store
+    /// One year's songs (Stats' year picker, 4-8), or nil for all time.
+    var year: String? = nil
     @State private var query = ""
     @State private var sort: SongList.Sort = .timesSeen
 
+    /// "Longest since seen" counts gaps across every show, so it's for all time only.
+    private var sorts: [SongList.Sort] { year == nil ? SongList.Sort.allCases : SongList.Sort.allCases.filter { $0 != .gap } }
+
     var body: some View {
-        let all = SongList.rows(store.songIndex)
+        let all = year.map { SongList.rows(SongIndex.build(StatsLists.shows(store.shows, in: .year($0)))) }
+            ?? SongList.rows(store.songIndex)
         let rows = SongList.sorted(SongList.filtered(all, query: query), by: sort)
         List {
             Section {
@@ -42,12 +48,12 @@ struct SongListView: View {
             }
         }
         .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: "Songs or bands")
-        .navigationTitle("Songs")
+        .navigationTitle(year.map { "Songs · \($0)" } ?? "Songs")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Menu {
                     Picker("Sort by", selection: $sort) {
-                        ForEach(SongList.Sort.allCases) { Text($0.label).tag($0) }
+                        ForEach(sorts) { Text($0.label).tag($0) }
                     }
                 } label: {
                     Label("Sort", systemImage: "arrow.up.arrow.down")
