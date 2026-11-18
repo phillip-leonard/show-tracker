@@ -2,6 +2,7 @@ import FirebaseCrashlytics
 import FirebaseFirestore
 import Foundation
 import Observation
+import OSLog
 import UIKit
 import UserNotifications
 
@@ -28,12 +29,16 @@ public final class PushCenter {
     public private(set) var authorization: UNAuthorizationStatus = .notDetermined
     /// The last 6 characters of the registered token, for the admin rows.
     public private(set) var registeredTokenSuffix: String?
+    /// The `pushTokens` write's problem, if it failed.
     public private(set) var lastProblem: String?
+    /// APNs, then FCM: what each step answered, for the Push screen.
+    public private(set) var registration = PushRegistration()
     /// A tapped push's link, for the app to open (`MySetlistsApp`).
     public var pendingLink: URL?
 
     private var uid: String?
     private static let lastTokenKey = "push.lastRegisteredToken"
+    private static let log = Logger(subsystem: "com.mysetlists.app", category: "Push")
     @ObservationIgnored let delegate = PushNotificationDelegate()
 
     private init() {}
@@ -42,15 +47,68 @@ public final class PushCenter {
     public func configureAtLaunch(_ application: UIApplication) {
         UNUserNotificationCenter.current().delegate = delegate
         PushTokenObserver.install()
+        registerWithAPNs(application)
+    }
+
+    /// Step 1: asks APNs for this device's token. On the main thread (this
+    /// is the main actor); the answer comes to `AppDelegate`, which hands
+    /// it to `apnsRegistered` or `apnsFailed`.
+    private func registerWithAPNs(_ application: UIApplication = .shared) {
+        registration.apnsRequested(at: Date())
         application.registerForRemoteNotifications()
+    }
+
+    /// `AppDelegate`: APNs gave this device a token. Messaging gets it here,
+    /// whether or not its swizzling also saw it, and only then is the FCM
+    /// token asked for.
+    public func apnsRegistered(_ deviceToken: Data) {
+        PushToken.setAPNs(deviceToken)
+        registration.apnsRegistered(at: Date())
+        Self.log.info("APNs token received")
+        Task { await registerWithFCM() }
+    }
+
+    /// `AppDelegate`: iOS refused. A build signed without `aps-environment`
+    /// fails here; the Push screen shows it.
+    public func apnsFailed(_ error: Error) {
+        registration.apnsFailed(error)
+        Self.log.error("APNs registration failed: \(self.registration.apnsError ?? "", privacy: .public)")
+        Crashlytics.crashlytics().record(error: error, userInfo: ["stage": "PushCenter APNs"])
     }
 
     /// Someone signed in (or nobody): register this device for them.
     public func signedIn(uid: String?) async {
         self.uid = uid
+        await registerWithFCM()
+    }
+
+    /// The Push screen's "Register again": both steps from the start. iOS
+    /// answers a repeat APNs request with the same token, and the FCM step
+    /// follows from that answer.
+    public func registerAgain(uid: String?) async {
+        self.uid = uid
+        registration.clearErrors()
+        lastProblem = nil
+        registerWithAPNs()
+        await registerWithFCM()
+    }
+
+    /// Step 2 and the document: the FCM token once Messaging has an APNs
+    /// token (asked before that it can only fail), then
+    /// `pushTokens/{fcmToken}` for a signed-in person who allows push.
+    private func registerWithFCM() async {
         await refreshAuthorization()
-        guard let uid, Self.allowed(authorization) else { return }
-        if let token = await PushToken.current() { await write(token: token, uid: uid) }
+        guard registration.apnsReceived || PushToken.hasAPNsToken else { return }
+        do {
+            registration.fcmArrived(try await PushToken.fetch())
+        } catch {
+            registration.fcmFailed(error)
+            Self.log.error("FCM token failed: \(self.registration.fcmError ?? "", privacy: .public)")
+            Crashlytics.crashlytics().record(error: error, userInfo: ["stage": "PushCenter FCM"])
+            return
+        }
+        guard let uid, Self.allowed(authorization), let token = registration.fcmToken else { return }
+        await write(token: token, uid: uid)
     }
 
     public func refreshAuthorization() async {
@@ -64,14 +122,16 @@ public final class PushCenter {
         let granted = (try? await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge])) ?? false
         await refreshAuthorization()
         if granted {
-            UIApplication.shared.registerForRemoteNotifications()
-            await signedIn(uid: uid)
+            registerWithAPNs()
+            await registerWithFCM()
         }
         return granted
     }
 
-    /// A new or rotated token from Messaging.
+    /// A new or rotated token from Messaging. Kept even with nobody signed
+    /// in, for the Push screen and the next sign-in.
     func tokenArrived(_ token: String) {
+        registration.fcmArrived(token)
         guard let uid else { return }
         Task {
             await refreshAuthorization()
@@ -88,6 +148,7 @@ public final class PushCenter {
         registeredTokenSuffix = nil
         uid = nil
         try? await PushToken.delete()
+        registration.fcmForgotten()
     }
 
     public static func allowed(_ status: UNAuthorizationStatus) -> Bool {

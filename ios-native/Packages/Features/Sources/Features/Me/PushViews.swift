@@ -81,11 +81,31 @@ struct PushDiagnosticsView: View {
 
     var body: some View {
         Form {
-            Section("This iPhone") {
+            Section {
                 LabeledContent("Permission", value: Self.describe(push.authorization))
-                LabeledContent("Registered token", value: push.registeredTokenSuffix.map { "…\($0)" } ?? "None yet")
-                if let problem = push.lastProblem { Text(problem).foregroundStyle(Color.amber) }
-                Button("Register again") { Task { await push.signedIn(uid: session.user?.uid) } }
+                LabeledContent("APNs token received", value: reg.apnsStatus)
+                if let error = reg.apnsError {
+                    problem("APNs", error, hint: PushRegistration.hint(forAPNsError: error))
+                }
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("FCM token")
+                    Text(reg.fcmToken ?? (reg.apnsReceived ? "None" : "None: waits for the APNs token"))
+                        .font(.caption.monospaced())
+                        .foregroundStyle(.secondary)
+                        .textSelection(.enabled)
+                }
+                .accessibilityElement(children: .combine)
+                if let error = reg.fcmError { problem("FCM", error, hint: nil) }
+                LabeledContent("Registered for your account", value: push.registeredTokenSuffix.map { "…\($0)" } ?? "No")
+                if let error = push.lastProblem { problem("Saving the token", error, hint: nil) }
+                Button("Register again") { Task { await push.registerAgain(uid: session.user?.uid) } }
+                if let token = reg.fcmToken {
+                    Button("Copy FCM token") { UIPasteboard.general.string = token }
+                }
+            } header: {
+                Text("This iPhone")
+            } footer: {
+                Text("APNs gives this iPhone a token, then Firebase turns it into the FCM token that pushes are sent to. The last error from either step shows here.")
             }
             .brandRow()
 
@@ -105,6 +125,15 @@ struct PushDiagnosticsView: View {
         .navigationTitle("Push")
         .navigationBarTitleDisplayMode(.inline)
         .task { await push.refreshAuthorization() }
+    }
+
+    private var reg: PushRegistration { push.registration }
+
+    private func problem(_ step: String, _ error: String, hint: String?) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("\(step) error: \(error)").foregroundStyle(Color.amber).textSelection(.enabled)
+            if let hint { Text(hint).font(.footnote).foregroundStyle(.secondary) }
+        }
     }
 
     private func send(link: String) async {
