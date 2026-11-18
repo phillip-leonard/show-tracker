@@ -3,8 +3,8 @@ import DesignSystem
 import SwiftUI
 
 // Band alerts (Stage 3, Part 6): follow and unfollow, Bands you follow,
-// the alert settings, and the band screen's Follow until the band screen
-// itself is built. Guests follow too; they get alerts in the app and by
+// and the alert settings. Follow sits on the band page (Bands/BandViews.swift,
+// Stage 4, 4-5). Guests follow too; they get alerts in the app and by
 // push, never by email (D-2).
 
 /// Follows or unfollows a band and says what happens next, as the web's
@@ -110,35 +110,6 @@ struct FollowBandButton: View {
     }
 }
 
-/// The band screen until it's built (a band link, `/bands/?band=`): the
-/// band, Follow, and the page on the web.
-struct BandRouteScreen: View {
-    @Environment(SessionStore.self) private var session
-    @Environment(ShowsStore.self) private var shows
-    @Environment(AppRouter.self) private var router
-    let slug: String
-    @State private var flow = FollowFlow()
-
-    private var name: String {
-        BandFollows.name(forSlug: slug, follows: session.profile?.favoriteArtists ?? [],
-                         seen: shows.shows.map(\.artist) + shows.upcoming.map(\.artist))
-    }
-
-    var body: some View {
-        ContentUnavailableView {
-            Label(name, systemImage: "guitars")
-        } description: {
-            Text("Follow \(name) to hear when they announce a tour or have a show going on sale near you.")
-        } actions: {
-            FollowBandButton(name: name, flow: flow)
-            Button("Open on mysetlists.net") { router.show(AppRoute.band(slug: slug).webURL) }
-        }
-        .navigationTitle(name)
-        .navigationBarTitleDisplayMode(.inline)
-        .followFlow(flow, session: session)
-    }
-}
-
 /// Me → Bands you follow: the list, unfollow, and follow by name.
 struct FollowedBandsView: View {
     @Environment(SessionStore.self) private var session
@@ -170,7 +141,7 @@ struct FollowedBandsView: View {
                     Text("You're not following any bands yet.").foregroundStyle(.secondary)
                 }
                 ForEach(follows, id: \.name) { band in
-                    Text(band.name)
+                    NavigationLink(value: AppRoute.band(slug: BandDirectory.slug(forArtist: band.name))) { Text(band.name) }
                         .swipeActions {
                             Button("Unfollow", role: .destructive) { Task { await flow.toggle(band.name, session: session) } }
                                 .tint(Color.danger)

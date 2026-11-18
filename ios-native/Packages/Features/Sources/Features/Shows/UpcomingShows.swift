@@ -136,7 +136,8 @@ struct UpcomingDetail: View {
     private func content(_ show: UpcomingShow) -> some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Space.x5) {
-                ShowHeader(date: show.date, tour: show.time, artist: show.artist, venue: show.venue, city: show.city, state: nil, festival: nil)
+                ShowHeader(date: show.date, tour: show.time, artist: show.artist, venue: show.venue, city: show.city, state: nil, festival: nil,
+                           bandSlug: show.artist.isEmpty ? nil : BandDirectory.slug(forArtist: show.artist))
                 if let notes = show.notes, !notes.isEmpty {
                     Text(notes)
                         .font(.jakarta(size: 15, relativeTo: .body))

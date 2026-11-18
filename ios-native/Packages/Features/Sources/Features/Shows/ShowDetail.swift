@@ -70,6 +70,8 @@ struct ShowDetailView: View {
     /// Recordings and streaming links (Stage 4, 4-4); nil until answered,
     /// or when the server can't be reached.
     @State private var listening: Listening?
+    /// The band's song pages, for a public band that has them (4-5).
+    @State private var bandSongs: (band: PublicBand, slugs: BandSongSlugs)?
 
     private var isGuest: Bool { session.user?.isAnonymous == true }
 
@@ -77,13 +79,15 @@ struct ShowDetailView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: Space.x5) {
                 ShowHeader(date: show.date, tour: show.tour, artist: show.artist, venue: show.venue,
-                           city: show.city, state: show.state, festival: festival)
+                           city: show.city, state: show.state, festival: festival,
+                           bandSlug: show.artist.isEmpty ? nil : BandDirectory.slug(forArtist: show.artist))
                 YourRatingsCard(show: show, editNote: { editingNote = true })
                 if !isGuest {
                     // Friends who were there (Stage 3, Part 3b): accounts only.
                     TaggedWithCard(taggedUids: show.taggedFriendUids, taggedBy: show.taggedBy, upcoming: false) { tagging = true }
                 }
-                SetlistSection(show: show, source: source, undo: $undo, reviewStoredProposal: { review = .stored })
+                SetlistSection(show: show, source: source, undo: $undo, reviewStoredProposal: { review = .stored },
+                               bandSongs: bandSongs)
                 if let listening {
                     ListenSection(show: show, listening: listening)
                     StreamingSection(platforms: listening.streaming)
@@ -161,6 +165,14 @@ struct ShowDetailView: View {
         .task(id: SetlistSourceAnswer.query(for: show)) { source = await store.setlistSource(for: show) }
         .task(id: show.festivalId) { festival = await store.festivalName(for: show) }
         // The ISO day, so a legacy stored date asks the same question.
+        // Which setlist songs have a band song page (a public band with song
+        // pages only; the band's JSON is CDN-cached and kept for the session).
+        .task(id: show.artist) {
+            guard let band = await BandService.shared.showableBand(forArtist: show.artist, api: session.api), band.songPages,
+                  let snapshot = try? await BandService.shared.band(band.slug, api: session.api) else { bandSongs = nil; return }
+            let slugs = BandSongSlugs(snapshot, band: band)
+            bandSongs = slugs.isEmpty ? nil : (band, slugs)
+        }
         .task(id: "\(show.artist)|\(show.isoDate)") {
             listening = await Listening.lookup(artist: show.artist, date: show.date, api: session.api)
         }
@@ -249,6 +261,8 @@ struct ShowHeader: View {
     let city: String
     let state: String?
     let festival: String?
+    /// The band's page (Stage 4, 4-5); the name links to it when given.
+    var bandSlug: String? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: Space.x1) {
@@ -256,10 +270,27 @@ struct ShowHeader: View {
                 .font(.jakarta(size: 13, weight: .bold, relativeTo: .footnote))
                 .tracking(0.4)
                 .foregroundStyle(Color.amber)
-            Text(artist.isEmpty ? "Unknown band" : artist)
-                .font(.jakarta(size: 30, weight: .heavy, relativeTo: .largeTitle))
-                .foregroundStyle(Color.textPrimary)
+            if let bandSlug {
+                NavigationLink(value: AppRoute.band(slug: bandSlug)) {
+                    HStack(alignment: .firstTextBaseline, spacing: Space.x2) {
+                        Text(artist)
+                            .font(.jakarta(size: 30, weight: .heavy, relativeTo: .largeTitle))
+                            .foregroundStyle(Color.textPrimary)
+                            .multilineTextAlignment(.leading)
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 17, weight: .semibold))
+                            .foregroundStyle(Color.textMuted)
+                    }
+                }
+                .buttonStyle(.plain)
                 .accessibilityAddTraits(.isHeader)
+                .accessibilityHint("Opens the band's page")
+            } else {
+                Text(artist.isEmpty ? "Unknown band" : artist)
+                    .font(.jakarta(size: 30, weight: .heavy, relativeTo: .largeTitle))
+                    .foregroundStyle(Color.textPrimary)
+                    .accessibilityAddTraits(.isHeader)
+            }
             if !place.isEmpty {
                 Text(place)
                     .font(.jakarta(size: 15, relativeTo: .subheadline))
@@ -472,6 +503,7 @@ struct SetlistSection: View {
     let source: SetlistSourceAnswer?
     @Binding var undo: DeletedSong?
     let reviewStoredProposal: () -> Void
+    var bandSongs: (band: PublicBand, slugs: BandSongSlugs)? = nil
 
     @State private var editingSong: Song?
     @State private var addingSong = false
@@ -582,6 +614,11 @@ struct SetlistSection: View {
         if SongIndex.key(artist: show.artist, title: song.name) != nil {
             Button { router.push(.song(artist: SongIndex.artistSlug(show.artist), song: SongIndex.songSlug(song.name))) } label: {
                 Label("Your history with this song", systemImage: "music.note")
+            }
+        }
+        if let bandSongs, let slug = bandSongs.slugs.slug(for: song.name) {
+            Button { router.push(.bandSong(band: bandSongs.band.slug, song: slug)) } label: {
+                Label("\(bandSongs.band.name) stats for this song", systemImage: "chart.bar")
             }
         }
         Button { move(group.label, index, -1) } label: { Label("Move up", systemImage: "arrow.up") }

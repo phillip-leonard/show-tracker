@@ -25,7 +25,12 @@ let package = Package(
                 .product(name: "FirebaseStorage", package: "firebase-ios-sdk"),
                 .product(name: "FirebaseCrashlytics", package: "firebase-ios-sdk"),
                 .product(name: "GoogleSignIn", package: "GoogleSignIn-iOS"),
-            ]
+            ],
+            // A symlink to the repo's config/: the public bands
+            // (public-artists.json) and their song title aliases
+            // (song-title-aliases.json), the same files the web and the
+            // snapshot job read, so the band page matches them (Stage 4, 4-5).
+            resources: [.copy("Config")]
         ),
         .testTarget(
             name: "CoreTests",
