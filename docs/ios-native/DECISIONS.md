@@ -82,26 +82,29 @@ From Phillip's project copy.
 
 ### v1 scope
 
+**Superseded in part on 2026-11-17 by "Parity before launch" (below):** v1 is the whole web and Capacitor app except the admin portal. The bullets are kept as they were decided, each marked where it changed.
+
 - **Community** is in v1.
-- **Discover** stays hidden.
-- **Festivals** in v1 are read-and-attach only: list, detail, attach a show, lineup. Create, join and picks are v1.x.
-- **Screenshot and CSV import** are v1.x. Until then, the app links to the web page.
-- **Comments, photos and meetups** on a show are v1.x (Stage 3, C-4). Until then, the show's row opens its web page.
-- **Any v1.x screen** opens its web page in `SFSafariViewController` until it exists natively.
-- **Year in Review** is in v1 only if v1 is ready before Dec 2. Otherwise it waits for next season.
+- **Discover** stays hidden. (Unchanged: it's hidden on the web too.)
+- ~~**Festivals** in v1 are read-and-attach only: list, detail, attach a show, lineup. Create, join and picks are v1.x.~~ **Reversed (parity):** all of Festivals is v1, in Stage 5.
+- ~~**Screenshot and CSV import** are v1.x. Until then, the app links to the web page.~~ **Reversed (parity):** both are v1, in Stage 6.
+- ~~**Comments, photos and meetups** on a show are v1.x (Stage 3, C-4). Until then, the show's row opens its web page.~~ **Reversed (parity):** all three are v1, in Stage 6.
+- ~~**Any v1.x screen** opens its web page in `SFSafariViewController` until it exists natively.~~ **Changed (parity):** there are no v1.x screens. Only the pages "Parity before launch" keeps on the web open there, plus a screen not yet built during development.
+- ~~**Year in Review** is in v1 only if v1 is ready before Dec 2. Otherwise it waits for next season.~~ **Changed (parity):** the 2026 season uses the web link (C-9); native Year in Review is built in Stage 6.
 
 ### Build order after the foundation
 
 1. Shows tab, show detail (first, since it's the biggest screen, R-03) and add flows
 2. Stats, Me/Profile with deletion, moderation
 3. Friends, tags, notifications, push
-4. Tours, runs, songs, bands, venues, wishlist, bucket list, Community
-5. Festivals (read and attach)
-6. Internal TestFlight, then cutover per SCOPING §7.4
+4. Tours, runs, songs, bands, venues, wishlist, bucket list, Community, plus navigation, per-year stats, advanced search and adding a whole tour (parity)
+5. Festivals, all of it (parity; was read and attach)
+6. Parity: user content, imports, posters, Year in Review, show extras, profile and help (`PARITY-AUDIT.md` §4)
+7. Internal TestFlight, then cutover per SCOPING §7.4
 
 ### Cutover timing
 
-Not during the Year in Review peak (Dec 2 to mid-January), because the cutover makes most users sign in again. Cut over either before about Nov 28 or after the peak.
+Not during the Year in Review peak (Dec 2 to mid-January), because the cutover makes most users sign in again. ~~Cut over either before about Nov 28 or after the peak.~~ **Changed (parity, 2026-11-17):** cutover follows parity, after the peak (late January at the earliest).
 
 ## Project setup (2026-11-15, Part 3)
 
@@ -158,7 +161,7 @@ From the Stage 1 Part 1 audit ([`STAGE1-AUDIT.md`](STAGE1-AUDIT.md)), approved w
 
 - **Upcoming shows** are `users/{uid}/upcomingShows`, as on the web. The native app writes them directly, field by field (no server function). Marking one attended goes through `normalize-show` (kind `upcoming`). A golden fixture pins the upcoming-show shape.
 - **Song ratings are on the native show detail screen** (the web's show page has none). Song comments come in Part 3b.
-- **No web links inside the show screen** in Stage 1: photos, comments, tags, friends at the show, follow band and archival audio stay hidden until their stage. Import links (screenshot, CSV/XLSX) are for signed-in accounts only.
+- **No web links inside the show screen** in Stage 1: photos, comments, tags, friends at the show, follow band and archival audio stay hidden until their stage. Import links (screenshot, CSV/XLSX) are for signed-in accounts only. **Parity (2026-11-17):** every one of these becomes a native section of the show screen (Stages 4 and 6), except playlists, which native leaves out.
 - **`setlist-source`**: a new read-only function that answers `resolveSource` for the app (band source or not, label, needs review). No Swift copy of the source registry. Built in 5.60.22: `GET /.netlify/functions/setlist-source?artist=&mbid=&setlistSource=`, public and cached; it also returns the re-sync button's wording and which call to make (`lib/setlistSourceAnswer.js`).
 - **`lib/setlistEdits.js` and the set-grouping rules are ported to Swift**, with shared golden fixtures run by both the JS and the Swift tests.
 - **Offline adds:** a file-backed queue of `normalize-show` requests, keyed by show id. Queued shows appear as "Waiting to sync", and their songs can't be rated until the show syncs.
@@ -172,12 +175,12 @@ From the Stage 2 Part 1 audit ([`STAGE2-AUDIT.md`](STAGE2-AUDIT.md)), approved w
 
 - **No data export in v1** (C-1). Copies of a person's data go through support@mysetlists.net, as above. A data export is on the post-v1 list.
 - **Top lists use the server's definitions, top 10, all time** (C-2): the loose band key, `countVenues`, and songs counted by distinct shows. `userStats` gains `topSongs` (keyed by band + song), and `topBands`/`topVenues` go to 10. The fields are additive, so `STATS_VERSION` stays 2. Follow-up: the web Stats page switches to the server lists.
-- **No per-year stats in Stage 2** (C-3). "This year" stats are on the v1.x list, and need a per-year block on the server first.
-- **"Hours of live music" is dropped in native** (C-4).
+- **No per-year stats in Stage 2** (C-3). "This year" stats are on the v1.x list, and need a per-year block on the server first. **Reversed (parity, 2026-11-17):** the year picker is built in Stage 4, on a per-year block in `userStats` computed on the server.
+- **"Hours of live music" is dropped in native** (C-4). **Confirmed (parity, 2026-11-17):** it stays dropped, and the web's Stats page drops it too (Stage 4 server PR), so both apps show the same tiles.
 - **Rank is "#N" only** (C-5). Native never shows `rankedOf` or any other user count. Guests see "Create an account to see your rank".
 - **Avatar upload and bio are deferred** (C-6). Neither exists on the web, and both are public user content that need server and rules work first. Me shows the current photo read-only.
 - **Block side effects move to the server** (C-7, C-8). Unfriending both ways and clearing pending friend requests and show tags happen in `notify-block` (or its successor), after it checks the caller's own `userBlocks`. The web's `blockUser` stops writing those documents itself. The block, unblock, blocked-accounts and report UI moves to Stage 3, with the first screens that show other people.
-- **Year in Review entry** (C-9): on Stats, for accounts only, Dec 2 – Jan 15 Pacific (`recapPromoActive`), opening `mysetlists.net/year-in-review/?year=2026` in SFSafariViewController. The card shows no numbers. `fixtures/recap-launch/` pins the dates to `lib/recapLaunch.js`.
+- **Year in Review entry** (C-9): on Stats, for accounts only, Dec 2 – Jan 15 Pacific (`recapPromoActive`), opening `mysetlists.net/year-in-review/?year=2026` in SFSafariViewController. The card shows no numbers. `fixtures/recap-launch/` pins the dates to `lib/recapLaunch.js`. **Confirmed for 2026 (parity, 2026-11-17):** the web link stays for this season; native Year in Review is built in Stage 6.
 - **Tap-through lists** (band, song, venue → your shows) filter the cached shows with the server's keys, ported with a shared fixture (`fixtures/stats-keys/`). The counts come from the server.
 - **Debug rows stay as they are:** both behind five taps on the version; "Developer" is Debug-only; the first-launch report stays until the cutover numbers are in.
 - **The deletion PR fixes three native bugs:** deletion clears the outbox and the edit queue; a deletion that times out checks whether the account is gone before reporting a failure; guest changes are flushed before adoption, or adoption doesn't start. The suspended screen gets "Delete my account" and the support email (deletion works there while the session lasts; after that, through support).
@@ -191,7 +194,7 @@ From the Stage 3 Part 1 audit ([`STAGE3-AUDIT.md`](STAGE3-AUDIT.md)), approved w
 - **Invites go through the server** (C-1, §8 of the audit): `invite`, `resendInvite` and `cancelInvite`. `resendInvite` fixes the web's resend, refused by the `invites` rule since 5.59.7 (2a).
 - **Tags go through the server** (C-2): `tag`, `respondTag` and `revokeTag`, with `showData` built from the tagger's own stored show, never from the request. Accepting a past tag stays `normalize-show` kind `tag`.
 - **Suggestion answers go through the server** (C-3): `respondSuggestion`, which sends the nudge email once.
-- **Comments, photos and meetups stay on the web in Stage 3** (C-4) and are on the v1.x list (above). Native doesn't post, like or report them yet.
+- **Comments, photos and meetups stay on the web in Stage 3** (C-4) and are on the v1.x list (above). Native doesn't post, like or report them yet. **Reversed (parity, 2026-11-17):** all three are built natively in Stage 6.
 - **Engagement notifications are a security fix** (C-5): today any account can write a notification into anyone's inbox. In 3a, `moderate-content` writes the reply and mention notifications when it creates a comment, and a server action writes like and meetup-join notifications after checking the like or join happened. The web stops writing them. Refusing client creates on `notifications` goes in GATED-CLEANUPS, safe from the Capacitor version 3a ships in, since older builds still write them.
 - **Old client-write rules wait the same way:** 2a and 3a each add a GATED-CLEANUPS row for the client creates they replace (`friendRequests`, `invites`, `showTags`, `pendingEmailTags`), safe from the Capacitor version that PR ships in. No rule is loosened.
 - **Find friends by handle** (C-6): `lookupByHandle`, an exact match only, and only accounts with a claimed handle. Email lookup stays.
@@ -200,3 +203,44 @@ From the Stage 3 Part 1 audit ([`STAGE3-AUDIT.md`](STAGE3-AUDIT.md)), approved w
 - **`iosPushOfferEnabled` stays off**, and native follows it: no permission prompt while it's off. A device that already allowed push (in the Capacitor app) registers without asking.
 - **Guests:** no Friends, requests, invites, tags or UGC (the Friends tab keeps "Friends need an account"). Guests follow bands and get band alerts in the app and by push, never by email (no address); the server needs no change for that (D-2).
 - **PR order:** 2a (friends server actions, the invite resend fix) → 2b (native Friends, block, report) → 3a (show social server actions, engagement notifications) → 3b (native show social) → 4 (notifications inbox) → 5 (push) → 6 (band alerts and links). Parts 2 and 3 are two PRs each: the server actions change the web and carry its versions.
+
+## Parity before launch (2026-11-17)
+
+**The requirement:** before launch, the native app reaches full parity with the web and Capacitor app, except the admin portal. The inventory, sizes and PR list are in [`PARITY-AUDIT.md`](PARITY-AUDIT.md). Phillip accepted its recommendations (§3) with one change, F-9.
+
+- **Reversed by parity:**
+  - festivals are all v1 (Stage 5);
+  - screenshot and CSV import are v1 (Stage 6);
+  - comments, photos and meetups are v1 (Stage 3 C-4, Stage 6);
+  - per-year stats are v1 (Stage 2 C-3, Stage 4).
+- **Navigation (F-1):** no drawer.
+  - A **Library** section at the top of Me: Tours, Runs, Festivals, Wishlist, Bucket List, Setlist Photos.
+  - **Community** on Stats; **Activity** on Friends.
+  - Songs, bands and venues are reached from where they appear.
+  - The wide-iPad sidebar can list them all.
+- **The Search tab (F-2)** is advanced search over your own shows, with saved and recent searches. Adding a show from setlist.fm stays under +.
+- **"Hours of live music" (F-3)** stays dropped in native, and the web drops it too (Stage 4 server PR).
+- **Discover and "Fans also see" (F-4)** aren't part of parity while the web hides them. They're built when the web turns them on, behind the same switch.
+- **What's New and release notes (F-5):**
+  - a native What's New sheet per native release, from a JSON file in the repo;
+  - the web's Release Notes page (web version numbers) stays a web link.
+- **Venue owner tools (F-6):**
+  - native shows venue photos, announcements and the verified badge;
+  - "Verify this venue", "Manage venue" and the venue dashboard open the web.
+- **How to Use (F-7)** is a native screen with content written for the native app, from a JSON file in the repo.
+- **Haptics (F-8):** nothing to copy, since the web's haptics are on its own swipe gestures, which iOS provides. Native adds `.sensoryFeedback` where it suits iOS: saving a rating, adding a show, following a band.
+- **Playlists (F-9) are left out of the native app.** No Spotify or Apple Music playlist creation, and no web link in its place. Phillip didn't accept the MusicKit and Spotify sign-in proposal.
+- **CSV and Excel import (F-10):** a server function parses the file with the web's code and returns the rows. Native has the file picker and the review screen; no Swift parser.
+- **The "Songs I've heard" tool (F-11)** stays a web link, as it is in the Capacitor app.
+- **Terms, Privacy and Community Guidelines (F-12)** stay web pages in `SFSafariViewController`. Me adds the Community Guidelines link.
+- **Year in Review (F-13):**
+  - the 2026 season keeps the web link (C-9);
+  - native Year in Review is built in Stage 6;
+  - cutover follows parity, after the peak.
+- **Unchanged, because the web doesn't have them either (F-14):** avatar upload and bio (C-6), data export (C-1).
+- **Per-year stats (F-15)** are a per-year block in `userStats`, computed on the server, not on the device.
+- **Not app screens (web by design):** the landing, compare and switch pages, public profiles, show, band and poster pages, shared collections, `/reset`, `/cookies`, and the PWA install prompt.
+- **Two fixes regardless of screens:**
+  - the welcome email after a first show moves to the server (`normalize-show`), because native never asked for it;
+  - a guest's first show opens the account prompt, as on the web.
+- **PR order:** Stage 4 (12 PRs, starting with its audit and a server PR) → Stage 5 (4) → Stage 6 (12) → internal TestFlight and cutover. Each PR is listed in `PARITY-AUDIT.md` §4.
