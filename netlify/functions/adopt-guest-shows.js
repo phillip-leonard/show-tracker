@@ -15,10 +15,12 @@
  * Holding both tokens is the proof that one person owns both accounts.
  *
  *   preview  what would happen; writes nothing:
- *            { move, duplicates: [...], possible: [...], upcoming, bands }
- *   commit   moves the shows, upcoming shows and followed bands, deletes
- *            the guest account (lib/userDataPurge.js), recomputes the
- *            account's stats
+ *            { move, duplicates: [...], possible: [...], upcoming, bands,
+ *              wishlistSongs, favoriteTours, bucketListShows, bucketListVenues }
+ *   commit   moves the shows, upcoming shows and followed bands, and the
+ *            guest's lists (song wishlists, favorite tours, bucket list
+ *            shows and venues, 5.60.34), deletes the guest account
+ *            (lib/userDataPurge.js), recomputes the account's stats
  *
  * "The same show" is lib/showIdentity.js classifyDuplicate, as everywhere
  * (CLAUDE.md). A setlist.fm-id or same-show match is a duplicate: the
@@ -115,6 +117,85 @@ function mergeFollowedBands(account = [], guest = []) {
   return { merged: [...(account || []), ...added], added: added.length };
 }
 
+// ── The guest's lists (5.60.34) ───────────────────────────────────────
+// Top-level collections with a `userId` owner field (lib/wishlist.js,
+// lib/favoriteTours.js, lib/bucketList.js, lib/bucketListVenues.js). Each is
+// moved before the purge deletes it, the account's entry winning on a clash.
+// The maps are merged here and written whole, so the result doesn't depend
+// on how a merge write treats nested maps.
+
+/** The key a per-item document's id carries after `${uid}_`, or null. */
+function keyAfterUid(id, uid) {
+  const prefix = `${uid}_`;
+  return typeof id === 'string' && id.startsWith(prefix) && id.length > prefix.length ? id.slice(prefix.length) : null;
+}
+
+/**
+ * planWishlists({ guest, account, accountUid, guestUid }) → { writes: [[id, data]], added }.
+ * One wishlist per band (`${uid}_${artistKey}`): the guest's starred songs
+ * join the account's for the same band; the account's entry wins a clash.
+ */
+function planWishlists({ guest = [], account = [], accountUid, guestUid }) {
+  const accountByKey = new Map();
+  for (const doc of account) {
+    const key = keyAfterUid(doc.id, accountUid) || doc.artistKey;
+    if (key) accountByKey.set(key, doc);
+  }
+  const writes = [];
+  let added = 0;
+  for (const doc of guest) {
+    const key = keyAfterUid(doc.id, guestUid) || doc.artistKey;
+    const songs = doc.songs && typeof doc.songs === 'object' ? doc.songs : {};
+    if (!key || Object.keys(songs).length === 0) continue;
+    const mine = accountByKey.get(key) || {};
+    const mineSongs = mine.songs && typeof mine.songs === 'object' ? mine.songs : {};
+    const newKeys = Object.keys(songs).filter((k) => !(k in mineSongs));
+    if (newKeys.length === 0) continue;
+    added += newKeys.length;
+    writes.push([`${accountUid}_${key}`, {
+      userId: accountUid,
+      artistKey: mine.artistKey || doc.artistKey || key,
+      artistName: mine.artistName || doc.artistName || '',
+      artistMbid: mine.artistMbid || doc.artistMbid || null,
+      songs: { ...songs, ...mineSongs },
+    }]);
+  }
+  return { writes, added };
+}
+
+/** Favorite tours (one `favoriteTours/{uid}` doc, a `tours` map): the guest's join the account's. */
+function mergeFavoriteTours(guest = {}, account = {}) {
+  const guestTours = guest && guest.tours && typeof guest.tours === 'object' ? guest.tours : {};
+  const mine = account && account.tours && typeof account.tours === 'object' ? account.tours : {};
+  const added = Object.keys(guestTours).filter((k) => !(k in mine)).length;
+  return { tours: { ...guestTours, ...mine }, added };
+}
+
+/**
+ * planListItems({ guest, account, accountUid, guestUid }) → [[id, data]].
+ * One document per item, `${uid}_${itemKey}` (bucketList,
+ * bucketListVenues): the guest's items the account doesn't have, owned by
+ * the account.
+ */
+function planListItems({ guest = [], account = [], accountUid, guestUid }) {
+  const have = new Set(account.map((d) => d.id));
+  const writes = [];
+  for (const { id, ...data } of guest) {
+    const key = keyAfterUid(id, guestUid);
+    if (!key) continue;
+    const target = `${accountUid}_${key}`;
+    if (have.has(target)) continue;
+    have.add(target);
+    writes.push([target, { ...data, userId: accountUid }]);
+  }
+  return writes;
+}
+
+async function readOwned(db, collection, uid) {
+  const snap = await db.collection(collection).where('userId', '==', uid).get();
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+}
+
 async function readAll(db, path) {
   const snap = await db.collection(path).get();
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
@@ -123,7 +204,7 @@ async function readAll(db, path) {
 async function writeAll(db, writes) {
   for (let i = 0; i < writes.length; i += BATCH) {
     const batch = db.batch();
-    writes.slice(i, i + BATCH).forEach(([ref, data]) => batch.set(ref, data));
+    writes.slice(i, i + BATCH).forEach(([ref, data, options]) => (options ? batch.set(ref, data, options) : batch.set(ref, data)));
     await batch.commit();
   }
 }
@@ -146,15 +227,35 @@ async function adopt({ db, auth, accountUid, guestUid, mode, includePossible = [
     db.doc(`userProfiles/${guestUid}`).get(),
     db.doc(`userProfiles/${accountUid}`).get(),
   ]);
+  const [guestWishlists, accountWishlists, guestTours, accountTours, guestBucket, accountBucket, guestVenues, accountVenues] = await Promise.all([
+    readOwned(db, 'wishlists', guestUid),
+    readOwned(db, 'wishlists', accountUid),
+    db.doc(`favoriteTours/${guestUid}`).get(),
+    db.doc(`favoriteTours/${accountUid}`).get(),
+    readOwned(db, 'bucketList', guestUid),
+    readOwned(db, 'bucketList', accountUid),
+    readOwned(db, 'bucketListVenues', guestUid),
+    readOwned(db, 'bucketListVenues', accountUid),
+  ]);
   const plan = planAdoption({ guestShows, accountShows, includePossible });
   const upcoming = planUpcoming(guestUpcoming, accountUpcoming);
   const bands = mergeFollowedBands(
     accountProfile.exists ? accountProfile.data().favoriteArtists : [],
     guestProfile.exists ? guestProfile.data().favoriteArtists : [],
   );
+  const wishlists = planWishlists({ guest: guestWishlists, account: accountWishlists, accountUid, guestUid });
+  const tours = mergeFavoriteTours(guestTours.exists ? guestTours.data() : {}, accountTours.exists ? accountTours.data() : {});
+  const bucketShows = planListItems({ guest: guestBucket, account: accountBucket, accountUid, guestUid });
+  const bucketVenues = planListItems({ guest: guestVenues, account: accountVenues, accountUid, guestUid });
+  const lists = {
+    wishlistSongs: wishlists.added,
+    favoriteTours: tours.added,
+    bucketListShows: bucketShows.length,
+    bucketListVenues: bucketVenues.length,
+  };
 
   if (mode !== 'commit') {
-    return { mode: 'preview', move: plan.move.length, duplicates: plan.duplicates, possible: plan.possible, upcoming: upcoming.length, bands: bands.added };
+    return { mode: 'preview', move: plan.move.length, duplicates: plan.duplicates, possible: plan.possible, upcoming: upcoming.length, bands: bands.added, ...lists };
   }
 
   const usedShowIds = new Set(accountShows.map((s) => s.id));
@@ -169,7 +270,16 @@ async function adopt({ db, auth, accountUid, guestUid, mode, includePossible = [
     usedUpcomingIds.add(newId);
     return [db.doc(`users/${accountUid}/upcomingShows/${newId}`), data];
   });
-  await writeAll(db, [...showWrites, ...upcomingWrites]);
+  const now = serverTimestamp();
+  const listWrites = [
+    ...wishlists.writes.map(([id, data]) => [db.doc(`wishlists/${id}`), { ...data, updatedAt: now }, { merge: true }]),
+    ...bucketShows.map(([id, data]) => [db.doc(`bucketList/${id}`), data]),
+    ...bucketVenues.map(([id, data]) => [db.doc(`bucketListVenues/${id}`), data]),
+  ];
+  if (tours.added) {
+    listWrites.push([db.doc(`favoriteTours/${accountUid}`), { userId: accountUid, tours: tours.tours, updatedAt: now }, { merge: true }]);
+  }
+  await writeAll(db, [...showWrites, ...upcomingWrites, ...listWrites]);
   if (bands.added) {
     await db.doc(`userProfiles/${accountUid}`).set({ favoriteArtists: bands.merged }, { merge: true });
   }
@@ -206,6 +316,7 @@ async function adopt({ db, auth, accountUid, guestUid, mode, includePossible = [
     possibleDropped: plan.possible.length,
     upcomingMoved: upcomingWrites.length,
     bandsAdded: bands.added,
+    ...lists,
     guestDeleted: report.authUserDeleted === true,
     stats,
   };
@@ -269,4 +380,7 @@ exports.handler = withCors(exports.handler);
 exports.planAdoption = planAdoption;
 exports.planUpcoming = planUpcoming;
 exports.mergeFollowedBands = mergeFollowedBands;
+exports.planWishlists = planWishlists;
+exports.mergeFavoriteTours = mergeFavoriteTours;
+exports.planListItems = planListItems;
 exports.adopt = adopt;

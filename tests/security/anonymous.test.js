@@ -296,6 +296,51 @@ test('adopt: followed bands merge by name, legacy strings included; upcoming sho
   assert.deepStrictEqual(u.map((x) => x.id), ['u2']);
 });
 
+test('adopt: the guest\'s lists join the account\'s, the account winning a clash (5.60.34)', () => {
+  const G = 'g1';
+  const A = 'a1';
+  const w = adoptGuest.planWishlists({
+    guestUid: G,
+    accountUid: A,
+    guest: [
+      { id: 'g1_mb-goose', artistKey: 'mb-goose', artistName: 'Goose', artistMbid: 'mb-goose', songs: { arcadia: { title: 'Arcadia' }, tumble: { title: 'Tumble' } } },
+      { id: 'g1_phish', artistKey: 'phish', artistName: 'Phish', artistMbid: null, songs: { ghost: { title: 'Ghost' } } },
+      { id: 'g1_empty', artistKey: 'empty', artistName: 'Empty', songs: {} },
+      { id: 'g1_same', artistKey: 'same', artistName: 'Same', songs: { a: { title: 'A' } } },
+    ],
+    account: [
+      { id: 'a1_mb-goose', artistKey: 'mb-goose', artistName: 'Goose', artistMbid: 'mb-goose', songs: { arcadia: { title: 'Arcadia', addedAt: 'mine' } } },
+      { id: 'a1_same', artistKey: 'same', artistName: 'Same', songs: { a: { title: 'A' } } },
+    ],
+  });
+  assert.strictEqual(w.added, 2, 'Tumble and Ghost; Arcadia and A were already the account\'s');
+  assert.deepStrictEqual(w.writes.map(([id]) => id), ['a1_mb-goose', 'a1_phish']);
+  const goose = w.writes[0][1];
+  assert.strictEqual(goose.userId, A);
+  assert.deepStrictEqual(Object.keys(goose.songs).sort(), ['arcadia', 'tumble']);
+  assert.strictEqual(goose.songs.arcadia.addedAt, 'mine', 'the account\'s entry wins');
+  assert.strictEqual(w.writes[1][1].artistMbid, null);
+
+  const t = adoptGuest.mergeFavoriteTours({ tours: { 'goose:fall': { tourName: 'Fall' }, 'phish:nye': { tourName: 'G' } } }, { tours: { 'phish:nye': { tourName: 'A' } } });
+  assert.strictEqual(t.added, 1);
+  assert.strictEqual(t.tours['phish:nye'].tourName, 'A');
+  assert.deepStrictEqual(adoptGuest.mergeFavoriteTours({}, {}), { tours: {}, added: 0 });
+
+  const items = adoptGuest.planListItems({
+    guestUid: G,
+    accountUid: A,
+    guest: [
+      { id: 'g1_red rocks::morrison', userId: G, venueKey: 'red rocks::morrison', venueName: 'Red Rocks' },
+      { id: 'g1_msg::new york', userId: G, venueKey: 'msg::new york', venueName: 'MSG' },
+      { id: 'stray', userId: G, venueKey: 'x' },
+    ],
+    account: [{ id: 'a1_msg::new york', userId: A }],
+  });
+  assert.deepStrictEqual(items.map(([id]) => id), ['a1_red rocks::morrison'], 'a venue on both lists stays the account\'s; an id without the guest\'s prefix is left');
+  assert.strictEqual(items[0][1].userId, A);
+  assert.strictEqual(items[0][1].venueName, 'Red Rocks');
+});
+
 test('adopt-guest-shows: needs a real guest token that is not the caller', async () => {
   setup();
   const call = (body) => quiet(() => post(adoptGuest.handler, 'alice', body));
@@ -335,6 +380,38 @@ test('adopt-guest-shows: preview writes nothing; commit moves, keeps ids, merges
   assert.ok(db._get(`users/${ALICE.uid}/upcomingShows/u1`));
   assert.deepStrictEqual(db._get(`userProfiles/${ALICE.uid}`).favoriteArtists.map((b) => b.name), ['Spafford']);
   assert.strictEqual(r.stats.ranked, true);
+});
+
+test('adopt-guest-shows: commit moves the guest\'s wishlists, favorite tours and bucket lists (5.60.34)', async () => {
+  setup();
+  db._put(`wishlists/${GUEST.uid}_mb-goose`, { userId: GUEST.uid, artistKey: 'mb-goose', artistName: 'Goose', artistMbid: 'mb-goose', songs: { tumble: { title: 'Tumble', addedAt: 'g' } } });
+  db._put(`wishlists/${ALICE.uid}_mb-goose`, { userId: ALICE.uid, artistKey: 'mb-goose', artistName: 'Goose', artistMbid: 'mb-goose', songs: { arcadia: { title: 'Arcadia', addedAt: 'a' } } });
+  db._put(`wishlists/${GUEST.uid}_phish`, { userId: GUEST.uid, artistKey: 'phish', artistName: 'Phish', artistMbid: null, songs: { ghost: { title: 'Ghost' } } });
+  db._put(`favoriteTours/${GUEST.uid}`, { userId: GUEST.uid, tours: { 'goose:fall-tour': { tourName: 'Fall Tour', artistName: 'Goose' } } });
+  db._put(`bucketList/${GUEST.uid}_goose_ryman_2030-05-01`, { userId: GUEST.uid, artist: 'Goose', venue: 'Ryman', date: '2030-05-01' });
+  db._put(`bucketListVenues/${GUEST.uid}_red rocks::morrison`, { userId: GUEST.uid, venueKey: 'red rocks::morrison', venueName: 'Red Rocks' });
+
+  const preview = await quiet(() => adoptGuest.adopt({ db, auth, accountUid: ALICE.uid, guestUid: GUEST.uid, mode: 'preview' }));
+  assert.deepStrictEqual(
+    [preview.wishlistSongs, preview.favoriteTours, preview.bucketListShows, preview.bucketListVenues],
+    [2, 1, 1, 1],
+  );
+  assert.strictEqual(db._get(`wishlists/${ALICE.uid}_phish`), undefined, 'preview wrote nothing');
+
+  const purge = async () => ({ errors: [], authUserDeleted: true });
+  const r = await quiet(() => adoptGuest.adopt({ db, auth, accountUid: ALICE.uid, guestUid: GUEST.uid, mode: 'commit', purge }));
+  assert.strictEqual(r.wishlistSongs, 2);
+  const goose = db._get(`wishlists/${ALICE.uid}_mb-goose`);
+  assert.deepStrictEqual(Object.keys(goose.songs).sort(), ['arcadia', 'tumble'], 'one band\'s songs merged');
+  assert.strictEqual(goose.songs.arcadia.addedAt, 'a');
+  assert.strictEqual(db._get(`wishlists/${ALICE.uid}_phish`).userId, ALICE.uid);
+  assert.strictEqual(db._get(`favoriteTours/${ALICE.uid}`).tours['goose:fall-tour'].tourName, 'Fall Tour');
+  assert.strictEqual(db._get(`bucketList/${ALICE.uid}_goose_ryman_2030-05-01`).userId, ALICE.uid);
+  assert.strictEqual(db._get(`bucketListVenues/${ALICE.uid}_red rocks::morrison`).venueName, 'Red Rocks');
+
+  // Retried: nothing new to move, nothing changed.
+  const again = await quiet(() => adoptGuest.adopt({ db, auth, accountUid: ALICE.uid, guestUid: GUEST.uid, mode: 'commit', purge }));
+  assert.deepStrictEqual([again.wishlistSongs, again.favoriteTours, again.bucketListShows, again.bucketListVenues], [0, 0, 0, 0]);
 });
 
 test('adopt-guest-shows: the welcome email when shows move into an account with none, not otherwise (5.60.32)', async () => {
