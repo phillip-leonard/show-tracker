@@ -1,9 +1,11 @@
 import Foundation
 
 /// The app's tabs (DECISIONS.md, "Navigation"): Shows · Friends · Stats · Me,
-/// plus the system Search tab.
-public enum AppTab: String, CaseIterable, Hashable, Sendable {
+/// plus the system Search tab. `library` items are tabs only in a wide iPad
+/// window's sidebar (Stage 4, F-1); the tab bar never shows them.
+public enum AppTab: Hashable, Sendable {
     case shows, friends, stats, me, search
+    case library(LibraryDestination)
 }
 
 /// A screen pushed on a tab's stack. Each is a placeholder until its

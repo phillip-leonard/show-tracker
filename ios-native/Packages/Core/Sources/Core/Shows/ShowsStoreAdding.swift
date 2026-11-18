@@ -107,6 +107,7 @@ extension ShowsStore {
         guard self.uid == uid else { return .queued(showId: showId) }
         switch verdict {
         case .added(let id):
+            if Self.isFirstShow(id, loaded: showsLoaded, existing: shows.map(\.id)) { firstShowId = id }
             finishAdd(entry, uid: uid)
             justAdded.insert(id)
             requestStatsRecompute()
@@ -127,6 +128,20 @@ extension ShowsStore {
         case .wait:
             return .queued(showId: showId)
         }
+    }
+
+    /// A show the server just built was this person's first: their shows
+    /// had loaded and held no other. Before they load, nobody can tell.
+    nonisolated static func isFirstShow(_ id: String, loaded: Bool, existing: [String]) -> Bool {
+        loaded && existing.allSatisfy { $0 == id }
+    }
+
+    /// True once for the show that was this person's first (`isFirstShow`),
+    /// then false: the add flow asks, and a guest gets the account prompt.
+    public func takeFirstShow(_ id: String) -> Bool {
+        guard firstShowId == id else { return false }
+        firstShowId = nil
+        return true
     }
 
     /// What one commit's answer means for its outbox entry.

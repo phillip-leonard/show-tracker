@@ -258,6 +258,10 @@ From the Stage 4 audit ([`STAGE4-AUDIT.md`](STAGE4-AUDIT.md)), approved with the
 - **`lib/songIndex.js` becomes CommonJS**, with a shared fixture for the song key and the gap rules; runs get a fixture for `lib/runIndex.js` (with `venuesFuzzyMatch`), and the user count one for `lib/userCount.js`.
 - **The web's "Listen to this night"** is checked for a `DD-MM-YYYY` date in 4-2; `archival-audio-lookup` accepts only ISO. **Done (5.60.32):** the web sent the stored date as is, so `useArchivalAudio` now converts with `toIsoDate`.
 - **Artist slugs trim first** (2026-11-18, 5.60.32): `artistSlugFromName` and its Swift port trim before slugging, so " Phish " is `phish`, as `bandKey` already read it. Production had no padded artist names (shows, upcoming shows, followed bands, favorite tours, wishlists, bucket list: 0 each), so no cleanup ran. `lib/wishlist.js` `artistKeyFor` keeps its rule: it names stored wishlist documents.
+- **Navigation as built (4-3, native 4.0.30):**
+  - one list, `LibraryDestination` (Core), drives Library in Me, Community on Stats and the sidebar; each later PR flips its item's `native` and swaps the web page for its screen;
+  - the sidebar's Library section exists only when a sidebar can (regular width **and** height): an iPhone puts every `TabSection` tab in its tab bar, ignoring `.defaultVisibility(.hidden, for: .tabBar)`, so Search fell into "More", and a Max iPhone in landscape is regular width;
+  - a guest's first show shows "Great start!" before the show opens, from the add flow (`AddOutcomeHandling`), so "I went" on an upcoming show gets it too.
 - **PR order:** 4-1 audit → 4-2 server → 4-3 navigation → 4-4 songs and listening → 4-5 bands → 4-6 runs and tours → 4-7 venues → 4-8 stats → 4-9 wishlist → 4-10 bucket list → 4-11 Community → 4-12 Search tab.
 
 ## Post-launch list

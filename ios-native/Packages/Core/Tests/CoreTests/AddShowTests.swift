@@ -119,6 +119,13 @@ import Testing
                 == .needsAnswer(existing: "555"))
     }
 
+    @Test func aFirstShowIsOneAddedToShowsThatHadLoadedEmpty() {
+        #expect(ShowsStore.isFirstShow("1763", loaded: true, existing: []))
+        #expect(ShowsStore.isFirstShow("1763", loaded: true, existing: ["1763"]), "the listener can have it before the answer")
+        #expect(!ShowsStore.isFirstShow("1763", loaded: true, existing: ["900"]))
+        #expect(!ShowsStore.isFirstShow("1763", loaded: false, existing: []), "before the shows load, nobody can tell")
+    }
+
     @Test func errorsDecideWhetherTheAddWaitsOrIsRefused() {
         #expect(ShowsStore.verdict(.offline) == .wait)
         #expect(ShowsStore.verdict(.server(status: 502, message: nil, code: nil)) == .wait)

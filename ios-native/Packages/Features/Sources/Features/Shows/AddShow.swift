@@ -127,13 +127,35 @@ extension View {
 
 struct AddOutcomeHandling: ViewModifier {
     @Environment(ShowsStore.self) private var store
+    @Environment(SessionStore.self) private var session
     @Bindable var flow: AddFlow
     let finish: (AppRoute?) -> Void
+    /// A guest's first show: the account prompt first, then the show
+    /// (Stage 4; the web shows it in place of the "added" toast).
+    @State private var firstShow: FirstShow?
+    /// The show to open once the prompt closes (kept apart from `firstShow`,
+    /// which the sheet clears before `onDismiss` runs).
+    @State private var openAfterPrompt: String?
+
+    struct FirstShow: Identifiable { let id: String }
 
     func body(content: Content) -> some View {
         content
             .onChange(of: flow.outcome) { _, outcome in
-                if case .added(let id)? = outcome { flow.outcome = nil; finish(.show(id: id)) }
+                guard case .added(let id)? = outcome else { return }
+                flow.outcome = nil
+                // Taken for accounts too, so it never lingers.
+                if store.takeFirstShow(id), session.user?.isAnonymous == true {
+                    openAfterPrompt = id
+                    firstShow = FirstShow(id: id)
+                } else {
+                    finish(.show(id: id))
+                }
+            }
+            .sheet(item: $firstShow, onDismiss: {
+                if let id = openAfterPrompt { openAfterPrompt = nil; finish(.show(id: id)) }
+            }) { _ in
+                FirstShowPrompt()
             }
             .alert(title, isPresented: Binding(get: { showsAlert }, set: { if !$0 { flow.outcome = nil } })) {
                 switch flow.outcome {
