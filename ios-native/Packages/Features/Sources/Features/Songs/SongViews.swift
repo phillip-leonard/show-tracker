@@ -264,7 +264,7 @@ struct SongPage: View {
     }
 }
 
-private struct SectionTitle: View {
+struct SectionTitle: View {
     let text: String
     init(_ text: String) { self.text = text }
 

@@ -22,6 +22,12 @@ public enum AppRoute: Hashable, Sendable {
     case bandSong(band: String, song: String)
     /// Every song you've seen (Stage 4, 4-4): `/stats/songs`.
     case songs
+    /// Your runs and one run (Stage 4, 4-6): `/stats/runs`, `/runs/?run=`.
+    case runs
+    case run(key: String)
+    /// Your tours and one tour (Stage 4, 4-6): `/tours`, `/tours/?tour=`.
+    case tours
+    case tour(key: String)
     case venue(key: String)
     case yearInReview(user: String, year: String)
     /// Your shows for one band, song or venue, from Stats (Stage 2). Not a
@@ -93,6 +99,15 @@ public extension DeepLink {
             return .open(.stats, nil)
         case "/stats/songs":
             return .open(.stats, .songs)
+        case "/stats/runs":
+            return .open(.stats, .runs)
+        // Library in Me (Stage 4, 4-6).
+        case "/runs":
+            if let key = value("run") { return .open(.me, .run(key: key)) }
+            return .open(.me, .runs)
+        case "/tours":
+            if let key = value("tour") { return .open(.me, .tour(key: key)) }
+            return .open(.me, .tours)
         case "/friends":
             return .open(.friends, nil)
         case "/notifications":
@@ -130,6 +145,10 @@ public extension AppRoute {
             params.set("song", song)
         case .bandSong(let band, let song): path = "/bands"; params.set("band", band); params.set("song", song)
         case .songs: path = "/stats/songs"
+        case .runs: path = "/stats/runs"
+        case .run(let key): path = "/runs"; params.set("run", key)
+        case .tours: path = "/tours"
+        case .tour(let key): path = "/tours"; params.set("tour", key)
         case .venue(let key): path = "/venues"; params.set("venue", key)
         case .yearInReview(let user, let year): path = "/year-in-review"; params.set("user", user); params.set("year", year)
         case .myShows: path = "/stats"

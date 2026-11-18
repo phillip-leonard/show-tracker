@@ -117,8 +117,8 @@ Two gaps aren't screens, and both should be fixed whatever else is decided:
 | Artist, date, venue, city header | Yes | Yes | Native #433 | | | |
 | Artist name → band page | `bandHref` | Band stand-in (Follow + web link) | Planned | | | 4 |
 | Venue → venue page | Yes | None | Planned | | | 4 |
-| Tour line → tour page | Yes | None | Planned | | | 4 |
-| "Night N of M — view the full run" | Yes | None | Planned | | | 4 |
+| Tour line → tour page | Yes | Card under the header (your tours only) | Native 4-6 | | | |
+| "Night N of M — view the full run" | Yes | Same card | Native 4-6 | | | |
 | Festival badge → festival page | Yes | Label only | Native #433 (label); link planned | | | 5 |
 | Follow the band (bell) | `FollowBandButton` | Show ⋯ menu | Native #451 | | | |
 | Tag friends | Yes | Yes | Native #448 | | | |
@@ -214,12 +214,12 @@ Two gaps aren't screens, and both should be fixed whatever else is decided:
 
 | Item | Web / Capacitor | Native today | Status | Size | Server work | Stage |
 |---|---|---|---|---|---|---|
-| Run page: nights, unique songs, total songs, average rating, night by night, best night, combined setlist | `RunDetailView` | None | Planned | M | none; `lib/runIndex.js` fixture | 4 |
-| Tours list | `app/tours/page.jsx` | None | Planned | M | none | 4 |
-| Tour page: stops you caught, first stop, venues, countries, unique songs, average rating, new songs on this tour, add more shows | `TourDetailView` | None | Planned | (same PR) | | 4 |
-| Favorite a tour | `TourFavoriteButton`, `lib/favoriteTours.js` | None | Planned | S | none | 4 |
-| Tour info (active tour, recent tours, song analysis) | `TourInfoModal` (from Profile → Tour Info) | None | Missing | M | none (`get-artist-tours`) | 4 |
-| Empty states: "No runs yet", "No tours match that filter" | Yes | | Planned | | | 4 |
+| Run page: nights, unique songs, total songs, average rating, night by night, best night, combined setlist | `RunDetailView` | `RunPage` (`RunIndex`, `fixtures/runs/`) | Native 4-6 | | none | |
+| Tours list | `app/tours/page.jsx` | `ToursListView`: search, sort, band filter, favorites only | Native 4-6 | | none | |
+| Tour page: stops you caught, first stop, venues, countries, unique songs, average rating, new songs on this tour, add more shows | `TourDetailView` | `TourPage`, `TourBrowseSheet` (`get-tour-shows` → `normalize-show`) | Native 4-6 | | | |
+| Favorite a tour | `TourFavoriteButton`, `lib/favoriteTours.js` | `FavoriteToursStore` (same document and keys) | Native 4-6 | | none | |
+| Tour info (active tour, recent tours, song analysis) | `TourInfoModal` (from Profile → Tour Info) | `TourInfoSheet`, from a tour page | Native 4-6 | | none (`get-artist-tours`, `get-artist-song-stats`) | |
+| Empty states: "No runs yet", "No tours match that filter" | Yes | Yes | Native 4-6 | | | |
 
 ### 2.11 Venues (`/venues?venue=`, `/venue-dashboard`)
 
