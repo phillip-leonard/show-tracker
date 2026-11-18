@@ -94,6 +94,13 @@ import Testing
         #expect(AppRoute.statsList(.venues, year: nil).webURL.absoluteString == "https://mysetlists.net/stats/top-venues/")
     }
 
+    /// The wishlist (Stage 4, 4-9) is in Me's Library.
+    @Test func theWishlistOpensNatively() {
+        #expect(action("https://mysetlists.net/wishlist/") == .open(.me, .wishlist))
+        #expect(AppRoute.wishlist.webURL.absoluteString == "https://mysetlists.net/wishlist/")
+        #expect(AppRoute.wishlistArtist(WishlistArtist(name: "Goose", mbid: "m")).webURL.absoluteString == "https://mysetlists.net/wishlist/")
+    }
+
     @Test func ourUnclaimedPagesStayOnTheWeb() {
         let reset = URL(string: "https://mysetlists.net/reset/abc123")!
         #expect(DeepLink.resolve(reset)?.action == .web(reset), "password reset is a web page")
