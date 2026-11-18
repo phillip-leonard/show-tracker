@@ -295,9 +295,9 @@ struct TourPage: View {
                             .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
-                        // The venue is its own control: its web page until 4-7.
+                        // The venue is its own control: its venue page (4-7).
                         if !stop.venue.isEmpty, let key = VenueNames.venueKey(name: stop.venue, city: stop.city) {
-                            Button { router.show(AppRoute.venue(key: key).webURL) } label: {
+                            NavigationLink(value: AppRoute.venue(key: key)) {
                                 Text(stop.venue)
                                     .font(.jakarta(size: 12, relativeTo: .caption))
                                     .foregroundStyle(Color.brandLight)
@@ -306,7 +306,7 @@ struct TourPage: View {
                                     .frame(maxWidth: 140, alignment: .trailing)
                             }
                             .buttonStyle(.borderless)
-                            .accessibilityHint("Opens the venue on mysetlists.net")
+                            .accessibilityHint("Opens the venue's page")
                         }
                     }
                     if i < tour.stops.count - 1 { Divider().overlay(Color.borderSubtle) }

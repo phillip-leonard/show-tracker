@@ -23,7 +23,7 @@ public enum ShowMatchKey {
 
 /// Where tapping a notification goes (the web's NotificationCenter):
 /// - a meetup join: the meetup page (meetups stay on the web, Stage 3 C-4);
-/// - a bucket-list venue: the venue;
+/// - a bucket-list venue: its venue page (Stage 4, 4-7);
 /// - an anniversary: your show;
 /// - a reply, mention or like: your show's page on the web, where comments
 ///   and photos are (C-4);

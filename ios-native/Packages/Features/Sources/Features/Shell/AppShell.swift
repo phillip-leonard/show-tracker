@@ -152,6 +152,7 @@ struct RouteScreen: View {
         case .run(let key): RunScreen(key: key)
         case .tours: ToursListView()
         case .tour(let key): TourScreen(key: key)
+        case .venue(let key): VenueScreen(key: key)
         default: RoutePlaceholder(route: route)
         }
     }
