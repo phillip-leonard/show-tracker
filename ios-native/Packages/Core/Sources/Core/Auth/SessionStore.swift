@@ -196,8 +196,14 @@ public final class SessionStore {
     /// Best-effort; the session doesn't wait on it.
     private func afterAccountSignIn() async {
         _ = try? await api.post(FriendsRequest.function, FriendsRequest.claimInvites, as: JSONValue.self)
-        if let ref = Referral.take() {
-            _ = try? await api.post(FriendsRequest.function, FriendsRequest.referral(ref: ref), as: JSONValue.self)
+        await sendReferral()
+    }
+
+    /// The kept referral, through `friends.js referral` (accounts only).
+    private func sendReferral() async {
+        let api = self.api
+        await Referral.use { (ref: String) throws(APIError) in
+            _ = try await api.post(FriendsRequest.function, FriendsRequest.referral(ref: ref), as: JSONValue.self)
         }
     }
 
@@ -214,8 +220,8 @@ public final class SessionStore {
     }
 
     public func useReferralIfSignedIn() async {
-        guard let user, !user.isAnonymous, let ref = Referral.take() else { return }
-        _ = try? await api.post(FriendsRequest.function, FriendsRequest.referral(ref: ref), as: JSONValue.self)
+        guard let user, !user.isAnonymous else { return }
+        await sendReferral()
     }
 
     // MARK: - Terms
@@ -365,7 +371,16 @@ public final class SessionStore {
             _ = try? await result.user.getIDTokenResult(forcingRefresh: true)
             try? await result.user.reload()
             apply(Auth.auth().currentUser) // same uid: now an account, with its new provider
-            _ = try? await api.post(AccountLinkedRequest.function, AccountLinkedRequest(ref: Referral.take()), as: AccountLinkedResponse.self)
+            // What a new sign-up gets, the kept referral with it. If it can't
+            // be reached, the referral stays and the next launch sends it
+            // through friends.js (now an account).
+            let ref = Referral.pending
+            do {
+                _ = try await api.post(AccountLinkedRequest.function, AccountLinkedRequest(ref: ref), as: AccountLinkedResponse.self)
+                if let ref { Referral.clear(ref) }
+            } catch {
+                if let ref, Referral.settles(error) { Referral.clear(ref) }
+            }
             await adoptDisplayName(pendingName ?? Auth.auth().currentUser?.displayName)
         } catch {
             let failure = AuthFailure.from(error)
@@ -570,19 +585,66 @@ public struct GuestAdoption {
     public var preview: AdoptGuestShowsPreview?
 }
 
-/// A referral from a `/?ref=` link (D-6), kept until the next account
-/// sign-in or link uses it.
+/// A referral from a `/?ref=` link (D-6), as the web keeps
+/// `invite-referrer`: remembered when the link opens the app (on first
+/// launch too, signed out or as a guest), and credited by the server on the
+/// next account sign-in or sign-up (`friends.js referral`) or a guest's
+/// upgrade (`account-linked`).
+///
+/// Unlike the web, which forgets it before asking, it stays on the phone
+/// until the server has answered, so a sign-up that's offline or meets a
+/// server error is credited on the next launch instead of never.
+@MainActor
 public enum Referral {
     private static let key = "pendingReferral"
+    /// Tests use their own suite.
+    static var defaults: UserDefaults = .standard
+    /// One use at a time: a link opened at launch and the session's restore
+    /// can both reach for it.
+    private static var inFlight = false
 
+    /// A newer link replaces an older one, as the web's storage does.
     public static func remember(_ ref: String) {
-        UserDefaults.standard.set(String(ref.prefix(2000)), forKey: key)
+        let trimmed = ref.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        defaults.set(String(trimmed.prefix(2000)), forKey: key)
     }
 
-    static func take() -> String? {
-        let ref = UserDefaults.standard.string(forKey: key)
-        UserDefaults.standard.removeObject(forKey: key)
-        return ref
+    public static var pending: String? { defaults.string(forKey: key) }
+
+    /// Forgets `ref` if it's still the one kept (a newer link stays).
+    static func clear(_ ref: String) {
+        if pending == ref { defaults.removeObject(forKey: key) }
+    }
+
+    /// Whether the server's answer settles it: a success, or a refusal of
+    /// the request itself (a bad or unknown link). Offline, a server error,
+    /// a limit or an expired session leave it for the next try; so does
+    /// "create an account" (a guest who'll upgrade).
+    static func settles(_ error: APIError?) -> Bool {
+        guard let error else { return true }
+        switch error {
+        case .server(let status, _, _): return (400..<500).contains(status)
+        case .forbidden: return true
+        case .invalidResponse: return true
+        case .offline, .rateLimited, .signInRequired, .accountRequired: return false
+        }
+    }
+
+    /// Sends the kept referral with `send`, and forgets it once settled.
+    /// Returns whether one was sent.
+    @discardableResult
+    static func use(_ send: (String) async throws(APIError) -> Void) async -> Bool {
+        guard !inFlight, let ref = pending else { return false }
+        inFlight = true
+        defer { inFlight = false }
+        do {
+            try await send(ref)
+            clear(ref)
+        } catch {
+            if settles(error) { clear(ref) }
+        }
+        return true
     }
 }
 

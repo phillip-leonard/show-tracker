@@ -24,10 +24,13 @@ public struct UserProfile: Decodable, Identifiable, Hashable, Sendable {
     public var showOnLeaderboard: Bool
     public var convertedFromGuest: Bool?
     public var createdAt: Date?
+    /// The alert and engagement preferences (`notificationPrefs`), read as
+    /// they're stored; `AlertPref` and `EngagementPrefs` read them.
+    public var notificationPrefs: JSONValue?
 
     enum CodingKeys: String, CodingKey {
         case displayName, firstName, handle, photoURL, favoriteArtists, termsAcceptedVersion, termsAcceptedAt,
-             banned, isTestUser, shareActivity, publicProfile, showOnLeaderboard, convertedFromGuest, createdAt
+             banned, isTestUser, shareActivity, publicProfile, showOnLeaderboard, convertedFromGuest, createdAt, notificationPrefs
     }
 
     public init(from decoder: Decoder) throws {
@@ -47,7 +50,13 @@ public struct UserProfile: Decodable, Identifiable, Hashable, Sendable {
         showOnLeaderboard = try c.flag(.showOnLeaderboard) ?? true
         convertedFromGuest = try c.flag(.convertedFromGuest)
         createdAt = try c.moment(.createdAt)
+        notificationPrefs = try? c.decodeIfPresent(JSONValue.self, forKey: .notificationPrefs)
     }
+
+    public func alertPref(_ kind: AlertKind) -> AlertPref { AlertPref(notificationPrefs?[kind.rawValue]) }
+    /// Replies and likes: on unless turned off; email only when "immediate".
+    public var engagementOn: Bool { notificationPrefs?["engagementNotifications"]?.boolValue ?? true }
+    public var engagementEmailImmediately: Bool { notificationPrefs?["emailFrequency"]?.stringValue == "immediate" }
 }
 
 /// A band the user follows. Stored as `{name, mbid, addedAt}`, or, in

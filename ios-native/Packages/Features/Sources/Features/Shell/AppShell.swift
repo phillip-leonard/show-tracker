@@ -98,6 +98,7 @@ struct RouteScreen: View {
         case .upcomingShow(let id): UpcomingDetail(id: id)
         case .myShows(let filter): MyShowsList(filter: filter)
         case .notifications: NotificationsView()
+        case .band(let slug): BandRouteScreen(slug: slug)
         default: RoutePlaceholder(route: route)
         }
     }

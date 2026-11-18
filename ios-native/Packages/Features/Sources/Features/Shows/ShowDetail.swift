@@ -65,6 +65,8 @@ struct ShowDetailView: View {
     @State private var undo: DeletedSong?
     @State private var tagging = false
     @State private var socialNotice: String?
+    @State private var follow = FollowFlow()
+    @State private var shareNeedsPublicProfile = false
 
     private var isGuest: Bool { session.user?.isAnonymous == true }
 
@@ -128,6 +130,12 @@ struct ShowDetailView: View {
             TagFriendsSheet(target: .show(show.id), band: show.artist, alreadyTagged: show.taggedFriendUids) { socialNotice = $0 }
         }
         .notice($socialNotice)
+        .followFlow(follow, session: session)
+        .alert("Make your profile public to share", isPresented: $shareNeedsPublicProfile) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("A show has a page anyone can open only while your profile is public. Turn it on in Me → Public profile (it needs a handle).")
+        }
         .sheet(item: $review) { item in
             ProposalReviewSheet(review: item, show: show, sourceName: sourceName) { message in
                 opMessage = message
@@ -149,10 +157,22 @@ struct ShowDetailView: View {
 
     private var moreMenu: some View {
         Menu {
-            if !isGuest, let url = URL(string: "https://mysetlists.net/shows/?show=\(show.id)") {
-                // The show's page on the web: the owner and their friends can open it.
-                ShareLink(item: url, subject: Text(show.artist), message: Text(describe(show))) {
-                    Label("Share", systemImage: "square.and.arrow.up")
+            if !isGuest {
+                // The show's public page (STAGE3-AUDIT §7), which exists only
+                // while the profile is public; otherwise, how to get one.
+                if session.profile?.publicProfile == true, let handle = session.profile?.handle,
+                   let url = ProfileSettings.publicShowURL(handle: handle, showId: show.id) {
+                    ShareLink(item: url, subject: Text(show.artist), message: Text(describe(show))) {
+                        Label("Share", systemImage: "square.and.arrow.up")
+                    }
+                } else {
+                    Button { shareNeedsPublicProfile = true } label: { Label("Share", systemImage: "square.and.arrow.up") }
+                }
+            }
+            if !show.artist.isEmpty {
+                let following = BandFollows.isFollowing(show.artist, in: session.profile?.favoriteArtists ?? [])
+                Button { Task { await follow.toggle(show.artist, session: session) } } label: {
+                    Label(following ? "Unfollow \(show.artist)" : "Follow \(show.artist)", systemImage: following ? "bell.slash" : "bell")
                 }
             }
             if !isGuest {

@@ -194,7 +194,7 @@ Every push carries `data.link`, a universal link. Native resolves it with the sa
 ## 7. Referral and share links
 
 - **`/?ref=`:**
-  - **Built (D-6):** `DeepLink.resolve` strips `ref` and keeps it (`Referral`), `SessionStore` posts `friends.js referral` after an account sign-in, and `account-linked` takes it on sign-up.
+  - **Built (D-6):** `DeepLink.resolve` strips `ref` and keeps it (`Referral`), `SessionStore` posts `friends.js referral` after an account sign-in, and `account-linked` takes it on sign-up. Since native 4.0.25 the kept referral stays on the phone until the server has answered, so a sign-up that's offline or meets a server error is credited on the next launch (the web forgets it before asking).
   - **Left:**
     - "Invite friends" in the Friends tab gets the link from `friends.js referralLink` and shares it with `ShareLink`. It's signed (`signReferral`), so it auto-friends.
     - Guests can't get one (`requireAccount`).
@@ -265,7 +265,7 @@ The existing `ShowTag`, `PendingEmailTag` and `ShowSuggestion` decode today's do
 | 3b | **Native show social**: tag friends from a show, accept, decline and revoke, Shows Together on a friend, suggestions. **Built in native 4.0.22.** | `ios-native/` | native only |
 | 4 | **Native notifications inbox**: the list, read and unread, mark all read, per-type rows and destinations, tags and requests and suggestions in the same place, `/notifications` routing, badge. **Built in native 4.0.23.** | `ios-native/` | native only |
 | 5 | **Native push**: APNs registration, `PushToken` (the one `token()` file), token doc on sign-in and launch, foreground banners, tap routing, the `iosPushOfferEnabled` gate; + C-7's test tool (a function, so all three versions if chosen). **Built in 5.60.30, iOS 3.13.46 and native 4.0.24.** | `ios-native/` (+ `netlify/` for C-7) | native, or all three |
-| 6 | **Native band alerts and links**: follow and unfollow, Bands you follow, alert settings (prefs, channels, home location and radius), the post-follow message, show share links | `ios-native/` | native only |
+| 6 | **Native band alerts and links**: follow and unfollow, Bands you follow, alert settings (prefs, channels, home location and radius), the post-follow message, show share links. **Built in native 4.0.25.** | `ios-native/` | native only |
 
 The order is 2a → 2b → 3a → 3b → 4 → 5 → 6. Parts 2b, 4 and 6 depend only on their server PR or on nothing, so 4 and 6 could run in parallel with 3 if you want speed. The brief's "one PR per part" becomes two for Parts 2 and 3, because the server actions are web changes with their own versions and tests.
 
