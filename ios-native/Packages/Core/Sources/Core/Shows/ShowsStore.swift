@@ -23,7 +23,10 @@ import UIKit
 @Observable
 public final class ShowsStore {
     public private(set) var uid: String?
-    public private(set) var shows: [Show] = []
+    public private(set) var shows: [Show] = [] {
+        // The song index is built again from the new list when next read.
+        didSet { songIndexCache = nil }
+    }
     public private(set) var upcoming: [UpcomingShow] = []
     public private(set) var stats: UserStats?
     /// The first answer for `userStats/{uid}` has arrived (a document or
@@ -51,6 +54,8 @@ public final class ShowsStore {
     /// The server refused the last edit or delete (it stays on screen until
     /// the listener brings the stored value back).
     public var writeProblem: String?
+    /// `songIndex`, built once per list of shows and day.
+    @ObservationIgnored var songIndexCache: (today: String, index: [String: SongIndex.Entry])?
 
     private var showsLoad: LiveLoad<Snapshot<Show>>?
     private var upcomingLoad: LiveLoad<Snapshot<UpcomingShow>>?

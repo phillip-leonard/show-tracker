@@ -46,6 +46,10 @@ public final class AppRouter {
 
     public func show(_ url: URL) { web = WebPage(url: url) }
 
+    /// Pushes a screen on the tab that's showing, for a tap that can't be a
+    /// `NavigationLink` (a context menu item).
+    public func push(_ route: AppRoute) { paths[tab, default: []].append(route) }
+
     /// A different person signed in, or nobody: start from Shows.
     public func reset() {
         tab = .shows

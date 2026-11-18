@@ -103,6 +103,17 @@ struct StatsHome: View {
             topSection("Top songs", stats.topSongs.map {
                 TopEntry(filter: ShowsFilter(kind: .song, title: $0.name, artist: $0.artist), detail: $0.artist.isEmpty ? nil : $0.artist, count: $0.count)
             })
+            // Every song (Stage 4, 4-4), from the shows on this phone.
+            if !stats.topSongs.isEmpty || store.shows.contains(where: { !$0.setlist.isEmpty }) {
+                Section {
+                    NavigationLink(value: AppRoute.songs) {
+                        Label("All your songs", systemImage: "music.note.list")
+                            .font(.jakarta(size: 15, weight: .semibold, relativeTo: .body))
+                            .foregroundStyle(Color.textPrimary)
+                    }
+                }
+                .brandRow()
+            }
             topSection("Top venues", stats.topVenues.map { TopEntry(filter: ShowsFilter(kind: .venue, title: $0.name), detail: nil, count: $0.count) })
         }
         .refreshable { await store.refresh() }

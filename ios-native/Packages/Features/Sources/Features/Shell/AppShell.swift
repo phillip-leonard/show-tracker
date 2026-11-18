@@ -139,6 +139,8 @@ struct RouteScreen: View {
         case .myShows(let filter): MyShowsList(filter: filter)
         case .notifications: NotificationsView()
         case .band(let slug): BandRouteScreen(slug: slug)
+        case .song(let artist, let song): SongScreen(artist: artist, song: song)
+        case .songs: SongListView()
         default: RoutePlaceholder(route: route)
         }
     }
