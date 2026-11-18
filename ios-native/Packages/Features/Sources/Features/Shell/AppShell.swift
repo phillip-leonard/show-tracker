@@ -154,6 +154,8 @@ struct RouteScreen: View {
         case .tour(let key): TourScreen(key: key)
         case .venue(let key): VenueScreen(key: key)
         case .statsList(let kind, let year): StatsListScreen(kind: kind, year: year)
+        case .wishlist: WishlistHome()
+        case .wishlistArtist(let artist): WishlistArtistScreen(artist: artist)
         default: RoutePlaceholder(route: route)
         }
     }

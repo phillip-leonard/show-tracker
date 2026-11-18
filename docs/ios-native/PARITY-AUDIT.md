@@ -239,9 +239,9 @@ Two gaps aren't screens, and both should be fixed whatever else is decided:
 
 | Item | Web / Capacitor | Native today | Status | Size | Server work | Stage |
 |---|---|---|---|---|---|---|
-| Your wishlists by artist; change artist | `WishlistView` | None | Planned | M | none | 4 |
-| Star songs from the artist's catalog; songs you've seen; "You've seen everything" | Yes (`get-artist-song-stats`) | None | Planned | (same PR) | none | 4 |
-| Empty and error states ("Couldn't save — try again", "No catalog data") | Yes | | Planned | | | 4 |
+| Your wishlists by artist; change artist | `WishlistView` | `WishlistHome` (setlist.fm band search), guests too | Native 4-9 | | none | |
+| Star songs from the artist's catalog; songs you've seen; "You've seen everything" | Yes (`get-artist-song-stats`) | `WishlistArtistScreen` (same documents and keys) | Native 4-9 | | none | |
+| Empty and error states ("Couldn't save — try again", "No catalog data") | Yes | Yes | Native 4-9 | | | |
 
 ### 2.13 Bucket list (`/bucket-list`)
 

@@ -84,6 +84,7 @@ struct LibraryTabRoot: View {
         switch item.route {
         case .tours?: ToursListView()
         case .runs?: RunListView()
+        case .wishlist?: WishlistHome()
         default: placeholder
         }
     }
