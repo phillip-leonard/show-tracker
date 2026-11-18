@@ -19,9 +19,11 @@ enrich.__test.setRetryDelay(5);
 // Each URL is answered by route(url) → [status, body]; the requests are recorded.
 function stub(route) {
   const urls = [];
+  const agents = [];
   const original = https.get;
-  https.get = (url, _opts, cb) => {
+  https.get = (url, opts, cb) => {
     urls.push(String(url));
+    agents.push(opts && opts.headers && opts.headers['User-Agent']);
     const [status, body] = route(String(url));
     const req = new EventEmitter();
     process.nextTick(() => {
@@ -33,7 +35,7 @@ function stub(route) {
     });
     return req;
   };
-  return { urls, restore: () => { https.get = original; } };
+  return { urls, agents, restore: () => { https.get = original; } };
 }
 
 const get = (name) => enrich.handler({
@@ -87,6 +89,26 @@ test('Goose: Discogs is the artist MusicBrainz links to, never the name search',
     // Discogs' "(2)" for a shared name is dropped; MusicBrainz's members come first.
     assert.deepStrictEqual(names, ['Rick Mitarotonda', 'Peter Anspach', 'Ben Atkind', 'Chris Enright']);
     assert.deepStrictEqual(body.sources, { musicbrainz: true, discogs: true });
+  } finally { s.restore(); }
+});
+
+test('every request names the app as MusicBrainz asks: MySetlists/<version> ( site; email )', async () => {
+  const { version } = require('../../package.json');
+  const expected = `MySetlists/${version} ( https://mysetlists.net; support@mysetlists.net )`;
+  assert.strictEqual(enrich.__test.USER_AGENT, expected);
+  // A busy answer too, so the retry is covered.
+  let busy = true;
+  const inner = route({ mbArtists: [{ id: MB_GOOSE, name: 'Goose' }], relations: [discogsRel(1198062)] });
+  const s = stub((url) => {
+    if (busy && url.includes('musicbrainz')) { busy = false; return [503, {}]; }
+    return inner(url);
+  });
+  try {
+    await get('Goose');
+    const mb = s.urls.map((u, i) => [u, s.agents[i]]).filter(([u]) => u.includes('musicbrainz.org'));
+    assert.strictEqual(mb.length, 3, 'search, its retry, and the lookup');
+    assert.ok(mb.every(([, agent]) => agent === expected), JSON.stringify(mb));
+    assert.ok(s.agents.every((agent) => agent === expected), 'Discogs too');
   } finally { s.restore(); }
 });
 

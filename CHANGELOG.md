@@ -26,7 +26,10 @@ links to (its `discogs` url-rel: "Goose (6)", id 1198062):
   a week.
 
 MusicBrainz is now asked before Discogs instead of at the same time, so a
-cache miss takes one more round trip. Discogs' numbering of shared names is
+cache miss takes one more round trip. Every request names the app the way
+MusicBrainz's rate-limit rules ask, with the site's own version:
+`MySetlists/5.60.33 ( https://mysetlists.net; support@mysetlists.net )`
+(it was `MySetlistsApp/1.0 (show-tracker; contact@mysetlists.net)`). Discogs' numbering of shared names is
 dropped from members ("Chris Enright (2)" is "Chris Enright"), and a member
 both sources list shows once however the dash or accent is written
 ("Kenny‐Smith" and "Kenny-Smith"). The cache key is now `enrich_v2_…`, so

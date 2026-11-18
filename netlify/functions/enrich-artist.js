@@ -8,7 +8,12 @@ const CORS_HEADERS = {
 };
 
 const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
-const USER_AGENT = 'MySetlistsApp/1.0 (show-tracker; contact@mysetlists.net)';
+// MusicBrainz asks every client to name itself as "Application/version
+// ( contact )" and throttles or blocks generic agents
+// (https://musicbrainz.org/doc/MusicBrainz_API/Rate_Limiting). Sent on every
+// request here, MusicBrainz and Discogs alike; the version is the site's own.
+const { version: APP_VERSION } = require('../../package.json');
+const USER_AGENT = `MySetlists/${APP_VERSION} ( https://mysetlists.net; support@mysetlists.net )`;
 
 // --- Firebase Admin (lazy init, graceful degradation if env vars missing) ---
 
@@ -384,6 +389,7 @@ module.exports.handler = withCors(module.exports.handler);
 
 // For the tests (tests/metadata/enrichArtist.test.js).
 module.exports.__test = {
+  USER_AGENT,
   discogsIdFromRelations,
   cleanDiscogsName,
   mergeMembers,
