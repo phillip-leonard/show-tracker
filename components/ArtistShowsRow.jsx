@@ -4,7 +4,6 @@ import React from 'react';
 import { ChevronDown, Calendar, MapPin, Music, MessageSquare, X } from 'lucide-react';
 import { formatDate, artistColor, avgSongRating } from '@/lib/utils';
 import RatingSelect from '@/components/ui/RatingSelect';
-import UpcomingShows from '@/components/UpcomingShows';
 import FollowBandButton from '@/components/artists/FollowBandButton';
 import MakePosterButton from '@/components/heard/MakePosterButton';
 import BandStatsLink from '@/components/bands/BandStatsLink';
@@ -99,13 +98,12 @@ function ArtistShowsRow({ artist, shows, expanded, onToggle, onSelectShow, onDel
                 })}
               </div>
               <div className="mt-2" onClick={(e) => e.stopPropagation()}>
-                <div className="flex flex-wrap gap-2 mb-3">
+                <div className="flex flex-wrap gap-2">
                   <FollowBandButton artist={artist} />
                   <BandStatsLink artist={artist} />
                   <FansAlsoSeeLink artist={artist} />
                   <MakePosterButton artist={artist} />
                 </div>
-                <UpcomingShows artistName={artist} />
               </div>
             </div>
           </td>

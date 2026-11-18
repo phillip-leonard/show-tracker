@@ -4,6 +4,32 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.60.31] — 2026-11-18
+
+Ships in **iOS 3.13.47** (Capacitor, `MARKETING_VERSION` 3.13.46 → 3.13.47).
+Native unchanged.
+
+**Ticket lookups removed.** The per-band Ticketmaster and SeatGeek date
+lookups are gone, with the two functions behind them. Every call to them
+failed in production the week before (22 of 22), so the panel only ever
+showed its empty state.
+
+- **Functions:** `ticketmaster-events` and `seatgeek-events` are deleted,
+  with `netlify/functions/lib/ticketCacheStore.js`.
+- **App:** the "Upcoming Shows" panel is gone from a band's row in My Shows
+  and from the show page (`components/UpcomingShows.jsx`). "Add an upcoming
+  show" opens straight on the form; its date search is gone
+  (`lib/ticketEvents.js`). A show saved from the search earlier keeps its
+  source and ticket link.
+- **Unused helpers:** `mergeTicketEvents`, `formatTicketDate` (`lib/utils.js`)
+  and `TICKET_CACHE_TTL` (`lib/constants.js`).
+- **Not changed:** on-sale alerts (`onsale-scan`, `onsale-reminder`),
+  followed-band tour alerts and festival lineups still ask Ticketmaster from
+  the server (`lib/ticketmasterEvents.js`). `ticketCache` keeps its
+  read-only rule for older app builds; nothing writes it now.
+- **Config:** `SEATGEEK_CLIENT_ID` and `SEATGEEK_AFFILIATE_ID` are no longer
+  read and can be deleted from Netlify.
+
 ## [5.60.30] — 2026-11-16
 
 Ships in **iOS 3.13.46** (Capacitor, `MARKETING_VERSION` 3.13.45 → 3.13.46)
