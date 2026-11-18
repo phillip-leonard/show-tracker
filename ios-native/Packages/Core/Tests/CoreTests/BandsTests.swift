@@ -13,19 +13,20 @@ struct BandsTests {
 
     // MARK: The directory
 
-    @Test func theBundledConfigIsTheRepos() throws {
-        // The repo's file, next to these sources (the app bundles it through the Config symlink).
-        let file = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-            .appendingPathComponent("config/public-artists.json")
-        let data = try Data(contentsOf: file)
-        let json = try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
-        let artists = try #require(json["artists"] as? [[String: Any]])
-        #expect(BandDirectory.configured.map(\.slug) == artists.compactMap { $0["slug"] as? String })
-        #expect(BandDirectory.configured.count >= 20)
+    /// The app bundles the repo's config/ (the Config symlink, a `.copy`
+    /// resource of Core). Read from the bundle only: Xcode Cloud runs the
+    /// tests where the source tree isn't, as with `Fixtures`.
+    @Test func theConfigIsBundled() throws {
+        let slugs = BandDirectory.configured.map(\.slug)
+        #expect(slugs.count >= 20)
+        #expect(Set(slugs).count == slugs.count, "slugs are unique")
+        #expect(slugs.first == "goose", "the file's order")
         #expect(BandDirectory.configured.first { $0.slug == "goose" }?.songPages == true)
+        #expect(BandDirectory.configured.first { $0.slug == "phish" }?.source == "phishnet")
         #expect(BandDirectory.configured.first { $0.slug == "billy-strings" }?.songPages == false)
+        // config/song-title-aliases.json, the other file the page reads.
+        #expect(SongTitleAliases.forBand("Goose")["sos"]?.name == "Same Old Shenanigans")
+        #expect(SongTitleAliases.all["_comment"] == nil, "the comment isn't a band")
     }
 
     @Test func aNameFindsItsPublicBandTheWayTheWebDoes() {
