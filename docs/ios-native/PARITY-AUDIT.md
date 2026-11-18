@@ -91,7 +91,7 @@ Two gaps aren't screens, and both should be fixed whatever else is decided:
 | "By artist" tab (artist table, expand to shows) | `ArtistShowsRow` | None | Missing | S | none | 4 |
 | Saved searches applied to the list | `activeSavedSearch` | None | Missing | S | none | 4 (with advanced search) |
 | `?artist=` / `?venue=` filter links from elsewhere | Yes | Tap-through from Stats | Native #441 | | | |
-| Venue's shows (`?venueKey=`) | `VenueShowsView` | None | Planned | | | 4 (venue page) |
+| Venue's shows (`?venueKey=`) | `VenueShowsView` | The venue page's "Your shows here" (newest 10, then all in your show list); a `?venueKey=` link still opens the web | Native 4-7 | | | |
 | Empty state: "Your concert journey starts here" | Yes | Yes | Native #432 | | | |
 | Loading skeleton | `ShowsListSkeleton` | Progress view | Native #432 | | | |
 | "Relive this night" card (show anniversaries) | `ReliveThisNightCard` | None | Missing | S | none | 6 |
@@ -116,7 +116,7 @@ Two gaps aren't screens, and both should be fixed whatever else is decided:
 |---|---|---|---|---|---|---|
 | Artist, date, venue, city header | Yes | Yes | Native #433 | | | |
 | Artist name → band page | `bandHref` | Band stand-in (Follow + web link) | Planned | | | 4 |
-| Venue → venue page | Yes | None | Planned | | | 4 |
+| Venue → venue page | Yes | The venue row in the card under the header | Native 4-7 | | | |
 | Tour line → tour page | Yes | Card under the header (your tours only) | Native 4-6 | | | |
 | "Night N of M — view the full run" | Yes | Same card | Native 4-6 | | | |
 | Festival badge → festival page | Yes | Label only | Native #433 (label); link planned | | | 5 |
@@ -185,7 +185,7 @@ Two gaps aren't screens, and both should be fixed whatever else is decided:
 | Full lists: every artist, venue, song (times played, average rating) | `StatsView` tabs, `/stats/songs` | Top 10 only | Missing | M | none (from cached shows with shared keys; counts that are shown come from the server's lists where they exist) | 4 |
 | Top-rated shows | `StatsView` | None | Missing | S | none | 4 |
 | Runs list (`/stats/runs`) | Yes | None | Planned | | | 4 |
-| Venue tab: "Rate Venue", community average | `VenueRatingModal` | None | Planned (venue page) | | | 4 |
+| Venue tab: "Rate Venue", community average | `VenueRatingModal` | On the venue page; Stats' venue rows still open your shows there | Native 4-7 (venue page) | | | |
 | "How many Goose songs have you heard?" (Songs I've heard tool) | `HeardToolCard`, a web tool | None | Missing | S | none; the tool is a web page (flag F-11) | 6 |
 | Year in Review entry | Card | Card, Dec 2 – Jan 15, opens the web (C-9) | Native #441 (web link) | | | |
 | Empty state: "No stats yet" | Yes | Yes | Native #441 | | | |
@@ -225,15 +225,15 @@ Two gaps aren't screens, and both should be fixed whatever else is decided:
 
 | Item | Web / Capacitor | Native today | Status | Size | Server work | Stage |
 |---|---|---|---|---|---|---|
-| Venue page: info, capacity, official website, your shows here | `VenueDetailClient` | Placeholder (web link) | Planned | M | none | 4 |
-| Community ratings, average | Yes | None | Planned | (same PR) | none | 4 |
-| Rate a venue: overall, optional sub-ratings, review | `VenueRatingModal` (`venueRatings`) | None | Planned | S | none (rules allow the user's own rating) | 4 |
-| Venue bucket list button | `VenueBucketListButton` | None | Planned | S | | 4 |
-| Venue photos (gallery) | `VenuePhotoGallery` | None | Missing | S | none (read) | 4 |
-| Venue announcements | `VenueAnnouncements` | None | Missing | S | none (read) | 4 |
-| Report a venue | `ReportVenueModal` | None | Missing | S | none | 4 |
-| Verify a venue (claim), Manage venue, venue dashboard (bio, capacity, photos, announcements) | `VerifyVenueButton`, `VenueDashboardClient` | None | Flag F-6 | | | |
-| Empty state: "No shows here yet" | Yes | | Planned | | | 4 |
+| Venue page: info, capacity, official website, your shows here | `VenueDetailClient` | `VenueScreen` (`VenueService`: `venues/{key}`) | Native 4-7 | | none | |
+| Community ratings, average | Yes | Count and average (the web's `toFixed(1)`); accounts only | Native 4-7 | | none | |
+| Rate a venue: overall, optional sub-ratings, review | `VenueRatingModal` (`venueRatings`) | `VenueRatingSheet` (same document id and fields); accounts only | Native 4-7 | | none | |
+| Venue bucket list button | `VenueBucketListButton` | On the venue page (same `bucketListVenues` document); guests too | Native 4-7 | | none | |
+| Venue photos (gallery) | `VenuePhotoGallery` | Grid and full-size viewer, read only; accounts only | Native 4-7 | | none | |
+| Venue announcements | `VenueAnnouncements` | Read only; accounts only | Native 4-7 | | none | |
+| Report a venue | `ReportVenueModal` | `ReportVenueSheet` (same reasons and fields); accounts only | Native 4-7 | | none | |
+| Verify a venue (claim), Manage venue, venue dashboard (bio, capacity, photos, announcements) | `VerifyVenueButton`, `VenueDashboardClient` | The verified badge; "Verify this Venue" (⋯ menu) and "Manage Venue" (owner) open the web | Web by design (F-6) | | | |
+| Empty state: "No shows here yet" | Yes | Yes | Native 4-7 | | | |
 
 ### 2.12 Wishlist (`/wishlist`)
 

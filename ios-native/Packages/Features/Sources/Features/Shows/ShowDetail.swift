@@ -253,11 +253,9 @@ struct ShowDetailView: View {
 // MARK: - Tour, run and venue
 
 /// The show's tour (when it's one of yours), "Night 2 of 3" when it's part
-/// of a run, and its venue (Stage 4, 4-6). The venue opens its web page
-/// until the native venue page (4-7).
+/// of a run (Stage 4, 4-6), and its venue page (4-7).
 struct ShowPlaceLinks: View {
     @Environment(ShowsStore.self) private var store
-    @Environment(AppRouter.self) private var router
     let show: Show
 
     var body: some View {
@@ -279,10 +277,9 @@ struct ShowPlaceLinks: View {
                 }
                 if let venueKey, !show.venue.isEmpty {
                     if tour != nil || run != nil { Divider().overlay(Color.borderSubtle) }
-                    linkRow(Button { router.show(AppRoute.venue(key: venueKey).webURL) } label: {
-                        rowLabel(show.venue, detail: "Venue page on mysetlists.net", symbol: "building.columns", outward: true)
-                    }
-                    .accessibilityHint("Opens on mysetlists.net"))
+                    linkRow(NavigationLink(value: AppRoute.venue(key: venueKey)) {
+                        rowLabel(show.venue, detail: "Venue page", symbol: "building.columns", outward: false)
+                    })
                 }
             }
             .padding(.horizontal, Space.x3)
