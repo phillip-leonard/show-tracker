@@ -652,10 +652,10 @@ service cloud.firestore {
         && (resource.data.uploadedBy == request.auth.uid || isAdmin());
     }
 
-    // Ticket search cache. Written only by ticketmaster-events.js and
-    // seatgeek-events.js (lib/ticketCacheStore.js). Until 5.59.7 any
-    // signed-in user could write fake dates and ticket links into any
-    // band's cache (S-02).
+    // Ticket search cache. Nothing writes it since 5.60.31, which removed
+    // the ticketmaster-events and seatgeek-events functions; older app
+    // builds may still read it. Until 5.59.7 any signed-in user could
+    // write fake dates and ticket links into any band's cache (S-02).
     match /ticketCache/{doc} {
       allow read: if request.auth != null;
       allow write: if false;

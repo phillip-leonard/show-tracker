@@ -129,8 +129,6 @@ test('every proxy that spends a shared key is wrapped', () => {
   const expected = {
     setlists: ['search-setlists', 'search-artists', 'search-artist-shows', 'get-artist-tours', 'get-tour-shows',
       'get-artist-info', 'get-artist-song-stats', 'band-setlist', 'setlistfm-links', 'search-festival-lineup'],
-    ticketmaster: ['ticketmaster-events'],
-    seatgeek: ['seatgeek-events'],
   };
   for (const [service, files] of Object.entries(expected)) {
     for (const f of files) {

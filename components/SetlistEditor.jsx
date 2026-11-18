@@ -10,7 +10,6 @@ import { attachSetBoundaryLabels, getSetLabels, getSetOptions } from '@/lib/setl
 import { Button, Card } from '@/components/ui';
 import RatingSelect from '@/components/ui/RatingSelect';
 import Tip from '@/components/ui/Tip';
-import UpcomingShows from '@/components/UpcomingShows';
 import EntityInfoPanel from '@/components/EntityInfoPanel';
 import SongHistoryModal from '@/components/SongHistoryModal';
 import StreamingLinks from '@/components/StreamingLinks';
@@ -497,7 +496,6 @@ function SetlistEditor({ show, allShows, onAddSong, onRateSong, onCommentSong, o
           )}
           <SetlistfmAttribution show={show} />
           <BandSourceAttribution show={show} />
-          <UpcomingShows artistName={show.artist} />
 
           <StreamingLinks show={show} />
           </div>
