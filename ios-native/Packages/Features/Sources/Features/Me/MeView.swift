@@ -28,6 +28,9 @@ struct MeView: View {
             }
             .brandRow()
 
+            // The secondary screens (Stage 4, F-1).
+            LibrarySection()
+
             if isGuest {
                 Section {
                     Button("Create your account") { showUpgrade = true }

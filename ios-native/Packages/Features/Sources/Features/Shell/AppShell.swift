@@ -14,6 +14,10 @@ public struct AppShell: View {
     /// `AppRootView` (the adoption sheet sends a guest's queue through it);
     /// started and stopped here, with the shell.
     @Environment(ShowsStore.self) private var shows
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.verticalSizeClass) private var verticalSizeClass
+    /// Lets the Library tabs stay out of the tab bar (`defaultVisibility`).
+    @State private var tabCustomization = TabViewCustomization()
     /// Friends, requests, invites and blocks (Stage 3, Part 2b): accounts
     /// only, so a guest never starts it.
     @State private var friends = FriendsStore()
@@ -22,30 +26,66 @@ public struct AppShell: View {
 
     public init() {}
 
+    /// A window where `.sidebarAdaptable` can show its sidebar (by size
+    /// class, not by device: CLAUDE.md, "iPad and wide layouts").
+    private var sidebarPossible: Bool { horizontalSizeClass == .regular && verticalSizeClass == .regular }
+
     public var body: some View {
         @Bindable var router = router
         TabView(selection: $router.tab) {
             Tab("Shows", systemImage: "music.note.list", value: AppTab.shows) {
                 TabStack(tab: .shows) { ShowsHome() }
             }
+            .customizationID("shows")
             Tab("Friends", systemImage: "person.2", value: AppTab.friends) {
                 TabStack(tab: .friends) { FriendsHome() }
             }
             .badge(friends.waitingCount + inbox.unreadCount)
+            .customizationID("friends")
             Tab("Stats", systemImage: "chart.bar", value: AppTab.stats) {
                 TabStack(tab: .stats) { StatsHome() }
             }
+            .customizationID("stats")
             Tab("Me", systemImage: "person.crop.circle", value: AppTab.me) {
                 TabStack(tab: .me) { MeView() }
             }
+            .customizationID("me")
             Tab(value: AppTab.search, role: .search) {
                 TabStack(tab: .search) { SearchHome() }
             }
+            .customizationID("search")
+            // The secondary screens in the sidebar (Stage 4, F-1), never in
+            // the tab bar: on a phone they're in Me (Library) and on Stats
+            // (Community). Only when a sidebar can exist, regular width and
+            // height (an iPad window; a Max iPhone in landscape is regular
+            // width but compact height and has no sidebar). An iPhone ignores
+            // `.defaultVisibility(.hidden, for: .tabBar)` and puts the tabs in
+            // its tab bar, pushing Search into "More"; iPad honors it in its
+            // own tab bar mode, given the TabView's customization.
+            if sidebarPossible {
+                TabSection("Library") {
+                    ForEach(LibraryDestination.sidebarItems(isGuest: session.user?.isAnonymous == true)) { item in
+                        Tab(item.title, systemImage: item.systemImage, value: AppTab.library(item)) {
+                            TabStack(tab: .library(item)) { LibraryTabRoot(item: item) }
+                        }
+                        .customizationID("library.\(item.rawValue)")
+                        .defaultVisibility(.hidden, for: .tabBar)
+                    }
+                }
+                .customizationID("library")
+                .defaultVisibility(.hidden, for: .tabBar)
+            }
         }
+        .tabViewCustomization($tabCustomization)
         .environment(friends)
         .environment(inbox)
         .tabViewStyle(.sidebarAdaptable)
         .tint(.brand)
+        // A window made narrow while a Library item is open: the sidebar is
+        // gone, so go to Me, where Library is.
+        .onChange(of: sidebarPossible) { _, possible in
+            if !possible, case .library = router.tab { router.tab = .me }
+        }
         .task(id: session.user?.uid) {
             if let uid = session.user?.uid { shows.start(uid: uid, api: session.api) } else { shows.stop() }
         }

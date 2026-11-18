@@ -38,6 +38,8 @@ struct StatsHome: View {
                 Button { adding = true } label: { Label("Add a show", systemImage: "plus") }
                     .buttonStyle(.borderedProminent)
                     .tint(.brand)
+                Button("See the community") { router.show(LibraryDestination.community.webURL) }
+                    .tint(.brand)
             }
         } else {
             // Shows, but no numbers yet: the server hasn't counted them (a
@@ -65,6 +67,9 @@ struct StatsHome: View {
             .brandRow()
 
             rankSection(stats)
+
+            // Community (Stage 4, F-1): next to where you rank.
+            CommunitySection()
 
             if RecapWindow.shown(isAccount: !isGuest) {
                 Section {

@@ -79,6 +79,10 @@ public final class ShowsStore {
     private var editsTask: Task<Void, Never>?
     /// Shows just added, until the listener has them (the page waits).
     public internal(set) var justAdded: Set<String> = []
+    /// The id of a show that was this person's first (Stage 4): a guest's
+    /// first show opens the account prompt, as on the web. Taken once with
+    /// `takeFirstShow(_:)`.
+    var firstShowId: String?
 
     struct Snapshot<T> {
         var items: [T]
@@ -133,6 +137,7 @@ public final class ShowsStore {
         recompute?.cancel(); recompute = nil
         queuedEdits = []
         justAdded = []
+        firstShowId = nil
         outboxFlushAgain = false
         pendingSetlists = [:]
         settleTasks.values.forEach { $0.cancel() }
