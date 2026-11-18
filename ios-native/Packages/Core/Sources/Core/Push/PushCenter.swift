@@ -90,7 +90,7 @@ public final class PushCenter {
         try? await PushToken.delete()
     }
 
-    static func allowed(_ status: UNAuthorizationStatus) -> Bool {
+    public static func allowed(_ status: UNAuthorizationStatus) -> Bool {
         status == .authorized || status == .provisional || status == .ephemeral
     }
 

@@ -224,6 +224,14 @@ public struct ProfileSettings: Sendable {
         return components.url ?? URL(string: "mailto:\(Terms.supportEmail)")!
     }
 
+    /// mysetlists.net/u/<handle>/shows/<id>/ (`publicShowUrl`): a show's
+    /// public page, which exists only while the profile is public.
+    public static func publicShowURL(handle: String, showId: String) -> URL? {
+        let slug = handle.lowercased().addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? handle.lowercased()
+        let id = showId.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? showId
+        return URL(string: "https://mysetlists.net/u/\(slug)/shows/\(id)/")
+    }
+
     /// mysetlists.net/u/<handle>/, as lib/publicProfile.js builds it.
     public static func publicProfileURL(handle: String) -> URL? {
         let slug = handle.lowercased().addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? handle.lowercased()

@@ -43,6 +43,17 @@ struct MeView: View {
 
             PushSettingsSection()
 
+            Section {
+                // Band alerts (Stage 3, Part 6): guests too (D-2).
+                NavigationLink { FollowedBandsView() } label: {
+                    LabeledContent("Bands you follow", value: "\(session.profile?.favoriteArtists.count ?? 0)")
+                }
+                NavigationLink("Alert settings") { AlertSettingsView() }
+            } header: {
+                Text("Alerts")
+            }
+            .brandRow()
+
             ConnectedAccountsSection(user: session.user)
 
             Section("Help") {
