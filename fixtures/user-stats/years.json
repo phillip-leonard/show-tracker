@@ -1,0 +1,295 @@
+{
+  "name": "years",
+  "description": "Per-year numbers (`years`, 5.60.32): two years, a legacy DD-MM-YYYY date (New Year's Eve 2024 counts in 2024, December), two spellings of one band merged within a year, a song played twice at one show counted once in topSongs, and a show with no readable date that counts all time but in no year.",
+  "shows": [
+    {
+      "artist": "Goose",
+      "venue": "Red Rocks",
+      "city": "Morrison",
+      "date": "2024-06-14",
+      "rating": 9,
+      "setlist": [
+        {
+          "name": "Arcadia",
+          "rating": 8
+        },
+        {
+          "name": "Hot Tea"
+        }
+      ]
+    },
+    {
+      "artist": "goose (US)",
+      "venue": "Red Rocks",
+      "city": "Morrison",
+      "date": "2024-06-15",
+      "rating": 7,
+      "setlist": [
+        {
+          "name": "Arcadia"
+        },
+        {
+          "name": "Madhuvan"
+        }
+      ]
+    },
+    {
+      "artist": "Phish",
+      "venue": "MSG",
+      "city": "New York",
+      "date": "31-12-2024",
+      "rating": 10,
+      "setlist": [
+        {
+          "name": "Tweezer"
+        },
+        {
+          "name": "Tweezer Reprise"
+        }
+      ]
+    },
+    {
+      "artist": "Phish",
+      "venue": "Dick's",
+      "city": "Commerce City",
+      "date": "2025-08-29",
+      "setlist": [
+        {
+          "name": "Tweezer"
+        },
+        {
+          "name": "Tweezer"
+        }
+      ]
+    },
+    {
+      "artist": "Billy Strings",
+      "venue": "The Anthem",
+      "city": "Washington",
+      "date": "2025-01-03",
+      "rating": 8,
+      "setlist": []
+    },
+    {
+      "artist": "Billy Strings",
+      "venue": "",
+      "city": "",
+      "date": "not a date",
+      "setlist": [
+        {
+          "name": "Dust in a Baggie"
+        }
+      ]
+    }
+  ],
+  "expected": {
+    "statsVersion": 2,
+    "showCount": 6,
+    "songCount": 9,
+    "ratedSongCount": 1,
+    "uniqueSongCount": 6,
+    "bandCount": 3,
+    "venueCount": 4,
+    "yearsActive": 2,
+    "showsByYear": {
+      "2024": 3,
+      "2025": 2
+    },
+    "firstShowDate": "2024-06-14",
+    "lastShowDate": "2025-08-29",
+    "avgShowRating": 8.5,
+    "ratedShowCount": 4,
+    "topBands": [
+      {
+        "name": "Billy Strings",
+        "count": 2
+      },
+      {
+        "name": "Goose",
+        "count": 2
+      },
+      {
+        "name": "Phish",
+        "count": 2
+      }
+    ],
+    "topVenues": [
+      {
+        "name": "Red Rocks, Morrison",
+        "count": 2
+      },
+      {
+        "name": "Dick's, Commerce City",
+        "count": 1
+      },
+      {
+        "name": "MSG, New York",
+        "count": 1
+      },
+      {
+        "name": "The Anthem, Washington",
+        "count": 1
+      }
+    ],
+    "topSongs": [
+      {
+        "name": "Arcadia",
+        "artist": "Goose",
+        "count": 2
+      },
+      {
+        "name": "Tweezer",
+        "artist": "Phish",
+        "count": 2
+      },
+      {
+        "name": "Dust in a Baggie",
+        "artist": "Billy Strings",
+        "count": 1
+      },
+      {
+        "name": "Hot Tea",
+        "artist": "Goose",
+        "count": 1
+      },
+      {
+        "name": "Madhuvan",
+        "artist": "goose (US)",
+        "count": 1
+      },
+      {
+        "name": "Tweezer Reprise",
+        "artist": "Phish",
+        "count": 1
+      }
+    ],
+    "years": {
+      "2024": {
+        "showCount": 3,
+        "songCount": 6,
+        "ratedSongCount": 1,
+        "uniqueSongCount": 5,
+        "bandCount": 2,
+        "venueCount": 2,
+        "firstShowDate": "2024-06-14",
+        "lastShowDate": "2024-12-31",
+        "avgShowRating": 8.7,
+        "ratedShowCount": 3,
+        "topBands": [
+          {
+            "name": "Goose",
+            "count": 2
+          },
+          {
+            "name": "Phish",
+            "count": 1
+          }
+        ],
+        "topVenues": [
+          {
+            "name": "Red Rocks, Morrison",
+            "count": 2
+          },
+          {
+            "name": "MSG, New York",
+            "count": 1
+          }
+        ],
+        "topSongs": [
+          {
+            "name": "Arcadia",
+            "artist": "Goose",
+            "count": 2
+          },
+          {
+            "name": "Hot Tea",
+            "artist": "Goose",
+            "count": 1
+          },
+          {
+            "name": "Madhuvan",
+            "artist": "goose (US)",
+            "count": 1
+          },
+          {
+            "name": "Tweezer",
+            "artist": "Phish",
+            "count": 1
+          },
+          {
+            "name": "Tweezer Reprise",
+            "artist": "Phish",
+            "count": 1
+          }
+        ],
+        "showsByMonth": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          2,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      "2025": {
+        "showCount": 2,
+        "songCount": 2,
+        "ratedSongCount": 0,
+        "uniqueSongCount": 1,
+        "bandCount": 2,
+        "venueCount": 2,
+        "firstShowDate": "2025-01-03",
+        "lastShowDate": "2025-08-29",
+        "avgShowRating": 8,
+        "ratedShowCount": 1,
+        "topBands": [
+          {
+            "name": "Billy Strings",
+            "count": 1
+          },
+          {
+            "name": "Phish",
+            "count": 1
+          }
+        ],
+        "topVenues": [
+          {
+            "name": "Dick's, Commerce City",
+            "count": 1
+          },
+          {
+            "name": "The Anthem, Washington",
+            "count": 1
+          }
+        ],
+        "topSongs": [
+          {
+            "name": "Tweezer",
+            "artist": "Phish",
+            "count": 1
+          }
+        ],
+        "showsByMonth": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    }
+  }
+}

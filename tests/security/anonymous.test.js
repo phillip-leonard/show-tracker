@@ -337,4 +337,31 @@ test('adopt-guest-shows: preview writes nothing; commit moves, keeps ids, merges
   assert.strictEqual(r.stats.ranked, true);
 });
 
+test('adopt-guest-shows: the welcome email when shows move into an account with none, not otherwise (5.60.32)', async () => {
+  setup();
+  db._put(`users/${GUEST.uid}/shows/300`, show({ date: '2024-10-10', venue: 'Ryman' }));
+  const calls = [];
+  const welcome = async (showId) => { calls.push(showId); return { status: 'sent' }; };
+  const purge = async () => ({ errors: [], authUserDeleted: true });
+  const r = await quiet(() => adoptGuest.adopt({ db, auth, accountUid: ALICE.uid, guestUid: GUEST.uid, mode: 'commit', purge, welcome }));
+  assert.deepStrictEqual(calls, ['300'], 'asked once, with the first moved show');
+  assert.strictEqual(r.welcomeEmail, 'sent');
+
+  // The account already has a show: no ask.
+  setup();
+  db._put(`users/${ALICE.uid}/shows/100`, show({ setlistfmId: 'sf1' }));
+  db._put(`users/${GUEST.uid}/shows/300`, show({ date: '2024-10-10', venue: 'Ryman' }));
+  calls.length = 0;
+  const r2 = await quiet(() => adoptGuest.adopt({ db, auth, accountUid: ALICE.uid, guestUid: GUEST.uid, mode: 'commit', purge, welcome }));
+  assert.deepStrictEqual(calls, []);
+  assert.strictEqual(r2.welcomeEmail, null);
+
+  // A failing email never fails the move.
+  setup();
+  db._put(`users/${GUEST.uid}/shows/300`, show({ date: '2024-10-10', venue: 'Ryman' }));
+  const r3 = await quiet(() => adoptGuest.adopt({ db, auth, accountUid: ALICE.uid, guestUid: GUEST.uid, mode: 'commit', purge, welcome: async () => { throw new Error('boom'); } }));
+  assert.strictEqual(r3.moved, 1);
+  assert.strictEqual(r3.welcomeEmail, 'error');
+});
+
 run();

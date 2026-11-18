@@ -26,15 +26,26 @@
 // (lib/proxyLimit.js), since an input can make this ask setlist.fm and the
 // band sources.
 //
-// Nothing here is called by the app yet: the web app moves its add paths
-// onto it in Part 1b, and the Swift app starts on it.
+// The welcome email (Stage 4, 5.60.32): a commit that writes an account's
+// first show sends it (lib/welcomeEmail.js welcomeEmailAfterAdd), so the
+// native app's users get it too. Only when the account had no shows before
+// the request, so every later add skips it without a read. The answer
+// carries `welcomeEmail` with the outcome when it ran.
 
 const { withCors } = require('./lib/cors');
 const { withProxyLimit } = require('./lib/proxyLimit');
-const { getDb } = require('./lib/firebaseAdmin');
+const { getDb, getAdminAuth } = require('./lib/firebaseAdmin');
 const { requireUser } = require('./lib/requestAuth');
 const { takeDailyQuota } = require('./lib/rateLimit');
 const { depsFor, userShows, normalizeOne } = require('./lib/normalizeShowServer');
+const { welcomeEmailAfterAdd } = require('./lib/welcomeEmail');
+const { openBlobStore, loadIndex } = require('./lib/publicArtistSnapshot');
+
+// Replaced in the tests (__setTestWelcomeEmail).
+const defaultSendWelcome = ({ db, uid, showId, event }) => welcomeEmailAfterAdd({
+  db, auth: getAdminAuth(), uid, showId, readBandIndex: () => loadIndex(openBlobStore(event)),
+});
+let sendWelcome = defaultSendWelcome;
 
 const NORMALIZE_DAILY_LIMIT = 3000;
 const MAX_INPUTS = 25;
@@ -77,18 +88,29 @@ exports.handler = async function (event) {
     const { FieldValue } = require('firebase-admin/firestore');
     const deps = depsFor(db, user);
     const existingShows = await userShows(db, user.uid);
+    const hadNoShows = existingShows.length === 0;
     const results = [];
     for (const input of inputs) {
       results.push(await normalizeOne(db, user, input, { mode, existingShows, deps, FieldValue }));
     }
-    if (batch) return reply(200, { ok: true, results });
+    // An account's first show: the welcome email (a guest's waits for
+    // account-linked, after they link).
+    let welcome = null;
+    const firstCreated = results.find((r) => r && r.written && r.created);
+    if (mode === 'commit' && hadNoShows && !user.isAnonymous && firstCreated) {
+      welcome = await sendWelcome({ db, uid: user.uid, showId: firstCreated.showId, event });
+    }
+    const extra = welcome ? { welcomeEmail: welcome.status } : {};
+    if (batch) return reply(200, { ok: true, results, ...extra });
     const [only] = results;
-    return only.error ? reply(400, { ok: false, ...only }) : reply(200, { ok: true, ...only });
+    return only.error ? reply(400, { ok: false, ...only }) : reply(200, { ok: true, ...only, ...extra });
   } catch (err) {
     console.error('normalize-show failed:', err && err.message);
     return reply(500, { error: 'server_error' });
   }
 };
+
+module.exports.__setTestWelcomeEmail = (fn) => { sendWelcome = fn || defaultSendWelcome; };
 
 // Per-IP setlist.fm limit inside the CORS allowlist (lib/cors.js), so a
 // 429 still carries CORS headers.

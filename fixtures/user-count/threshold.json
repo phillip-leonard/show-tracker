@@ -1,0 +1,63 @@
+{
+  "name": "threshold",
+  "description": "lib/userCount.js shouldShowUserCount: no user count is shown anywhere outside the admin portal below 1,000 users (decision 2026-11-14). The input is communityStats/global.totalUsers; unknown or unreadable counts as below. Rows are [totalUsers, show].",
+  "minUsers": 1000,
+  "cases": [
+    [
+      null,
+      false
+    ],
+    [
+      0,
+      false
+    ],
+    [
+      1,
+      false
+    ],
+    [
+      999,
+      false
+    ],
+    [
+      999.9,
+      false
+    ],
+    [
+      1000,
+      true
+    ],
+    [
+      1000.5,
+      true
+    ],
+    [
+      1001,
+      true
+    ],
+    [
+      25000,
+      true
+    ],
+    [
+      "1000",
+      true
+    ],
+    [
+      "999",
+      false
+    ],
+    [
+      "abc",
+      false
+    ],
+    [
+      -5,
+      false
+    ],
+    [
+      true,
+      false
+    ]
+  ]
+}

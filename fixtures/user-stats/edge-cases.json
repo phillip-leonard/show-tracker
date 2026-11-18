@@ -163,6 +163,158 @@
         "artist": "Phish",
         "count": 1
       }
-    ]
+    ],
+    "years": {
+      "2023": {
+        "showCount": 2,
+        "songCount": 1,
+        "ratedSongCount": 0,
+        "uniqueSongCount": 1,
+        "bandCount": 1,
+        "venueCount": 1,
+        "firstShowDate": "2023-06-15",
+        "lastShowDate": "2023-06-15",
+        "avgShowRating": null,
+        "ratedShowCount": 0,
+        "topBands": [
+          {
+            "name": "The Band",
+            "count": 2
+          }
+        ],
+        "topVenues": [
+          {
+            "name": "Bonnaroo Farm, Manchester",
+            "count": 2
+          }
+        ],
+        "topSongs": [
+          {
+            "name": "The Weight - Live",
+            "artist": "The Band",
+            "count": 1
+          }
+        ],
+        "showsByMonth": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          2,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "2024": {
+        "showCount": 1,
+        "songCount": 2,
+        "ratedSongCount": 0,
+        "uniqueSongCount": 2,
+        "bandCount": 1,
+        "venueCount": 1,
+        "firstShowDate": "2024-04-03",
+        "lastShowDate": "2024-04-03",
+        "avgShowRating": null,
+        "ratedShowCount": 0,
+        "topBands": [
+          {
+            "name": "Phish",
+            "count": 1
+          }
+        ],
+        "topVenues": [
+          {
+            "name": "MSG, New York",
+            "count": 1
+          }
+        ],
+        "topSongs": [
+          {
+            "name": "Ashes // Dust",
+            "artist": "Phish",
+            "count": 1
+          },
+          {
+            "name": "Tweezer",
+            "artist": "Phish",
+            "count": 1
+          }
+        ],
+        "showsByMonth": [
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "2025": {
+        "showCount": 2,
+        "songCount": 4,
+        "ratedSongCount": 2,
+        "uniqueSongCount": 3,
+        "bandCount": 1,
+        "venueCount": 1,
+        "firstShowDate": "2025-06-01",
+        "lastShowDate": "2025-06-02",
+        "avgShowRating": 8,
+        "ratedShowCount": 2,
+        "topBands": [
+          {
+            "name": "Goose",
+            "count": 2
+          }
+        ],
+        "topVenues": [
+          {
+            "name": "Red Rocks Amphitheatre, Morrison",
+            "count": 2
+          }
+        ],
+        "topSongs": [
+          {
+            "name": "Arcadia",
+            "artist": "Goose",
+            "count": 1
+          },
+          {
+            "name": "Ashes//Dust",
+            "artist": "goose (US)",
+            "count": 1
+          },
+          {
+            "name": "Hungersite",
+            "artist": "Goose",
+            "count": 1
+          }
+        ],
+        "showsByMonth": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          2,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    }
   }
 }

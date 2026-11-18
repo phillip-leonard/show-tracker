@@ -256,7 +256,8 @@ From the Stage 4 audit ([`STAGE4-AUDIT.md`](STAGE4-AUDIT.md)), approved with the
 - **The welcome email** is sent by `normalize-show` (an account's first show) and by `adopt-guest-shows` (shows moved into an account with none), as well as by `account-linked`. **The web keeps its own call** (D), for its offline adds and old Capacitor builds; the send is claimed in a transaction, so extra calls send nothing.
 - **Per-year stats** are a `years` map on `userStats`, each entry `computeUserStats` on that year's shows plus `showsByMonth`. Additive, so `STATS_VERSION` stays 2.
 - **`lib/songIndex.js` becomes CommonJS**, with a shared fixture for the song key and the gap rules; runs get a fixture for `lib/runIndex.js` (with `venuesFuzzyMatch`), and the user count one for `lib/userCount.js`.
-- **The web's "Listen to this night"** is checked for a `DD-MM-YYYY` date in 4-2; `archival-audio-lookup` accepts only ISO.
+- **The web's "Listen to this night"** is checked for a `DD-MM-YYYY` date in 4-2; `archival-audio-lookup` accepts only ISO. **Done (5.60.32):** the web sent the stored date as is, so `useArchivalAudio` now converts with `toIsoDate`.
+- **Artist slugs trim first** (2026-11-18, 5.60.32): `artistSlugFromName` and its Swift port trim before slugging, so " Phish " is `phish`, as `bandKey` already read it. Production had no padded artist names (shows, upcoming shows, followed bands, favorite tours, wishlists, bucket list: 0 each), so no cleanup ran. `lib/wishlist.js` `artistKeyFor` keeps its rule: it names stored wishlist documents.
 - **PR order:** 4-1 audit → 4-2 server → 4-3 navigation → 4-4 songs and listening → 4-5 bands → 4-6 runs and tours → 4-7 venues → 4-8 stats → 4-9 wishlist → 4-10 bucket list → 4-11 Community → 4-12 Search tab.
 
 ## Post-launch list
@@ -265,3 +266,5 @@ Work decided for after cutover, not before:
 
 - **`export-my-data`** (Data export, above; Stage 2 C-1).
 - **Unify the song keys** (Stage 4 C): one key for the song page and Stats, with redirects for the old `/songs?song=` links.
+- **Venue aliases for runs** (2026-11-18): runs match venues with `venuesFuzzyMatch` (`lib/showIdentity.js`), so "MSG" and "Madison Square Garden" don't match and a night logged under the other name splits a run (`fixtures/runs/` pins it). A small alias table (MSG = Madison Square Garden, and the like), shared by the web and native through the same fixture.
+- **One copy of the gap math** (2026-11-18): `netlify/functions/lib/artistSnapshotStats.js` keeps its own port of `lib/songIndex.js`'s gaps for the public band snapshot, checked by `lib/__tests__/artistSnapshotStatsParity.test.js`. `lib/songIndex.js` is CommonJS since 5.60.32, so the snapshot can require it and the copy and the parity test go (CLAUDE.md: no server twin of a `lib/` module).

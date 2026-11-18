@@ -221,7 +221,7 @@ export default function LandingPage({ onSignUp, onSignIn, onGuest, communityStat
             </div>
             <h3>Stats that actually matter</h3>
             <p>
-              How many &quot;Tweezer&quot;s have you heard? Top venues, songs seen live, hours of live music.
+              How many &quot;Tweezer&quot;s have you heard? Top venues, songs seen live, your year by year.
               {PLAYLIST_CREATION_ENABLED
                 ? ' Year-end wraps that beat Spotify’s.'
                 : ' Year-end wraps worth sharing.'}

@@ -39,6 +39,18 @@ struct BandAlertsTests {
         #expect(BandFollows.slug("The  String Cheese   Incident") == "the-string-cheese-incident")
         #expect(BandFollows.slug("Béla Fleck") == "bla-fleck")
         #expect(BandFollows.slug("King Gizzard & the Lizard Wizard") == "king-gizzard-the-lizard-wizard")
+        #expect(BandFollows.slug("  Phish  ") == "phish", "trimmed first (5.60.32)")
+    }
+
+    /// fixtures/song-index/keys.json `artistSlug` rows: the web's
+    /// artistSlugFromName, row for row.
+    @Test func slugsMatchTheSharedFixture() throws {
+        let fixture = try FixtureLoader.json(FixtureLoader.root.appendingPathComponent("song-index/keys.json"))
+        let rows = try #require(fixture["artistSlug"] as? [[String]])
+        #expect(!rows.isEmpty)
+        for row in rows {
+            #expect(BandFollows.slug(row[0]) == row[1], "\(row[0])")
+        }
     }
 
     @Test func aBandLinkFindsItsName() {

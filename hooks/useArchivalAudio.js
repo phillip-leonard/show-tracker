@@ -9,8 +9,15 @@
 
 import { useEffect, useState } from 'react';
 import { apiUrl } from '@/lib/api';
+import { toIsoDate } from '@/lib/showDate';
 
-export default function useArchivalAudio(artistName, date) {
+// The function takes only YYYY-MM-DD (lib/cacheGuard.js isoDay) and
+// refuses the legacy DD-MM-YYYY with a 400, which read as "no recording".
+// Stored dates are ISO since 5.60.12, but an old iOS build can still write
+// the legacy shape until the nightly sweep fixes it, so the date always
+// goes through lib/showDate.js (5.60.32). An unreadable date asks nothing.
+export default function useArchivalAudio(artistName, rawDate) {
+  const date = toIsoDate(rawDate);
   const [state, setState] = useState({ loading: !!(artistName && date), found: false, recordings: [] });
 
   useEffect(() => {

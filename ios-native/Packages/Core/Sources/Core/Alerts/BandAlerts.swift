@@ -30,8 +30,9 @@ public enum BandFollows {
     }
 
     /// `artistSlugFromName` (lib/artistSlug.js): the `?band=` in a band link.
+    /// Trimmed first, so " Phish " is "phish" (5.60.32), as on the web.
     public static func slug(_ name: String?) -> String {
-        let lowered = (name ?? "").lowercased()
+        let lowered = (name ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         let kept = lowered.unicodeScalars.filter { ("a"..."z").contains($0) || ("0"..."9").contains($0) || $0 == "-" || CharacterSet.whitespaces.contains($0) || CharacterSet.newlines.contains($0) }
         var out = ""
         var inSpace = false

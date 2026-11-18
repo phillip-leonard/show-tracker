@@ -51,9 +51,6 @@ export default function StatsPage() {
   const periodStats = useMemo(() => computeUserStats(periodShows), [periodShows]);
   const totalSongs = periodStats.songCount;
 
-  // Estimate hours of live music (~2h avg per show) — good enough without duration data
-  const estimatedHours = useMemo(() => Math.round(periodShows.length * 2), [periodShows]);
-
   const uniqueArtists = periodStats.bandCount;
   const uniqueVenues = periodStats.venueCount;
 
@@ -136,11 +133,14 @@ export default function StatsPage() {
 
       {periodShows.length > 0 && (
         <>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5 mb-6">
+          {/* The same three tiles as the native app (F-3, 5.60.32): "Hours of
+              live music" was shows × 2, a guess shown as a number. Two
+              columns on a phone, where a third of the width can't hold a
+              four-digit song count; Artists takes the second row. */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3.5 mb-6">
             <StatTile value={periodShows.length} label="Shows" />
-            <StatTile value={estimatedHours} label="Hours of live music" tone="brand" />
-            <StatTile value={totalSongs.toLocaleString()} label="Songs heard" />
-            <StatTile value={uniqueArtists} label="Artists" />
+            <StatTile value={totalSongs.toLocaleString()} label="Songs heard" tone="brand" />
+            <StatTile value={uniqueArtists} label="Artists" className="col-span-2 sm:col-span-1" />
           </div>
 
           <Card padding="lg" className="mb-5">

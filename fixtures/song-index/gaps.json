@@ -1,0 +1,430 @@
+{
+  "name": "gaps",
+  "description": "lib/songIndex.js buildSongIndex: the song page's numbers. Gaps count this person's own shows of that band, oldest first; `today` fixes the current gap in days. Goose (\"goose\" is the same slug): five shows, Arcadia at 1, 2 and 5 (current gap 0 shows, longest gap 2 shows between 2 and 5), Hungersite only at 1 (current gap 4 shows). A reprise at one show is one time seen and two performances. Set labels, openers, closers, encores and segues come from the stored setlist; a show with no set data has no set label.",
+  "today": "2026-11-18",
+  "shows": [
+    {
+      "id": "g1",
+      "artist": "Goose",
+      "venue": "Red Rocks",
+      "city": "Morrison",
+      "date": "2024-06-14",
+      "rating": 9,
+      "setlist": [
+        {
+          "id": "a1",
+          "name": "Arcadia",
+          "set": "Set I",
+          "tape": true,
+          "rating": 9
+        },
+        {
+          "id": "a2",
+          "name": "Hungersite",
+          "set": "Set I"
+        },
+        {
+          "id": "a3",
+          "name": "Madhuvan",
+          "set": "Encore"
+        }
+      ]
+    },
+    {
+      "id": "g2",
+      "artist": "Goose",
+      "venue": "Red Rocks",
+      "city": "Morrison",
+      "date": "2024-06-15",
+      "setlist": [
+        {
+          "id": "b1",
+          "name": "Tumble",
+          "set": "Set I"
+        },
+        {
+          "id": "b2",
+          "name": "Arcadia",
+          "set": "Set I"
+        },
+        {
+          "id": "b3",
+          "name": "Arcadia",
+          "set": "Set II",
+          "manuallyAdded": true
+        }
+      ]
+    },
+    {
+      "id": "g3",
+      "artist": "goose",
+      "venue": "MSG",
+      "city": "New York",
+      "date": "2024-12-31",
+      "setlist": [
+        {
+          "id": "c1",
+          "name": "Tumble"
+        }
+      ]
+    },
+    {
+      "id": "g4",
+      "artist": "Goose",
+      "venue": "The Capitol Theatre",
+      "city": "Port Chester",
+      "date": "20-03-2025",
+      "setlist": []
+    },
+    {
+      "id": "g5",
+      "artist": "Goose",
+      "venue": "Dick's",
+      "city": "Commerce City",
+      "date": "2025-08-29",
+      "setlist": [
+        {
+          "id": "e1",
+          "name": "arcadia",
+          "set": "Set I"
+        },
+        {
+          "id": "e2",
+          "name": "Hot Tea",
+          "set": "Set I"
+        }
+      ]
+    },
+    {
+      "id": "p1",
+      "artist": "Phish",
+      "venue": "MSG",
+      "city": "New York",
+      "date": "2024-12-31",
+      "setlist": [
+        {
+          "id": "f1",
+          "name": "Arcadia"
+        }
+      ]
+    }
+  ],
+  "expected": {
+    "goose:arcadia": {
+      "key": "goose:arcadia",
+      "artistSlug": "goose",
+      "artistName": "Goose",
+      "title": "Arcadia",
+      "performances": [
+        {
+          "showId": "g5",
+          "date": "2025-08-29",
+          "venue": "Dick's",
+          "city": "Commerce City",
+          "setLabel": "Set I",
+          "position": 1,
+          "isShowOpener": true,
+          "isSetCloser": false,
+          "isEncore": false,
+          "segueIn": false,
+          "segueOut": false,
+          "rating": null,
+          "manuallyAdded": false
+        },
+        {
+          "showId": "g2",
+          "date": "2024-06-15",
+          "venue": "Red Rocks",
+          "city": "Morrison",
+          "setLabel": "Set I",
+          "position": 2,
+          "isShowOpener": false,
+          "isSetCloser": true,
+          "isEncore": false,
+          "segueIn": false,
+          "segueOut": false,
+          "rating": null,
+          "manuallyAdded": false
+        },
+        {
+          "showId": "g2",
+          "date": "2024-06-15",
+          "venue": "Red Rocks",
+          "city": "Morrison",
+          "setLabel": "Set II",
+          "position": 1,
+          "isShowOpener": false,
+          "isSetCloser": true,
+          "isEncore": false,
+          "segueIn": false,
+          "segueOut": false,
+          "rating": null,
+          "manuallyAdded": true
+        },
+        {
+          "showId": "g1",
+          "date": "2024-06-14",
+          "venue": "Red Rocks",
+          "city": "Morrison",
+          "setLabel": "Set I",
+          "position": 1,
+          "isShowOpener": true,
+          "isSetCloser": false,
+          "isEncore": false,
+          "segueIn": false,
+          "segueOut": true,
+          "rating": 9,
+          "manuallyAdded": false
+        }
+      ],
+      "timesSeen": 3,
+      "firstSeen": {
+        "date": "2024-06-14",
+        "venue": "Red Rocks",
+        "city": "Morrison",
+        "showId": "g1"
+      },
+      "lastSeen": {
+        "date": "2025-08-29",
+        "venue": "Dick's",
+        "city": "Commerce City",
+        "showId": "g5"
+      },
+      "currentGap": {
+        "shows": 0,
+        "days": 446
+      },
+      "longestGap": {
+        "shows": 2,
+        "days": 440,
+        "fromDate": "2024-06-15",
+        "toDate": "2025-08-29"
+      }
+    },
+    "goose:hungersite": {
+      "key": "goose:hungersite",
+      "artistSlug": "goose",
+      "artistName": "Goose",
+      "title": "Hungersite",
+      "performances": [
+        {
+          "showId": "g1",
+          "date": "2024-06-14",
+          "venue": "Red Rocks",
+          "city": "Morrison",
+          "setLabel": "Set I",
+          "position": 2,
+          "isShowOpener": false,
+          "isSetCloser": true,
+          "isEncore": false,
+          "segueIn": true,
+          "segueOut": false,
+          "rating": null,
+          "manuallyAdded": false
+        }
+      ],
+      "timesSeen": 1,
+      "firstSeen": {
+        "date": "2024-06-14",
+        "venue": "Red Rocks",
+        "city": "Morrison",
+        "showId": "g1"
+      },
+      "lastSeen": {
+        "date": "2024-06-14",
+        "venue": "Red Rocks",
+        "city": "Morrison",
+        "showId": "g1"
+      },
+      "currentGap": {
+        "shows": 4,
+        "days": 887
+      },
+      "longestGap": null
+    },
+    "goose:madhuvan": {
+      "key": "goose:madhuvan",
+      "artistSlug": "goose",
+      "artistName": "Goose",
+      "title": "Madhuvan",
+      "performances": [
+        {
+          "showId": "g1",
+          "date": "2024-06-14",
+          "venue": "Red Rocks",
+          "city": "Morrison",
+          "setLabel": "Encore",
+          "position": 1,
+          "isShowOpener": false,
+          "isSetCloser": true,
+          "isEncore": true,
+          "segueIn": false,
+          "segueOut": false,
+          "rating": null,
+          "manuallyAdded": false
+        }
+      ],
+      "timesSeen": 1,
+      "firstSeen": {
+        "date": "2024-06-14",
+        "venue": "Red Rocks",
+        "city": "Morrison",
+        "showId": "g1"
+      },
+      "lastSeen": {
+        "date": "2024-06-14",
+        "venue": "Red Rocks",
+        "city": "Morrison",
+        "showId": "g1"
+      },
+      "currentGap": {
+        "shows": 4,
+        "days": 887
+      },
+      "longestGap": null
+    },
+    "goose:tumble": {
+      "key": "goose:tumble",
+      "artistSlug": "goose",
+      "artistName": "Goose",
+      "title": "Tumble",
+      "performances": [
+        {
+          "showId": "g3",
+          "date": "2024-12-31",
+          "venue": "MSG",
+          "city": "New York",
+          "setLabel": null,
+          "position": null,
+          "isShowOpener": true,
+          "isSetCloser": false,
+          "isEncore": false,
+          "segueIn": false,
+          "segueOut": false,
+          "rating": null,
+          "manuallyAdded": false
+        },
+        {
+          "showId": "g2",
+          "date": "2024-06-15",
+          "venue": "Red Rocks",
+          "city": "Morrison",
+          "setLabel": "Set I",
+          "position": 1,
+          "isShowOpener": true,
+          "isSetCloser": false,
+          "isEncore": false,
+          "segueIn": false,
+          "segueOut": false,
+          "rating": null,
+          "manuallyAdded": false
+        }
+      ],
+      "timesSeen": 2,
+      "firstSeen": {
+        "date": "2024-06-15",
+        "venue": "Red Rocks",
+        "city": "Morrison",
+        "showId": "g2"
+      },
+      "lastSeen": {
+        "date": "2024-12-31",
+        "venue": "MSG",
+        "city": "New York",
+        "showId": "g3"
+      },
+      "currentGap": {
+        "shows": 2,
+        "days": 687
+      },
+      "longestGap": {
+        "shows": 0,
+        "days": 199,
+        "fromDate": "2024-06-15",
+        "toDate": "2024-12-31"
+      }
+    },
+    "goose:hot tea": {
+      "key": "goose:hot tea",
+      "artistSlug": "goose",
+      "artistName": "Goose",
+      "title": "Hot Tea",
+      "performances": [
+        {
+          "showId": "g5",
+          "date": "2025-08-29",
+          "venue": "Dick's",
+          "city": "Commerce City",
+          "setLabel": "Set I",
+          "position": 2,
+          "isShowOpener": false,
+          "isSetCloser": true,
+          "isEncore": false,
+          "segueIn": false,
+          "segueOut": false,
+          "rating": null,
+          "manuallyAdded": false
+        }
+      ],
+      "timesSeen": 1,
+      "firstSeen": {
+        "date": "2025-08-29",
+        "venue": "Dick's",
+        "city": "Commerce City",
+        "showId": "g5"
+      },
+      "lastSeen": {
+        "date": "2025-08-29",
+        "venue": "Dick's",
+        "city": "Commerce City",
+        "showId": "g5"
+      },
+      "currentGap": {
+        "shows": 0,
+        "days": 446
+      },
+      "longestGap": null
+    },
+    "phish:arcadia": {
+      "key": "phish:arcadia",
+      "artistSlug": "phish",
+      "artistName": "Phish",
+      "title": "Arcadia",
+      "performances": [
+        {
+          "showId": "p1",
+          "date": "2024-12-31",
+          "venue": "MSG",
+          "city": "New York",
+          "setLabel": null,
+          "position": null,
+          "isShowOpener": true,
+          "isSetCloser": false,
+          "isEncore": false,
+          "segueIn": false,
+          "segueOut": false,
+          "rating": null,
+          "manuallyAdded": false
+        }
+      ],
+      "timesSeen": 1,
+      "firstSeen": {
+        "date": "2024-12-31",
+        "venue": "MSG",
+        "city": "New York",
+        "showId": "p1"
+      },
+      "lastSeen": {
+        "date": "2024-12-31",
+        "venue": "MSG",
+        "city": "New York",
+        "showId": "p1"
+      },
+      "currentGap": {
+        "shows": 0,
+        "days": 687
+      },
+      "longestGap": null
+    }
+  }
+}
