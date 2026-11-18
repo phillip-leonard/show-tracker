@@ -26,11 +26,9 @@ struct SongListView: View {
                         SongListRow(row: row, sort: sort)
                     }
                 }
-            } footer: {
-                if !all.isEmpty, query.isEmpty {
-                    Text(all.count == 1 ? "1 song" : "\(all.count.formatted()) songs")
-                }
             }
+            // No total: rows are per band, and Stats' "Different song titles"
+            // counts a title once, so two numbers would disagree (4-4).
             .brandRow()
         }
         .overlay {

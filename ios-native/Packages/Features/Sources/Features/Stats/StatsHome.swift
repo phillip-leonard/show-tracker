@@ -189,7 +189,10 @@ struct TotalsGrid: View {
             }
             GridRow {
                 figure(stats.songCount, "Songs heard")
-                figure(stats.uniqueSongCount, "Different songs")
+                // Song titles, whatever the band (lib/stats): "Arcadia" by two
+                // bands is one. The song list has a row per band, so it shows
+                // no total of its own (Stage 4, 4-4).
+                figure(stats.uniqueSongCount, "Different song titles")
                 figure(stats.yearsActive, stats.yearsActive == 1 ? "Year" : "Years")
             }
         }
