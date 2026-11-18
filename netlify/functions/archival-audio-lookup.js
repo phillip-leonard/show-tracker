@@ -42,6 +42,7 @@ const { getStreamingPlatforms } = require('../../lib/streamingPlatforms');
 // More recordings than any real show has; keeps a cached entry bounded.
 const MAX_RECORDINGS = 50;
 const https = require('https');
+const { USER_AGENT } = require('./lib/userAgent');
 
 const CORS_HEADERS = {
   'Content-Type': 'application/json',
@@ -50,7 +51,6 @@ const CORS_HEADERS = {
 const ARTIST_MAP_TTL_MS = 90 * 24 * 60 * 60 * 1000; // 90 days — the roster rarely changes
 const NEGATIVE_SHOW_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days — could get backfilled
 const POSITIVE_SHOW_TTL_MS = 180 * 24 * 60 * 60 * 1000; // 180 days — a past show's recordings don't change
-const USER_AGENT = 'MySetlistsApp/1.0 (https://mysetlists.net; contact@mysetlists.net)';
 
 // --- Firebase Admin (lazy init, graceful degradation if env vars missing) ---
 

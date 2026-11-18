@@ -114,10 +114,13 @@ test('archive.org is only requested from Netlify functions, never the app', () =
 });
 
 test('archive.org requests send a User-Agent naming MySetlists with a contact URL', () => {
+  // The shared agent (5.60.33, netlify/functions/lib/userAgent.js).
+  const { USER_AGENT } = require('../../netlify/functions/lib/userAgent');
+  assert.ok(/^MySetlists\//.test(USER_AGENT) && /https:\/\/mysetlists\.net/.test(USER_AGENT), USER_AGENT);
   for (const rel of ['netlify/functions/lib/archiveAdapter.js', 'netlify/functions/archival-audio-lookup.js']) {
-    const ua = read(rel).match(/const USER_AGENT = '([^']+)'/);
-    assert.ok(ua, `${rel}: no USER_AGENT`);
-    assert.ok(/^MySetlists/.test(ua[1]) && /https:\/\/mysetlists\.net/.test(ua[1]), `${rel}: ${ua[1]}`);
+    const src = read(rel);
+    assert.ok(/require\(['"]\.\.?\/(lib\/)?userAgent['"]\)/.test(src), `${rel}: not the shared agent`);
+    assert.ok(/'User-Agent': USER_AGENT/.test(src), `${rel}: no User-Agent header`);
   }
 });
 

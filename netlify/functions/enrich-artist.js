@@ -2,13 +2,16 @@ const { withCors } = require('./lib/cors');
 const { checkProxyLimit } = require('./lib/proxyLimit');
 const { cacheName, cacheable } = require('./lib/cacheGuard');
 const https = require('https');
+const { USER_AGENT } = require('./lib/userAgent');
 
 const CORS_HEADERS = {
   'Content-Type': 'application/json',
 };
 
 const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
-const USER_AGENT = 'MySetlistsApp/1.0 (show-tracker; contact@mysetlists.net)';
+// MusicBrainz asks every client to name itself as "Application/version
+// ( contact )" and throttles or blocks generic agents; the shared agent
+// (lib/userAgent.js) goes on every request here, MusicBrainz and Discogs alike.
 
 // --- Firebase Admin (lazy init, graceful degradation if env vars missing) ---
 
@@ -89,6 +92,25 @@ function pickBestDiscogsMatch(results, queryName) {
   return exact || results[0] || null;
 }
 
+// The Discogs artist MusicBrainz links to (its `discogs` url-rel,
+// https://www.discogs.com/artist/1198062), or null. A name search can't
+// tell two acts apart: "Goose" on Discogs is a Belgian electro band, and the
+// American jam band is "Goose (6)". MusicBrainz's own link names the act it
+// matched, so when MusicBrainz found the artist, only that link is used.
+function discogsIdFromRelations(relations) {
+  for (const r of (relations || [])) {
+    if (r.type !== 'discogs') continue;
+    const m = /discogs\.com\/(?:[a-z]{2}\/)?artist\/(\d+)/i.exec((r.url && r.url.resource) || '');
+    if (m) return m[1];
+  }
+  return null;
+}
+
+// Discogs numbers acts that share a name: "Goose (6)", "Chris Enright (2)".
+function cleanDiscogsName(name) {
+  return String(name || '').replace(/\s+\(\d+\)$/, '').trim();
+}
+
 // --- Data extraction helpers ---
 
 function extractUrls(relations) {
@@ -98,6 +120,17 @@ function extractUrls(relations) {
     .filter((u, i, arr) => arr.findIndex(x => x.url === u.url) === i);
 }
 
+// One key per person across the two sources: MusicBrainz writes
+// "Kenny‐Smith" with a Unicode hyphen where Discogs writes "Kenny-Smith".
+function memberKey(name) {
+  return String(name || '')
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[\u2010-\u2015\u2212]/g, '-')
+    .toLowerCase()
+    .trim();
+}
+
 function mergeMembers(mbRelations, discogsMembers) {
   const map = new Map();
 
@@ -105,14 +138,16 @@ function mergeMembers(mbRelations, discogsMembers) {
     if (rel.type === 'member of band' && rel.artist) {
       const name = rel.artist.name;
       const active = !rel.ended;
-      map.set(name.toLowerCase(), { name, active });
+      map.set(memberKey(name), { name, active });
     }
   }
 
   for (const m of (discogsMembers || [])) {
-    const key = m.name.toLowerCase();
+    const name = cleanDiscogsName(m.name);
+    if (!name) continue;
+    const key = memberKey(name);
     if (!map.has(key)) {
-      map.set(key, { name: m.name, active: m.active !== false });
+      map.set(key, { name, active: m.active !== false });
     }
   }
 
@@ -121,17 +156,40 @@ function mergeMembers(mbRelations, discogsMembers) {
 
 // --- API pipelines ---
 
+// MusicBrainz allows about one request a second per address and answers
+// 503 past that: one retry after a second, then it counts as not answering.
+const MB_RETRY_MS = 1100;
+let mbRetryDelay = MB_RETRY_MS;
+
+async function mbGet(url) {
+  let res;
+  try {
+    res = await httpsGet(url);
+  } catch {
+    res = { statusCode: 0 };
+  }
+  if (res.statusCode === 503 || res.statusCode === 0) {
+    await new Promise((resolve) => setTimeout(resolve, mbRetryDelay));
+    res = await httpsGet(url);
+  }
+  return res;
+}
+
+// The artist, or null when MusicBrainz has no such artist. Throws when
+// MusicBrainz doesn't answer, which the handler must tell apart from
+// "no such artist" (see fetchDiscogs).
 async function fetchMusicBrainz(name) {
   const searchUrl = `https://musicbrainz.org/ws/2/artist?query=${encodeURIComponent(name)}&limit=5&fmt=json`;
-  const searchRes = await httpsGet(searchUrl);
-  if (searchRes.statusCode !== 200 || !searchRes.body.artists?.length) return null;
+  const searchRes = await mbGet(searchUrl);
+  if (searchRes.statusCode !== 200) throw new Error(`musicbrainz search ${searchRes.statusCode}`);
+  if (!searchRes.body.artists?.length) return null;
 
   const match = pickBestMbMatch(searchRes.body.artists, name);
   if (!match) return null;
 
   const lookupUrl = `https://musicbrainz.org/ws/2/artist/${match.id}?inc=aliases+genres+url-rels+artist-rels&fmt=json`;
-  const lookupRes = await httpsGet(lookupUrl);
-  if (lookupRes.statusCode !== 200) return null;
+  const lookupRes = await mbGet(lookupUrl);
+  if (lookupRes.statusCode !== 200) throw new Error(`musicbrainz lookup ${lookupRes.statusCode}`);
 
   const a = lookupRes.body;
   return {
@@ -148,29 +206,47 @@ async function fetchMusicBrainz(name) {
   };
 }
 
-async function fetchDiscogs(name) {
+function discogsHeaders() {
   const token = process.env.DISCOGS_TOKEN;
-  const headers = token ? { Authorization: `Discogs token=${token}` } : {};
+  return token ? { Authorization: `Discogs token=${token}` } : {};
+}
 
-  const searchUrl = `https://api.discogs.com/database/search?type=artist&q=${encodeURIComponent(name)}&per_page=5`;
-  const searchRes = await httpsGet(searchUrl, headers);
-  if (searchRes.statusCode !== 200 || !searchRes.body.results?.length) return null;
-
-  const match = pickBestDiscogsMatch(searchRes.body.results, name);
-  if (!match) return null;
-
-  const lookupUrl = `https://api.discogs.com/artists/${match.id}`;
-  const lookupRes = await httpsGet(lookupUrl, headers);
+async function fetchDiscogsArtist(id) {
+  const lookupRes = await httpsGet(`https://api.discogs.com/artists/${encodeURIComponent(id)}`, discogsHeaders());
   if (lookupRes.statusCode !== 200) return null;
 
   const a = lookupRes.body;
   return {
     discogsId: a.id,
-    name: a.name,
+    name: cleanDiscogsName(a.name),
     profile: stripBBCode(a.profile),
     image: a.images?.[0]?.uri || a.images?.[0]?.uri150 || null,
     members: (a.members || []).map(m => ({ name: m.name, active: m.active })),
   };
+}
+
+// By name, for an artist MusicBrainz doesn't know.
+async function searchDiscogs(name) {
+  const searchUrl = `https://api.discogs.com/database/search?type=artist&q=${encodeURIComponent(name)}&per_page=5`;
+  const searchRes = await httpsGet(searchUrl, discogsHeaders());
+  if (searchRes.statusCode !== 200 || !searchRes.body.results?.length) return null;
+
+  const match = pickBestDiscogsMatch(searchRes.body.results, name);
+  return match ? fetchDiscogsArtist(match.id) : null;
+}
+
+// The Discogs side: the artist MusicBrainz links to; nothing when
+// MusicBrainz found the artist but links to no Discogs page (a name search
+// could find another act with the name); a name search only when
+// MusicBrainz answered that it has no such artist. When MusicBrainz didn't
+// answer, the handler asks Discogs nothing: a name-matched guess would be
+// cached for a week.
+async function fetchDiscogs(mb, name) {
+  if (mb) {
+    const id = discogsIdFromRelations(mb.relations);
+    return id ? fetchDiscogsArtist(id) : null;
+  }
+  return searchDiscogs(name);
 }
 
 // --- Handler ---
@@ -208,7 +284,9 @@ exports.handler = async function (event) {
     };
   }
 
-  const cacheKey = `enrich_${name.toLowerCase().trim().replace(/[^a-z0-9]+/g, '_')}`;
+  // v2 (5.60.33): Discogs follows MusicBrainz's own link, so answers cached
+  // with a name-matched Discogs act (Goose's Belgian namesake) aren't served.
+  const cacheKey = `enrich_v2_${name.toLowerCase().trim().replace(/[^a-z0-9]+/g, '_')}`;
 
   try {
     // Check Firestore cache
@@ -237,14 +315,16 @@ exports.handler = async function (event) {
     const refused = await checkProxyLimit(event, 'metadata');
     if (refused) return { ...refused, headers: { ...CORS_HEADERS, ...refused.headers } };
 
-    // Fetch from both sources in parallel
-    const [mbResult, discogsResult] = await Promise.allSettled([
-      fetchMusicBrainz(name),
-      fetchDiscogs(name),
-    ]);
-
-    const mb = mbResult.status === 'fulfilled' ? mbResult.value : null;
-    const discogs = discogsResult.status === 'fulfilled' ? discogsResult.value : null;
+    // MusicBrainz first: its match decides which Discogs artist is meant.
+    let mb = null;
+    let mbAnswered = true;
+    try {
+      mb = await fetchMusicBrainz(name);
+    } catch (err) {
+      mbAnswered = false;
+      console.warn('enrich-artist: MusicBrainz did not answer:', err.message);
+    }
+    const discogs = mbAnswered ? await fetchDiscogs(mb, name).catch(() => null) : null;
 
     if (!mb && !discogs) {
       return {
@@ -304,3 +384,12 @@ exports.handler = async function (event) {
 
 // CORS allowlist on every response (lib/cors.js) — no more `*` (5.59.6).
 module.exports.handler = withCors(module.exports.handler);
+
+// For the tests (tests/metadata/enrichArtist.test.js).
+module.exports.__test = {
+  USER_AGENT,
+  discogsIdFromRelations,
+  cleanDiscogsName,
+  mergeMembers,
+  setRetryDelay: (ms) => { mbRetryDelay = ms; },
+};
