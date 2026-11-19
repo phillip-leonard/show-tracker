@@ -478,13 +478,15 @@ struct CalendarEventEditor: UIViewControllerRepresentable {
         return f.date(from: ShowDate.isoDay(iso))
     }
 
-    final class Coordinator: NSObject, EKEventEditViewDelegate {
-        let finish: @MainActor () -> Void
-        init(finish: @escaping @MainActor () -> Void) { self.finish = finish }
+    /// EventKitUI's delegate protocol isn't marked main-actor; EventKit
+    /// calls it on the main thread, which `@preconcurrency` checks at run time.
+    @MainActor
+    final class Coordinator: NSObject, @preconcurrency EKEventEditViewDelegate {
+        let finish: () -> Void
+        init(finish: @escaping () -> Void) { self.finish = finish }
 
         func eventEditViewController(_ controller: EKEventEditViewController, didCompleteWith action: EKEventEditViewAction) {
-            // EventKit calls this on the main thread.
-            MainActor.assumeIsolated { finish() }
+            finish()
         }
     }
 }
