@@ -309,7 +309,7 @@ From the Stage 4 audit ([`STAGE4-AUDIT.md`](STAGE4-AUDIT.md)), approved with the
   - "Coming up" lists today and later, as the web does, sorted soonest or A–Z and filtered by band or venue. **Shows whose date has passed get their own section ("Already happened")**, where the web stops listing them, because that's when "I went" is useful;
   - "I went" adds the show as `TicketScan` does: setlist.fm's setlist for that night when there is one, else the show by hand (it needs a venue), through `normalize-show` and the add flow's alerts and duplicate question. The bucket item is removed once the show is added, already there, or queued. The web opens its add form prefilled instead;
   - "Add to Calendar" is EventKitUI's event editor with an all-day event (iOS 17 lets an app show it without asking for calendar access; the person saves it). The web opens a Google Calendar link;
-  - "Share with friends" sends the list as text through the share sheet, as the web does (`navigator.share`): no public page, so guests can share too;
+  - "Share with friends" sends the list as text through the share sheet, as the web does (`navigator.share`; its `create-shared-collection` is the separate past-shows page): no public page, so guests can share too. Each line is the band, date, venue and city, with no links (4.0.39; the web's text has no city);
   - venues open the native venue page (4-7); adding one keys it with `venueKeyFor(name, city)`, as the web does;
   - each show's meetup card stays on the web (meetups, C-4), and "add to bucket list" from tour dates isn't here yet;
   - `/bucket-list` opens it in Me's Library.

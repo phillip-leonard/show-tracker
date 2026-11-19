@@ -71,9 +71,20 @@ struct BucketListTests {
         #expect(BucketList.upcoming(items, today: today, query: "GOOSE", sort: .soonest).map(\.artist) == ["Goose"])
     }
 
-    @Test func shareTextIsTheWebs() {
-        let text = BucketList.shareText([item("Goose", "2026-06-14", venue: "Red Rocks"), item("Phish", "2026-12-31")])
-        #expect(text == "My concert bucket list:\n- Goose — Sun, Jun 14, 2026 @ Red Rocks\n- Phish — Thu, Dec 31, 2026")
+    @Test func shareTextListsBandDateVenueAndCity() {
+        let withCity = BucketListItem(id: "u1_k", uid: "u1", data: ["artist": "Goose", "date": "2026-06-14", "venue": "Red Rocks", "city": "Morrison", "state": "CO",
+                                                                  "ticketUrl": "https://tm.example/1"])
+        let cityOnly = BucketListItem(id: "u1_c", uid: "u1", data: ["artist": "Billy Strings", "date": "2026-10-02", "city": "Asheville"])
+        let text = BucketList.shareText([withCity, item("Phish", "2026-12-31", venue: "MSG"), cityOnly, item("Eggy", "2027-01-05")])
+        #expect(text == """
+        My concert bucket list:
+        - Goose — Sun, Jun 14, 2026 @ Red Rocks, Morrison
+        - Phish — Thu, Dec 31, 2026 @ MSG
+        - Billy Strings — Fri, Oct 2, 2026 @ Asheville
+        - Eggy — Tue, Jan 5, 2027
+        """)
+        // Plain text: no ticket, calendar or other link.
+        #expect(!text.contains("http"))
         #expect(BucketList.longDate("not a date") == "not a date")
     }
 

@@ -157,10 +157,13 @@ public enum BucketList {
         }
     }
 
-    /// The text "Share with friends" sends (the web's `handleShare`).
+    /// The text "Share with friends" sends: one line per show with its
+    /// band, date, venue and city (the web's `handleShare` leaves out the
+    /// city), and no links. Plain text, as on the web: no public page.
     public static func shareText(_ items: [BucketListItem]) -> String {
         let lines = items.map { item in
-            "- \(item.artist) — \(longDate(item.date))\(item.venue.map { " @ \($0)" } ?? "")"
+            let place = [item.venue, item.city].compactMap { $0 }.joined(separator: ", ")
+            return "- \(item.artist) — \(longDate(item.date))\(place.isEmpty ? "" : " @ \(place)")"
         }
         return (["My concert bucket list:"] + lines).joined(separator: "\n")
     }
