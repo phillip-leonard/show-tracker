@@ -356,6 +356,23 @@ From the Stage 5 audit ([`STAGE5-AUDIT.md`](STAGE5-AUDIT.md)), approved with all
   - "Already logged" on a result is the web's simple key (setlist.fm id, or band, venue and day); the import's real check is the server's.
 - **PR order:** 5-1 audit → 5-2 server → 5-3 list and page → 5-4 create, join, edit, lineup search, picks.
 
+## Stage 6: parity (2026-11-19)
+
+From the Stage 6 audit ([`STAGE6-AUDIT.md`](STAGE6-AUDIT.md)), approved with all eleven calls as recommended:
+
+- **Likes and meetups go through the server** (A). `engagement-notify` writes comment and photo likes (`like`, `unlike`), and notifies on a like as before. A new `netlify/functions/meetups.js` (accounts only) does create-or-join, from the caller's own bucket list item with names from the profile, and leave. The web switches; the client rules wait for old builds (`GATED-CLEANUPS.md`).
+- **The activity feed goes through the server** (B). `friends.js` `activity` reads it: mutual friends only, blocks either way removed, newest first, paged. The server writes it: `normalize-show` (an account's single add), `moderate-content` (`commented`, `shared_media`) and `friends.js` `rated` (the rating read from the stored show), each checking the actor's `shareActivity`, with ids that make a retry harmless. Bulk adds and imports log nothing. The read dedupes until old builds stop writing.
+- **CSV and Excel are parsed on the server** (C): `import-sheet` with `parse`, `plan` (duplicates against the caller's stored shows) and `match` (one show a call), accounts only, 2 MB and 2,000 rows a file. SheetJS 0.20.x (pinned by URL) replaces npm's `xlsx` 0.18.5 for the server and the web.
+- **Year in Review's rarity and show buddy come from an on-demand read** (D), `year-recap`, not from the stored `recap`: a public review would show the buddy. The web switches to it.
+- **The recap card is `my-poster`'s image** (E), drawn on the server as the web's is; no native `ImageRenderer` copy.
+- **One native Year in Review layout, from `recap`, for every year** with a review document (F). 2026 is native from Jan 16, 2027 (`RecapWindow`); before that the Stats card keeps opening the web (C-9). Someone else's public review opens the web.
+- **The poster record is built on the server** (G): `lib/myPoster.js` becomes CommonJS; `my-poster` gains `record` and accepts `artist` in place of `record`.
+- **No native copy of the web's popups** (H). What's New's JSON can carry an optional announcement.
+- **`showMedia` is checked on the server before native uploads to it** (I): the Storage path must be the caller's under the concert's segment, the URL is built and the size read from Storage by the server, 50 MB per concert, YouTube links rebuilt from their id; replies name an existing top-level comment on the same concert; daily limits on comments, messages and uploads; an admin's delete removes the Storage file too.
+- **Meetup fixes** (J): `attendeeNames` may change only at the caller's own key (not gated); email-shaped names already stored are counted and replaced (`scripts/cleanup-meetup-names.js`, dry run unless `--apply`); a `meetup` report type for the pinned details (to the queue, never auto-hidden); messages need the meetup to exist. Natively, blocked people's names and details are hidden.
+- **6-2 splits in three** (K): 6-2a (social server) before comments, photos, meetups and activity; 6-2b (`import-sheet`) before imports; 6-2c (`year-recap`, poster record) before posters and Year in Review.
+- **PR order:** 6-1 audit → 6-2a → 6-3 comments → 6-4 photos → 6-5 meetups → 6-6 activity → 6-2b → 6-7 imports → 6-8 show extras → 6-2c → 6-9 posters → 6-10 Year in Review → 6-11 profile and help → 6-12 parity check.
+
 ## Post-launch list
 
 Work decided for after cutover, not before:

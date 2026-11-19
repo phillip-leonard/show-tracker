@@ -1,6 +1,6 @@
 # Stage 6 audit: parity
 
-Part 1 of Stage 6, read against `main` at 00cfdc0 (web 5.60.37, Capacitor 3.13.53, native 4.0.45). [`PARITY-AUDIT.md`](PARITY-AUDIT.md) §2 is the inventory and §4 the plan. This audit re-checks the Stage 6 rows, maps user content, meetups, the activity feed, imports, Year in Review and posters, lists what the server and the rules need first, and proposes the PR split. No code changes. The calls are in §11, for Phillip. Ships in native 4.0.46; web and Capacitor unchanged.
+Part 1 of Stage 6, read against `main` at 00cfdc0 (web 5.60.37, Capacitor 3.13.53, native 4.0.45). [`PARITY-AUDIT.md`](PARITY-AUDIT.md) §2 is the inventory and §4 the plan. This audit re-checks the Stage 6 rows, maps user content, meetups, the activity feed, imports, Year in Review and posters, lists what the server and the rules need first, and proposes the PR split. No code changes. The calls (§11) were approved on 2026-11-19, and DECISIONS.md "Stage 6" records them. Ships in native 4.0.46; web and Capacitor unchanged.
 
 ## 1. The Stage 6 rows, re-checked
 
