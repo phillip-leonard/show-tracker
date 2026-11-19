@@ -89,10 +89,12 @@ struct ShowRow: View {
                     }
                 }
                 if showsFestival, let name = festivals?.name(forAttendanceId: show.festivalId) {
-                    Label(name, systemImage: "tent")
-                        .font(.jakarta(size: 12, weight: .semibold, relativeTo: .caption))
-                        .foregroundStyle(Color.amber)
-                        .lineLimit(1)
+                    HStack(spacing: Space.x1) {
+                        Image(systemName: "tent").imageScale(.small)
+                        Text(name).lineLimit(1)
+                    }
+                    .font(.jakarta(size: 12, weight: .semibold, relativeTo: .caption))
+                    .foregroundStyle(Color.amber)
                 }
             }
             Spacer(minLength: 0)
