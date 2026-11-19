@@ -43,6 +43,33 @@ struct TourLookupsTests {
         #expect(ShowDate.isoDay(stats.songs.first?.plays.first?.date) == "2026-11-14")
     }
 
+    @Test func tourPagesMergeAndSayHowFarAlong() throws {
+        let first = #"""
+        {"tourName":"Summer Tour 2025","page":1,"pages":3,"seen":20,"upstreamTotal":45,"truncated":false,"complete":false,"shows":[
+          {"setlistfmId":"s2","date":"2025-06-13","artist":"Goose","venue":"Red Rocks","songCount":16},
+          {"setlistfmId":"s1","date":"2025-06-06","artist":"Goose","venue":"Red Rocks","songCount":16}]}
+        """#
+        let page1 = try JSONDecoder().decode(TourShowsPage.self, from: Data(first.utf8))
+        #expect(page1.nextPage == 2)
+        #expect(page1.progressLine == "Loading 20 of 45 nights…")
+        let last = #"""
+        {"tourName":"Summer Tour 2025","page":3,"pages":3,"seen":45,"upstreamTotal":45,"truncated":false,"complete":true,"shows":[
+          {"setlistfmId":"s1","date":"2025-06-06","artist":"Goose","venue":"Red Rocks","songCount":16},
+          {"setlistfmId":"s0","date":"2025-05-30","artist":"Goose","venue":"The Gorge","songCount":12}]}
+        """#
+        let page3 = try JSONDecoder().decode(TourShowsPage.self, from: Data(last.utf8))
+        #expect(page3.nextPage == nil && page3.progressLine == nil)
+        let merged = TourShows(tourName: "Summer Tour 2025", shows: [], truncated: false).adding(page1).adding(page3)
+        #expect(merged.shows.map(\.id) == ["s0", "s1", "s2"], "one row a night, in date order")
+    }
+
+    @Test func aWholeTourAnswerIsOnePage() throws {
+        // Page 1 from the whole-tour cache, or an older server without paging.
+        let json = #"{"tourName":"Fall 2026","total":2,"truncated":false,"shows":[{"setlistfmId":"a","date":"2026-11-03","artist":"Goose","venue":"V"}]}"#
+        let page = try JSONDecoder().decode(TourShowsPage.self, from: Data(json.utf8))
+        #expect(page.complete && page.nextPage == nil && page.shows.count == 1)
+    }
+
     @Test func tourNightsKnowWhichAreYours() throws {
         let json = #"""
         {"artistMbid":"m","tourName":"Summer Tour 2025","truncated":false,"shows":[

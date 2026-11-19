@@ -16,6 +16,21 @@
 // (`tourshows_` key prefix) so two users browsing the same tour cost one
 // upstream walk.
 //
+// PAGED MODE (5.60.37, native 4.0.43): with `page=N` the function answers
+// for one setlist.fm page only, so the app can list the first nights while
+// the rest are still on their way ("Loading 20 of 149 nights…") instead of
+// waiting on the whole walk. Each page is cached on its own (`tourshowsp_`)
+// for the same 12 hours, and the page that completes the tour also writes
+// the whole-tour entry when every earlier page is still cached, so the next
+// open (web or app) is one answer. Page 1 answers with the whole tour at
+// once when that entry is fresh. Without `page` nothing changes: the web's
+// TourBrowseModal still gets the whole tour in one response.
+//
+//   ?page=N → { artistMbid, tourName, shows[], page, pages, seen,
+//               upstreamTotal, truncated, complete, fetchedAt }
+//   `seen` of `upstreamTotal` is setlist.fm's own count of rows walked so
+//   far (its tourName match is loose, so a few may be filtered out).
+//
 // Response: { artistMbid, tourName, shows[], total, truncated, fetchedAt }
 // where each show is { setlistfmId, date (yyyy-MM-dd), artist, venue,
 // city, state, country, tour, songCount, hasSetlist, sets } — everything
@@ -131,6 +146,163 @@ function toShow(sl) {
   };
 }
 
+function wholeTourKey(mbid, wantedTour) {
+  return `tourshows_${crypto.createHash('md5').update(`${mbid}|${wantedTour}`).digest('hex')}`;
+}
+
+function pageKey(mbid, wantedTour, page) {
+  return `tourshowsp_${crypto.createHash('md5').update(`${mbid}|${wantedTour}|${page}`).digest('hex')}`;
+}
+
+/** setlist.fm rows → this tour's nights, one per setlist, in date order. */
+function buildShows(setlists, wantedTour) {
+  const seen = new Set();
+  return setlists
+    .filter(sl => normalizeTourName(sl.tour?.name) === wantedTour)
+    .map(toShow)
+    .filter(show => {
+      // The same setlist can surface twice across pages when setlist.fm
+      // re-ranks mid-walk; a duplicate here would render as two rows for
+      // one night.
+      if (!show.setlistfmId || seen.has(show.setlistfmId)) return false;
+      seen.add(show.setlistfmId);
+      return true;
+    })
+    .sort((a, b) => a.date.localeCompare(b.date) || a.venue.localeCompare(b.venue));
+}
+
+function fetchSetlistPage(mbid, tourName, page) {
+  const params = new URLSearchParams({ artistMbid: mbid, tourName, p: String(page) });
+  return fetchJSON(`/rest/1.0/search/setlists?${params.toString()}`);
+}
+
+function upstreamFailure(err) {
+  console.error('get-tour-shows error:', err.message);
+  const timedOut = err.code === 'TIMEOUT';
+  return {
+    statusCode: timedOut ? 504 : 502,
+    headers: CORS_HEADERS,
+    body: JSON.stringify({
+      error: timedOut ? 'timeout' : 'upstream_error',
+      message: timedOut
+        ? 'setlist.fm took too long to answer. Try again.'
+        : "Couldn't reach setlist.fm. Try again in a moment.",
+      details: err.message,
+    }),
+  };
+}
+
+const RATE_LIMITED = {
+  statusCode: 429,
+  headers: CORS_HEADERS,
+  body: JSON.stringify({ error: 'rate_limited', message: 'setlist.fm is rate limiting us right now. Try again in a minute.' }),
+};
+
+/**
+ * Once the last page is in: the whole tour from the cached pages, written
+ * as the whole-tour entry. Skipped when any earlier page has expired.
+ */
+async function cacheWholeTour({ db, mbid, tourName, wantedTour, page, lastBody }) {
+  if (!db) return;
+  const earlier = await Promise.all(
+    Array.from({ length: page - 1 }, (_, i) => readFresh(db, pageKey(mbid, wantedTour, i + 1)))
+  );
+  if (earlier.some(entry => !entry)) return;
+  const pages = [...earlier.map(entry => JSON.parse(entry.response)), lastBody];
+  // Already this tour's nights (buildShows ran per page); only duplicates
+  // across pages and the order are left to settle.
+  const merged = [];
+  const ids = new Set();
+  for (const show of pages.flatMap(p => p.shows || [])) {
+    if (!show.setlistfmId || ids.has(show.setlistfmId)) continue;
+    ids.add(show.setlistfmId);
+    merged.push(show);
+  }
+  merged.sort((a, b) => a.date.localeCompare(b.date) || a.venue.localeCompare(b.venue));
+  await writeEntry(db, wholeTourKey(mbid, wantedTour), {
+    response: JSON.stringify({
+      artistMbid: mbid,
+      tourName,
+      shows: merged,
+      total: merged.length,
+      truncated: !!lastBody.truncated,
+      fetchedAt: new Date().toISOString(),
+    }),
+    ttlHours: CACHE_TTL_HOURS,
+    queryParams: { artistMbid: mbid, tourName, kind: 'tourShows' },
+  });
+}
+
+/** `?page=N`: one setlist.fm page of the tour (see PAGED MODE above). */
+async function tourPage({ mbid, tourName, page, db, fetchPage = fetchSetlistPage }) {
+  const wantedTour = normalizeTourName(tourName);
+
+  if (page === 1) {
+    const whole = await readFresh(db, wholeTourKey(mbid, wantedTour));
+    if (whole) {
+      const parsed = JSON.parse(whole.response);
+      const total = parsed.total ?? (parsed.shows || []).length;
+      return {
+        statusCode: 200,
+        headers: { ...CORS_HEADERS, 'X-Cache': 'HIT' },
+        body: JSON.stringify({ ...parsed, page: 1, pages: 1, seen: total, upstreamTotal: total, complete: true }),
+      };
+    }
+  }
+
+  const key = pageKey(mbid, wantedTour, page);
+  const cached = await readFresh(db, key);
+  if (cached) {
+    return { statusCode: 200, headers: { ...CORS_HEADERS, 'X-Cache': 'HIT' }, body: cached.response };
+  }
+
+  let answer;
+  try {
+    answer = await fetchPage(mbid, tourName, page);
+  } catch (err) {
+    return upstreamFailure(err);
+  }
+  const { status, data } = answer;
+  if (status === 429) return RATE_LIMITED;
+  if (status !== 200 && status !== 404) return upstreamFailure(new Error(`setlist.fm returned ${status}`));
+  if (status === 200 && !data) return upstreamFailure(new Error('setlist.fm sent no data'));
+
+  // 404 is setlist.fm's "no results": no nights logged on page 1, or the
+  // walk went off the end.
+  const setlists = status === 404 ? [] : (data.setlist || []);
+  const upstreamTotal = status === 404 ? 0 : (data.total || 0);
+  const perPage = (data && data.itemsPerPage) || 20;
+  const lastPage = Math.ceil(upstreamTotal / perPage);
+  const pages = Math.min(lastPage, MAX_PAGES);
+  const body = {
+    artistMbid: mbid,
+    tourName,
+    shows: buildShows(setlists, wantedTour),
+    page,
+    pages: Math.max(pages, status === 404 ? page - 1 : page),
+    seen: Math.min(page * perPage, upstreamTotal),
+    upstreamTotal,
+    truncated: lastPage > MAX_PAGES,
+    complete: status === 404 || setlists.length === 0 || page >= pages,
+    fetchedAt: new Date().toISOString(),
+  };
+  const responseBody = JSON.stringify(body);
+
+  if (status === 200) {
+    const pageWrite = writeEntry(db, key, { response: responseBody, ttlHours: CACHE_TTL_HOURS, queryParams: { artistMbid: mbid, tourName, page, kind: 'tourShowsPage' } });
+    if (body.complete) {
+      // Awaited on the last page only: work left running after the
+      // response is frozen with the function, and on the deploy preview the
+      // whole-tour entry never landed that way. The nights are already on
+      // screen by now, so the extra reads cost nobody a wait.
+      await pageWrite;
+      await cacheWholeTour({ db, mbid, tourName, wantedTour, page, lastBody: body }).catch(e => console.warn('[CACHE] whole tour:', e.message));
+    }
+  }
+
+  return { statusCode: 200, headers: { ...CORS_HEADERS, 'X-Cache': 'MISS' }, body: responseBody };
+}
+
 exports.handler = async function (event) {
   const missingKey = missingSetlistfmKey();
   if (missingKey) return missingKey;
@@ -151,7 +323,7 @@ exports.handler = async function (event) {
     return { statusCode: 405, headers: CORS_HEADERS, body: JSON.stringify({ error: 'Method not allowed' }) };
   }
 
-  const { mbid, tourName } = event.queryStringParameters || {};
+  const { mbid, tourName, page: pageParam } = event.queryStringParameters || {};
   if (!mbid || !tourName) {
     return {
       statusCode: 400,
@@ -160,8 +332,20 @@ exports.handler = async function (event) {
     };
   }
 
+  if (pageParam !== undefined) {
+    const page = Number(pageParam);
+    if (!Number.isInteger(page) || page < 1 || page > MAX_PAGES) {
+      return {
+        statusCode: 400,
+        headers: CORS_HEADERS,
+        body: JSON.stringify({ error: `page must be a whole number from 1 to ${MAX_PAGES}` }),
+      };
+    }
+    return tourPage({ mbid, tourName, page, db: getDb() });
+  }
+
   const wantedTour = normalizeTourName(tourName);
-  const cacheKey = `tourshows_${crypto.createHash('md5').update(`${mbid}|${wantedTour}`).digest('hex')}`;
+  const cacheKey = wholeTourKey(mbid, wantedTour);
   const db = getDb();
 
   // An expired entry is a miss, never a fallback (lib/setlistCache.js).
@@ -177,8 +361,7 @@ exports.handler = async function (event) {
 
   try {
     for (let page = 1; page <= MAX_PAGES; page++) {
-      const params = new URLSearchParams({ artistMbid: mbid, tourName, p: String(page) });
-      const { status, data } = await fetchJSON(`/rest/1.0/search/setlists?${params.toString()}`);
+      const { status, data } = await fetchSetlistPage(mbid, tourName, page);
 
       if (status === 404) {
         // setlist.fm's "no results" for a search. On page 1 that means the
@@ -188,13 +371,7 @@ exports.handler = async function (event) {
       }
 
       if (status === 429) {
-        if (collected.length === 0) {
-          return {
-            statusCode: 429,
-            headers: CORS_HEADERS,
-            body: JSON.stringify({ error: 'rate_limited', message: 'setlist.fm is rate limiting us right now. Try again in a minute.' }),
-          };
-        }
+        if (collected.length === 0) return RATE_LIMITED;
         truncated = true;
         break;
       }
@@ -219,34 +396,10 @@ exports.handler = async function (event) {
       await sleep(PAGE_DELAY_MS);
     }
   } catch (err) {
-    console.error('get-tour-shows error:', err.message);
-    const timedOut = err.code === 'TIMEOUT';
-    return {
-      statusCode: timedOut ? 504 : 502,
-      headers: CORS_HEADERS,
-      body: JSON.stringify({
-        error: timedOut ? 'timeout' : 'upstream_error',
-        message: timedOut
-          ? 'setlist.fm took too long to answer. Try again.'
-          : "Couldn't reach setlist.fm. Try again in a moment.",
-        details: err.message,
-      }),
-    };
+    return upstreamFailure(err);
   }
 
-  const seen = new Set();
-  const shows = collected
-    .filter(sl => normalizeTourName(sl.tour?.name) === wantedTour)
-    .map(toShow)
-    .filter(show => {
-      // The same setlist can surface twice across pages when setlist.fm
-      // re-ranks mid-walk; a duplicate here would render as two rows for
-      // one night.
-      if (!show.setlistfmId || seen.has(show.setlistfmId)) return false;
-      seen.add(show.setlistfmId);
-      return true;
-    })
-    .sort((a, b) => a.date.localeCompare(b.date) || a.venue.localeCompare(b.venue));
+  const shows = buildShows(collected, wantedTour);
 
   const responseBody = JSON.stringify({
     artistMbid: mbid,
@@ -265,3 +418,5 @@ exports.handler = async function (event) {
 // CORS allowlist on every response (lib/cors.js) — no more `*` (5.59.6).
 // Per-IP daily limit on the shared setlists quota (lib/proxyLimit.js, 5.59.8).
 module.exports.handler = withCors(withProxyLimit('setlists', module.exports.handler));
+module.exports.tourPage = tourPage;
+module.exports.MAX_PAGES = MAX_PAGES;
