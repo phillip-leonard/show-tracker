@@ -25,6 +25,8 @@ public struct AppShell: View {
     @State private var inbox = NotificationsStore()
     /// Starred tours (Stage 4, 4-6): guests too, on their own document.
     @State private var favoriteTours = FavoriteToursStore()
+    /// Your festivals (Stage 5, 5-3): accounts only, so a guest never starts it.
+    @State private var festivals = FestivalsStore()
 
     public init() {}
 
@@ -82,6 +84,7 @@ public struct AppShell: View {
         .environment(friends)
         .environment(inbox)
         .environment(favoriteTours)
+        .environment(festivals)
         .tabViewStyle(.sidebarAdaptable)
         .tint(.brand)
         // A window made narrow while a Library item is open: the sidebar is
@@ -103,10 +106,13 @@ public struct AppShell: View {
         .task(id: session.user?.uid) {
             if let uid = session.user?.uid { favoriteTours.start(uid: uid) } else { favoriteTours.stop() }
         }
+        .task(id: "\(session.user?.uid ?? "")|\(session.user?.isAnonymous == true)") {
+            if let user = session.user, !user.isAnonymous { festivals.start(uid: user.uid, api: session.api) } else { festivals.stop() }
+        }
         // Registers this device for push for whoever is signed in (guests
         // too), when notifications are allowed (Stage 3, Part 5).
         .task(id: session.user?.uid) { await PushCenter.shared.signedIn(uid: session.user?.uid) }
-        .onDisappear { shows.stop(); friends.stop(); inbox.stop(); favoriteTours.stop() }
+        .onDisappear { shows.stop(); friends.stop(); inbox.stop(); favoriteTours.stop(); festivals.stop() }
         .sheet(item: $router.web) { page in
             SafariView(url: page.url).ignoresSafeArea()
         }
@@ -158,6 +164,8 @@ struct RouteScreen: View {
         case .wishlistArtist(let artist): WishlistArtistScreen(artist: artist)
         case .bucketList: BucketListScreen()
         case .community: CommunityScreen()
+        case .festivals: FestivalsScreen()
+        case .festival(let id): FestivalScreen(id: id)
         case .advancedSearch: AdvancedSearchScreen(initial: ShowSearchFilters())
         default: RoutePlaceholder(route: route)
         }

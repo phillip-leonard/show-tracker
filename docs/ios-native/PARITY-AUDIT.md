@@ -257,13 +257,13 @@ Two gaps aren't screens, and both should be fixed whatever else is decided:
 
 | Item | Web / Capacitor | Native today | Status | Size | Server work | Stage |
 |---|---|---|---|---|---|---|
-| Your festivals list, filters, empty states | `FestivalListView` | None | Planned | M | none | 5 |
-| Festival page: stats (shows, artists, days, average rating), artists, shows | `FestivalDetailView` | None | Planned | (same PR) | | 5 |
-| Attach shows ("Pick from my shows"), remove from festival | `AttachShowsModal` | None | Planned | S | none | 5 |
-| Lineup (read) | Yes | None | Planned | S | | 5 |
-| Festival notes | Yes | None | Missing (was v1.x) | S | none | 5 |
+| Your festivals list, filters, empty states | `FestivalListView` | `FestivalsScreen`: newest first, show counts, band/venue/name filter and a year menu, empty and offline states | Native 5-3 | M | none | 5 |
+| Festival page: stats (shows, artists, days, average rating), artists, shows | `FestivalDetailView` | `FestivalScreen`: tiles from `FestivalStats` (`fixtures/festivals/stats.json`), artists and shows by day | Native 5-3 | (same PR) | | 5 |
+| Attach shows ("Pick from my shows"), remove from festival | `AttachShowsModal` | `AttachShowsSheet`, swipe to remove; `festivalId` alone (`ShowsStore.setFestival`) | Native 5-3 | S | none | 5 |
+| Lineup (read) | Yes | Shared lineup with its credit, or the typed one; `festival-lineup` for an upcoming festival | Native 5-3 | S | | 5 |
+| Festival notes | Yes | `FestivalNotesSheet` (one `updateData` of `notes`) | Native 5-3 | S | none | 5 |
 | Create a festival, or join one someone else created | `FestivalFormModal`, `match-festivals` | None | Missing (was v1.x) | M | Confirmed (STAGE5-AUDIT): the web writes `festivals` from the client; create, join, leave and edit move to `festivals.js` (5-2) | 5 |
-| Leave a festival (shows kept) | `LeaveFestivalModal` | None | Missing (was v1.x) | S | | 5 |
+| Leave a festival (shows kept) | `LeaveFestivalModal` | `festivals.js` `leave`, with the web's wording | Native 5-3 | S | | 5 |
 | Search the lineup ("Find who played", setlist.fm) | `FestivalLineupModal`, `search-festival-lineup` | None | Missing (was v1.x) | M | none | 5 |
 | Your picks (lineup ranked by band affinity), enter lineup | `FestivalPicks`, `band-affinity` | None | Missing (was v1.x) | M | Picks scored on the server in `festival-lineup` (STAGE5-AUDIT call B) | 5 |
 

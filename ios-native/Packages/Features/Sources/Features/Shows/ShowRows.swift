@@ -59,6 +59,10 @@ struct DateBlock: View {
 struct ShowRow: View {
     let show: Show
     let today: String
+    /// The festival it's part of, as a small label (the web's ShowCard
+    /// pill); off on the festival's own page.
+    var showsFestival = true
+    @Environment(FestivalsStore.self) private var festivals: FestivalsStore?
 
     var body: some View {
         HStack(spacing: Space.x3) {
@@ -84,6 +88,12 @@ struct ShowRow: View {
                             .foregroundStyle(Color.brand)
                     }
                 }
+                if showsFestival, let name = festivals?.name(forAttendanceId: show.festivalId) {
+                    Label(name, systemImage: "tent")
+                        .font(.jakarta(size: 12, weight: .semibold, relativeTo: .caption))
+                        .foregroundStyle(Color.amber)
+                        .lineLimit(1)
+                }
             }
             Spacer(minLength: 0)
         }
@@ -95,6 +105,7 @@ struct ShowRow: View {
     private var accessibilityText: String {
         var parts = [show.artist, ShowDateText.display(show.date), venueLine(show.venue, show.city)]
         parts.append(show.rating.map { "rated \($0) out of 10" } ?? "not rated")
+        if showsFestival, let name = festivals?.name(forAttendanceId: show.festivalId) { parts.append("part of \(name)") }
         switch ShowList.setlistStatus(show) {
         case .songs(let n): parts.append("setlist, \(n) songs")
         case .missing: parts.append("no setlist yet")

@@ -131,7 +131,7 @@ public enum ShowDate {
     }
 
     /// Days since 1970-01-01 for an ISO day, with no time zone involved.
-    private static func dayNumber(_ iso: String) -> Int? {
+    static func dayNumber(_ iso: String) -> Int? {
         let parts = iso.split(separator: "-").compactMap { Int($0) }
         guard parts.count == 3 else { return nil }
         // Howard Hinnant's days_from_civil.

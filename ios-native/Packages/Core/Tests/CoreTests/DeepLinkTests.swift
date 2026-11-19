@@ -78,7 +78,11 @@ import Testing
 
     @Test func claimedPathsWithoutAScreenOpenTheWeb() {
         #expect(action("https://mysetlists.net/roadmap") == .web(URL(string: "https://mysetlists.net/roadmap/")!))
-        #expect(action("https://mysetlists.net/festivals/f9") == .web(URL(string: "https://mysetlists.net/festivals/?festival=f9")!))
+        #expect(action("https://mysetlists.net/festivals/f9") == .open(.me, .festival(id: "f9")))
+        #expect(action("https://mysetlists.net/festivals/?festival=f9") == .open(.me, .festival(id: "f9")))
+        #expect(action("https://mysetlists.net/festivals/") == .open(.me, .festivals))
+        #expect(AppRoute.festival(id: "f9").webURL.absoluteString == "https://mysetlists.net/festivals/?festival=f9")
+        #expect(AppRoute.festivals.webURL.absoluteString == "https://mysetlists.net/festivals/")
         #expect(action("https://mysetlists.net/shows/?venueKey=k") == .web(URL(string: "https://mysetlists.net/shows/?venueKey=k")!))
         #expect(action("https://mysetlists.net/bands/") == .web(URL(string: "https://mysetlists.net/bands/")!), "no band named")
     }

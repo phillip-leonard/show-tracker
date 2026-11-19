@@ -6,7 +6,7 @@ import SwiftUI
 // launch"): no drawer. Library is a section at the top of Me, Community is
 // on Stats, and a wide iPad window lists them all in its sidebar
 // (AppShell). Every item opens its web page until its native screen ships
-// (`LibraryDestination.native`; Stage 4 call B for Festivals and Setlist Photos).
+// (`LibraryDestination.native`; Stage 4 call B: Setlist Photos until Stage 6).
 
 /// Library, at the top of Me. Guests don't get Festivals or Setlist Photos.
 struct LibrarySection: View {
@@ -87,6 +87,7 @@ struct LibraryTabRoot: View {
         case .wishlist?: WishlistHome()
         case .bucketList?: BucketListScreen()
         case .community?: CommunityScreen()
+        case .festivals?: FestivalsScreen()
         default: placeholder
         }
     }
