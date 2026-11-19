@@ -6,8 +6,9 @@ All notable changes to mysetlists.net are documented here.
 
 ## [5.60.34] — 2026-11-18
 
-Ships in **iOS 3.13.50** (Capacitor, `MARKETING_VERSION` 3.13.49 → 3.13.50)
-and **native 4.0.37** (with the native song wishlist, Stage 4 PR 4-9).
+Ships in **iOS 3.13.50** (Capacitor, `MARKETING_VERSION` 3.13.49 → 3.13.50).
+Native unchanged (the native wishlist that guests can now carry over shipped
+in 4.0.37).
 
 **A guest's lists survive signing in to an existing account.** When a native
 guest signs in with a credential that already has an account,
