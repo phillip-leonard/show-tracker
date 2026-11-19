@@ -262,10 +262,10 @@ Two gaps aren't screens, and both should be fixed whatever else is decided:
 | Attach shows ("Pick from my shows"), remove from festival | `AttachShowsModal` | None | Planned | S | none | 5 |
 | Lineup (read) | Yes | None | Planned | S | | 5 |
 | Festival notes | Yes | None | Missing (was v1.x) | S | none | 5 |
-| Create a festival, or join one someone else created | `FestivalFormModal`, `match-festivals` | None | Missing (was v1.x) | M | Confirm in the Stage 5 audit: the web writes `festivals` from the client (`AppContext` `addFestival`) | 5 |
+| Create a festival, or join one someone else created | `FestivalFormModal`, `match-festivals` | None | Missing (was v1.x) | M | Confirmed (STAGE5-AUDIT): the web writes `festivals` from the client; create, join, leave and edit move to `festivals.js` (5-2) | 5 |
 | Leave a festival (shows kept) | `LeaveFestivalModal` | None | Missing (was v1.x) | S | | 5 |
 | Search the lineup ("Find who played", setlist.fm) | `FestivalLineupModal`, `search-festival-lineup` | None | Missing (was v1.x) | M | none | 5 |
-| Your picks (lineup ranked by band affinity), enter lineup | `FestivalPicks`, `band-affinity` | None | Missing (was v1.x) | M | none | 5 |
+| Your picks (lineup ranked by band affinity), enter lineup | `FestivalPicks`, `band-affinity` | None | Missing (was v1.x) | M | Picks scored on the server in `festival-lineup` (STAGE5-AUDIT call B) | 5 |
 
 ### 2.15 Community (`/community`)
 
