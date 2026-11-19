@@ -140,10 +140,10 @@ Two gaps aren't screens, and both should be fixed whatever else is decided:
 | Shows to confirm (suggestions) | Yes | Yes | Native #448 | | | |
 | "Where to stream this show" (nugs.net, playdead, Relisten, archive.org) | `StreamingLinks`, `lib/streamingPlatforms.js` | `StreamingSection`, from the lookup's `streaming` | Native 4-4 | | `archival-audio-lookup` answers the list (Stage 4 call A, 5.60.32) | |
 | "Listen to this night" (Relisten / Internet Archive recordings, link-out) | `ArchivalAudioSection`, `archival-audio-lookup` | `ListenSection`: the pick is saved (`archivalAudioPick`), three rows then "Show all" | Native 4-4 | | none | |
-| Photos and videos | `ShowMediaSection` | Hidden (C-4) | Missing (was v1.x) | L | none beyond today's: Storage upload, `moderate-content`, `report-content` | 6 |
-| Posters | `ShowMediaSection` | Hidden (C-4) | Missing (was v1.x) | (with photos) | | 6 |
-| Setlist photos | `ShowMediaSection` | Hidden (C-4) | Missing (was v1.x) | (with photos) | | 6 |
-| Comments: post, reply, delete, like, report | `CommentsSection` | Hidden (C-4) | Missing (was v1.x) | L | none: `moderate-content`, `engagement-notify`, `report-content` exist | 6 |
+| Photos and videos | `ShowMediaSection` | `ShowMediaSection`: three galleries, one listener | Native 6-4 (4.0.49) | L | `showMedia` checks the Storage file since 5.60.38 (6-2a) | 6 |
+| Posters | `ShowMediaSection` | Yes | Native 6-4 (4.0.49) | (with photos) | | 6 |
+| Setlist photos | `ShowMediaSection` | Yes | Native 6-4 (4.0.49) | (with photos) | | 6 |
+| Comments: post, reply, delete, like, report | `CommentsSection` | `CommentsSection` | Native 6-3 (4.0.48) | L | likes through `engagement-notify` since 5.60.38 (6-2a) | 6 |
 | Meetups on a show | `MeetupCard` | Hidden (C-4) | Missing (was v1.x) | (with meetups) | | 6 |
 | Empty setlist: "No setlist yet" | Yes | Yes | Native #433 | | | |
 
@@ -333,10 +333,10 @@ Two gaps aren't screens, and both should be fixed whatever else is decided:
 
 | Item | Web / Capacitor | Native today | Status | Size | Server work | Stage |
 |---|---|---|---|---|---|---|
-| Upload photo or video (YouTube link), captions | `UploadMediaModal`, Storage, `moderate-content` | None | Missing (was v1.x) | L | none beyond today's; native needs the same Storage paths and rules | 6 |
-| Media gallery, zoom, next/previous | `MediaGalleryView` | None | Missing | (same PR) | | 6 |
-| Like, report, delete own | Yes | None | Missing | (same PR) | `engagement-notify` exists | 6 |
-| Setlist photo directory, search | `SetlistPhotoDirectory` | None | Missing | M | none | 6 |
+| Upload photo or video (YouTube link), captions | `UploadMediaModal`, Storage, `moderate-content` | `MediaUploadSheet`: library picker, HEIC → JPEG, MOV → MP4 under 10 MB, a caption each | Native 6-4 (4.0.49) | L | none: the same Storage paths and rules | 6 |
+| Media gallery, zoom, next/previous | `MediaGalleryView` | `MediaViewer`: swipe, pinch and double-tap zoom, video, YouTube opens YouTube | Native 6-4 (4.0.49) | (same PR) | | 6 |
+| Like, report, delete own | Yes | Yes | Native 6-4 (4.0.49) | (same PR) | `engagement-notify` `liked` (5.60.38) | 6 |
+| Setlist photo directory, search | `SetlistPhotoDirectory` | `SetlistPhotosScreen`, the Library row | Native 6-4 (4.0.49) | M | none | 6 |
 | Meetups: create, join, leave, edit details, discussion, delete message | `MeetupDetailView`, `lib/meetups.js` | Notifications link to the web | Web link (was v1.x) | L | none beyond today's (`moderate-content`, `engagement-notify`) | 6 |
 
 ### 2.21 Help, feedback and roadmap

@@ -445,3 +445,39 @@ public struct LikeResponse: Decodable, Sendable {
     public var likeCount: Int
 }
 
+/// `moderate-content` `showMedia`: the only way a photo, video, poster,
+/// setlist photo or YouTube link is published. An upload names only its
+/// Storage path; the server reads the size, type and URL from Storage,
+/// checks the 50 MB a concert, filters the caption, and writes the
+/// uploader's friend activity linked to `showId` (5.60.38).
+public struct PostMediaRequest: Encodable, Sendable {
+    public let target = "showMedia"
+    public var concertKey: String
+    public var category: String
+    public var type: String
+    public var storagePath: String?
+    public var url: String?
+    public var caption: String
+    public var show: ContentShow
+    public var showId: String
+    public static let function = "moderate-content"
+
+    /// A file already in Storage at `storagePath`.
+    public static func upload(concertKey: String, category: ShowMedia.Category, isVideo: Bool, storagePath: String,
+                              caption: String, show: ContentShow, showId: String) -> PostMediaRequest {
+        PostMediaRequest(concertKey: concertKey, category: category.rawValue, type: isVideo ? "video" : "image",
+                         storagePath: storagePath, url: nil, caption: caption, show: show, showId: showId)
+    }
+
+    /// A YouTube link: a document only, photos only.
+    public static func youtube(concertKey: String, url: String, caption: String, show: ContentShow, showId: String) -> PostMediaRequest {
+        PostMediaRequest(concertKey: concertKey, category: ShowMedia.Category.photo.rawValue, type: "youtube",
+                         storagePath: nil, url: url, caption: caption, show: show, showId: showId)
+    }
+}
+
+public struct PostedMedia: Decodable, Sendable {
+    public var id: String
+    public var url: String?
+}
+

@@ -95,8 +95,9 @@ struct ShowDetailView: View {
                     ListenSection(show: show, listening: listening)
                     StreamingSection(platforms: listening.streaming)
                 }
-                // Everyone who logged this night shares the thread (6-3);
-                // guests see a prompt instead (D-1).
+                // Everyone who logged this night shares the photos (6-4)
+                // and the thread (6-3); guests see a prompt instead (D-1).
+                ShowMediaSection(show: show)
                 CommentsSection(show: show)
             }
             .padding(.horizontal, Space.x5)

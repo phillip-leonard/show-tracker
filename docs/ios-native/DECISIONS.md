@@ -384,8 +384,18 @@ From the Stage 6 audit ([`STAGE6-AUDIT.md`](STAGE6-AUDIT.md)), approved with all
   - `CommentThread` orders top-level comments oldest first with their replies under them; replies to a deleted comment and comments from people you blocked don't show;
   - "@" mentions suggest your friends when the "@" is at the end of the text (SwiftUI gives no cursor position); the server does the notifying. No Swift copy of the content filter: the server's message shows under the box;
   - you can't like your own comment (the web lets you, and notifies nobody); a name opens the person's card (Report, Block);
-  - reply, mention and comment-like notifications open the show natively; photo likes open the web until 6-4;
+  - reply, mention and comment-like notifications open the show natively;
   - `ReportContentSheet` is shared with photos and meetups (6-4, 6-5).
+- **Media as built (6-4, native 4.0.49):**
+  - Photos & Videos, Posters and Setlist Photos cards on the show page, before Comments, from one `ShowMediaStore` listener (`showPhotos` by concert key, newest first); guests get one "Create an account to see photos" card (D-1);
+  - each gallery sorts Newest or Most Liked; uploads from people you blocked and ones you reported this session never show (`MediaGallery`);
+  - uploads go to Storage at `showPhotos/{segment}/{uid}/{ms}-{name}` with their content type set, then `moderate-content` `showMedia` names the path (5.60.38); a batch stops at the first refusal and keeps the rest to fix, and a refused file is removed from Storage;
+  - `MediaPreparation` makes files web-ready on the phone: images become JPEG at most 3000 px, upright and without metadata (no location leaves the phone); a GIF stays a GIF; videos become MP4 at 720p, then 540p, then 480p until one is under 10 MB, or the picker says to trim it;
+  - the viewer swipes through the gallery, zooms pictures (pinch or double-tap; the web zooms only posters and setlist photos), plays MP4 and opens YouTube links in YouTube rather than embedding them;
+  - you can't like your own upload, as with comments; delete is your own only (no admin delete in the app: moderation stays in the web admin portal);
+  - the setlist photo directory is the Library row's native screen (Stage 4 call B ends), the web's read: `category == setlist`, newest 300, searched on the phone by band, venue or date;
+  - photo-like notifications open the show natively;
+  - debug builds with `MYSETLISTS_EMULATORS` use the Storage emulator too (`:9199`), and read download URLs from it.
 - **PR order:** 6-1 audit → 6-2a → 6-3 comments → 6-4 photos → 6-5 meetups → 6-6 activity → 6-2b → 6-7 imports → 6-8 show extras → 6-2c → 6-9 posters → 6-10 Year in Review → 6-11 profile and help → 6-12 parity check.
 
 ## Post-launch list

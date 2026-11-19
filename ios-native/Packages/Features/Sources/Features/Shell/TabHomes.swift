@@ -41,6 +41,7 @@ struct RoutePlaceholder: View {
         case .bucketList: "Bucket List"
         case .community: "Community"
         case .festivals, .festival: "Festivals"
+        case .setlistPhotos: "Setlist Photos"
         case .advancedSearch: "Advanced search"
         case .venue: "Venue"
         case .yearInReview(_, let year): "\(year) in Review"
@@ -62,6 +63,7 @@ struct RoutePlaceholder: View {
         case .bucketList: "checklist"
         case .community: "person.3"
         case .festivals, .festival: "tent"
+        case .setlistPhotos: "photo.on.rectangle"
         case .advancedSearch: "line.3.horizontal.decrease.circle"
         case .venue: "building.columns"
         case .yearInReview: "sparkles"
@@ -81,7 +83,7 @@ struct RoutePlaceholder: View {
         case .statsList(_, let year): year ?? "All time"
         case .wishlist: ""
         case .wishlistArtist(let artist): artist.name
-        case .bucketList, .community, .advancedSearch, .festivals: ""
+        case .bucketList, .community, .advancedSearch, .festivals, .setlistPhotos: ""
         case .festival(let id): id
         case .venue(let key): key
         case .yearInReview: "A year of shows"
