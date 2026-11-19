@@ -203,7 +203,7 @@ public struct ShowsTogetherResponse: Decodable, Sendable {
 /// report goes to the queue and is never hidden automatically. `other`
 /// needs `details`. A guest gets `account_required`.
 public struct ReportContentRequest: Encodable, Sendable {
-    public enum ContentType: String, Encodable, Sendable { case profile }
+    public enum ContentType: String, Encodable, Sendable { case profile, showComment, showMedia, meetupComment, meetup }
     public var contentType: ContentType
     public var contentId: String
     public var reason: ReportReason
@@ -381,3 +381,67 @@ public struct OKResponse: Decodable, Sendable {
     public var ok: Bool?
     public var success: Bool?
 }
+
+// MARK: - User content (Stage 6)
+
+/// The show a comment or upload names, so a notification can say which.
+public struct ContentShow: Encodable, Hashable, Sendable {
+    public var artist: String
+    public var venue: String
+    public var date: String
+    public init(artist: String, venue: String?, date: String) {
+        self.artist = artist
+        self.venue = venue ?? ""
+        self.date = date
+    }
+}
+
+/// `moderate-content` `showComment`: the only way a comment is written. The
+/// server filters the text, names the author from their profile, notifies
+/// a reply's parent and any "@Friend", and writes the poster's friend
+/// activity linked to `showId`, their own show.
+public struct PostCommentRequest: Encodable, Sendable {
+    public let target = "showComment"
+    public var concertKey: String
+    public var text: String
+    public var parentId: String?
+    public var show: ContentShow
+    public var showId: String
+    public static let function = "moderate-content"
+
+    public init(concertKey: String, text: String, parentId: String?, show: ContentShow, showId: String) {
+        self.concertKey = concertKey
+        self.text = text
+        self.parentId = parentId
+        self.show = show
+        self.showId = showId
+    }
+}
+
+public struct PostedContent: Decodable, Sendable {
+    public var id: String
+}
+
+/// `engagement-notify` with `liked` (5.60.38): the server writes `likedBy`
+/// and notifies the owner of a like.
+public struct LikeRequest: Encodable, Sendable {
+    public enum Kind: String, Encodable, Sendable { case comment = "comment_like", photo = "photo_like" }
+    public var type: Kind
+    public var id: String
+    public var liked: Bool
+    public var show: ContentShow?
+    public static let function = "engagement-notify"
+
+    public init(_ type: Kind, id: String, liked: Bool, show: ContentShow? = nil) {
+        self.type = type
+        self.id = id
+        self.liked = liked
+        self.show = show
+    }
+}
+
+public struct LikeResponse: Decodable, Sendable {
+    public var liked: Bool
+    public var likeCount: Int
+}
+

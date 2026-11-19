@@ -38,7 +38,8 @@ struct ShowDetailScreen: View {
 // MARK: - The show page
 
 /// The show page, as the Stage 1 mockup lays it out: the header, your
-/// ratings and note, the setlist by set, the source's notes and credit.
+/// ratings and note, the setlist by set, the source's notes and credit,
+/// listening, then the night's comments (Stage 6, 6-3).
 /// The ratings and the note are each one field written on its own
 /// (`ShowFieldEdit`). Song edits (Part 3b) run as transactions on the
 /// setlist as stored (`ShowsStore.editSetlist`). Re-sync, the Archive
@@ -94,6 +95,9 @@ struct ShowDetailView: View {
                     ListenSection(show: show, listening: listening)
                     StreamingSection(platforms: listening.streaming)
                 }
+                // Everyone who logged this night shares the thread (6-3);
+                // guests see a prompt instead (D-1).
+                CommentsSection(show: show)
             }
             .padding(.horizontal, Space.x5)
             .padding(.top, Space.x2)
