@@ -339,6 +339,14 @@ From the Stage 5 audit ([`STAGE5-AUDIT.md`](STAGE5-AUDIT.md)), approved with all
 - **The lineup search import checks duplicates with `normalize-show` `preview`**, then commits `festival-row` inputs, so conflicts (a show already in another festival) are asked about before anything is written, as on the web, with no Swift copy of `classifyDuplicate`.
 - **Guests** see "Create an account to use Festivals"; every festival path refuses them already.
 - **Old Capacitor builds** write festivals from the phone until `minSupportedIosVersion` reaches the Part 2 build (`GATED-CLEANUPS.md`). Part 2 first counts attendance records from before 5.30.0 (no `festivalId`), whose owners edit name and dates on their own record.
+- **List and page as built (5-3, native 4.0.44):**
+  - `FestivalsStore` (Core, accounts only, owned by `AppShell`) reads each attendance record and its shared festival the way the web's `loadFestivals` does, into `Festival` (the joined view, `Festival.joined`, checked against `fixtures/festivals/joined.json`). The device's copy shows first, then the server's (10 s deadline); offline, the list says so instead of spinning. A shared festival that can't be read leaves the record as "unavailable", as on the web;
+  - `FestivalDates` and `FestivalStats` are the Swift copies of `lib/festivalDates.js` and `lib/festivalGrouping.js`, run against `fixtures/festivals/dates.json` and `stats.json`. The tiles come from the shows on the phone;
+  - the list's filter matches a show's band or venue (the web's shared show filter) **and the festival's own name** (the web matches shows only), plus a year menu; the web's single-date filter isn't there. With no festivals, "New festival on mysetlists.net" opens the web until 5-4;
+  - the page: header (catalog and "added by another user" notes, cut short), Shows attended · Artists · Days · Avg rating, notes (one `updateData` of the record's `notes`), artists and the lineup opening band pages (the web's artist chips open a filtered show list), the lineup with its credit, and the shows by day with swipe to remove. An upcoming festival asks `festival-lineup` when opened, as the web does;
+  - "Pick from my shows" and remove write the show's `festivalId` alone (`ShowsStore.setFestival`, one batch), so both work offline; a show already in another festival is moved only after asking. Leave is `festivals.js` `leave` and says so when offline;
+  - links: Library → Festivals, `/festivals` and `/festivals/?festival=` (and the old `/festivals/<id>`) open in Me; a festival link names an attendance id, so someone else's shows "Festival not found". The show page's festival badge opens the festival, and every show row names its festival;
+  - guests reaching a festival link get "Create an account to use Festivals".
 - **PR order:** 5-1 audit → 5-2 server → 5-3 list and page → 5-4 create, join, edit, lineup search, picks.
 
 ## Post-launch list

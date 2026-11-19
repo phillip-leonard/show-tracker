@@ -80,7 +80,8 @@ struct ShowDetailView: View {
             VStack(alignment: .leading, spacing: Space.x5) {
                 ShowHeader(date: show.date, tour: show.tour, artist: show.artist, venue: show.venue,
                            city: show.city, state: show.state, festival: festival,
-                           bandSlug: show.artist.isEmpty ? nil : BandDirectory.slug(forArtist: show.artist))
+                           bandSlug: show.artist.isEmpty ? nil : BandDirectory.slug(forArtist: show.artist),
+                           festivalId: isGuest ? nil : show.festivalId)
                 ShowPlaceLinks(show: show)
                 YourRatingsCard(show: show, editNote: { editingNote = true })
                 if !isGuest {
@@ -328,6 +329,9 @@ struct ShowHeader: View {
     let festival: String?
     /// The band's page (Stage 4, 4-5); the name links to it when given.
     var bandSlug: String? = nil
+    /// The festival's page (Stage 5, 5-3): the attendance id the show
+    /// points at. The badge opens it when given.
+    var festivalId: String? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: Space.x1) {
@@ -362,17 +366,33 @@ struct ShowHeader: View {
                     .foregroundStyle(Color.textSecondary)
             }
             if let festival {
-                Label(festival, systemImage: "tent")
-                    .font(.jakarta(size: 13, weight: .semibold, relativeTo: .footnote))
-                    .foregroundStyle(Color.amber)
-                    .padding(.horizontal, Space.x3)
-                    .padding(.vertical, Space.x1)
-                    .background(Color.amberSubtle, in: Capsule())
-                    .padding(.top, Space.x1)
+                if let festivalId {
+                    NavigationLink(value: AppRoute.festival(id: festivalId)) { festivalBadge(festival) }
+                    .buttonStyle(.plain)
                     .accessibilityLabel("Part of \(festival)")
+                    .accessibilityHint("Opens the festival")
+                } else {
+                    festivalBadge(festival)
+                        .accessibilityLabel("Part of \(festival)")
+                }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func festivalBadge(_ name: String) -> some View {
+        HStack(spacing: Space.x1) {
+            Label(name, systemImage: "tent")
+            if festivalId != nil {
+                Image(systemName: "chevron.right").font(.system(size: 10, weight: .bold))
+            }
+        }
+        .font(.jakarta(size: 13, weight: .semibold, relativeTo: .footnote))
+        .foregroundStyle(Color.amber)
+        .padding(.horizontal, Space.x3)
+        .padding(.vertical, Space.x1)
+        .background(Color.amberSubtle, in: Capsule())
+        .padding(.top, Space.x1)
     }
 
     private var kicker: String {
