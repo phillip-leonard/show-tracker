@@ -168,6 +168,12 @@ public enum BucketList {
         return (["My concert bucket list:"] + lines).joined(separator: "\n")
     }
 
+    /// A calendar event's location: the venue plus the city ("Red Rocks,
+    /// Morrison"), whichever there is.
+    public static func calendarLocation(_ item: BucketListItem) -> String {
+        [item.venue, item.city].compactMap { $0 }.joined(separator: ", ")
+    }
+
     /// "Sat, May 10, 2026" (the web's `formatDate`, en-US).
     public static func longDate(_ iso: String) -> String {
         let parse = DateFormatter()

@@ -88,6 +88,15 @@ struct BucketListTests {
         #expect(BucketList.longDate("not a date") == "not a date")
     }
 
+    @Test func theCalendarLocationIsVenuePlusCity() {
+        let both = BucketListItem(id: "u1_a", uid: "u1", data: ["artist": "Goose", "date": "2026-06-14", "venue": "Red Rocks", "city": "Morrison", "state": "CO"])
+        #expect(BucketList.calendarLocation(both) == "Red Rocks, Morrison")
+        #expect(BucketList.calendarLocation(item("Phish", "2026-12-31", venue: "MSG")) == "MSG")
+        let cityOnly = BucketListItem(id: "u1_c", uid: "u1", data: ["artist": "Billy Strings", "date": "2026-10-02", "city": "Asheville"])
+        #expect(BucketList.calendarLocation(cityOnly) == "Asheville")
+        #expect(BucketList.calendarLocation(item("Eggy", "2027-01-05")) == "")
+    }
+
     @Test func venuesReadTheirDocuments() {
         let v = BucketListVenue(data: ["userId": "u1", "venueKey": "red rocks::morrison", "venueName": "Red Rocks", "venueCity": "Morrison", "venueState": NSNull()])
         #expect(v.venueKey == "red rocks::morrison")
