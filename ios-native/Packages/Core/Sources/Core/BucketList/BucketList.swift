@@ -194,6 +194,59 @@ public enum BucketList {
     }
 }
 
+// MARK: - A missing venue, from Ticketmaster
+
+/// What `find-bucket-venue` is asked: the band, the day, and the city and
+/// state when the show has them.
+public struct BucketVenueRequest: Encodable, Equatable, Sendable {
+    public var artist: String
+    public var date: String
+    public var city: String?
+    public var state: String?
+}
+
+/// Its answer: the venue and where it is, or why there's none
+/// (`not_found`, `ambiguous`, `unavailable`).
+public struct BucketVenueAnswer: Decodable, Equatable, Sendable {
+    public var found: Bool
+    public var venue: String?
+    public var city: String?
+    public var state: String?
+    public var lat: Double?
+    public var lng: Double?
+    public var url: String?
+    public var reason: String?
+}
+
+public extension BucketList {
+    static func venueRequest(_ item: BucketListItem) -> BucketVenueRequest {
+        BucketVenueRequest(artist: item.artist, date: item.date, city: item.city, state: item.state)
+    }
+
+    /// What saving a found venue writes to the show: the venue, and the
+    /// city, state and ticket link only where the show has none, so nothing
+    /// the person typed is replaced. Nil when there's nothing to save.
+    static func venueUpdate(_ item: BucketListItem, answer: BucketVenueAnswer) -> [String: Any]? {
+        guard answer.found, let venue = text(answer.venue) else { return nil }
+        var fields: [String: Any] = ["venue": venue]
+        if item.city == nil, let city = text(answer.city) { fields["city"] = city }
+        if item.state == nil, let state = text(answer.state) { fields["state"] = state }
+        if item.ticketURL == nil, let url = VenueText.websiteURL(text(answer.url)) { fields["ticketUrl"] = url.absoluteString }
+        return fields
+    }
+
+    /// The show as it reads once the found venue is saved.
+    static func applying(_ answer: BucketVenueAnswer, to item: BucketListItem) -> BucketListItem {
+        guard let fields = venueUpdate(item, answer: answer) else { return item }
+        var out = item
+        out.venue = fields["venue"] as? String ?? out.venue
+        out.city = fields["city"] as? String ?? out.city
+        out.state = fields["state"] as? String ?? out.state
+        if let url = fields["ticketUrl"] as? String { out.ticketURL = URL(string: url) }
+        return out
+    }
+}
+
 // MARK: - Reading and writing
 
 @MainActor
@@ -214,6 +267,23 @@ public enum BucketListService {
         let db = await Database.ready()
         try await db.collection("bucketList").document(BucketList.documentId(uid: uid, key: made.key)).setData(made.data, merge: true)
         return made.key
+    }
+
+    /// The venue of a show saved without one (`find-bucket-venue`,
+    /// accounts only). Nil when Ticketmaster has no single answer or can't
+    /// be reached: the calendar event goes ahead without it.
+    public static func findVenue(_ item: BucketListItem, api: APIClient) async -> BucketVenueAnswer? {
+        guard item.venue == nil, !item.date.isEmpty else { return nil }
+        guard let answer = try? await api.post("find-bucket-venue", BucketList.venueRequest(item), as: BucketVenueAnswer.self),
+              answer.found else { return nil }
+        return answer
+    }
+
+    /// Saves a found venue to the show (one `updateData` of those fields).
+    public static func saveVenue(uid: String, item: BucketListItem, answer: BucketVenueAnswer) async throws {
+        guard let fields = BucketList.venueUpdate(item, answer: answer) else { return }
+        let db = await Database.ready()
+        try await db.collection("bucketList").document(BucketList.documentId(uid: uid, key: item.key)).updateData(fields)
     }
 
     public static func remove(uid: String, key: String) async throws {

@@ -336,14 +336,31 @@ struct BucketListScreen: View {
         }
     }
 
-    /// Add to Calendar: finds the venue on the map first (a few seconds at
-    /// most), so the event's location opens in Maps; without a match the
-    /// event still carries the venue and city as text.
+    /// Add to Calendar. A show saved without a venue gets it from
+    /// Ticketmaster first (accounts: `find-bucket-venue`), saved to the
+    /// show. Then the venue is found on the map (Ticketmaster's coordinates,
+    /// else Apple's place search, a few seconds at most), so the event's
+    /// location opens in Maps; without a match it's the venue and city as text.
     private func openCalendar(_ item: BucketListItem) async {
         preparingCalendar = item.key
-        let place = await CalendarPlaces.find(item)
-        preparingCalendar = nil
-        calendar = CalendarRequest(item: item, place: place)
+        defer { preparingCalendar = nil }
+        var show = item
+        var place: CalendarPlace?
+        if show.venue == nil, let uid, session.user?.isAnonymous == false,
+           let answer = await BucketListService.findVenue(show, api: session.api) {
+            do {
+                try await BucketListService.saveVenue(uid: uid, item: show, answer: answer)
+                show = BucketList.applying(answer, to: show)
+                if let i = items?.firstIndex(where: { $0.key == show.key }) { items?[i] = show }
+                notice = "Found the venue: \(show.venue ?? ""). It's saved to this show."
+            } catch {
+                // Not saved; the event still uses it.
+                show = BucketList.applying(answer, to: show)
+            }
+            if let lat = answer.lat, let lng = answer.lng { place = CalendarPlace(latitude: lat, longitude: lng) }
+        }
+        if place == nil { place = await CalendarPlaces.find(show) }
+        calendar = CalendarRequest(item: show, place: place)
     }
 
     /// "I went": adds the show (the add flow's alerts and duplicate question

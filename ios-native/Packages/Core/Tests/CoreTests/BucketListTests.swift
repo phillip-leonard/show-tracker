@@ -97,6 +97,33 @@ struct BucketListTests {
         #expect(BucketList.calendarLocation(item("Eggy", "2027-01-05")) == "")
     }
 
+    @Test func aFoundVenueFillsOnlyWhatsMissing() throws {
+        let show = BucketListItem(id: "u1_k", uid: "u1", data: ["artist": "Goose", "date": "2030-06-14", "city": "Morrison"])
+        let request = BucketList.venueRequest(show)
+        #expect(request == BucketVenueRequest(artist: "Goose", date: "2030-06-14", city: "Morrison", state: nil))
+        let body = try JSONSerialization.jsonObject(with: JSONEncoder().encode(request)) as? [String: Any]
+        #expect(body?["state"] == nil, "a missing state isn't sent")
+
+        let answer = BucketVenueAnswer(found: true, venue: "Red Rocks Amphitheatre", city: "MORRISON", state: "CO",
+                                       lat: 39.66, lng: -105.2, url: "https://tm.example/1", reason: nil)
+        let fields = try #require(BucketList.venueUpdate(show, answer: answer))
+        #expect(fields["venue"] as? String == "Red Rocks Amphitheatre")
+        #expect(fields["city"] == nil, "the city typed stays")
+        #expect(fields["state"] as? String == "CO")
+        #expect(fields["ticketUrl"] as? String == "https://tm.example/1")
+
+        let updated = BucketList.applying(answer, to: show)
+        #expect(updated.venue == "Red Rocks Amphitheatre")
+        #expect(updated.city == "Morrison")
+        #expect(updated.state == "CO")
+        #expect(updated.ticketURL?.host == "tm.example")
+        #expect(BucketList.calendarLocation(updated) == "Red Rocks Amphitheatre, Morrison")
+
+        let none = BucketVenueAnswer(found: false, venue: nil, city: nil, state: nil, lat: nil, lng: nil, url: nil, reason: "ambiguous")
+        #expect(BucketList.venueUpdate(show, answer: none) == nil)
+        #expect(BucketList.applying(none, to: show) == show)
+    }
+
     @Test func venuesReadTheirDocuments() {
         let v = BucketListVenue(data: ["userId": "u1", "venueKey": "red rocks::morrison", "venueName": "Red Rocks", "venueCity": "Morrison", "venueState": NSNull()])
         #expect(v.venueKey == "red rocks::morrison")
