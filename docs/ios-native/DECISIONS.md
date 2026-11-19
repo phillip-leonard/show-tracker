@@ -313,6 +313,12 @@ From the Stage 4 audit ([`STAGE4-AUDIT.md`](STAGE4-AUDIT.md)), approved with the
   - venues open the native venue page (4-7); adding one keys it with `venueKeyFor(name, city)`, as the web does;
   - each show's meetup card stays on the web (meetups, C-4), and "add to bucket list" from tour dates isn't here yet;
   - `/bucket-list` opens it in Me's Library.
+- **Community as built (4-11, native 4.0.40):**
+  - one screen, `/community` (on Stats, and in a wide iPad window's sidebar), from `communityStats/global` as the web's `CommunityStatsView` shows it: the top five show-goers, raters, rated songs and venues, then the totals and "Updated …";
+  - the boards are the same for everyone; someone you've blocked is left out of your copy, as on the web;
+  - a name opens that person's card (Report and Block, Guideline 1.2); for guests and for your own name it's plain text. "Add" sends a friend request, and a guest's opens the account prompt, as on the web;
+  - Total Users shows only from 1,000 users (`UserCount.shouldShow`, now checked against `fixtures/user-count/threshold.json`); below that the tile isn't there at all;
+  - guests can look (the rules let anyone read `communityStats`).
 - **PR order:** 4-1 audit → 4-2 server → 4-3 navigation → 4-4 songs and listening → 4-5 bands → 4-6 runs and tours → 4-7 venues → 4-8 stats → 4-9 wishlist → 4-10 bucket list → 4-11 Community → 4-12 Search tab.
 
 ## Post-launch list

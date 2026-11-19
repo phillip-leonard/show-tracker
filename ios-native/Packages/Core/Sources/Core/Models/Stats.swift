@@ -160,7 +160,8 @@ public struct CommunityStats: Decodable, Hashable, Sendable {
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
-        totalUsers = try c.decodeIfPresent(Int.self, forKey: .totalUsers) ?? 0
+        // A number; read leniently, as shouldShowUserCount's Number() does.
+        totalUsers = try c.numberOrNumericString(.totalUsers).map { $0.isFinite ? Int(min(max($0, 0), 1e12)) : 0 } ?? 0
         totalShows = try c.decodeIfPresent(Int.self, forKey: .totalShows) ?? 0
         totalSongs = try c.decodeIfPresent(Int.self, forKey: .totalSongs) ?? 0
         rankedCount = try c.decodeIfPresent(Int.self, forKey: .rankedCount)
@@ -230,5 +231,22 @@ public enum UserCount {
     public static func shouldShow(_ totalUsers: Int?) -> Bool {
         guard let n = totalUsers else { return false }
         return n >= minimumToShow
+    }
+
+    /// The same rule on a raw value (`fixtures/user-count/threshold.json`):
+    /// JavaScript's `Number(totalUsers)`, so a numeric string counts and
+    /// `null`, `true` or text don't.
+    public static func shouldShow(raw value: Any?) -> Bool {
+        let n: Double?
+        switch value {
+        case let number as NSNumber:
+            n = CFGetTypeID(number) == CFBooleanGetTypeID() ? nil : number.doubleValue
+        case let text as String:
+            n = Double(text.trimmingCharacters(in: .whitespacesAndNewlines))
+        default:
+            n = nil
+        }
+        guard let n, n.isFinite else { return false }
+        return n >= Double(minimumToShow)
     }
 }

@@ -107,6 +107,13 @@ import Testing
         #expect(AppRoute.bucketList.webURL.absoluteString == "https://mysetlists.net/bucket-list/")
     }
 
+    /// Community (Stage 4, 4-11) is on Stats.
+    @Test func communityOpensNatively() {
+        #expect(action("https://mysetlists.net/community/") == .open(.stats, .community))
+        #expect(action("mysetlists://community") == .open(.stats, .community))
+        #expect(AppRoute.community.webURL.absoluteString == "https://mysetlists.net/community/")
+    }
+
     @Test func ourUnclaimedPagesStayOnTheWeb() {
         let reset = URL(string: "https://mysetlists.net/reset/abc123")!
         #expect(DeepLink.resolve(reset)?.action == .web(reset), "password reset is a web page")

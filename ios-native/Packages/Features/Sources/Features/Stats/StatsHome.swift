@@ -41,7 +41,7 @@ struct StatsHome: View {
                 Button { adding = true } label: { Label("Add a show", systemImage: "plus") }
                     .buttonStyle(.borderedProminent)
                     .tint(.brand)
-                Button("See the community") { router.show(LibraryDestination.community.webURL) }
+                NavigationLink("See the community", value: AppRoute.community)
                     .tint(.brand)
             }
         } else {

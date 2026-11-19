@@ -157,6 +157,7 @@ struct RouteScreen: View {
         case .wishlist: WishlistHome()
         case .wishlistArtist(let artist): WishlistArtistScreen(artist: artist)
         case .bucketList: BucketListScreen()
+        case .community: CommunityScreen()
         default: RoutePlaceholder(route: route)
         }
     }
