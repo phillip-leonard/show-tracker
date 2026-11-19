@@ -328,6 +328,19 @@ From the Stage 4 audit ([`STAGE4-AUDIT.md`](STAGE4-AUDIT.md)), approved with the
   - searching setlist.fm to add one show stays under + on Shows.
 - **PR order:** 4-1 audit → 4-2 server → 4-3 navigation → 4-4 songs and listening → 4-5 bands → 4-6 runs and tours → 4-7 venues → 4-8 stats → 4-9 wishlist → 4-10 bucket list → 4-11 Community → 4-12 Search tab.
 
+## Stage 5: festivals (2026-11-19)
+
+From the Stage 5 audit ([`STAGE5-AUDIT.md`](STAGE5-AUDIT.md)), approved with all four calls as recommended:
+
+- **Festival writes that others read go through the server**, in one function, `netlify/functions/festivals.js` (the `friends.js` pattern, accounts only): `create` (the shared festival and the creator's attendance record in one batch, with an attendance id the app mints so a retry can't make a second festival), `join`, `leave` (clears `festivalId` on every one of the caller's shows found on the server, then deletes the record; the shared festival stays) and `update` (A: the creator's or the admin's edit of name, dates and location). The web switches to them. Notes, the typed lineup (`myLineup`) and attaching or removing shows stay direct one-field writes to the person's own documents, so they work offline.
+- **Picks are scored on the server** (B): `festival-lineup` returns `picks` (recommended, bands you love, everyone else, with each recommendation's reason) beside the lineup, from the caller's shows, followed bands and dismissed list, with `lib/recommendations.js`. No Swift copy. The web keeps scoring in the browser with the same module.
+- **Festival stats use the shared keys, in both apps** (C): artists by `bandKey` (shown with the first spelling), the average over 1–10 ratings only (`validRating`), days by ISO date. `lib/festivalGrouping.js`, `lib/festivalDates.js` (without the label, which formats per app) and `lib/festivalCatalog.js` become CommonJS, pinned by `fixtures/festivals/`. The owner's own stats come from their cached shows; nobody else sees them.
+- **No web "Different song titles" tile** (D): the web never showed `uniqueSongCount`, so the carry-over is dropped and the unused `summaryStats.totalSongs` goes.
+- **The lineup search import checks duplicates with `normalize-show` `preview`**, then commits `festival-row` inputs, so conflicts (a show already in another festival) are asked about before anything is written, as on the web, with no Swift copy of `classifyDuplicate`.
+- **Guests** see "Create an account to use Festivals"; every festival path refuses them already.
+- **Old Capacitor builds** write festivals from the phone until `minSupportedIosVersion` reaches the Part 2 build (`GATED-CLEANUPS.md`). Part 2 first counts attendance records from before 5.30.0 (no `festivalId`), whose owners edit name and dates on their own record.
+- **PR order:** 5-1 audit → 5-2 server → 5-3 list and page → 5-4 create, join, edit, lineup search, picks.
+
 ## Post-launch list
 
 Work decided for after cutover, not before:
