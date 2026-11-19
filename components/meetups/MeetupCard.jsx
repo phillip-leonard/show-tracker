@@ -32,7 +32,7 @@ export default function MeetupCard({ show }) {
   const handleJoin = async () => {
     setLoading(true);
     try {
-      await createOrJoinMeetup(concertKey, show, user.uid, user.displayName || user.email || 'Someone');
+      await createOrJoinMeetup(show);
     } catch (err) {
       console.error('[meetups] Failed to join:', err);
       setToast?.("Couldn't join the meetup. Please try again.");
@@ -44,7 +44,7 @@ export default function MeetupCard({ show }) {
   const handleLeave = async () => {
     setLoading(true);
     try {
-      await leaveMeetup(concertKey, user.uid);
+      await leaveMeetup(meetupId);
     } catch (err) {
       console.error('[meetups] Failed to leave:', err);
       setToast?.("Couldn't leave the meetup. Please try again.");

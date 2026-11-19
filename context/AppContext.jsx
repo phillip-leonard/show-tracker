@@ -29,7 +29,7 @@ import { SETLIST_SOURCES } from '@/lib/setlistSources';
 import { applySetlistEdit } from '@/lib/setlistEdits';
 import { joinedFestival } from '@/lib/festivalCatalog';
 import { callFestivals, mintAttendanceId } from '@/lib/festivalsApi';
-import { logActivity } from '@/lib/activityFeed';
+import { logRating } from '@/lib/activityFeed';
 import { rememberHeardShows } from '@/lib/heardLinks';
 import { syncPushToken, forgetPushToken, shouldOfferPush, markPushOffered, pushPermission } from '@/lib/pushAlerts';
 import {
@@ -1403,8 +1403,7 @@ export function AppProvider({ children }) {
     added.forEach((show) => {
       // Background suggestion check — non-blocking
       checkShowSuggestionsForNewShow(show).catch(() => {});
-      // Friend activity feed — best-effort, non-blocking (see lib/activityFeed.js)
-      logActivity(user.uid, user.displayName, 'added_show', { showId: show.id, artist: show.artist, venue: show.venue || null });
+      // The friend activity entry is written by normalize-show (5.60.38).
     });
   };
 
@@ -2916,12 +2915,8 @@ export function AppProvider({ children }) {
     await updateShowFields(showId, { rating });
 
     if (user && !guestMode && show) {
-      logActivity(user.uid, user.displayName, 'rated_show', {
-        showId,
-        artist: show.artist,
-        venue: show.venue || null,
-        rating,
-      });
+      // The server builds the entry from the stored show (5.60.38).
+      logRating(showId);
     }
   };
 

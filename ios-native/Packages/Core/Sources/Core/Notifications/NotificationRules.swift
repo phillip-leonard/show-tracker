@@ -69,20 +69,7 @@ public enum NotificationDestination: Equatable, Sendable {
     /// `meetupIdFor` (lib/meetups.js): the concert key, lowercased, every run
     /// of other characters one underscore, none at the ends.
     static func meetupId(_ concertKey: String?) -> String? {
-        let lowered = (concertKey ?? "").lowercased()
-        var out = ""
-        var pendingUnderscore = false
-        for ch in lowered.unicodeScalars {
-            let isAlnum = ("a"..."z").contains(ch) || ("0"..."9").contains(ch)
-            if isAlnum {
-                if pendingUnderscore && !out.isEmpty { out.append("_") }
-                pendingUnderscore = false
-                out.unicodeScalars.append(ch)
-            } else {
-                pendingUnderscore = true
-            }
-        }
-        return out.isEmpty ? nil : out
+        ConcertKeys.meetupId(concertKey)
     }
 }
 

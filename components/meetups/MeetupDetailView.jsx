@@ -59,7 +59,7 @@ function DiscussionThread({ meetupId }) {
     setPosting(true);
     setError('');
     try {
-      await postMeetupComment(meetupId, user.uid, user.displayName || user.email || 'Someone', text);
+      await postMeetupComment(meetupId, user.uid, user.displayName || 'Someone', text);
       setText('');
     } catch (err) {
       console.error('[meetups] Failed to post comment:', err);
@@ -184,7 +184,7 @@ export default function MeetupDetailView({ meetup }) {
 
   const handleLeave = async () => {
     try {
-      await leaveMeetup(meetup.concertKey, user.uid);
+      await leaveMeetup(meetup.id);
       navigateTo('bucket-list');
     } catch (err) {
       console.error('[meetups] Failed to leave:', err);

@@ -18,8 +18,6 @@ import { Heart, Trash2, ChevronLeft, ChevronRight, Play, Plus } from 'lucide-rea
 import { Card, Avatar, Button, Modal, Spinner, Tabs } from '@/components/ui';
 import { useApp } from '@/context/AppContext';
 import { togglePhotoLike, deletePhoto, extractYoutubeId } from '@/lib/photos';
-import { notifyEngagement } from '@/lib/notifications';
-import { logActivity } from '@/lib/activityFeed';
 import { timeAgo } from '@/lib/utils';
 import { withoutBlocked } from '@/lib/moderation';
 import ReportButton from '@/components/moderation/ReportButton';
@@ -220,9 +218,8 @@ export default function MediaGalleryView({ show, concertKey, category, title, ic
     if (!user) return;
     const alreadyLiked = (item.likedBy || []).includes(user.uid);
     try {
-      await togglePhotoLike(item.id, user.uid, alreadyLiked);
-      // The server checks the like is stored and notifies the uploader.
-      if (!alreadyLiked) notifyEngagement('photo_like', item.id);
+      // The server writes the like and notifies the uploader (5.60.38).
+      await togglePhotoLike(item.id, alreadyLiked);
     } catch (err) {
       setToast?.("Couldn't update your like. Please try again.");
     }
@@ -295,12 +292,8 @@ export default function MediaGalleryView({ show, concertKey, category, title, ic
           category={category}
           title={`Add ${title}`}
           existingPhotos={allItems}
-          onUploaded={() => {
-            setToast?.('Uploaded!');
-            logActivity(user.uid, user.displayName, 'shared_media', {
-              showId: show.id, artist: show.artist, venue: show.venue || null, mediaCategory: category,
-            });
-          }}
+          // The server writes your friends' activity entry (5.60.38).
+          onUploaded={() => setToast?.('Uploaded!')}
           onError={(msg) => setToast?.(msg)}
         />
       )}

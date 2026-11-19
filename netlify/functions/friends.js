@@ -90,6 +90,15 @@
  * up to 3.13.26 do these reads themselves. Closing that waits for
  * minSupportedIosVersion (docs/ios-native/GATED-CLEANUPS.md).
  *
+ * Since 5.60.38 (Stage 6, call B), the activity feed (lib/activityLog.js):
+ *   activity  { before? }  the newest entries of the caller's mutual
+ *                          friends, blocks and opted-out friends left out:
+ *                          { items, next }
+ *   rated     { showId }   the "rated" entry for the caller's stored show
+ * The rules still let an account read userActivity and write its own,
+ * because iOS 3.13.53 and earlier do; tightening waits for
+ * minSupportedIosVersion (docs/ios-native/GATED-CLEANUPS.md).
+ *
  * Auth header: Authorization: Bearer {idToken}
  */
 
@@ -106,6 +115,7 @@ const { recordBlockNotice } = require('./lib/blockNotice');
 const showSocialActions = require('./lib/showSocialActions');
 // True if either has blocked the other (userBlocks/{uid}.blockedUserIds).
 const { blockedBetween } = require('./lib/blocks');
+const { recordActivity, readFriendActivity } = require('./lib/activityLog');
 
 const APP_URL = 'https://mysetlists.net';
 // A referral or invite names its inviter on the new account's profile
@@ -123,6 +133,9 @@ const SUGGESTION_SCANS_PER_DAY = 300;
 // Friend requests per user per UTC day (a request names its sender to the
 // recipient, so a script mustn't be able to spray them).
 const REQUESTS_PER_DAY = 100;
+// The activity feed: reads and rating entries per user per UTC day.
+const ACTIVITY_READS_PER_DAY = 600;
+const RATED_PER_DAY = 1000;
 // The handle rule moderate-content.js claims with (3–20 of a-z, 0-9, _).
 const HANDLE_RE = /^[a-z0-9_]{3,20}$/;
 
@@ -670,6 +683,34 @@ const ACTIONS = {
       }
     }
     return { created };
+  },
+
+  // ── The activity feed (5.60.38, Stage 6 call B) ─────────────────────
+  // The newest entries of the caller's mutual friends (lib/activityLog.js):
+  // blocks either way and friends who turned "Show my activity" off left
+  // out. `before` (ms) pages back. Replaces the browser reading
+  // userActivity itself, which the rule let any account do for anyone.
+  async activity({ db, uid, body }) {
+    if (!(await takeDailyQuota(db, `activity_read_${uid}`, ACTIVITY_READS_PER_DAY, { uid })).allowed) refuse(429, 'Too many requests today. Please try again tomorrow.');
+    const { items, next } = await readFriendActivity(db, uid, { before: body.before });
+    return { items, next };
+  },
+
+  // "X rated Phish 9/10": the entry for a rating the caller just saved,
+  // from their stored show, never the request. Nothing for a show without
+  // a rating; the entry is rewritten when the rating changes.
+  async rated({ db, uid, body }) {
+    const showId = typeof body.showId === 'string' ? body.showId : '';
+    if (!showId || showId.includes('/') || showId.length > 128) refuse(400, 'Which show?');
+    if (!(await takeDailyQuota(db, `activity_rated_${uid}`, RATED_PER_DAY, { uid })).allowed) return { written: false, reason: 'limit' };
+    const snap = await db.doc(`users/${uid}/shows/${showId}`).get();
+    if (!snap.exists) refuse(404, 'Show not found');
+    const show = snap.data();
+    if (typeof show.rating !== 'number') return { written: false, reason: 'no-rating' };
+    const result = await recordActivity(db, uid, 'rated_show', {
+      id: `rated_show_${uid}_${showId}`, showId, artist: show.artist, venue: show.venue, rating: show.rating,
+    });
+    return { written: result.written };
   },
 };
 

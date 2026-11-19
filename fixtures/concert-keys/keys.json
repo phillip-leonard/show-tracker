@@ -1,0 +1,104 @@
+{
+  "description": "Shared content keys (lib/concertKeys.js). concertKey is lib/showIdentity.js showMatchKey; meetupId names meetups/{id}; mediaSegment is the Storage folder showPhotos/{segment}/{uid}/; commentViewId names commentViews/{id} for `uid`.",
+  "uid": "aliceUid000001",
+  "cases": [
+    {
+      "name": "setlist.fm id wins",
+      "show": {
+        "artist": "Phish",
+        "venue": "Madison Square Garden",
+        "date": "2025-12-31",
+        "setlistfmId": "63de4613"
+      },
+      "concertKey": "63de4613",
+      "meetupId": "63de4613",
+      "mediaSegment": "63de4613",
+      "commentViewId": "aliceUid000001_63de4613"
+    },
+    {
+      "name": "no id: artist|venue|ISO day, trimmed and lowercased",
+      "show": {
+        "artist": " Phish ",
+        "venue": "Madison Square Garden ",
+        "date": "2025-12-31"
+      },
+      "concertKey": "phish|madison square garden|2025-12-31",
+      "meetupId": "phish_madison_square_garden_2025_12_31",
+      "mediaSegment": "phish-madison-square-garden-2025-12-31",
+      "commentViewId": "aliceUid000001_phish-madison-square-garden-2025-12-31"
+    },
+    {
+      "name": "legacy DD-MM-YYYY date reads as the same day",
+      "show": {
+        "artist": "Phish",
+        "venue": "Madison Square Garden",
+        "date": "31-12-2025"
+      },
+      "concertKey": "phish|madison square garden|2025-12-31",
+      "meetupId": "phish_madison_square_garden_2025_12_31",
+      "mediaSegment": "phish-madison-square-garden-2025-12-31",
+      "commentViewId": "aliceUid000001_phish-madison-square-garden-2025-12-31"
+    },
+    {
+      "name": "punctuation in the name (AC/DC)",
+      "show": {
+        "artist": "AC/DC",
+        "venue": "Wembley Stadium",
+        "date": "2024-07-03"
+      },
+      "concertKey": "ac/dc|wembley stadium|2024-07-03",
+      "meetupId": "ac_dc_wembley_stadium_2024_07_03",
+      "mediaSegment": "ac-dc-wembley-stadium-2024-07-03",
+      "commentViewId": "aliceUid000001_ac-dc-wembley-stadium-2024-07-03"
+    },
+    {
+      "name": "accents and apostrophes",
+      "show": {
+        "artist": "Sigur Rós",
+        "venue": "Dick's Sporting Goods Park",
+        "date": "2023-08-05"
+      },
+      "concertKey": "sigur rós|dick's sporting goods park|2023-08-05",
+      "meetupId": "sigur_r_s_dick_s_sporting_goods_park_2023_08_05",
+      "mediaSegment": "sigur-r-s-dick-s-sporting-goods-park-2023-08-05",
+      "commentViewId": "aliceUid000001_sigur-r-s-dick-s-sporting-goods-park-2023-08-05"
+    },
+    {
+      "name": "no venue",
+      "show": {
+        "artist": "Goose",
+        "venue": "",
+        "date": "2025-06-15"
+      },
+      "concertKey": "goose||2025-06-15",
+      "meetupId": "goose_2025_06_15",
+      "mediaSegment": "goose-2025-06-15",
+      "commentViewId": "aliceUid000001_goose-2025-06-15"
+    },
+    {
+      "name": "an unreadable date is kept as typed",
+      "show": {
+        "artist": "Goose",
+        "venue": "Red Rocks",
+        "date": "Summer 2019"
+      },
+      "concertKey": "goose|red rocks|summer 2019",
+      "meetupId": "goose_red_rocks_summer_2019",
+      "mediaSegment": "goose-red-rocks-summer-2019",
+      "commentViewId": "aliceUid000001_goose-red-rocks-summer-2019"
+    },
+    {
+      "name": "empty setlist.fm id falls back",
+      "show": {
+        "artist": "Goose",
+        "venue": "Red Rocks",
+        "date": "2025-06-15",
+        "setlistfmId": ""
+      },
+      "concertKey": "goose|red rocks|2025-06-15",
+      "meetupId": "goose_red_rocks_2025_06_15",
+      "mediaSegment": "goose-red-rocks-2025-06-15",
+      "commentViewId": "aliceUid000001_goose-red-rocks-2025-06-15"
+    }
+  ]
+}

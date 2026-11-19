@@ -1,22 +1,22 @@
 // components/activity/ActivityFeedView.jsx
 //
-// /activity page body. Real-time, chronological log of what friends have
-// been doing: adding a show, rating one, commenting, or sharing a
-// photo/poster/setlist photo. Designed to grow further the same way —
-// a new `action` value here plus a matching logActivity() call at the
-// write site, no schema change needed.
+// /activity page body. A chronological log of what friends have been
+// doing: adding a show, rating one, commenting, or sharing a
+// photo/poster/setlist photo. Read through friends.js `activity` since
+// 5.60.38 (Stage 6 call B), which keeps it to mutual friends who share
+// their activity; a new kind of entry is a new `action` here and on the
+// server (netlify/functions/lib/activityLog.js).
 //
-// Moderation (Guideline 1.2): blocking someone removes the friendship, so
-// their activity stops arriving at the source — the filter below covers
-// the gap between taking the block and the listener re-subscribing.
+// Moderation (Guideline 1.2): the server leaves blocks either way out; the
+// filter below covers a block taken since the page loaded.
 
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Activity, PlusCircle, Star, Users, MessageSquare, Camera } from 'lucide-react';
-import { Card, EmptyState, Spinner, Tabs, Avatar } from '@/components/ui';
+import { Card, EmptyState, Spinner, Tabs, Avatar, Button } from '@/components/ui';
 import { useApp } from '@/context/AppContext';
-import { subscribeFriendActivity } from '@/lib/activityFeed';
+import { fetchFriendActivity } from '@/lib/activityFeed';
 import { timeAgo } from '@/lib/utils';
 import { withoutBlocked } from '@/lib/moderation';
 import UserLink from '@/components/moderation/UserLink';
@@ -80,32 +80,61 @@ function ActivityRow({ item }) {
 export default function ActivityFeedView() {
   const { user, visibleFriends: friends, blockedUserIds } = useApp();
   const [items, setItems] = useState([]);
+  const [next, setNext] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [error, setError] = useState('');
   const [filter, setFilter] = useState('all');
 
   const friendUids = useMemo(() => (friends || []).map((f) => f.friendUid).filter(Boolean), [friends]);
+  const hasFriends = friendUids.length > 0;
 
-  useEffect(() => {
-    if (!user) return;
-    setLoading(true);
-    const unsubscribe = subscribeFriendActivity(friendUids, (list) => {
-      setItems(list);
+  const load = useCallback(async () => {
+    setError('');
+    try {
+      const page = await fetchFriendActivity();
+      setItems(page.items);
+      setNext(page.next);
+    } catch (err) {
+      setError(err.message);
+    } finally {
       setLoading(false);
-    });
-    return unsubscribe;
-  }, [user, friendUids]);
+    }
+  }, []);
+
+  // On open, and again when the tab comes back into view.
+  useEffect(() => {
+    if (!user || !hasFriends) { setLoading(false); return undefined; }
+    setLoading(true);
+    load();
+    const onVisible = () => { if (document.visibilityState === 'visible') load(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [user, hasFriends, load]);
+
+  const loadMore = async () => {
+    if (!next) return;
+    setLoadingMore(true);
+    try {
+      const page = await fetchFriendActivity({ before: next });
+      setItems((prev) => [...prev, ...page.items.filter((i) => !prev.some((p) => p.id === i.id))]);
+      setNext(page.next);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   const filtered = useMemo(() => {
-    // friendUids already excludes blocked accounts, so nothing from one
-    // should arrive here in the first place — this is the belt to that
-    // brace, and it also covers the window between taking a block and the
-    // listener re-subscribing on the new uid list.
+    // The server leaves blocked accounts out; this covers a block taken
+    // since the page loaded.
     const visible = withoutBlocked(items, blockedUserIds, 'userId');
     if (filter === 'all') return visible;
     return visible.filter((i) => i.action === filter);
   }, [items, filter, blockedUserIds]);
 
-  if (friendUids.length === 0) {
+  if (!hasFriends) {
     return (
       <Card padding="lg">
         <EmptyState
@@ -124,19 +153,36 @@ export default function ActivityFeedView() {
 
       {loading ? (
         <div className="py-12"><Spinner size="md" label="Loading activity…" /></div>
+      ) : error && items.length === 0 ? (
+        <Card padding="lg">
+          <EmptyState
+            icon={Activity}
+            tone="brand"
+            title="Couldn't load activity"
+            body={error}
+          />
+          <div className="flex justify-center mt-3"><Button size="sm" variant="secondary" onClick={load}>Try again</Button></div>
+        </Card>
       ) : filtered.length === 0 ? (
         <Card padding="lg">
           <EmptyState
             icon={Activity}
             tone="brand"
             title="Nothing here yet"
-            body="When your friends add or rate a show, it'll show up here in real time."
+            body="When your friends add or rate a show, it'll show up here."
           />
         </Card>
       ) : (
-        <Card padding="none" className="overflow-hidden">
-          {filtered.map((item) => <ActivityRow key={item.id} item={item} />)}
-        </Card>
+        <>
+          <Card padding="none" className="overflow-hidden">
+            {filtered.map((item) => <ActivityRow key={item.id} item={item} />)}
+          </Card>
+          {next && (
+            <div className="flex justify-center">
+              <Button size="sm" variant="secondary" loading={loadingMore} onClick={loadMore}>Show older</Button>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

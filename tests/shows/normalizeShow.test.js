@@ -243,4 +243,29 @@ test('the welcome email: an account\'s first commit asks once; later adds, previ
   assert.deepStrictEqual(calls, []);
 });
 
+
+test('friend activity: a single add writes the "added" entry; batches, csv rows, offline repairs, previews and guests don’t (5.60.38)', async () => {
+  const db = setup();
+  const activity = () => db._list('userActivity');
+  await call('alice-token', { mode: 'preview', input: { kind: 'setlistfm', setlistfmId: PHISH.id } });
+  assert.strictEqual(activity().length, 0, 'a preview writes nothing');
+  await call('alice-token', { mode: 'commit', input: { kind: 'setlistfm', setlistfmId: PHISH.id, showId: SHOW_ID } });
+  const [entry] = activity();
+  assert.strictEqual(entry.userId, ALICE.uid);
+  assert.strictEqual(entry.action, 'added_show');
+  assert.strictEqual(entry.showId, SHOW_ID);
+  assert.strictEqual(entry.artist, 'Phish');
+  assert.strictEqual(db._get(`userActivity/added_show_${ALICE.uid}_${SHOW_ID}`).venue, 'Madison Square Garden', 'one id per show, so a retry rewrites it');
+  await call('alice-token', { mode: 'commit', input: { kind: 'setlistfm', setlistfmId: PHISH.id } });
+  assert.strictEqual(activity().length, 1, 'a duplicate creates nothing');
+  await call('alice-token', { mode: 'commit', inputs: [{ kind: 'manual', artist: 'Goose', venue: 'Red Rocks', date: '2024-06-14' }] });
+  await call('alice-token', { mode: 'commit', input: { kind: 'csv-row', artist: 'Goose', venue: 'Red Rocks', date: '2024-06-15', setlist: [] } });
+  await call('guest-token', { mode: 'commit', input: { kind: 'manual', artist: 'Goose', venue: 'Red Rocks', date: '2024-06-16' } });
+  assert.strictEqual(activity().length, 1);
+  // "Show my activity to friends" off: nothing.
+  db._put(`userProfiles/${ALICE.uid}`, { shareActivity: false });
+  await call('alice-token', { mode: 'commit', input: { kind: 'manual', artist: 'Phish', venue: 'Sphere', date: '2024-04-18' } });
+  assert.strictEqual(activity().length, 1);
+});
+
 run('normalize-show (5.60.5)');
