@@ -247,11 +247,11 @@ Two gaps aren't screens, and both should be fixed whatever else is decided:
 
 | Item | Web / Capacitor | Native today | Status | Size | Server work | Stage |
 |---|---|---|---|---|---|---|
-| Shows: add, filter, tickets, mark attended, remove | `BucketListView` | None | Planned | M | none | 4 |
-| Add to Calendar | Yes (.ics) | None | Planned | S | none (EventKit natively) | 4 |
-| Share with friends (public shared collection) | `create-shared-collection` | None | Planned | S | none | 4 |
-| Venue bucket list: add, remove, "We'll notify you…" | `VenueBucketListSection` | None | Planned | S | none | 4 |
-| Empty states | Yes | | Planned | | | 4 |
+| Shows: add, filter, tickets, mark attended, remove | `BucketListView` | `BucketListScreen`; past shows listed for "I went" | Native 4-10 | | none | |
+| Add to Calendar | Yes (Google Calendar link) | EventKitUI event editor, all day | Native 4-10 | | none | |
+| Share with friends (text, `navigator.share`) | `BucketListView` | Share sheet, the same text | Native 4-10 | | none | |
+| Venue bucket list: add, remove, "We'll notify you…" | `VenueBucketListSection` | Venues part; each opens its venue page | Native 4-10 | | none | |
+| Empty states | Yes | Yes | Native 4-10 | | | |
 
 ### 2.14 Festivals (`/festivals`)
 

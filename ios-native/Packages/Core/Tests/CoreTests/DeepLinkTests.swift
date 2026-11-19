@@ -101,6 +101,12 @@ import Testing
         #expect(AppRoute.wishlistArtist(WishlistArtist(name: "Goose", mbid: "m")).webURL.absoluteString == "https://mysetlists.net/wishlist/")
     }
 
+    /// The bucket list (Stage 4, 4-10) is in Me's Library.
+    @Test func theBucketListOpensNatively() {
+        #expect(action("https://mysetlists.net/bucket-list/") == .open(.me, .bucketList))
+        #expect(AppRoute.bucketList.webURL.absoluteString == "https://mysetlists.net/bucket-list/")
+    }
+
     @Test func ourUnclaimedPagesStayOnTheWeb() {
         let reset = URL(string: "https://mysetlists.net/reset/abc123")!
         #expect(DeepLink.resolve(reset)?.action == .web(reset), "password reset is a web page")

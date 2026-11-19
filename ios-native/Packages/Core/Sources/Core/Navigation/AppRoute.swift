@@ -36,6 +36,8 @@ public enum AppRoute: Hashable, Sendable {
     /// The web has no link for a band's own wishlist.
     case wishlist
     case wishlistArtist(WishlistArtist)
+    /// Your bucket list, shows and venues (Stage 4, 4-10): `/bucket-list`.
+    case bucketList
     case venue(key: String)
     case yearInReview(user: String, year: String)
     /// Your shows for one band, song or venue, from Stats (Stage 2). Not a
@@ -122,6 +124,8 @@ public extension DeepLink {
             return .open(.me, .tours)
         case "/wishlist":
             return .open(.me, .wishlist)
+        case "/bucket-list":
+            return .open(.me, .bucketList)
         case "/friends":
             return .open(.friends, nil)
         case "/notifications":
@@ -171,6 +175,7 @@ public extension AppRoute {
             case .topShows: path = "/stats"
             }
         case .wishlist, .wishlistArtist: path = "/wishlist"
+        case .bucketList: path = "/bucket-list"
         case .venue(let key): path = "/venues"; params.set("venue", key)
         case .yearInReview(let user, let year): path = "/year-in-review"; params.set("user", user); params.set("year", year)
         case .myShows: path = "/stats"

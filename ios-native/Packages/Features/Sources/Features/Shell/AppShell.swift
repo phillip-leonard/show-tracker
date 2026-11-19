@@ -156,6 +156,7 @@ struct RouteScreen: View {
         case .statsList(let kind, let year): StatsListScreen(kind: kind, year: year)
         case .wishlist: WishlistHome()
         case .wishlistArtist(let artist): WishlistArtistScreen(artist: artist)
+        case .bucketList: BucketListScreen()
         default: RoutePlaceholder(route: route)
         }
     }

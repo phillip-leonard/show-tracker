@@ -41,9 +41,10 @@ struct LibraryDestinationTests {
 
     @Test func nothingIsNativeYet() {
         // Each Stage 4 PR flips its own item (and this test).
-        // Tours and Runs are native since 4-6, Wishlist since 4-9; the rest
-        // open the web until their PRs.
-        #expect(LibraryDestination.allCases.filter(\.native) == [.tours, .runs, .wishlist])
+        // Tours and Runs are native since 4-6, Wishlist since 4-9, Bucket
+        // List since 4-10; the rest open the web until their PRs.
+        #expect(LibraryDestination.allCases.filter(\.native) == [.tours, .runs, .wishlist, .bucketList])
+        #expect(LibraryDestination.bucketList.route == .bucketList)
         #expect(LibraryDestination.tours.route == .tours && LibraryDestination.runs.route == .runs)
         #expect(LibraryDestination.wishlist.route == .wishlist)
     }

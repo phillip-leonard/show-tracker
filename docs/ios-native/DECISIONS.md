@@ -304,6 +304,15 @@ From the Stage 4 audit ([`STAGE4-AUDIT.md`](STAGE4-AUDIT.md)), approved with the
   - "The songs I've seen" matches your shows by the band's exact name (trimmed, any case), as the web does, not `bandKey`: "goose (US)" is another band here, as on the web's wishlist. Each opens your song page;
   - one search field filters all three lists by title (the web has none; Phish's catalog is about 900 songs);
   - `/wishlist` opens the hub in Me's Library; a band's own wishlist has no web link, so it has no deep link.
+- **Bucket list as built (4-10, native 4.0.38):**
+  - shows (`bucketList/{uid}_{itemKey}`) and venues (`bucketListVenues/{uid}_{venueKey}`), read and written as lib/bucketList.js and lib/bucketListVenues.js do; a show added by hand is the web's document (`source: manual`, `bucketListItemKey`). Guests too (DECISIONS "Guests"); the web shows its local-only guests a sign-in prompt instead;
+  - "Coming up" lists today and later, as the web does, sorted soonest or A–Z and filtered by band or venue. **Shows whose date has passed get their own section ("Already happened")**, where the web stops listing them, because that's when "I went" is useful;
+  - "I went" adds the show as `TicketScan` does: setlist.fm's setlist for that night when there is one, else the show by hand (it needs a venue), through `normalize-show` and the add flow's alerts and duplicate question. The bucket item is removed once the show is added, already there, or queued. The web opens its add form prefilled instead;
+  - "Add to Calendar" is EventKitUI's event editor with an all-day event (iOS 17 lets an app show it without asking for calendar access; the person saves it). The web opens a Google Calendar link;
+  - "Share with friends" sends the list as text through the share sheet, as the web does (`navigator.share`): no public page, so guests can share too;
+  - venues open the native venue page (4-7); adding one keys it with `venueKeyFor(name, city)`, as the web does;
+  - each show's meetup card stays on the web (meetups, C-4), and "add to bucket list" from tour dates isn't here yet;
+  - `/bucket-list` opens it in Me's Library.
 - **PR order:** 4-1 audit → 4-2 server → 4-3 navigation → 4-4 songs and listening → 4-5 bands → 4-6 runs and tours → 4-7 venues → 4-8 stats → 4-9 wishlist → 4-10 bucket list → 4-11 Community → 4-12 Search tab.
 
 ## Post-launch list
