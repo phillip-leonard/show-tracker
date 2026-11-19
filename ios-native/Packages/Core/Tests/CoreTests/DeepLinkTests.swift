@@ -114,6 +114,13 @@ import Testing
         #expect(AppRoute.community.webURL.absoluteString == "https://mysetlists.net/community/")
     }
 
+    /// Advanced search (Stage 4, 4-12) is on the Search tab.
+    @Test func advancedSearchOpensNatively() {
+        #expect(action("https://mysetlists.net/advanced-search/") == .open(.search, .advancedSearch))
+        #expect(action("https://mysetlists.net/search/") == .open(.search, nil))
+        #expect(AppRoute.advancedSearch.webURL.absoluteString == "https://mysetlists.net/advanced-search/")
+    }
+
     @Test func ourUnclaimedPagesStayOnTheWeb() {
         let reset = URL(string: "https://mysetlists.net/reset/abc123")!
         #expect(DeepLink.resolve(reset)?.action == .web(reset), "password reset is a web page")
