@@ -4,6 +4,30 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.60.34] — 2026-11-18
+
+Ships in **iOS 3.13.50** (Capacitor, `MARKETING_VERSION` 3.13.49 → 3.13.50).
+Native unchanged (the native wishlist that guests can now carry over shipped
+in 4.0.37).
+
+**A guest's lists survive signing in to an existing account.** When a native
+guest signs in with a credential that already has an account,
+`adopt-guest-shows` moves their shows, upcoming shows and followed bands into
+it and then deletes the guest. Their other lists were deleted with it. Now the
+commit also moves:
+- **song wishlists** (`wishlists`): a band's starred songs join the account's
+  wishlist for the same band;
+- **favorite tours** (`favoriteTours`): the guest's tours join the account's;
+- **bucket list shows and venues** (`bucketList`, `bucketListVenues`): items
+  the account doesn't already have.
+
+On a clash the account's entry wins. The preview and the commit's answer
+count each (`wishlistSongs`, `favoriteTours`, `bucketListShows`,
+`bucketListVenues`), alongside the existing counts. A retried commit finds
+nothing new to move.
+
+---
+
 ## [5.60.33] — 2026-11-18
 
 Ships in **iOS 3.13.49** (Capacitor, `MARKETING_VERSION` 3.13.48 → 3.13.49).
