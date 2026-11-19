@@ -4,6 +4,29 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.60.35] — 2026-11-19
+
+Ships in **iOS 3.13.51** (Capacitor, `MARKETING_VERSION` 3.13.50 → 3.13.51)
+and **native 4.0.39**.
+
+**Bucket List → Share with friends lists the city.** The shared text has one
+line per show with its band, date, venue and city ("- Goose — Sun, Jun 14,
+2026 @ Red Rocks, Morrison"), and no links: the same text in the native app.
+It's still plain text through the share sheet or the clipboard; a public
+`/shared` bucket-list page is on the post-launch list.
+
+**A bucket-list show's missing venue, from Ticketmaster.** New
+`find-bucket-venue` (accounts only, 20 lookups a day each): given a band, a
+day and, when there is one, a city, it finds the band's Ticketmaster event
+that day (matched by attraction id, as the followed-band job is) and answers
+the venue, city, state and coordinates. With no city it answers only when the
+band plays one venue that day. The native app asks it from "Add to Calendar"
+when a show has no venue, saves the venue to the show (and the city, state
+and ticket link where the show had none), and uses the coordinates for the
+event's map location.
+
+---
+
 ## [5.60.34] — 2026-11-18
 
 Ships in **iOS 3.13.50** (Capacitor, `MARKETING_VERSION` 3.13.49 → 3.13.50).

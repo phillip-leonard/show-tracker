@@ -147,6 +147,7 @@ const REFUSED = [
   ['normalize-show email-tag', () => require('../../netlify/functions/normalize-show').handler, { mode: 'preview', inputs: [{ kind: 'email-tag', tagId: 't1' }] }],
   ['account-linked', () => accountLinked.handler, {}],
   ['adopt-guest-shows (as the guest)', () => adoptGuest.handler, { mode: 'preview', guestIdToken: 'guest' }],
+  ['find-bucket-venue', () => require('../../netlify/functions/find-bucket-venue').handler, { artist: 'Goose', date: '2030-06-14' }],
 ];
 
 for (const [name, load, body] of REFUSED) {
@@ -264,6 +265,53 @@ test('account-linked: claims an invite, recomputes stats ranked, stamps the prof
   const again = json(await quiet(() => post(accountLinked.handler, 'linked', {})));
   assert.strictEqual(again.profile.status, 'already');
   assert.strictEqual(again.invites.claimed, false, 'the invite is already accepted');
+});
+
+// ── find-bucket-venue (5.60.35) ──────────────────────────────────────
+
+const findVenue = require('../../netlify/functions/find-bucket-venue');
+const TM_EVENTS = [
+  { date: '2030-06-14', venue: 'Red Rocks Amphitheatre', city: 'Morrison', state: 'CO', lat: 39.66, lng: -105.2, url: 'https://tm.example/1' },
+  { date: '2030-06-15', venue: 'Red Rocks Amphitheatre', city: 'Morrison', state: 'CO', lat: 39.66, lng: -105.2 },
+  { date: '2030-07-01', venue: 'The Gorge', city: 'George', state: 'WA' },
+  { date: '2030-07-01', venue: 'Moda Center', city: 'Portland', state: 'OR' },
+];
+
+test('find-bucket-venue: the band\'s night, in that city; no guess when the day is ambiguous', () => {
+  assert.strictEqual(findVenue.pickEvent(TM_EVENTS, { date: '2030-06-14', city: 'morrison ' }).event.venue, 'Red Rocks Amphitheatre');
+  assert.strictEqual(findVenue.pickEvent(TM_EVENTS, { date: '2030-06-14' }).event.venue, 'Red Rocks Amphitheatre', 'one venue that day');
+  assert.strictEqual(findVenue.pickEvent(TM_EVENTS, { date: '2030-07-01', city: 'Portland' }).event.venue, 'Moda Center');
+  assert.strictEqual(findVenue.pickEvent(TM_EVENTS, { date: '2030-07-01' }).reason, 'ambiguous', 'two venues that day, no city');
+  assert.strictEqual(findVenue.pickEvent(TM_EVENTS, { date: '2030-06-14', city: 'Denver' }).reason, 'not_found', 'another city is not this show');
+  assert.strictEqual(findVenue.pickEvent(TM_EVENTS, { date: '2030-06-14', city: 'Morrison', state: 'NY' }).reason, 'not_found');
+  assert.strictEqual(findVenue.pickEvent([], { date: '2030-06-14' }).reason, 'not_found');
+});
+
+test('find-bucket-venue: an account gets the venue; bad input, no key and a down Ticketmaster are answers, not errors', async () => {
+  setup();
+  const asked = [];
+  const fetchEvents = async (name) => { asked.push(name); return { events: TM_EVENTS, attractionId: 'K1' }; };
+  const call = (body, deps = {}) => quiet(() => findVenue.handle({
+    httpMethod: 'POST', headers: { authorization: 'Bearer alice' }, body: JSON.stringify(body),
+  }, { db, apiKey: 'key', fetchEvents, ...deps }));
+
+  const found = json(await call({ artist: 'Goose', date: '2030-06-14', city: 'Morrison' }));
+  assert.deepStrictEqual(found, { ok: true, found: true, venue: 'Red Rocks Amphitheatre', city: 'Morrison', state: 'CO', lat: 39.66, lng: -105.2, url: 'https://tm.example/1' });
+  assert.deepStrictEqual(asked, ['Goose']);
+  assert.deepStrictEqual(json(await call({ artist: 'Goose', date: '2030-07-01' })), { ok: true, found: false, reason: 'ambiguous' });
+  assert.strictEqual((await call({ artist: 'Goose', date: 'next week' })).statusCode, 400);
+  assert.strictEqual((await call({ date: '2030-06-14' })).statusCode, 400);
+  assert.deepStrictEqual(json(await call({ artist: 'Goose', date: '2030-06-14' }, { apiKey: '' })), { ok: true, found: false, reason: 'unavailable' });
+  assert.deepStrictEqual(json(await call({ artist: 'Goose', date: '2030-06-14' }, { fetchEvents: async () => null })), { ok: true, found: false, reason: 'unavailable' });
+});
+
+test('find-bucket-venue: 20 lookups a day per account', async () => {
+  setup();
+  const fetchEvents = async () => ({ events: TM_EVENTS, attractionId: 'K1' });
+  const call = () => quiet(() => findVenue.handle({ httpMethod: 'POST', headers: { authorization: 'Bearer alice' }, body: JSON.stringify({ artist: 'Goose', date: '2030-06-14' }) },
+    { db, apiKey: 'key', fetchEvents }));
+  for (let i = 0; i < 20; i++) assert.strictEqual((await call()).statusCode, 200);
+  assert.strictEqual((await call()).statusCode, 429);
 });
 
 // ── adopt-guest-shows ────────────────────────────────────────────────

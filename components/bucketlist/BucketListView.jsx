@@ -218,7 +218,10 @@ export default function BucketListView() {
   };
 
   const handleShare = async () => {
-    const text = `My concert bucket list:\n${filtered.map((i) => `- ${i.artist} — ${formatDate(i.date)}${i.venue ? ` @ ${i.venue}` : ''}`).join('\n')}`;
+    // One line per show: band, date, venue and city, no links (the native
+    // app's BucketList.shareText sends the same text, 5.60.35).
+    const place = (i) => [i.venue, i.city].filter(Boolean).join(', ');
+    const text = `My concert bucket list:\n${filtered.map((i) => `- ${i.artist} — ${formatDate(i.date)}${place(i) ? ` @ ${place(i)}` : ''}`).join('\n')}`;
     try {
       if (navigator.share) {
         await navigator.share({ title: 'My Bucket List', text });

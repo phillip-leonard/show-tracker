@@ -1,7 +1,9 @@
 import Core
+import CoreLocation
 import DesignSystem
 import EventKit
 import EventKitUI
+@preconcurrency import MapKit
 import SwiftUI
 
 // The bucket list (Stage 4, 4-10), as the web's BucketListView: shows you
@@ -30,7 +32,9 @@ struct BucketListScreen: View {
     @State private var addingShow = false
     @State private var addingVenue = false
     @State private var busyKeys: Set<String> = []
-    @State private var calendarItem: BucketListItem?
+    @State private var calendar: CalendarRequest?
+    /// The show whose calendar event is being prepared (its place looked up).
+    @State private var preparingCalendar: String?
     @State private var flow = AddFlow()
     @State private var notice: String?
     @State private var attempt = 0
@@ -75,7 +79,7 @@ struct BucketListScreen: View {
         .refreshable { attempt += 1 }
         .sheet(isPresented: $addingShow) { AddBucketShowSheet { draft in await addShow(draft) } }
         .sheet(isPresented: $addingVenue) { AddBucketVenueSheet { name, city, state in await addVenue(name, city, state) } }
-        .sheet(item: $calendarItem) { CalendarEventEditor(item: $0).ignoresSafeArea() }
+        .sheet(item: $calendar) { CalendarEventEditor(item: $0.item, place: $0.place).ignoresSafeArea() }
         .addOutcomeHandling(flow) { route in if let route { router.push(route) } }
         .notice($notice)
     }
@@ -176,7 +180,14 @@ struct BucketListScreen: View {
             }
             HStack(spacing: Space.x2) {
                 if !happened {
-                    Button { calendarItem = item } label: { Label("Add to Calendar", systemImage: "calendar.badge.plus") }
+                    Button { Task { await openCalendar(item) } } label: {
+                        if preparingCalendar == item.key {
+                            ProgressView().controlSize(.small)
+                        } else {
+                            Label("Add to Calendar", systemImage: "calendar.badge.plus")
+                        }
+                    }
+                    .disabled(preparingCalendar != nil)
                 }
                 if let url = item.ticketURL, !happened {
                     Button { router.show(url) } label: { Label("Tickets", systemImage: "ticket") }
@@ -325,6 +336,33 @@ struct BucketListScreen: View {
         }
     }
 
+    /// Add to Calendar. A show saved without a venue gets it from
+    /// Ticketmaster first (accounts: `find-bucket-venue`), saved to the
+    /// show. Then the venue is found on the map (Ticketmaster's coordinates,
+    /// else Apple's place search, a few seconds at most), so the event's
+    /// location opens in Maps; without a match it's the venue and city as text.
+    private func openCalendar(_ item: BucketListItem) async {
+        preparingCalendar = item.key
+        defer { preparingCalendar = nil }
+        var show = item
+        var place: CalendarPlace?
+        if show.venue == nil, let uid, session.user?.isAnonymous == false,
+           let answer = await BucketListService.findVenue(show, api: session.api) {
+            do {
+                try await BucketListService.saveVenue(uid: uid, item: show, answer: answer)
+                show = BucketList.applying(answer, to: show)
+                if let i = items?.firstIndex(where: { $0.key == show.key }) { items?[i] = show }
+                notice = "Found the venue: \(show.venue ?? ""). It's saved to this show."
+            } catch {
+                // Not saved; the event still uses it.
+                show = BucketList.applying(answer, to: show)
+            }
+            if let lat = answer.lat, let lng = answer.lng { place = CalendarPlace(latitude: lat, longitude: lng) }
+        }
+        if place == nil { place = await CalendarPlaces.find(show) }
+        calendar = CalendarRequest(item: show, place: place)
+    }
+
     /// "I went": adds the show (the add flow's alerts and duplicate question
     /// apply), and takes it off the list once it's in your shows.
     private func markAttended(_ item: BucketListItem) {
@@ -441,13 +479,24 @@ private struct AddBucketVenueSheet: View {
 /// person saves the event themselves.
 struct CalendarEventEditor: UIViewControllerRepresentable {
     let item: BucketListItem
+    /// Where the venue is, when the map found it.
+    let place: CalendarPlace?
     @Environment(\.dismiss) private var dismiss
 
     func makeUIViewController(context: Context) -> EKEventEditViewController {
         let store = EKEventStore()
         let event = EKEvent(eventStore: store)
         event.title = "\(item.artist) at \(item.venue ?? "TBD")"
-        event.location = [item.venue, item.city, item.state].compactMap { $0 }.joined(separator: ", ")
+        // Venue plus city; with the map's coordinates it's a structured
+        // location, which Calendar shows on a map and opens in Maps.
+        let title = BucketList.calendarLocation(item)
+        if let place {
+            let location = EKStructuredLocation(title: title)
+            location.geoLocation = CLLocation(latitude: place.latitude, longitude: place.longitude)
+            event.structuredLocation = location
+        } else if !title.isEmpty {
+            event.location = title
+        }
         if let day = Self.day(item.date) {
             event.isAllDay = true
             event.startDate = day
@@ -488,5 +537,50 @@ struct CalendarEventEditor: UIViewControllerRepresentable {
         func eventEditViewController(_ controller: EKEventEditViewController, didCompleteWith action: EKEventEditViewAction) {
             finish()
         }
+    }
+}
+
+/// A show to add to the calendar, with its place when the map found one.
+struct CalendarRequest: Identifiable {
+    let item: BucketListItem
+    let place: CalendarPlace?
+    var id: String { item.key }
+}
+
+/// Where a venue is, for the event's structured location.
+struct CalendarPlace: Equatable, Sendable {
+    let latitude: Double
+    let longitude: Double
+}
+
+enum CalendarPlaces {
+    /// The venue (or, with none, the city) on the map: Apple's place search
+    /// for "venue, city, state", given four seconds.
+    @MainActor
+    static func find(_ item: BucketListItem) async -> CalendarPlace? {
+        let query = [item.venue, item.city, item.state].compactMap { $0 }.joined(separator: ", ")
+        guard !query.isEmpty else { return nil }
+        let isVenue = item.venue != nil
+        return await withTaskGroup(of: CalendarPlace?.self) { group in
+            group.addTask { await search(query, venue: isVenue) }
+            group.addTask {
+                try? await Task.sleep(for: .seconds(4))
+                return nil
+            }
+            let first = await group.next() ?? nil
+            group.cancelAll()
+            return first
+        }
+    }
+
+    @MainActor
+    private static func search(_ query: String, venue: Bool) async -> CalendarPlace? {
+        let request = MKLocalSearch.Request()
+        request.naturalLanguageQuery = query
+        request.resultTypes = venue ? .pointOfInterest : .address
+        guard let response = try? await MKLocalSearch(request: request).start(),
+              let found = response.mapItems.first else { return nil }
+        let coordinate = found.placemark.coordinate
+        return CalendarPlace(latitude: coordinate.latitude, longitude: coordinate.longitude)
     }
 }

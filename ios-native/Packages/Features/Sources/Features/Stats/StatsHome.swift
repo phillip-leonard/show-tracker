@@ -393,9 +393,11 @@ struct PeriodPicker: View {
 }
 
 /// `showsByYear` as bars, every year from the first, zeros included. Labels
-/// every five years plus the first and last (`StatsYears.labeledYears`);
-/// touch and drag reads "2024 · 12 shows"; a tap picks that year. The
-/// current year is amber, and the busiest year carries its count.
+/// every five years plus the first and last (`StatsYears.labeledYears`).
+/// A fixed readout above the chart says "2024 · 12 shows" for the year
+/// under your finger, else the picked year, else the busiest; it never sits
+/// among the bars, where a taller neighbor hid it. A tap picks that year.
+/// The current year is amber, and the busiest year carries its count.
 struct ShowsByYearChart: View {
     let byYear: [String: Int]
     /// The year the picker shows, drawn at full strength while others fade.
@@ -408,27 +410,54 @@ struct ShowsByYearChart: View {
 
     var body: some View {
         let bars = StatsYears.timeline(byYear, currentYear: currentYear)
-        let labeled = StatsYears.labeledYears(bars)
         let peak = StatsYears.peak(bars)
+        let scrubbedBar = scrubbed.flatMap { y in bars.first { String($0.year) == y } }
+        let pickedBar = pickedYear.flatMap { y in bars.first { $0.year == y } }
+        VStack(alignment: .leading, spacing: Space.x2) {
+            readout(scrubbed: scrubbedBar, picked: pickedBar, peak: peak)
+            chart(bars, peak: peak, highlighted: scrubbedBar?.year ?? pickedYear, scrubbing: scrubbedBar != nil)
+        }
+    }
+
+    /// One line, always the same height: the year under your finger, the
+    /// picked year, or the busiest year.
+    private func readout(scrubbed: StatsYears.Bar?, picked: StatsYears.Bar?, peak: StatsYears.Bar?) -> some View {
+        let text: String
+        let strong: Bool
+        if let scrubbed {
+            text = StatsYears.caption(scrubbed)
+            strong = true
+        } else if let picked {
+            text = StatsYears.caption(picked)
+            strong = false
+        } else if let peak {
+            text = "Busiest: \(StatsYears.caption(peak))"
+            strong = false
+        } else {
+            text = " "
+            strong = false
+        }
+        return Text(text)
+            .font(.jakarta(size: 14, weight: strong ? .bold : .semibold, relativeTo: .subheadline))
+            .monospacedDigit()
+            .foregroundStyle(strong ? Color.textPrimary : Color.textSecondary)
+            .lineLimit(1)
+            .frame(maxWidth: .infinity, minHeight: 20, alignment: .leading)
+            .accessibilityHidden(true) // the chart itself reads every year
+    }
+
+    private func chart(_ bars: [StatsYears.Bar], peak: StatsYears.Bar?, highlighted: Int?, scrubbing: Bool) -> some View {
+        let labeled = StatsYears.labeledYears(bars)
         let top = max(peak?.count ?? 1, 1)
-        Chart(bars) { bar in
+        return Chart(bars) { bar in
             BarMark(x: .value("Year", String(bar.year)), y: .value("Shows", bar.count),
                     width: bars.count < 6 ? .fixed(36) : .automatic)
                 .foregroundStyle(bar.year == currentYear ? Color.amber : Color.brand)
-                .opacity(pickedYear == nil || pickedYear == bar.year ? 1 : 0.4)
+                .opacity(highlighted == nil || highlighted == bar.year ? 1 : 0.4)
                 .cornerRadius(3)
-                .annotation(position: .top, spacing: 3,
-                            overflowResolution: .init(x: .fit(to: .chart), y: .disabled)) {
-                    if scrubbed == String(bar.year) {
-                        Text(StatsYears.caption(bar))
-                            .font(.jakarta(size: 12, weight: .bold, relativeTo: .caption))
-                            .monospacedDigit()
-                            .foregroundStyle(Color.textPrimary)
-                            .padding(.horizontal, Space.x2)
-                            .padding(.vertical, 3)
-                            .background(Color.surfaceHover, in: Capsule())
-                            .fixedSize()
-                    } else if scrubbed == nil, peak?.year == bar.year {
+                .annotation(position: .top, spacing: 3) {
+                    // The busiest bar is the tallest, so nothing hides its count.
+                    if !scrubbing, peak?.year == bar.year {
                         Text(bar.count.formatted())
                             .font(.jakarta(size: 11, weight: .semibold, relativeTo: .caption2))
                             .monospacedDigit()
@@ -436,7 +465,7 @@ struct ShowsByYearChart: View {
                     }
                 }
         }
-        .chartYScale(domain: 0...(Double(top) * 1.35))
+        .chartYScale(domain: 0...(Double(top) * 1.2))
         .chartYAxis(.hidden)
         .chartXAxis {
             AxisMarks(values: bars.map { String($0.year) }) { value in
@@ -466,7 +495,7 @@ struct ShowsByYearChart: View {
             let index = min(bars.count - 1, max(0, Int((location.x - plot.minX) / plot.width * CGFloat(bars.count))))
             if bars[index].count > 0 { pick(bars[index].year) }
         }
-        .frame(height: 180)
+        .frame(height: 170)
         .accessibilityElement()
         .accessibilityLabel("Shows by year")
         .accessibilityValue(bars.filter { $0.count > 0 }.map(StatsYears.caption).joined(separator: ", "))
