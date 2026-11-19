@@ -4,6 +4,67 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.60.38] — 2026-11-19
+
+Ships in **iOS 3.13.54** (Capacitor, `MARKETING_VERSION` 3.13.53 → 3.13.54)
+and **native 4.0.47**. Stage 6, Part 2a: the social writes and reads other
+people see move to the server, and four live holes close
+(`docs/ios-native/STAGE6-AUDIT.md`, DECISIONS "Stage 6", calls A, B, I, J).
+
+**Likes go through the server.** `engagement-notify` takes `liked: true |
+false` on a comment or photo and writes `likedBy` itself, then notifies the
+owner of a like, once. The browser used to write its own uid into someone
+else's document. The old shape (the like already stored, notify only) still
+answers for iOS 3.13.53 and earlier.
+
+**Meetups go through the server.** A new `netlify/functions/meetups.js`
+(`join` from your own bucket list item, or by meetup id; `leave`) builds the
+meetup from the stored bucket list item, takes every name from a profile and
+notifies the organizer. Until now the browser wrote the shared document, and
+an account without a display name wrote its **email address** as its name on
+a document every account can read. `firestore.rules` now lets a joiner
+change only their own entry in `attendeeNames` (one write could rename every
+attendee); old builds already satisfy it, so it isn't gated. A post's author
+name is never an email either. `scripts/cleanup-meetup-names.js` counts and
+replaces any stored ones (dry run unless `--apply`): the dry run against
+production found **0 meetups and 0 meetup messages**, so none was ever
+stored. Meetup messages need their meetup to exist.
+
+**The activity feed goes through the server.** `friends.js` `activity`
+returns your mutual friends' entries (blocks either way and friends who
+turned "Show my activity to friends" off left out), and the server writes
+every entry: `normalize-show` (one show added), `moderate-content` (a
+comment, an upload) and `friends.js` `rated` (from the stored show)
+(`netlify/functions/lib/activityLog.js`). The rule let any account read
+anyone's activity; the web now reads only through the function, and native
+users' shows reach their friends. Old builds' copies of an entry are merged.
+
+**Uploads are checked against Storage.** `moderate-content` `showMedia`
+reads the file's size and type from Storage and builds its URL itself: the
+path must be the caller's own under the concert, 10 MB a file, 50 MB a
+concert (until now the browser's say-so), JPEG, PNG, GIF, WebP or MP4. A
+request's `url` and `fileSize` are ignored, so a post can no longer point at
+any image anywhere. A YouTube link is stored as its canonical URL. Replies
+must answer a top-level comment on the same concert. Comments, messages and
+uploads have daily limits (200, 200, 50). An admin's delete removes a photo's
+file too, and a meetup's pinned details can be reported (`meetup`; "delete"
+clears them and keeps the meetup).
+
+**One set of concert keys.** `lib/concertKeys.js` (CommonJS) is the meetup
+id, the Storage folder and the comment-view id, pinned by
+`fixtures/concert-keys/` for the web and native.
+
+Three rule tightenings wait for `minSupportedIosVersion` to reach 3.13.54
+(`docs/ios-native/GATED-CLEANUPS.md`): likes, meetups and activity only
+through the server. `tests/security/socialServer.test.js`,
+`tests/shows/normalizeShow.test.js`, `tests/rules/moderation.rules.test.js`,
+`lib/__tests__/concertKeysFixtures.test.js`.
+
+Native (4.0.47): `ConcertKeys` (Core), the Swift copy of the keys, run
+against `fixtures/concert-keys/` (`ConcertKeysTests`). No screen changes.
+
+---
+
 ## [5.60.37] — 2026-11-19
 
 Ships in **iOS 3.13.53** (Capacitor, `MARKETING_VERSION` 3.13.52 → 3.13.53)

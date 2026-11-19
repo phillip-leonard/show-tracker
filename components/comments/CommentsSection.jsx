@@ -19,8 +19,6 @@ import { MessageSquare, Heart, Trash2, CornerDownRight, Send } from 'lucide-reac
 import { Card, Avatar, Button, Textarea, Tabs, Spinner } from '@/components/ui';
 import { useApp } from '@/context/AppContext';
 import { subscribeComments, postComment, toggleCommentLike, deleteComment } from '@/lib/comments';
-import { notifyEngagement } from '@/lib/notifications';
-import { logActivity } from '@/lib/activityFeed';
 import { getLastViewed, markViewed } from '@/lib/commentViews';
 import { contentProblem } from '@/lib/contentFilter';
 import { withoutBlocked } from '@/lib/moderation';
@@ -304,16 +302,14 @@ export default function CommentsSection({ show }) {
 
   // Replies and mentions are notified by the server when it creates the
   // comment (moderate-content, 5.60.29): the parent's author, and any of
-  // your friends named as "@Name" in the text.
-  const showForComment = { artist: show.artist, venue: show.venue, date: show.date };
+  // your friends named as "@Name" in the text. `id` (your own show) links
+  // the entry the server writes in your friends' activity (5.60.38).
+  const showForComment = { id: show.id, artist: show.artist, venue: show.venue, date: show.date };
 
   const handlePost = async (text) => {
     const authorName = user.displayName || 'Anonymous';
     try {
       await postComment(concertKey, user.uid, authorName, text, null, showForComment);
-      logActivity(user.uid, authorName, 'commented', {
-        showId: show.id, artist: show.artist, venue: show.venue || null,
-      });
     } catch (err) {
       // Rethrown rather than swallowed into a toast: postComment now
       // goes through a function that can reject the text on its own
@@ -327,9 +323,6 @@ export default function CommentsSection({ show }) {
     const authorName = user.displayName || 'Anonymous';
     try {
       await postComment(concertKey, user.uid, authorName, text, parent.id, showForComment);
-      logActivity(user.uid, authorName, 'commented', {
-        showId: show.id, artist: show.artist, venue: show.venue || null,
-      });
     } catch (err) {
       throw err;
     }
@@ -339,8 +332,8 @@ export default function CommentsSection({ show }) {
     if (!user) return;
     const alreadyLiked = (comment.likedBy || []).includes(user.uid);
     try {
-      await toggleCommentLike(comment.id, user.uid, alreadyLiked);
-      if (!alreadyLiked) notifyEngagement('comment_like', comment.id, showForComment);
+      // The server writes the like and notifies the author (5.60.38).
+      await toggleCommentLike(comment.id, alreadyLiked, showForComment);
     } catch (err) {
       setToast?.("Couldn't update your like. Please try again.");
     }

@@ -590,6 +590,10 @@ service cloud.firestore {
     // direct writes — neither introduces text — and what they gain here
     // is the ban check: a banned account cannot start a meetup, join one,
     // or edit its pinned details.
+    // Since 5.60.38 the apps join, leave and create through
+    // netlify/functions/meetups.js (names from profiles, never an email);
+    // these client paths stay for iOS 3.13.53 and earlier until
+    // minSupportedIosVersion passes them (docs/ios-native/GATED-CLEANUPS.md).
     match /meetups/{meetupId} {
       allow read: if isAccount();
       allow create: if isAccount()
@@ -602,7 +606,11 @@ service cloud.firestore {
       allow update: if isAccount() && isNotBanned() && (
         (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['attendeeUids', 'attendeeNames'])
           && request.resource.data.attendeeUids.removeAll(resource.data.attendeeUids).hasOnly([request.auth.uid])
-          && resource.data.attendeeUids.removeAll(request.resource.data.attendeeUids).hasOnly([request.auth.uid]))
+          && resource.data.attendeeUids.removeAll(request.resource.data.attendeeUids).hasOnly([request.auth.uid])
+          // Your own name only (5.60.38): until then one write could rename
+          // every attendee. Old builds' join changes only their own key and
+          // leave doesn't touch the map, so this needs no version gate.
+          && request.resource.data.get('attendeeNames', {}).diff(resource.data.get('attendeeNames', {})).affectedKeys().hasOnly([request.auth.uid]))
         ||
         // `description` is NOT here any more: it is published text every
         // attendee reads, and this rule only ever decided WHO may write

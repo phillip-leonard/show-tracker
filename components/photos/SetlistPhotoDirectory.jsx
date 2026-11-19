@@ -22,7 +22,6 @@ import { Search, ScrollText, Heart, ChevronLeft, ChevronRight } from 'lucide-rea
 import { Card, EmptyState, Spinner, Input, Avatar, Modal } from '@/components/ui';
 import { useApp } from '@/context/AppContext';
 import { listAllSetlistPhotos, togglePhotoLike } from '@/lib/photos';
-import { notifyEngagement } from '@/lib/notifications';
 import { timeAgo } from '@/lib/utils';
 import { withoutBlocked } from '@/lib/moderation';
 import ReportButton from '@/components/moderation/ReportButton';
@@ -156,13 +155,12 @@ export default function SetlistPhotoDirectory() {
     if (!user) return;
     const alreadyLiked = (item.likedBy || []).includes(user.uid);
     try {
-      await togglePhotoLike(item.id, user.uid, alreadyLiked);
+      // The server writes the like and notifies the uploader (5.60.38).
+      await togglePhotoLike(item.id, alreadyLiked);
       setPhotos((prev) => prev.map((p) => p.id !== item.id ? p : {
         ...p,
         likedBy: alreadyLiked ? p.likedBy.filter((u) => u !== user.uid) : [...(p.likedBy || []), user.uid],
       }));
-      // The server checks the like is stored and notifies the uploader.
-      if (!alreadyLiked) notifyEngagement('photo_like', item.id);
     } catch (err) {
       setToast?.("Couldn't update your like. Please try again.");
     }

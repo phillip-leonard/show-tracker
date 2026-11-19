@@ -45,7 +45,8 @@ export default function ProfileView({ user, shows, userRank, headlineStats = nul
   const [publicProfile, setPublicProfile] = useState(false);
 
   // Friend activity feed — on by default (opt-out), unlike Public Profile.
-  // Read/written in lib/activityFeed.js's logActivity() before every write.
+  // Read by the server before it writes any of your activity entries
+  // (netlify/functions/lib/activityLog.js), and by friends.js `activity`.
   const [shareActivity, setShareActivity] = useState(true);
   const [shareActivityLoading, setShareActivityLoading] = useState(false);
   // On the community leaderboard unless turned off (5.60.1); a profile

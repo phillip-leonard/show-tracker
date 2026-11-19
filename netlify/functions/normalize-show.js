@@ -31,6 +31,11 @@
 // native app's users get it too. Only when the account had no shows before
 // the request, so every later add skips it without a read. The answer
 // carries `welcomeEmail` with the outcome when it ran.
+//
+// The friend activity feed (5.60.38): a commit of one show an account
+// added (search, the form, a ticket scan, an upcoming show they went to, an
+// accepted tag) writes their "added" entry (lib/activityLog.js), so native
+// users' shows reach their friends too. A batch writes none.
 
 const { withCors } = require('./lib/cors');
 const { withProxyLimit } = require('./lib/proxyLimit');
@@ -40,6 +45,7 @@ const { takeDailyQuota } = require('./lib/rateLimit');
 const { depsFor, userShows, normalizeOne } = require('./lib/normalizeShowServer');
 const { welcomeEmailAfterAdd } = require('./lib/welcomeEmail');
 const { openBlobStore, loadIndex } = require('./lib/publicArtistSnapshot');
+const { recordActivity } = require('./lib/activityLog');
 
 // Replaced in the tests (__setTestWelcomeEmail).
 const defaultSendWelcome = ({ db, uid, showId, event }) => welcomeEmailAfterAdd({
@@ -57,6 +63,8 @@ const HEADERS = {
 };
 // The input kinds a guest can't send: both come from a friend.
 const GUEST_REFUSED_KINDS = new Set(['tag', 'email-tag']);
+// The kinds that put "added a show" in friends' activity (lib/activityLog.js).
+const ACTIVITY_KINDS = new Set(['setlistfm', 'manual', 'upcoming', 'tag', 'email-tag']);
 const reply = (statusCode, body, extra = {}) => ({ statusCode, headers: { ...HEADERS, ...extra }, body: JSON.stringify(body) });
 
 exports.handler = async function (event) {
@@ -99,6 +107,17 @@ exports.handler = async function (event) {
     const firstCreated = results.find((r) => r && r.written && r.created);
     if (mode === 'commit' && hadNoShows && !user.isAnonymous && firstCreated) {
       welcome = await sendWelcome({ db, uid: user.uid, showId: firstCreated.showId, event });
+    }
+    // The friend activity feed (5.60.38, Stage 6 call B): one show added
+    // by hand or from a search, as the web logged it. Bulk adds (a batch),
+    // imports and festival rows log nothing, nor does a guest.
+    const [single] = results;
+    if (mode === 'commit' && !batch && !user.isAnonymous && single && single.written && single.created
+      && ACTIVITY_KINDS.has(inputs[0] && inputs[0].kind) && single.show) {
+      await recordActivity(db, user.uid, 'added_show', {
+        id: `added_show_${user.uid}_${single.show.id}`,
+        showId: single.show.id, artist: single.show.artist, venue: single.show.venue,
+      });
     }
     const extra = welcome ? { welcomeEmail: welcome.status } : {};
     if (batch) return reply(200, { ok: true, results, ...extra });

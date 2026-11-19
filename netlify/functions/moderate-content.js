@@ -24,10 +24,20 @@
  * writes.
  *
  * POST body:
- *   { target: "showComment",   concertKey, text, parentId? }
+ *   { target: "showComment",   concertKey, text, parentId?, show?, showId? }
  *   { target: "meetupComment", meetupId, text }
- *   { target: "showMedia",     concertKey, category, type, url,
- *                              storagePath?, fileSize?, caption?, show? }
+ *   { target: "showMedia",     concertKey, category, type, storagePath
+ *                              (an upload) or url (a YouTube link),
+ *                              caption?, show?, showId? }
+ *
+ * Since 5.60.38 (Stage 6, calls B and I): a reply's parent must be a
+ * top-level comment on the same concert; a meetup message needs its
+ * meetup; an upload's size, type and URL are read from Storage (a request's
+ * `url` and `fileSize` are ignored) and its path must be the caller's own
+ * under the concert, with 50 MB a concert; comments, messages and uploads
+ * have daily limits; and a comment or upload writes the poster's friend
+ * activity entry (lib/activityLog.js). `showId` is the poster's own show,
+ * for that entry's link.
  *   { target: "profileName",   displayName }
  *   { target: "handle",        handle }
  *   { target: "meetupDescription", concertKey, description }
@@ -60,6 +70,10 @@ const { isAnonymous, isAdmin } = require('./lib/firebaseAdmin');
 const { notifyEngagement, MESSAGES } = require('./lib/engagementNotifications');
 const { withCors } = require('./lib/cors');
 const { checkContent } = require('./lib/contentFilterRule');
+const { takeDailyQuota } = require('./lib/rateLimit');
+const { recordActivity } = require('./lib/activityLog');
+const { mediaPathSegment } = require('../../lib/concertKeys');
+const { looksLikeEmail } = require('./lib/meetupActions');
 
 const CORS_HEADERS = {
   'Content-Type': 'application/json',
@@ -72,6 +86,19 @@ const CORS_HEADERS = {
 const MAX_TEXT = 2000;
 const MAX_CAPTION = 500;
 const MAX_NAME = 120;
+
+// Posts per account per UTC day (5.60.38, Stage 6 call I). Far above real
+// use; what they stop is a script.
+const DAILY_LIMITS = { showComment: 200, meetupComment: 200, showMedia: 50 };
+
+// Uploads (lib/photos.js and storage.rules): 10 MB a file, 50 MB a concert
+// across photos, posters and setlist photos. The file sizes come from
+// Storage, never from the request (5.60.38).
+const MAX_FILE_BYTES = 10 * 1024 * 1024;
+const MAX_CONCERT_BYTES = 50 * 1024 * 1024;
+const IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp']);
+const STORAGE_BUCKET = process.env.FIREBASE_STORAGE_BUCKET || 'show-tracker-d7a4d.firebasestorage.app';
+const YOUTUBE_ID = /(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
 
 // ── Handle format, mirrored from lib/handles.js ─────────────────────────
 // Deliberately a copy rather than an import: lib/handles.js is an ES
@@ -126,12 +153,16 @@ function json(statusCode, body) {
  * pass a name can pass someone else's.
  */
 async function resolveAuthorName(db, uid, fallback) {
+  // Never an email address (5.60.38): the meetup page sent
+  // `user.displayName || user.email` as the fallback, so an account
+  // without a display name published its address on every message.
+  const usable = (v) => (typeof v === 'string' && v.trim() && !looksLikeEmail(v) ? v.trim() : '');
   try {
     const snap = await db.collection('userProfiles').doc(uid).get();
-    const name = snap.exists ? snap.data().displayName : '';
-    return (name || fallback || 'Anonymous').slice(0, MAX_NAME);
+    const name = snap.exists ? usable(snap.data().displayName) : '';
+    return (name || usable(fallback) || 'Anonymous').slice(0, MAX_NAME);
   } catch {
-    return (fallback || 'Anonymous').slice(0, MAX_NAME);
+    return (usable(fallback) || 'Anonymous').slice(0, MAX_NAME);
   }
 }
 
@@ -150,6 +181,94 @@ async function isBanned(db, uid) {
 
 function shortText(value, max = 200) {
   return typeof value === 'string' && value.trim() ? value.trim().slice(0, max) : null;
+}
+
+class Refused extends Error {
+  constructor(status, body) { super(body.error); this.status = status; this.body = body; }
+}
+
+// Replaced in the tests (__setTestBucket).
+let testBucket = null;
+function getBucket() {
+  if (testBucket) return testBucket;
+  return require('firebase-admin/storage').getStorage().bucket(STORAGE_BUCKET);
+}
+
+/** The caller's own show, for an activity entry's link; null if it isn't theirs. */
+async function ownShowId(db, uid, showId) {
+  if (typeof showId !== 'string' || !showId || showId.includes('/') || showId.length > 128) return null;
+  try {
+    return (await db.collection(`users/${uid}/shows`).doc(showId).get()).exists ? showId : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The media document's file fields, from Storage (5.60.38, Stage 6 call I).
+ * The request names the object; the size, type and download URL are read
+ * here. Until now `url`, `storagePath` and `fileSize` came from the
+ * browser, so a document could point at any image anywhere and the 50 MB
+ * a concert was the browser's say-so. Throws Refused.
+ */
+async function storedUpload(db, uid, body) {
+  const concertKey = String(body.concertKey);
+  const storagePath = typeof body.storagePath === 'string' ? body.storagePath : '';
+  const prefix = `showPhotos/${mediaPathSegment(concertKey)}/${uid}/`;
+  const name = storagePath.slice(prefix.length);
+  if (!storagePath.startsWith(prefix) || !name || name.includes('/') || name.includes('..') || storagePath.length > 600) {
+    throw new Refused(400, { error: 'That upload isn’t one of yours for this show.', code: 'bad_path' });
+  }
+  const taken = await db.collection('showPhotos').where('storagePath', '==', storagePath).limit(1).get();
+  if (!taken.empty) throw new Refused(409, { error: 'That upload is already posted.', code: 'duplicate' });
+
+  const file = getBucket().file(storagePath);
+  let meta;
+  try {
+    [meta] = await file.getMetadata();
+  } catch (e) {
+    if (e && (e.code === 404 || e.code === '404')) throw new Refused(400, { error: 'That upload didn’t finish. Please try again.', code: 'no_upload' });
+    throw e;
+  }
+  const size = Number(meta.size) || 0;
+  const contentType = String(meta.contentType || '');
+  const category = ['photo', 'poster', 'setlist'].includes(body.category) ? body.category : 'photo';
+  const isVideo = contentType === 'video/mp4';
+  const allowed = IMAGE_TYPES.has(contentType) || (isVideo && category === 'photo');
+  const removeUpload = () => file.delete().catch(() => {});
+  if (!allowed) {
+    await removeUpload();
+    throw new Refused(415, {
+      error: category === 'photo' ? 'Only JPEG, PNG, GIF, WEBP images or MP4 videos are supported.' : 'Only JPEG, PNG, GIF, or WEBP images are supported.',
+      code: 'bad_type',
+    });
+  }
+  if (size <= 0 || size > MAX_FILE_BYTES) {
+    await removeUpload();
+    throw new Refused(413, { error: 'That file is over the 10MB per-file limit.', code: 'too_large' });
+  }
+  const existing = await db.collection('showPhotos').where('concertKey', '==', concertKey).get();
+  const total = existing.docs.reduce((sum, d) => sum + (Number(d.data().fileSize) || 0), 0);
+  if (total + size > MAX_CONCERT_BYTES) {
+    await removeUpload();
+    throw new Refused(413, {
+      error: "This show's media is at the 50MB limit (shared across photos, posters, and setlist photos) — remove something first.",
+      code: 'concert_full',
+    });
+  }
+  let token = String((meta.metadata && meta.metadata.firebaseStorageDownloadTokens) || '').split(',')[0];
+  if (!token) {
+    token = require('crypto').randomUUID();
+    await file.setMetadata({ metadata: { firebaseStorageDownloadTokens: token } });
+  }
+  const bucketName = file.bucket && file.bucket.name ? file.bucket.name : STORAGE_BUCKET;
+  return {
+    category,
+    type: isVideo ? 'video' : 'image',
+    url: `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/${encodeURIComponent(storagePath)}?alt=media&token=${token}`,
+    storagePath,
+    fileSize: size,
+  };
 }
 
 /**
@@ -242,6 +361,11 @@ exports.handler = async function (event) {
   const now = FieldValue.serverTimestamp();
 
   try {
+    if (DAILY_LIMITS[body.target]) {
+      const quota = await takeDailyQuota(db, `post_${body.target}_${uid}`, DAILY_LIMITS[body.target], { uid });
+      if (!quota.allowed) return json(429, { error: 'That’s a lot of posts for one day. Try again tomorrow.', code: 'daily_limit' });
+    }
+
     // ── A concert comment or reply ───────────────────────────────────
     if (body.target === 'showComment') {
       const text = String(body.text || '').trim();
@@ -251,6 +375,16 @@ exports.handler = async function (event) {
 
       const verdict = checkContent(text);
       if (!verdict.ok) return json(422, { error: verdict.message, code: verdict.code });
+
+      // A reply answers an existing top-level comment on the same concert
+      // (5.60.38): replies are one level deep, and a parent from another
+      // show would notify its author about a thread they never saw.
+      if (body.parentId) {
+        const parent = await db.collection('showComments').doc(String(body.parentId)).get();
+        if (!parent.exists || parent.data().concertKey !== String(body.concertKey) || parent.data().parentId) {
+          return json(400, { error: 'That comment is no longer there to reply to.', code: 'bad_parent' });
+        }
+      }
 
       // The show's band, venue and date, as showMedia stores them, so a
       // reply, mention or like notification can name the show (5.60.29).
@@ -274,6 +408,12 @@ exports.handler = async function (event) {
         text,
         show: { artist: shortText(show.artist), venue: shortText(show.venue), date: shortText(show.date, 40) },
       });
+      // The friend activity feed (5.60.38, Stage 6 call B); the browser
+      // used to write this itself.
+      await recordActivity(db, uid, 'commented', {
+        id: `commented_${ref.id}`, commentId: ref.id, showId: await ownShowId(db, uid, body.showId),
+        artist: shortText(show.artist), venue: shortText(show.venue),
+      });
       return json(200, { id: ref.id });
     }
 
@@ -287,6 +427,9 @@ exports.handler = async function (event) {
       const verdict = checkContent(text);
       if (!verdict.ok) return json(422, { error: verdict.message, code: verdict.code });
 
+      const meetup = await db.collection('meetups').doc(String(body.meetupId)).get();
+      if (!meetup.exists) return json(404, { error: 'That meetup no longer exists.', code: 'not_found' });
+
       const ref = await db.collection('meetupComments').add({
         meetupId: String(body.meetupId),
         authorUid: uid,
@@ -298,36 +441,58 @@ exports.handler = async function (event) {
     }
 
     // ── Photo / video / poster metadata, carrying the caption ────────
+    // The file is already in Storage (storage.rules); this writes the
+    // document. Since 5.60.38 the file's path must be the caller's own
+    // under this concert, and its size, type and URL come from Storage.
+    // A YouTube link is stored as its canonical URL, rebuilt from its id.
     if (body.target === 'showMedia') {
       const caption = String(body.caption || '').trim();
       if (caption.length > MAX_CAPTION) {
         return json(400, { error: `Captions are limited to ${MAX_CAPTION} characters.` });
       }
-      if (!body.concertKey || !body.url) {
-        return json(400, { error: 'concertKey and url are required' });
+      if (!body.concertKey || typeof body.concertKey !== 'string') {
+        return json(400, { error: 'concertKey is required' });
       }
 
       const verdict = checkContent(caption);
       if (!verdict.ok) return json(422, { error: verdict.message, code: verdict.code });
 
-      const show = body.show || {};
+      let file;
+      if (body.type === 'youtube') {
+        const match = String(body.url || '').match(YOUTUBE_ID);
+        if (!match) return json(400, { error: 'Not a recognizable YouTube link.', code: 'bad_link' });
+        file = { category: 'photo', type: 'youtube', url: `https://www.youtube.com/watch?v=${match[1]}`, storagePath: null, fileSize: null };
+      } else {
+        try {
+          file = await storedUpload(db, uid, body);
+        } catch (e) {
+          if (e instanceof Refused) return json(e.status, e.body);
+          throw e;
+        }
+      }
+
+      const show = body.show && typeof body.show === 'object' ? body.show : {};
       const ref = await db.collection('showPhotos').add({
         concertKey: String(body.concertKey),
-        category: ['photo', 'poster', 'setlist'].includes(body.category) ? body.category : 'photo',
-        artist: show.artist || null,
-        venue: show.venue || null,
-        date: show.date || null,
+        category: file.category,
+        artist: shortText(show.artist),
+        venue: shortText(show.venue),
+        date: shortText(show.date, 40),
         uploadedBy: uid,
         uploaderName: await resolveAuthorName(db, uid, body.uploaderName),
-        type: ['image', 'video', 'youtube'].includes(body.type) ? body.type : 'image',
-        url: String(body.url),
-        storagePath: body.storagePath ? String(body.storagePath) : null,
-        fileSize: typeof body.fileSize === 'number' ? body.fileSize : null,
+        type: file.type,
+        url: file.url,
+        storagePath: file.storagePath,
+        fileSize: file.fileSize,
         caption,
         likedBy: [],
         createdAt: now,
       });
-      return json(200, { id: ref.id });
+      await recordActivity(db, uid, 'shared_media', {
+        id: `shared_media_${ref.id}`, showId: await ownShowId(db, uid, body.showId),
+        artist: shortText(show.artist), venue: shortText(show.venue), mediaCategory: file.category,
+      });
+      return json(200, { id: ref.id, url: file.url, type: file.type, category: file.category });
     }
 
     // ── The user's own display name ──────────────────────────────────
@@ -433,3 +598,5 @@ exports.handler = async function (event) {
 
 // CORS allowlist on every response (lib/cors.js) — no more `*` (5.59.6).
 module.exports.handler = withCors(module.exports.handler);
+
+exports.__setTestBucket = (bucket) => { testBucket = bucket; };

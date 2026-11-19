@@ -266,6 +266,24 @@ async function main() {
     }));
   });
 
+  await test('a joiner can write only their own name (5.60.38)', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await ctx.firestore().doc('meetups/meet_names').set({
+        concertKey: 'kr', createdBy: 'uid_dave', attendeeUids: ['uid_dave'],
+        attendeeNames: { uid_dave: 'Dave' }, description: '',
+      });
+    });
+    // Before 5.60.38 this rewrote Dave's name on everyone's screen.
+    await assertFails(alice().doc('meetups/meet_names').update({
+      attendeeUids: ['uid_dave', ALICE], attendeeNames: { uid_dave: 'someone else', [ALICE]: 'Alice' },
+    }));
+    await assertSucceeds(alice().doc('meetups/meet_names').update({
+      attendeeUids: ['uid_dave', ALICE], attendeeNames: { uid_dave: 'Dave', [ALICE]: 'Alice' },
+    }));
+    // Leaving, as old builds do it: the uid goes, the map is untouched.
+    await assertSucceeds(alice().doc('meetups/meet_names').update({ attendeeUids: ['uid_dave'] }));
+  });
+
   console.log('\nan ejected account is locked down');
 
   // Ejection (moderate-report.js `ban`) has four parts. Two are Auth-side

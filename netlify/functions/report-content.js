@@ -1,6 +1,6 @@
 /**
  * report-content — files a user's report against a comment, a meetup
- * message, a photo/video, or a profile.
+ * message, a photo/video, a profile, or a meetup's pinned details.
  *
  * The "mechanism for users to report offensive content, with timely
  * response" half of App Store Guideline 1.2. Three things have to happen
@@ -56,6 +56,11 @@ const REPORTABLE_TYPES = {
   meetupComment: { collection: 'meetupComments', authorField: 'authorUid',  textFields: ['text'],           hideable: true,  label: 'Meetup message' },
   showMedia:     { collection: 'showPhotos',     authorField: 'uploadedBy', textFields: ['caption', 'url'], hideable: true,  label: 'Photo or video' },
   profile:       { collection: 'userProfiles',   authorField: null,         textFields: ['displayName', 'handle'], hideable: false, label: 'Profile' },
+  // A meetup's pinned details (5.60.38, Stage 6 call J). Never auto-hidden:
+  // hiding the document would take the meetup away from every attendee.
+  // It goes to the queue, where "delete" clears the description
+  // (moderate-report.js).
+  meetup:        { collection: 'meetups',        authorField: 'createdBy',  textFields: ['description'],    hideable: false, label: 'Meetup details' },
 };
 
 const VALID_REASONS = ['spam', 'harassment', 'sexual', 'violence', 'impersonation', 'other'];

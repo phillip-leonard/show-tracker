@@ -22,10 +22,12 @@
  *
  *   delete  — the content is gone for good: removed from its collection
  *             if it is still there, and from moderationHidden if it was
- *             auto-hidden. Storage bytes for a photo are left alone,
- *             matching deletePhoto() in lib/photos.js — an orphaned file
- *             wastes a little space, where a failed storage call that
- *             aborted the delete would leave the content up.
+ *             auto-hidden. A photo's file is deleted after that (5.60.38),
+ *             best effort: a failed Storage call never leaves the content
+ *             up, and a download URL works whatever the rules say, so the
+ *             file used to outlive the delete. A meetup report is about
+ *             its pinned details: "delete" clears the description and
+ *             keeps the meetup.
  *
  *   ban     — EJECTION. Apple's wording is "ejecting the user who
  *             provided the offending content", and what this action used
@@ -82,6 +84,14 @@ function initFirebase() {
   const projectId = process.env.FIREBASE_PROJECT_ID;
   if (!privateKey || !clientEmail || !projectId) throw new Error('Firebase env vars not configured');
   initializeApp({ credential: cert({ privateKey, clientEmail, projectId }), projectId });
+}
+
+const STORAGE_BUCKET = process.env.FIREBASE_STORAGE_BUCKET || 'show-tracker-d7a4d.firebasestorage.app';
+// Replaced in the tests (__setTestBucket).
+let testBucket = null;
+function getBucket() {
+  if (testBucket) return testBucket;
+  return require('firebase-admin/storage').getStorage().bucket(STORAGE_BUCKET);
 }
 
 async function verifyAdmin(token) {
@@ -233,6 +243,7 @@ exports.handler = async function (event) {
 
     const batch = db.batch();
     let restored = false;
+    let storagePath = null;
 
     if (action === 'dismiss') {
       if (hiddenRef) {
@@ -250,7 +261,22 @@ exports.handler = async function (event) {
       // returns, and an admin has now looked at all three.
       if (counterRef) batch.delete(counterRef);
     } else {
-      if (contentRef) batch.delete(contentRef);
+      // A meetup report is about its pinned details (5.60.38): removing
+      // them clears the description and leaves the meetup and its
+      // attendees. Any other content goes.
+      if (contentRef && collectionName === 'meetups') {
+        const meetup = await contentRef.get();
+        if (meetup.exists) batch.update(contentRef, { description: '', updatedAt: FieldValue.serverTimestamp() });
+      } else if (contentRef) {
+        // A photo's file goes too (5.60.38), after the batch: its download
+        // URL works whatever the rules say, so the file outlived a delete.
+        if (collectionName === 'showPhotos') {
+          const [live, hidden] = await Promise.all([contentRef.get(), hiddenRef.get()]);
+          const data = live.exists ? live.data() : (hidden.exists ? (hidden.data().data || {}) : {});
+          storagePath = typeof data.storagePath === 'string' && data.storagePath.startsWith('showPhotos/') ? data.storagePath : null;
+        }
+        batch.delete(contentRef);
+      }
       if (hiddenRef) batch.delete(hiddenRef);
       if (counterRef) batch.delete(counterRef);
 
@@ -307,6 +333,19 @@ exports.handler = async function (event) {
 
     await batch.commit();
 
+    // Best effort, after the document is gone: a failed Storage call
+    // never leaves the content up.
+    let fileDeleted = null;
+    if (storagePath) {
+      try {
+        await getBucket().file(storagePath).delete();
+        fileDeleted = true;
+      } catch (e) {
+        fileDeleted = false;
+        console.warn('[moderate-report] photo file not deleted:', storagePath, e.message);
+      }
+    }
+
     // ── Ejection ──────────────────────────────────────────────────────
     // After the batch, not inside it: disabling an Auth account and
     // sweeping a content history are neither Firestore writes nor
@@ -321,6 +360,7 @@ exports.handler = async function (event) {
     return json(200, {
       action,
       restored,
+      fileDeleted,
       closedReports: siblings.size || 1,
       banned: action === 'ban' ? report.reportedUserId : null,
       ejected,
@@ -333,3 +373,5 @@ exports.handler = async function (event) {
 
 // CORS allowlist on every response (lib/cors.js) — no more `*` (5.59.6).
 module.exports.handler = withCors(module.exports.handler);
+
+exports.__setTestBucket = (bucket) => { testBucket = bucket; };
