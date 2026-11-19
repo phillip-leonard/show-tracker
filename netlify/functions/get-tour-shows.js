@@ -289,10 +289,15 @@ async function tourPage({ mbid, tourName, page, db, fetchPage = fetchSetlistPage
   const responseBody = JSON.stringify(body);
 
   if (status === 200) {
-    writeEntry(db, key, { response: responseBody, ttlHours: CACHE_TTL_HOURS, queryParams: { artistMbid: mbid, tourName, page, kind: 'tourShowsPage' } });
-  }
-  if (body.complete && status === 200) {
-    cacheWholeTour({ db, mbid, tourName, wantedTour, page, lastBody: body }).catch(e => console.warn('[CACHE] whole tour:', e.message));
+    const pageWrite = writeEntry(db, key, { response: responseBody, ttlHours: CACHE_TTL_HOURS, queryParams: { artistMbid: mbid, tourName, page, kind: 'tourShowsPage' } });
+    if (body.complete) {
+      // Awaited on the last page only: work left running after the
+      // response is frozen with the function, and on the deploy preview the
+      // whole-tour entry never landed that way. The nights are already on
+      // screen by now, so the extra reads cost nobody a wait.
+      await pageWrite;
+      await cacheWholeTour({ db, mbid, tourName, wantedTour, page, lastBody: body }).catch(e => console.warn('[CACHE] whole tour:', e.message));
+    }
   }
 
   return { statusCode: 200, headers: { ...CORS_HEADERS, 'X-Cache': 'MISS' }, body: responseBody };
