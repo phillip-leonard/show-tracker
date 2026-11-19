@@ -450,7 +450,8 @@ struct TourBrowseSheet: View {
 
     /// The tour's nights from `page` on, listed as each page arrives.
     /// setlist.fm allows about two requests a second, so pages go one after
-    /// another with a short pause (as the function's own walk does), and a
+    /// another, each at least half a second after the last answer (a 250 ms
+    /// pause still drew a 429 on the deploy preview), and a
     /// busy answer is tried once more before the walk stops where it is,
     /// keeping the nights already listed, with "Load the rest" to go on.
     private func loadNights(from first: Int) async {
@@ -475,7 +476,7 @@ struct TourBrowseSheet: View {
                 progress = answer.progressLine
                 page = next
                 retried = false
-                try? await Task.sleep(for: .milliseconds(250))
+                try? await Task.sleep(for: .milliseconds(500))
                 guard mine == seq else { return }
             } catch {
                 guard mine == seq else { return }

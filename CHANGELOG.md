@@ -24,7 +24,7 @@ Native (4.0.43):
 
 - **Add shows from a tour lists nights as they arrive**, with "Loading 20 of
   149 nights…" under them while later pages come in, instead of a blank
-  wait for the whole walk. Pages go one after another with a short pause
+  wait for the whole walk. Pages go one after another, half a second apart
   (setlist.fm allows about two requests a second); a busy answer is tried
   once more, and if a later page still fails the nights already listed stay
   with "Load the rest of the tour". From a tour's own page the sheet now
