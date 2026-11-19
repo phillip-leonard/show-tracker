@@ -86,6 +86,7 @@ struct LibraryTabRoot: View {
         case .runs?: RunListView()
         case .wishlist?: WishlistHome()
         case .bucketList?: BucketListScreen()
+        case .community?: CommunityScreen()
         default: placeholder
         }
     }

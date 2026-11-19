@@ -92,14 +92,15 @@ public enum LibraryDestination: String, CaseIterable, Hashable, Sendable, Identi
     public var native: Bool { route != nil }
 
     /// Its native screen, once built: Tours and Runs since 4-6, Wishlist
-    /// since 4-9, Bucket List since 4-10.
+    /// since 4-9, Bucket List since 4-10, Community since 4-11.
     public var route: AppRoute? {
         switch self {
         case .tours: .tours
         case .runs: .runs
         case .wishlist: .wishlist
         case .bucketList: .bucketList
-        case .festivals, .setlistPhotos, .community: nil
+        case .community: .community
+        case .festivals, .setlistPhotos: nil
         }
     }
 }

@@ -271,9 +271,9 @@ Two gaps aren't screens, and both should be fixed whatever else is decided:
 
 | Item | Web / Capacitor | Native today | Status | Size | Server work | Stage |
 |---|---|---|---|---|---|---|
-| Top show-goers, top raters, top rated songs, top venues | `CommunityStatsView`, `community-stats` | None | Planned | M | none | 4 |
-| Totals (users, shows, songs) | Yes, user count through `shouldShowUserCount` | None | Planned | S | A fixture for the 1,000-user threshold so native gates the same way | 4 |
-| Empty states | Yes | | Planned | | | 4 |
+| Top show-goers, top raters, top rated songs, top venues | `CommunityStatsView`, `community-stats` | `CommunityScreen`: top five of each, blocked people left out, a name opens their card, "Add" sends a request (a guest's asks for an account) | Native 4-11 | | none | |
+| Totals (users, shows, songs) | Yes, user count through `shouldShowUserCount` | `Community.totals`; `UserCount` checked against `fixtures/user-count/threshold.json` | Native 4-11 | | none | |
+| Empty states | Yes | Yes, plus no-document and offline | Native 4-11 | | | |
 
 ### 2.16 Discover (`/discover`, hidden)
 
