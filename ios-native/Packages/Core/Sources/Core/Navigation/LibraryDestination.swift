@@ -86,13 +86,13 @@ public enum LibraryDestination: String, CaseIterable, Hashable, Sendable, Identi
         return URL(string: DeepLink.webOrigin.absoluteString + path)!
     }
 
-    /// Built natively yet. Until its PR, an item opens its web page
-    /// (Stage 4 call B: Setlist Photos waits for Stage 6).
+    /// Built natively. Every item is since 6-4 (Stage 4 call B kept Setlist
+    /// Photos on the web until Stage 6).
     public var native: Bool { route != nil }
 
     /// Its native screen, once built: Tours and Runs since 4-6, Wishlist
     /// since 4-9, Bucket List since 4-10, Community since 4-11, Festivals
-    /// since 5-3.
+    /// since 5-3, Setlist Photos since 6-4.
     public var route: AppRoute? {
         switch self {
         case .tours: .tours
@@ -101,7 +101,7 @@ public enum LibraryDestination: String, CaseIterable, Hashable, Sendable, Identi
         case .bucketList: .bucketList
         case .community: .community
         case .festivals: .festivals
-        case .setlistPhotos: nil
+        case .setlistPhotos: .setlistPhotos
         }
     }
 }

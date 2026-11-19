@@ -2,6 +2,7 @@ import FirebaseAuth
 import FirebaseCore
 import FirebaseCrashlytics
 import FirebaseFirestore
+import FirebaseStorage
 
 /// Starts Firebase once, at launch, before anything else touches it.
 ///
@@ -37,8 +38,9 @@ public enum AppBootstrap {
 
     #if DEBUG
     /// Debug builds only: with `MYSETLISTS_EMULATORS=<host>` in the launch
-    /// environment, Auth uses the emulator at `<host>:9099` and Firestore the
-    /// one at `<host>:8080` (firebase.json's ports). With no Firestore
+    /// environment, Auth uses the emulator at `<host>:9099`, Firestore the
+    /// one at `<host>:8080` and Storage the one at `<host>:9199`
+    /// (firebase.json's ports). With no Firestore
     /// emulator running, Firestore just stays offline, so nothing touches
     /// production. For trying sign-in, guests and the shell without real
     /// accounts:
@@ -50,6 +52,8 @@ public enum AppBootstrap {
         Auth.auth().useEmulator(withHost: host, port: 9099)
         settings.host = "\(host):8080"
         settings.isSSLEnabled = false
+        Storage.storage().useEmulator(withHost: host, port: 9199)
+        MediaURLs.emulatorHost = host
     }
     #endif
 }

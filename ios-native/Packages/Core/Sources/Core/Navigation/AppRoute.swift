@@ -44,6 +44,9 @@ public enum AppRoute: Hashable, Sendable {
     /// `/festivals/?festival=<attendance id>`, in Me's Library.
     case festivals
     case festival(id: String)
+    /// Setlist photos from every concert (Stage 6, 6-4): `/setlist-photos`,
+    /// in Me's Library.
+    case setlistPhotos
     /// Advanced search over your shows (Stage 4, 4-12): `/advanced-search`,
     /// on the Search tab.
     case advancedSearch
@@ -138,6 +141,8 @@ public extension DeepLink {
         case "/festivals":
             if let id = value("festival") { return .open(.me, .festival(id: id)) }
             return .open(.me, .festivals)
+        case "/setlist-photos":
+            return .open(.me, .setlistPhotos)
         case "/community":
             return .open(.stats, .community)
         case "/friends":
@@ -195,6 +200,7 @@ public extension AppRoute {
         case .community: path = "/community"
         case .festivals: path = "/festivals"
         case .festival(let id): path = "/festivals"; params.set("festival", id)
+        case .setlistPhotos: path = "/setlist-photos"
         case .advancedSearch: path = "/advanced-search"
         case .venue(let key): path = "/venues"; params.set("venue", key)
         case .yearInReview(let user, let year): path = "/year-in-review"; params.set("user", user); params.set("year", year)
