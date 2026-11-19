@@ -219,7 +219,7 @@ struct StreamingSection: View {
 }
 
 /// A label whose icon is the brand color.
-private struct TintedIconLabel: LabelStyle {
+struct TintedIconLabel: LabelStyle {
     func makeBody(configuration: Configuration) -> some View {
         HStack(spacing: Space.x2) {
             configuration.icon.foregroundStyle(Color.brand)

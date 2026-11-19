@@ -25,8 +25,8 @@ public enum ShowMatchKey {
 /// - a meetup join: the meetup page (meetups stay on the web, Stage 3 C-4);
 /// - a bucket-list venue: its venue page (Stage 4, 4-7);
 /// - an anniversary: your show;
-/// - a reply, mention or like: your show's page on the web, where comments
-///   and photos are (C-4);
+/// - a reply, mention or comment like: your show's page, with its comments
+///   (Stage 6, 6-3); a photo like: that page on the web until 6-4;
 /// - the roadmap notice: the roadmap;
 /// - a tour or on-sale alert: nowhere (its dates and links are on the row).
 public enum NotificationDestination: Equatable, Sendable {
@@ -51,7 +51,12 @@ public enum NotificationDestination: Equatable, Sendable {
         case .anniversary:
             guard let show = ownShow() else { return .none }
             return .route(.shows, .show(id: show.id))
-        case .commentReply, .commentLike, .commentMention, .photoLike:
+        case .commentReply, .commentLike, .commentMention:
+            // The show page, where its comments are (Stage 6, 6-3).
+            guard let show = ownShow() else { return .none }
+            return .route(.shows, .show(id: show.id))
+        case .photoLike:
+            // Photos stay on the web until 6-4.
             guard let show = ownShow() else { return .none }
             return .web(AppRoute.show(id: show.id).webURL)
         case .roadmapPublished:

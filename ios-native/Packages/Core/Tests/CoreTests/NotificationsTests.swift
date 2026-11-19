@@ -75,8 +75,11 @@ struct NotificationsTests {
             try ShowListTests.show("s2", "Goose", "2025-08-10", venue: "The Capitol Theatre"),
         ]
         let like = try note(#"{"type":"comment_like","message":"m","concertKey":"phish|msg|2025-12-31"}"#)
-        #expect(NotificationDestination.of(like, myShows: mine) == .web(URL(string: "https://mysetlists.net/shows/?show=s1")!),
-                "comments are on the web (C-4)")
+        #expect(NotificationDestination.of(like, myShows: mine) == .route(.shows, .show(id: "s1")),
+                "comments are on the native show page (6-3)")
+        let photo = try note(#"{"type":"photo_like","message":"m","concertKey":"phish|msg|2025-12-31"}"#)
+        #expect(NotificationDestination.of(photo, myShows: mine) == .web(URL(string: "https://mysetlists.net/shows/?show=s1")!),
+                "photos stay on the web until 6-4")
         let stray = try note(#"{"type":"photo_like","message":"m","concertKey":"nobody|nowhere|2020-01-01"}"#)
         #expect(NotificationDestination.of(stray, myShows: mine) == .none)
 

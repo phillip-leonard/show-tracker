@@ -378,6 +378,14 @@ From the Stage 6 audit ([`STAGE6-AUDIT.md`](STAGE6-AUDIT.md)), approved with all
   - uploads: the app uploads to `showPhotos/{ConcertKeys.mediaPathSegment}/{uid}/{name}` with its `contentType`, then sends `moderate-content` `showMedia` with `storagePath` (or a YouTube `url`), `category`, `caption`, `show` and its own `showId`; the answer carries the stored `url`. Refusals have codes: `bad_path`, `no_upload`, `bad_type` (JPEG, PNG, GIF, WebP; MP4 for photos only), `too_large`, `concert_full`, `duplicate`, `bad_link`, `daily_limit`;
   - replies: `bad_parent` unless the parent is a top-level comment on the same concert;
   - `ConcertKeys` (Core) and `lib/concertKeys.js` are the shared keys (`fixtures/concert-keys/`); the meetup-name dry run found no meetups in production.
+- **Comments as built (6-3, native 4.0.48):**
+  - a Comments card at the bottom of the show page, for accounts; guests get "Create an account to see comments" (D-1);
+  - `CommentsStore` (Core) per open show page: the web's live query on `showComments` by concert key, and `commentViews` read once then stamped for "New"; posting and replying through `moderate-content` (with the poster's own `showId`), likes through `engagement-notify` (shown at once, put back on failure), reports through `report-content` (`showComment`, hidden for you at once), and deleting your own comment directly (the one client write, which the rules allow its author);
+  - `CommentThread` orders top-level comments oldest first with their replies under them; replies to a deleted comment and comments from people you blocked don't show;
+  - "@" mentions suggest your friends when the "@" is at the end of the text (SwiftUI gives no cursor position); the server does the notifying. No Swift copy of the content filter: the server's message shows under the box;
+  - you can't like your own comment (the web lets you, and notifies nobody); a name opens the person's card (Report, Block);
+  - reply, mention and comment-like notifications open the show natively; photo likes open the web until 6-4;
+  - `ReportContentSheet` is shared with photos and meetups (6-4, 6-5).
 - **PR order:** 6-1 audit → 6-2a → 6-3 comments → 6-4 photos → 6-5 meetups → 6-6 activity → 6-2b → 6-7 imports → 6-8 show extras → 6-2c → 6-9 posters → 6-10 Year in Review → 6-11 profile and help → 6-12 parity check.
 
 ## Post-launch list
