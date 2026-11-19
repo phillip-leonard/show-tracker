@@ -175,6 +175,31 @@ All three run in `lib/__tests__/libraryFixtures.test.js`
 (`UPDATE_FIXTURES=1` to regenerate); the native app's Stage 4 PRs add the
 Swift side.
 
+## `festivals/` (5.60.36, Stage 5)
+
+`festivals/dates.json`: `limits` (name length, year range, from
+`lib/festivalMatch.js`); per festival shape, `festivalYear`, `isYearOnly`,
+`festivalSortKey`, `festivalLastDay` and `showFitsFestival` against a set
+of show dates; and `whenFields`, the dates `festivalWhenFields` writes from
+a form's input (`null` is refused). The label isn't here: each app formats
+dates its own way.
+
+`festivals/stats.json`: `{ name, shows, expected }`, where `expected` is
+`buildFestivalStats(shows)` (`lib/festivalGrouping.js`) on the shared keys
+(Stage 5 call C): artists by `bandKey` with the first spelling, the average
+over ratings from 1 to 10, days by ISO date (an unreadable date last, under
+`''`, and not a day), and each day's show ids in order.
+
+`festivals/joined.json`: an attendance record and its canonical festival in
+(`canonical` is `null` when it can't be read, `"absent"` for a record from
+before 5.30.0), `joinedFestival` out (`lib/festivalCatalog.js`): the object
+`netlify/functions/festivals.js` answers with and every festival screen
+reads, plus `cutShort`.
+
+All three run in `lib/__tests__/festivalFixtures.test.js`
+(`UPDATE_FIXTURES=1` to regenerate); the native Stage 5 PRs add the Swift
+side.
+
 ## `year-in-review/`
 
 Each file is one case:

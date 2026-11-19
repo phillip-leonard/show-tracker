@@ -4,6 +4,44 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.60.36] — 2026-11-19
+
+Ships in **iOS 3.13.52** (Capacitor, `MARKETING_VERSION` 3.13.51 → 3.13.52).
+Native unchanged. Stage 5, Part 2: the festival server work
+(`docs/ios-native/STAGE5-AUDIT.md`).
+
+**Festivals are created, joined, left and edited on the server.** New
+`festivals` function (accounts only): `create` writes the shared festival
+and your attendance record in one batch (the app sends the record's id, so
+a retry can't make a second festival), `join` adds your record to an
+existing festival, `leave` detaches every show of yours from it (found on
+the server, not only the ones this device has loaded) and removes your
+record, and `update` is the creator's (or admin's) edit of the name, dates
+and location. The shared festival is never deleted, the creator's
+included. The web uses it for all four; notes and a typed lineup are still
+saved straight to your own record. The rules still let iOS 3.13.51 and
+earlier write festivals themselves (`docs/ios-native/GATED-CLEANUPS.md`).
+
+**Your picks come with the lineup.** `festival-lineup` now also answers the
+lineup ranked for you (recommended, bands you love, everyone else, with each
+recommendation's reason), from your shows, followed bands and "not
+interested" list, with the same `lib/recommendations.js` the web runs. With
+no shared lineup it ranks the one you typed. For the native app; the web
+still ranks in the browser.
+
+**A festival's tiles count the way Stats does.** Artists are counted by band
+("Goose" and "goose" are one, shown with the first spelling), the average
+rating only counts ratings from 1 to 10, and days go by the show's date even
+in the old day-month-year form. `lib/festivalDates.js`,
+`lib/festivalGrouping.js` and `lib/festivalCatalog.js` are CommonJS, and
+`fixtures/festivals/` pins them for the native app.
+
+Also: the unused song count in the web's summary stats is gone (no screen
+showed it), and `scripts/count-festival-records.js` counts what the
+festival rules tightening has to allow for (read-only, counts only).
+
+---
+
 ## [5.60.35] — 2026-11-19
 
 Ships in **iOS 3.13.51** (Capacitor, `MARKETING_VERSION` 3.13.50 → 3.13.51)

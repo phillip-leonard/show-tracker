@@ -8,7 +8,7 @@ import { nativeOAuthSignIn, isNativePlatform, nativeSignOut } from '@/lib/native
 import {
   collection, doc, setDoc, getDoc, getDocs, deleteDoc, updateDoc,
   serverTimestamp, onSnapshot, query, where, addDoc, writeBatch, runTransaction,
-  Timestamp, deleteField,
+  Timestamp,
 } from 'firebase/firestore';
 import { auth, db, googleProvider, browserPopupRedirectResolver } from '@/lib/firebase';
 import { parseDate } from '@/lib/utils';
@@ -27,9 +27,8 @@ import { isReturningUser as checkIsReturningUser } from '@/lib/popupManager';
 import { fetchBandSetlistResponse } from '@/lib/bandSetlist';
 import { SETLIST_SOURCES } from '@/lib/setlistSources';
 import { applySetlistEdit } from '@/lib/setlistEdits';
-import { normalizeFestivalName } from '@/lib/festivalMatch';
-import { festivalWhenFields } from '@/lib/festivalDates';
-import { catalogFields } from '@/lib/festivalCatalog';
+import { joinedFestival } from '@/lib/festivalCatalog';
+import { callFestivals, mintAttendanceId } from '@/lib/festivalsApi';
 import { logActivity } from '@/lib/activityFeed';
 import { rememberHeardShows } from '@/lib/heardLinks';
 import { syncPushToken, forgetPushToken, shouldOfferPush, markPushOffered, pushPermission } from '@/lib/pushAlerts';
@@ -873,42 +872,17 @@ export function AppProvider({ children }) {
       const snapshot = await getDocs(collection(db, 'users', userId, 'festivals'));
       const attendances = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
 
-      const loaded = await Promise.all(attendances.map(async (attendance) => {
-        if (!attendance.festivalId) {
-          // Pre-migration record: still fully per-user, so it already
-          // carries its own name/dates. Renders exactly as it always has.
-          return { ...attendance, festivalId: null, isCreator: true, unmigrated: true };
-        }
+      // lib/festivalCatalog.js joinedFestival: the same object
+      // netlify/functions/festivals.js answers with, and the native app
+      // builds (fixtures/festivals/joined.json).
+      const loaded = await Promise.all(attendances.map(async ({ id, ...attendance }) => {
+        if (!attendance.festivalId) return joinedFestival(id, attendance, undefined, userId);
         try {
           const canonicalSnap = await getDoc(doc(db, 'festivals', attendance.festivalId));
-          if (!canonicalSnap.exists()) {
-            return { ...attendance, unavailable: true, name: attendance.name || 'Unavailable festival' };
-          }
-          const canonical = canonicalSnap.data();
-          return {
-            // Personal fields first, canonical last: the shared document is
-            // the single source of truth for name/dates/location, so it
-            // wins on any field that somehow exists on both.
-            ...attendance,
-            name: canonical.name,
-            startDate: canonical.startDate,
-            endDate: canonical.endDate,
-            year: canonical.year,
-            location: canonical.location || '',
-            edition: canonical.edition || '',
-            createdBy: canonical.createdBy,
-            isCreator: canonical.createdBy === userId,
-            ...catalogFields(canonical),
-            // Lineup from Ticketmaster (5.54.0), written only by
-            // netlify/functions/festival-lineup.js. A hand-typed lineup is
-            // the attendance record's own `myLineup`, spread in above.
-            lineup: Array.isArray(canonical.lineup) ? canonical.lineup : [],
-            lineupSource: canonical.lineupSource || null,
-            lineupUrl: canonical.lineupUrl || null,
-          };
+          return joinedFestival(id, attendance, canonicalSnap.exists() ? canonicalSnap.data() : null, userId);
         } catch (e) {
           console.warn('Failed to read canonical festival:', attendance.festivalId, e.message);
-          return { ...attendance, unavailable: true, name: attendance.name || 'Unavailable festival' };
+          return joinedFestival(id, attendance, null, userId);
         }
       }));
 
@@ -1910,9 +1884,10 @@ export function AppProvider({ children }) {
   // created two unrelated records.
   //
   //   festivals/{festivalId} — the CANONICAL, shared document. One per
-  //   real-world festival edition. Readable by any signed-in user,
-  //   editable only by its creator (and admin). Fields, and these are the
-  //   only fields it ever holds:
+  //   real-world festival edition. Readable by any signed-in user, and
+  //   written only by the server since 5.60.36: create and the creator's
+  //   (or admin's) edit are netlify/functions/festivals.js. Fields, and
+  //   these are the only fields it ever holds:
   //       name            string   as the creator typed it
   //       nameNormalized  string   lib/festivalMatch normalizeFestivalName(name),
   //                                the key the dedup prefix query ranges over
@@ -1943,7 +1918,10 @@ export function AppProvider({ children }) {
   //       festivalId      string   pointer to the canonical document
   //       notes           string   this user's notes
   //       rating          number|null  this user's rating
+  //       myLineup        string[] the lineup this user typed (private)
   //       createdAt, updatedAt
+  //   Created (create, join) and deleted (leave) by festivals.js; notes and
+  //   myLineup are this user's own field writes.
   //
   // NOTHING PERSONAL GOES IN THE CANONICAL DOCUMENT, AND NO CANONICAL
   // FIELD IS COPIED ONTO THE ATTENDANCE RECORD. That is the whole point of
@@ -2011,171 +1989,68 @@ export function AppProvider({ children }) {
   };
 
 
-  // Writes only the user's attendance record against an existing canonical
-  // festival. The canonical document is never touched — not even a
-  // counter: the attendee count is derived on read where it's needed,
-  // which is simpler and leaves nothing for a client to inflate.
+  // Creating, joining, leaving and editing a festival's shared details go
+  // through netlify/functions/festivals.js (5.60.36, Stage 5 Part 2): the
+  // canonical document is read by everyone who attends, so no app writes
+  // it. Each answers the joined festival (lib/festivalCatalog.js). Notes and
+  // the typed lineup stay this user's own field writes (updateFestivalData).
+  const festivalError = (error, fallback) => {
+    setToast({ message: error?.offline || error?.status ? error.message : fallback, type: 'error' });
+  };
+
+  // Joins an existing canonical festival: only this user's attendance
+  // record is written. Joining twice answers the record already there.
   const joinFestival = async (canonicalFestival) => {
     if (!user) throw new Error('Sign in required to join a festival.');
     if (!canonicalFestival?.id) throw new Error('No festival to join.');
-
     const already = (festivals || []).find(f => f.festivalId === canonicalFestival.id);
     if (already) return already;
-
     try {
-      const ref = doc(collection(db, 'users', user.uid, 'festivals'));
-      const attendance = {
-        festivalId: canonicalFestival.id,
-        notes: '',
-        rating: null,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      };
-      await setDoc(ref, attendance);
-
-      const joined = {
-        ...attendance,
-        id: ref.id,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        name: canonicalFestival.name,
-        startDate: canonicalFestival.startDate,
-        endDate: canonicalFestival.endDate,
-        year: canonicalFestival.year,
-        location: canonicalFestival.location || '',
-        edition: canonicalFestival.edition || '',
-        createdBy: canonicalFestival.createdBy,
-        isCreator: canonicalFestival.createdBy === user.uid,
-        ...catalogFields(canonicalFestival),
-      };
-      setFestivals(prev => [...prev, joined]);
-      setToast(`Joined ${canonicalFestival.name}.`);
-      return joined;
+      const { festival } = await callFestivals('join', {
+        festivalId: canonicalFestival.id, attendanceId: mintAttendanceId(user.uid),
+      });
+      setFestivals(prev => (prev.some(f => f.id === festival.id) ? prev : [...prev, festival]));
+      setToast(`Joined ${festival.name}.`);
+      return festival;
     } catch (error) {
       console.error('Failed to join festival:', error);
-      setToast({ message: 'Failed to join that festival. Please try again.', type: 'error' });
+      festivalError(error, 'Failed to join that festival. Please try again.');
       throw error;
     }
   };
 
-  // Creates a canonical festival AND the creator's own attendance record.
-  //
-  // Two users creating the same festival within seconds of each other both
-  // succeed — there is deliberately no distributed lock. One of them ends
-  // up holding a near-duplicate, which the match rule surfaces to the next
-  // person who tries to create it. Crashing, or blocking a create on a
-  // read that may be a second stale, would both be worse.
+  // Creates a canonical festival and this user's attendance record, in one
+  // batch on the server. Two users creating the same festival within
+  // seconds both succeed (no distributed lock); the match rule surfaces the
+  // near-duplicate to the next person.
   const createFestival = async (festivalData) => {
     if (!user) throw new Error('Sign in required to create a festival.');
-    const name = (festivalData.name || '').trim();
-    // Both dates and their year, or only the year (5.58.0). Every field is
-    // spelled out in the literal below, because lib/__tests__/festivalSeed
-    // .test.js reads them from this source to check the seeder writes the
-    // same ones.
-    const when = festivalWhenFields(festivalData);
-    if (!when) throw new Error('A festival needs its dates or its year.');
     try {
-      // doc() mints the id locally without writing, so the attendance
-      // record can point at the canonical before the canonical exists.
-      const canonicalRef = doc(collection(db, 'festivals'));
-      const canonical = {
-        name,
-        nameNormalized: normalizeFestivalName(name),
-        startDate: when.startDate,
-        endDate: when.endDate,
-        year: when.year,
-        location: festivalData.location?.trim() || '',
-        edition: (festivalData.edition || '').trim(),
-        createdBy: user.uid,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      };
-      // A year-only festival has no date fields at all: the rules refuse
-      // one date without the other, and refuse a null date.
-      if (!when.startDate) {
-        delete canonical.startDate;
-        delete canonical.endDate;
-      }
-
-      const attendanceRef = doc(collection(db, 'users', user.uid, 'festivals'));
-      const attendance = {
-        festivalId: canonicalRef.id,
-        notes: festivalData.notes?.trim() || '',
-        rating: null,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      };
-
-      // Private record first, shared catalog second. These can't be one
-      // atomic write (different collections, and the canonical is shared),
-      // so one of them has to fail second — and the orders are not
-      // equivalent. Canonical-first strands a festival in the shared
-      // catalog that nobody attends, and `festivals` has
-      // `allow delete: if false`, so no client can ever remove it: it
-      // would surface forever in other users' join suggestions. This order
-      // fails to a record private to this user, which loadFestivals
-      // already renders as "Unavailable festival" and which they can leave.
-      await setDoc(attendanceRef, attendance);
-      await setDoc(canonicalRef, canonical);
-
-      const created = {
-        ...attendance,
-        id: attendanceRef.id,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        name: canonical.name,
-        startDate: canonical.startDate,
-        endDate: canonical.endDate,
-        year: canonical.year,
-        location: canonical.location,
-        edition: canonical.edition,
-        createdBy: user.uid,
-        isCreator: true,
-      };
-      setFestivals(prev => [...prev, created]);
+      const { festival } = await callFestivals('create', {
+        attendanceId: mintAttendanceId(user.uid),
+        name: (festivalData.name || '').trim(),
+        startDate: festivalData.startDate || '',
+        endDate: festivalData.endDate || '',
+        ...(festivalData.year ? { year: Number(festivalData.year) } : {}),
+        location: festivalData.location || '',
+        edition: festivalData.edition || '',
+        notes: festivalData.notes || '',
+      });
+      setFestivals(prev => (prev.some(f => f.id === festival.id) ? prev : [...prev, festival]));
       setToast('Festival created.');
-      return created;
+      return festival;
     } catch (error) {
       console.error('Failed to create festival:', error);
-      // "Please try again" is wrong for a rules denial — retrying never
-      // clears it. v5.30.0 added the shared `festivals` collection, and
-      // Firestore denies any path with no matching rule, so this is what
-      // an undeployed firestore.rules looks like from the UI. Name that,
-      // rather than sending the user round the same loop.
-      setToast({
-        message: error?.code === 'permission-denied'
-          ? "Couldn't create the festival — the app doesn't have permission to write to the shared festival catalog."
-          : 'Failed to create festival. Please try again.',
-        type: 'error',
-      });
+      festivalError(error, 'Failed to create festival. Please try again.');
       throw error;
     }
   };
 
   // Splits an edit between the two documents by field. Shared details
-  // (name/dates/location/edition) go to the canonical document and are
-  // creator-only — the rules reject anyone else, and the UI doesn't offer
-  // it. Personal fields (notes, rating) always go to the caller's own
-  // attendance record.
+  // (name/dates/location/edition) go to the server's `update`, which only
+  // the creator (or admin) may make. Personal fields (notes, rating,
+  // myLineup) are this user's own attendance record, one updateDoc.
   const CANONICAL_FESTIVAL_FIELDS = ['name', 'startDate', 'endDate', 'year', 'location', 'edition'];
-
-  // An edit that touches when the festival happened is rewritten as a
-  // whole: both dates and their year, or only the year with both dates
-  // deleted, so the canonical document always holds one of the two shapes
-  // firestore.rules accepts. Returns { write, local }: deleteField()
-  // sentinels for Firestore, undefined for local state.
-  const whenPatch = (patch) => {
-    if (!['startDate', 'endDate', 'year'].some(k => k in patch)) return { write: patch, local: patch };
-    const when = festivalWhenFields(patch);
-    if (!when) throw new Error('A festival needs its dates or its year.');
-    const rest = { ...patch };
-    delete rest.startDate; delete rest.endDate; delete rest.year;
-    if (when.startDate) return { write: { ...rest, ...when }, local: { ...rest, ...when } };
-    return {
-      write: { ...rest, year: when.year, startDate: deleteField(), endDate: deleteField() },
-      local: { ...rest, year: when.year, startDate: undefined, endDate: undefined },
-    };
-  };
 
   const updateFestivalData = async (attendanceId, updates) => {
     if (!user) return;
@@ -2188,16 +2063,20 @@ export function AppProvider({ children }) {
       if (CANONICAL_FESTIVAL_FIELDS.includes(key)) canonicalPatch[key] = value;
       else personalPatch[key] = value;
     });
-
-    // A pre-migration record has no canonical document yet, so every field
-    // still belongs on the user's own record — it keeps working untouched
-    // until the migration reaches it.
-    if (festival.unmigrated) {
-      Object.assign(personalPatch, canonicalPatch);
-      for (const key of Object.keys(canonicalPatch)) delete canonicalPatch[key];
+    // Only what changed: the edit form sends every field, and a joiner's
+    // save carries only notes.
+    for (const key of Object.keys(canonicalPatch)) {
+      if ((canonicalPatch[key] ?? '') === (festival[key] ?? '')) delete canonicalPatch[key];
+    }
+    if (['startDate', 'endDate', 'year'].some(k => k in canonicalPatch)) {
+      // Dates are rewritten whole on the server: send all three.
+      canonicalPatch.startDate = updates.startDate ?? festival.startDate ?? '';
+      canonicalPatch.endDate = updates.endDate ?? festival.endDate ?? '';
+      canonicalPatch.year = updates.year ?? (canonicalPatch.startDate ? undefined : festival.year);
+      if (canonicalPatch.year === undefined || canonicalPatch.year === '') delete canonicalPatch.year;
     }
 
-    if (Object.keys(canonicalPatch).length > 0 && !festival.isCreator) {
+    if (Object.keys(canonicalPatch).length > 0 && !festival.isCreator && !festival.unmigrated) {
       setToast({
         message: festival.isSeeded
           ? 'Festivals from the MySetlists catalog can’t be edited here.'
@@ -2207,18 +2086,10 @@ export function AppProvider({ children }) {
       return;
     }
 
-    let canonicalLocal = canonicalPatch;
     try {
-      if (Object.keys(canonicalPatch).length > 0 && festival.festivalId) {
-        if (canonicalPatch.name != null) {
-          canonicalPatch.nameNormalized = normalizeFestivalName(canonicalPatch.name);
-        }
-        const { write, local } = whenPatch(canonicalPatch);
-        canonicalLocal = local;
-        await updateDoc(doc(db, 'festivals', festival.festivalId), {
-          ...write,
-          updatedAt: serverTimestamp(),
-        });
+      let fromServer = null;
+      if (Object.keys(canonicalPatch).length > 0) {
+        ({ festival: fromServer } = await callFestivals('update', { attendanceId, ...canonicalPatch }));
       }
       if (Object.keys(personalPatch).length > 0) {
         await updateDoc(doc(db, 'users', user.uid, 'festivals', attendanceId), {
@@ -2227,39 +2098,29 @@ export function AppProvider({ children }) {
         });
       }
       setFestivals(prev => prev.map(f => (
-        f.id === attendanceId ? { ...f, ...personalPatch, ...canonicalLocal, updatedAt: new Date() } : f
+        f.id === attendanceId ? { ...f, ...(fromServer || {}), ...personalPatch } : f
       )));
     } catch (error) {
       console.error('Failed to update festival:', error);
-      setToast({ message: 'Failed to save festival changes. Please try again.', type: 'error' });
+      festivalError(error, 'Failed to save festival changes. Please try again.');
       throw error;
     }
   };
 
-  // Leaving deletes ONLY this user's attendance record and detaches their
-  // own shows from it. The canonical festival survives — including when
-  // the person leaving is the one who created it, so everyone else keeps
-  // theirs — and nobody else's attendance, notes or shows are touched.
-  // The shows themselves are never deleted; they go back to being ordinary
-  // shows in the user's history.
+  // Leaving deletes ONLY this user's attendance record and detaches every
+  // show of theirs from it (on the server, so shows this device hasn't
+  // loaded are detached too). The canonical festival survives, including
+  // when the person leaving created it. The shows themselves are kept.
   const leaveFestival = async (attendanceId) => {
     if (!user) return;
     try {
-      const attachedIds = (shows || []).filter(s => s.festivalId === attendanceId).map(s => s.id);
-      if (attachedIds.length > 0) {
-        const batch = writeBatch(db);
-        attachedIds.forEach(showId => {
-          batch.update(doc(db, 'users', user.uid, 'shows', showId), { festivalId: null });
-        });
-        await batch.commit();
-        setShows(prev => prev.map(s => (attachedIds.includes(s.id) ? { ...s, festivalId: null } : s)));
-      }
-      await deleteDoc(doc(db, 'users', user.uid, 'festivals', attendanceId));
+      await callFestivals('leave', { attendanceId });
+      setShows(prev => prev.map(s => (s.festivalId === attendanceId ? { ...s, festivalId: null } : s)));
       setFestivals(prev => prev.filter(f => f.id !== attendanceId));
       setToast('Left the festival. Your shows were kept in your history.');
     } catch (error) {
       console.error('Failed to leave festival:', error);
-      setToast({ message: 'Failed to leave the festival. Please try again.', type: 'error' });
+      festivalError(error, 'Failed to leave the festival. Please try again.');
       throw error;
     }
   };
@@ -3399,8 +3260,9 @@ export function AppProvider({ children }) {
       : localStats
   ), [serverStats, localStats, shows.length]);
 
+  // No song count here: no screen showed one (Stage 5 call D; native's
+  // "Different song titles" tile has no web counterpart).
   const summaryStats = useMemo(() => ({
-    totalSongs: headlineStats.uniqueSongCount,
     avgRating: headlineStats.avgShowRating,
     uniqueArtists: headlineStats.bandCount,
     uniqueVenues: headlineStats.venueCount,
