@@ -1,0 +1,247 @@
+[
+  {
+    "name": "the creator",
+    "attendanceId": "a1",
+    "uid": "alice",
+    "attendance": {
+      "festivalId": "f1",
+      "notes": "muddy",
+      "rating": null,
+      "myLineup": [
+        "Goose"
+      ]
+    },
+    "canonical": {
+      "name": "Bonnaroo",
+      "nameNormalized": "bonnaroo",
+      "startDate": "2025-06-12",
+      "endDate": "2025-06-15",
+      "year": 2025,
+      "location": "Manchester, TN",
+      "edition": "2025",
+      "createdBy": "alice",
+      "lineup": [
+        "Goose",
+        "Tyler Childers"
+      ],
+      "lineupSource": "ticketmaster",
+      "lineupUrl": "https://www.ticketmaster.com/event/abc"
+    },
+    "expected": {
+      "id": "a1",
+      "festivalId": "f1",
+      "name": "Bonnaroo",
+      "startDate": "2025-06-12",
+      "endDate": "2025-06-15",
+      "year": 2025,
+      "location": "Manchester, TN",
+      "edition": "2025",
+      "isCreator": true,
+      "isSeeded": false,
+      "catalogStatus": null,
+      "catalogNote": null,
+      "notes": "muddy",
+      "rating": null,
+      "myLineup": [
+        "Goose"
+      ],
+      "lineup": [
+        "Goose",
+        "Tyler Childers"
+      ],
+      "lineupSource": "ticketmaster",
+      "lineupUrl": "https://www.ticketmaster.com/event/abc",
+      "cutShort": false
+    }
+  },
+  {
+    "name": "someone who joined",
+    "attendanceId": "b1",
+    "uid": "bob",
+    "attendance": {
+      "festivalId": "f1"
+    },
+    "canonical": {
+      "name": "Bonnaroo",
+      "nameNormalized": "bonnaroo",
+      "startDate": "2025-06-12",
+      "endDate": "2025-06-15",
+      "year": 2025,
+      "location": "Manchester, TN",
+      "edition": "2025",
+      "createdBy": "alice",
+      "lineup": [
+        "Goose",
+        "Tyler Childers"
+      ],
+      "lineupSource": "ticketmaster",
+      "lineupUrl": "https://www.ticketmaster.com/event/abc"
+    },
+    "expected": {
+      "id": "b1",
+      "festivalId": "f1",
+      "name": "Bonnaroo",
+      "startDate": "2025-06-12",
+      "endDate": "2025-06-15",
+      "year": 2025,
+      "location": "Manchester, TN",
+      "edition": "2025",
+      "isCreator": false,
+      "isSeeded": false,
+      "catalogStatus": null,
+      "catalogNote": null,
+      "notes": "",
+      "rating": null,
+      "myLineup": [],
+      "lineup": [
+        "Goose",
+        "Tyler Childers"
+      ],
+      "lineupSource": "ticketmaster",
+      "lineupUrl": "https://www.ticketmaster.com/event/abc",
+      "cutShort": false
+    }
+  },
+  {
+    "name": "a catalog festival, cut short",
+    "attendanceId": "b2",
+    "uid": "bob",
+    "attendance": {
+      "festivalId": "seed1",
+      "notes": ""
+    },
+    "canonical": {
+      "name": "Hardly Strictly",
+      "startDate": "2025-10-03",
+      "endDate": "2025-10-05",
+      "location": "San Francisco",
+      "createdBy": "system:seed",
+      "source": "seed",
+      "status": "cut_short",
+      "notes": "Rain ended it early.",
+      "lineup": [
+        "A"
+      ],
+      "lineupSource": "seed"
+    },
+    "expected": {
+      "id": "b2",
+      "festivalId": "seed1",
+      "name": "Hardly Strictly",
+      "startDate": "2025-10-03",
+      "endDate": "2025-10-05",
+      "location": "San Francisco",
+      "edition": "",
+      "isCreator": false,
+      "isSeeded": true,
+      "catalogStatus": "cut_short",
+      "catalogNote": "Rain ended it early.",
+      "notes": "",
+      "rating": null,
+      "myLineup": [],
+      "lineup": [
+        "A"
+      ],
+      "lineupSource": "seed",
+      "lineupUrl": null,
+      "cutShort": true
+    }
+  },
+  {
+    "name": "year only",
+    "attendanceId": "b3",
+    "uid": "bob",
+    "attendance": {
+      "festivalId": "f2"
+    },
+    "canonical": {
+      "name": "Outside Lands",
+      "nameNormalized": "outside lands",
+      "year": 2019,
+      "location": "",
+      "createdBy": "bob"
+    },
+    "expected": {
+      "id": "b3",
+      "festivalId": "f2",
+      "name": "Outside Lands",
+      "year": 2019,
+      "location": "",
+      "edition": "",
+      "isCreator": true,
+      "isSeeded": false,
+      "catalogStatus": null,
+      "catalogNote": null,
+      "notes": "",
+      "rating": null,
+      "myLineup": [],
+      "lineup": [],
+      "lineupSource": null,
+      "lineupUrl": null,
+      "cutShort": false
+    }
+  },
+  {
+    "name": "the canonical can’t be read",
+    "attendanceId": "b4",
+    "uid": "bob",
+    "attendance": {
+      "festivalId": "gone",
+      "notes": "still mine"
+    },
+    "canonical": null,
+    "expected": {
+      "id": "b4",
+      "festivalId": "gone",
+      "name": "Unavailable festival",
+      "location": "",
+      "edition": "",
+      "isCreator": false,
+      "unavailable": true,
+      "isSeeded": false,
+      "catalogStatus": null,
+      "catalogNote": null,
+      "notes": "still mine",
+      "rating": null,
+      "myLineup": [],
+      "lineup": [],
+      "lineupSource": null,
+      "lineupUrl": null,
+      "cutShort": false
+    }
+  },
+  {
+    "name": "a record from before 5.30.0",
+    "attendanceId": "b5",
+    "uid": "bob",
+    "attendance": {
+      "name": "Old Fest",
+      "startDate": "2019-06-01",
+      "endDate": "2019-06-02",
+      "location": "Somewhere",
+      "notes": "kept"
+    },
+    "canonical": "absent",
+    "expected": {
+      "id": "b5",
+      "festivalId": null,
+      "name": "Old Fest",
+      "startDate": "2019-06-01",
+      "endDate": "2019-06-02",
+      "location": "Somewhere",
+      "edition": "",
+      "isCreator": true,
+      "unmigrated": true,
+      "isSeeded": false,
+      "catalogStatus": null,
+      "catalogNote": null,
+      "notes": "kept",
+      "rating": null,
+      "myLineup": [],
+      "lineup": [],
+      "lineupSource": null,
+      "lineupUrl": null,
+      "cutShort": false
+    }
+  }
+]

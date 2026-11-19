@@ -7,6 +7,8 @@
  *   - nothing found keeps the last lineup
  *   - a lineup from data/festival-lineups.json is never replaced (5.58.0)
  *   - a festival with only a year is never looked up (5.58.0)
+ *   - the answer carries the caller's picks, ranked on the server with
+ *     lib/recommendations.js (5.60.36, Stage 5 call B)
  *
  *   node tests/recommendations/festivalLineup.test.js
  */
@@ -162,6 +164,62 @@ test('a festival with only a year is upcoming through its year, and Ticketmaster
   assert.strictEqual(JSON.parse(res.body).upcoming, true);
   assert.strictEqual(s.calls(), 0);
   assert.strictEqual(s.db._writes.length, before);
+});
+
+// ── Picks (5.60.36, Stage 5 call B) ───────────────────────────────────
+
+const { festivalPicks, profileBands, seedsFor } = require('../../lib/recommendations');
+
+function picksSetup({ lineup = ['Goose', "Umphrey's McGee", 'Phish', 'Niche Band', 'Billy Strings'], myLineup = null } = {}) {
+  const s = setup({ festival: { ...FEST, lineup, lineupSource: 'ticketmaster', lineupFetchedAt: new Date(NOW) } });
+  if (myLineup) s.db._put('users/bob/festivals/a1', { festivalId: 'f1', myLineup });
+  s.db._put('userProfiles/bob', { favoriteArtists: [{ name: 'Billy Strings' }] });
+  s.db._put('users/bob/shows/s1', { artist: 'Goose', date: '2026-01-01' });
+  s.db._put('users/bob/shows/s2', { artist: 'Goose', date: '2026-02-01' });
+  s.db._put('users/bob/shows/s3', { artist: 'Phish', date: '2026-03-01' });
+  s.db._put('users/bob/discover/prefs', { dismissed: ['dismissed-band'] });
+  s.db._put('bandAffinity/goose', { name: 'Goose', fans: 20, candidates: [
+    { key: 'niche-band', name: 'Niche Band', co: 6, pairScore: 0.4 },
+    { key: 'dismissed-band', name: 'Dismissed Band', co: 9, pairScore: 0.9 },
+  ] });
+  return s;
+}
+const noEvents = async () => ({ statusCode: 200, body: {} });
+
+test('picks: the festival lineup ranked as the web ranks it, with the reason', async () => {
+  const s = picksSetup();
+  const body = JSON.parse((await handle(s.ev, { db: s.db, get: s.get, apiKey: 'k', now: NOW })).body);
+  assert.strictEqual(body.picksFrom, 'festival');
+  assert.deepStrictEqual(body.picks.recommended, [{ key: 'niche-band', name: 'Niche Band', reason: 'Because you like Goose' }]);
+  assert.deepStrictEqual(body.picks.love.map((p) => [p.name, p.timesSeen, p.favorite]), [['Goose', 2, false], ['Billy Strings', 0, true]]);
+  assert.deepStrictEqual(body.picks.everyoneElse.map((p) => [p.name, p.seenOnce]), [['Phish', true], ["Umphrey's McGee", false]]);
+  // The same module, the same inputs: the web's answer.
+  const bands = profileBands({ favorites: [{ name: 'Billy Strings' }], shows: [{ artist: 'Goose', date: '2026-01-01' }, { artist: 'Goose', date: '2026-02-01' }, { artist: 'Phish', date: '2026-03-01' }] });
+  const web = festivalPicks({ lineup: body.lineup, seeds: seedsFor(bands), affinityDocs: { goose: s.db._get('bandAffinity/goose') }, bands, dismissed: ['dismissed-band'] });
+  assert.deepStrictEqual(body.picks.recommended.map((p) => p.key), web.recommended.map((p) => p.key));
+  assert.deepStrictEqual(body.picks.love.map((p) => p.key), web.love.map((p) => p.key));
+  assert.deepStrictEqual(body.picks.everyoneElse.map((p) => p.key), web.everyoneElse.map((p) => p.key));
+});
+
+test('picks: no shared lineup ranks the one the caller typed', async () => {
+  const s = picksSetup({ lineup: [], myLineup: ['Goose', 'Niche Band'] });
+  const body = JSON.parse((await handle(s.ev, { db: s.db, get: noEvents, apiKey: 'k', now: NOW })).body);
+  assert.deepStrictEqual(body.lineup, []);
+  assert.strictEqual(body.picksFrom, 'mine');
+  assert.deepStrictEqual(body.picks.recommended.map((p) => p.name), ['Niche Band']);
+});
+
+test('picks: no lineup at all is null; a picks failure still answers the lineup', async () => {
+  const empty = picksSetup({ lineup: [] });
+  const none = JSON.parse((await handle(empty.ev, { db: empty.db, get: noEvents, apiKey: 'k', now: NOW })).body);
+  assert.strictEqual(none.picks, null);
+  assert.strictEqual(none.picksFrom, null);
+  const s = picksSetup();
+  const res = await handle(s.ev, { db: s.db, get: s.get, apiKey: 'k', now: NOW, picksFor: async () => { throw new Error('boom'); } });
+  assert.strictEqual(res.statusCode, 200);
+  const body = JSON.parse(res.body);
+  assert.ok(body.lineup.length > 0);
+  assert.strictEqual(body.picks, null);
 });
 
 run('festival lineup');

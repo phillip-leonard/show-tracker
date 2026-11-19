@@ -1,0 +1,338 @@
+[
+  {
+    "name": "empty",
+    "shows": [],
+    "expected": {
+      "showCount": 0,
+      "artists": [],
+      "artistCount": 0,
+      "avgRating": null,
+      "dayCount": 0,
+      "days": []
+    }
+  },
+  {
+    "name": "two days, same-day order kept, unrated left out of the average",
+    "shows": [
+      {
+        "id": "s3",
+        "date": "2024-06-14",
+        "artist": "Billy Strings",
+        "venue": "Great Stage Park",
+        "rating": 9
+      },
+      {
+        "id": "s1",
+        "date": "2024-06-13",
+        "artist": "Goose",
+        "venue": "Great Stage Park",
+        "rating": 8
+      },
+      {
+        "id": "s2",
+        "date": "2024-06-13",
+        "artist": "Phish",
+        "venue": "Great Stage Park"
+      }
+    ],
+    "expected": {
+      "showCount": 3,
+      "artists": [
+        "Billy Strings",
+        "Goose",
+        "Phish"
+      ],
+      "artistCount": 3,
+      "avgRating": 8.5,
+      "dayCount": 2,
+      "days": [
+        {
+          "date": "2024-06-13",
+          "showIds": [
+            "s1",
+            "s2"
+          ]
+        },
+        {
+          "date": "2024-06-14",
+          "showIds": [
+            "s3"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "one band spelled two ways is one artist, shown as first seen",
+    "shows": [
+      {
+        "id": "s1",
+        "date": "2024-06-13",
+        "artist": "goose",
+        "venue": "Great Stage Park"
+      },
+      {
+        "id": "s2",
+        "date": "2024-06-14",
+        "artist": "Goose",
+        "venue": "Great Stage Park"
+      },
+      {
+        "id": "s3",
+        "date": "2024-06-15",
+        "artist": "The Goose",
+        "venue": "Great Stage Park"
+      },
+      {
+        "id": "s4",
+        "date": "2024-06-15",
+        "artist": "Goose (US)",
+        "venue": "Great Stage Park"
+      }
+    ],
+    "expected": {
+      "showCount": 4,
+      "artists": [
+        "goose"
+      ],
+      "artistCount": 1,
+      "avgRating": null,
+      "dayCount": 3,
+      "days": [
+        {
+          "date": "2024-06-13",
+          "showIds": [
+            "s1"
+          ]
+        },
+        {
+          "date": "2024-06-14",
+          "showIds": [
+            "s2"
+          ]
+        },
+        {
+          "date": "2024-06-15",
+          "showIds": [
+            "s3",
+            "s4"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "only ratings from 1 to 10 count",
+    "shows": [
+      {
+        "id": "s1",
+        "date": "2024-06-13",
+        "artist": "A",
+        "venue": "Great Stage Park",
+        "rating": 0
+      },
+      {
+        "id": "s2",
+        "date": "2024-06-13",
+        "artist": "B",
+        "venue": "Great Stage Park",
+        "rating": 11
+      },
+      {
+        "id": "s3",
+        "date": "2024-06-13",
+        "artist": "C",
+        "venue": "Great Stage Park",
+        "rating": 7
+      },
+      {
+        "id": "s4",
+        "date": "2024-06-13",
+        "artist": "D",
+        "venue": "Great Stage Park",
+        "rating": "9"
+      },
+      {
+        "id": "s5",
+        "date": "2024-06-13",
+        "artist": "E",
+        "venue": "Great Stage Park",
+        "rating": 8.5
+      }
+    ],
+    "expected": {
+      "showCount": 5,
+      "artists": [
+        "A",
+        "B",
+        "C",
+        "D",
+        "E"
+      ],
+      "artistCount": 5,
+      "avgRating": 7.75,
+      "dayCount": 1,
+      "days": [
+        {
+          "date": "2024-06-13",
+          "showIds": [
+            "s1",
+            "s2",
+            "s3",
+            "s4",
+            "s5"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "a legacy dd-MM-yyyy date is the same day; an unreadable date is last and not a day",
+    "shows": [
+      {
+        "id": "s1",
+        "date": "14-06-2024",
+        "artist": "A",
+        "venue": "Great Stage Park"
+      },
+      {
+        "id": "s2",
+        "date": "",
+        "artist": "B",
+        "venue": "Great Stage Park"
+      },
+      {
+        "id": "s3",
+        "date": "2024-06-14",
+        "artist": "C",
+        "venue": "Great Stage Park"
+      },
+      {
+        "id": "s4",
+        "date": "2024-06-13",
+        "artist": "D",
+        "venue": "Great Stage Park"
+      }
+    ],
+    "expected": {
+      "showCount": 4,
+      "artists": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "artistCount": 4,
+      "avgRating": null,
+      "dayCount": 2,
+      "days": [
+        {
+          "date": "2024-06-13",
+          "showIds": [
+            "s4"
+          ]
+        },
+        {
+          "date": "2024-06-14",
+          "showIds": [
+            "s1",
+            "s3"
+          ]
+        },
+        {
+          "date": "",
+          "showIds": [
+            "s2"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "across a year boundary",
+    "shows": [
+      {
+        "id": "s2",
+        "date": "2024-01-01",
+        "artist": "B",
+        "venue": "Great Stage Park"
+      },
+      {
+        "id": "s1",
+        "date": "2023-12-31",
+        "artist": "A",
+        "venue": "Great Stage Park"
+      },
+      {
+        "id": "s3",
+        "date": "2024-01-02",
+        "artist": "C",
+        "venue": "Great Stage Park"
+      }
+    ],
+    "expected": {
+      "showCount": 3,
+      "artists": [
+        "A",
+        "B",
+        "C"
+      ],
+      "artistCount": 3,
+      "avgRating": null,
+      "dayCount": 3,
+      "days": [
+        {
+          "date": "2023-12-31",
+          "showIds": [
+            "s1"
+          ]
+        },
+        {
+          "date": "2024-01-01",
+          "showIds": [
+            "s2"
+          ]
+        },
+        {
+          "date": "2024-01-02",
+          "showIds": [
+            "s3"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "no artist name is no artist",
+    "shows": [
+      {
+        "id": "s1",
+        "date": "2024-06-13",
+        "artist": "",
+        "venue": "Great Stage Park"
+      },
+      {
+        "id": "s2",
+        "date": "2024-06-13",
+        "artist": "  ",
+        "venue": "Great Stage Park"
+      }
+    ],
+    "expected": {
+      "showCount": 2,
+      "artists": [],
+      "artistCount": 0,
+      "avgRating": null,
+      "dayCount": 1,
+      "days": [
+        {
+          "date": "2024-06-13",
+          "showIds": [
+            "s1",
+            "s2"
+          ]
+        }
+      ]
+    }
+  }
+]

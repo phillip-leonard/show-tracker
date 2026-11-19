@@ -17,7 +17,16 @@
 // from the file is never replaced from Ticketmaster. A lineup
 // someone enters by hand stays on their own attendance record.
 //
-//   200 { lineup: [names], source, url, fetchedAt, upcoming }
+// Since 5.60.36 (Stage 5 call B) the answer also carries the caller's
+// picks: the shared lineup, or else the lineup they typed (`myLineup` on
+// their attendance record), ranked by lib/recommendations.js
+// festivalPicks (lib/festivalPicksServer.js). `picksFrom` says which
+// lineup was ranked; picks are null when there is none. A picks failure
+// never fails the lineup.
+//
+//   200 { lineup: [names], source, url, fetchedAt, upcoming,
+//         picks: { recommended, love, everyoneElse } | null,
+//         picksFrom: 'festival' | 'mine' | null }
 //   401 not signed in · 403 not attending · 404 no such festival
 
 const { withCors } = require('./lib/cors');
@@ -25,6 +34,7 @@ const { getDb, verifyUser, isAdminClaims, isAnonymous } = require('./lib/firebas
 const { httpsGetJson } = require('./lib/ticketmasterEvents');
 const { fetchLineup, isUpcoming, isFresh } = require('./lib/festivalLineup');
 const { SEED_LINEUP_SOURCE } = require('./lib/festivalLineupSeed');
+const { picksFor: defaultPicksFor } = require('./lib/festivalPicksServer');
 
 const CORS_HEADERS = {
   'Content-Type': 'application/json',
@@ -47,7 +57,7 @@ function view(f, upcoming) {
   };
 }
 
-async function handle(event, { db, get = httpsGetJson, apiKey = process.env.TICKETMASTER_API_KEY, now = Date.now() } = {}) {
+async function handle(event, { db, get = httpsGetJson, apiKey = process.env.TICKETMASTER_API_KEY, now = Date.now(), picksFor = defaultPicksFor } = {}) {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers: CORS_HEADERS, body: '' };
   if (event.httpMethod !== 'POST') return reply(405, { error: 'POST only' });
 
@@ -66,31 +76,47 @@ async function handle(event, { db, get = httpsGetJson, apiKey = process.env.TICK
   if (!snap.exists) return reply(404, { error: 'No such festival' });
   const festival = snap.data();
 
-  if (!isAdminClaims(claims)) {
-    const mine = await db.collection('users').doc(claims.uid).collection('festivals')
-      .where('festivalId', '==', festivalId).limit(1).get();
-    if (mine.empty) return reply(403, { error: 'Join this festival to see its lineup.' });
-  }
+  const mine = await db.collection('users').doc(claims.uid).collection('festivals')
+    .where('festivalId', '==', festivalId).limit(1).get();
+  if (mine.empty && !isAdminClaims(claims)) return reply(403, { error: 'Join this festival to see its lineup.' });
+  const myLineup = !mine.empty && Array.isArray(mine.docs[0].data().myLineup) ? mine.docs[0].data().myLineup : [];
+
+  // The lineup view plus the caller's picks of it.
+  const answer = async (f) => {
+    const out = view(f, upcoming);
+    const ranked = out.lineup.length ? out.lineup : myLineup;
+    out.picks = null;
+    out.picksFrom = null;
+    if (ranked.length) {
+      try {
+        out.picks = await picksFor(db, claims.uid, ranked);
+        out.picksFrom = out.lineup.length ? 'festival' : 'mine';
+      } catch (err) {
+        console.warn('[festivalLineup] picks failed', festivalId, err && err.message);
+      }
+    }
+    return reply(200, out);
+  };
 
   const upcoming = isUpcoming(festival, now);
-  if (!upcoming || isFresh(festival, now) || !apiKey) return reply(200, view(festival, upcoming));
+  if (!upcoming || isFresh(festival, now) || !apiKey) return answer(festival);
 
   // A lineup from data/festival-lineups.json (lineupSource 'seed', written
   // by admin-seed-festival-lineups.js) is the one we chose, so Ticketmaster
   // never replaces it. The admin replaces it by editing the file and
   // running the seeder again.
-  if (festival.lineupSource === SEED_LINEUP_SOURCE) return reply(200, view(festival, upcoming));
+  if (festival.lineupSource === SEED_LINEUP_SOURCE) return answer(festival);
 
   // No dates (added with only a year, 5.58.0): there is no window to search
   // Ticketmaster in, so there is nothing to ask it.
-  if (!festival.startDate) return reply(200, view(festival, upcoming));
+  if (!festival.startDate) return answer(festival);
 
   let found;
   try {
     found = await fetchLineup(festival, { apiKey, get });
   } catch (err) {
     console.warn('[festivalLineup] Ticketmaster lookup failed', festivalId, err.message);
-    return reply(200, view(festival, upcoming));
+    return answer(festival);
   }
 
   const fetchedAt = new Date(now);
@@ -101,7 +127,7 @@ async function handle(event, { db, get = httpsGetJson, apiKey = process.env.TICK
     ? { lineup: found.lineup, lineupSource: 'ticketmaster', lineupUrl: found.url, lineupFetchedAt: fetchedAt }
     : { lineupFetchedAt: fetchedAt };
   await ref.set(update, { merge: true });
-  return reply(200, view({ ...festival, ...update }, upcoming));
+  return answer({ ...festival, ...update });
 }
 
 exports.handler = async function (event) {

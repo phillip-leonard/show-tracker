@@ -1,0 +1,330 @@
+{
+  "limits": {
+    "nameMax": 120,
+    "minYear": 1900,
+    "maxYear": 2100
+  },
+  "festivals": [
+    {
+      "name": "dated",
+      "festival": {
+        "startDate": "2024-06-13",
+        "endDate": "2024-06-16"
+      },
+      "year": 2024,
+      "yearOnly": false,
+      "sortKey": "2024-06-13",
+      "lastDay": "2024-06-16",
+      "fits": {
+        "2024-06-13": true,
+        "2024-06-16": true,
+        "2024-06-17": false,
+        "2024-06-12": false,
+        "15-06-2024": true,
+        "2019-01-01": false,
+        "2019-12-31": false,
+        "2020-01-01": false,
+        "2024-01-01": false,
+        "2023-12-31": false,
+        "": true,
+        "not a date": false
+      }
+    },
+    {
+      "name": "datedWithYear",
+      "festival": {
+        "startDate": "2024-06-13",
+        "endDate": "2024-06-16",
+        "year": 2024
+      },
+      "year": 2024,
+      "yearOnly": false,
+      "sortKey": "2024-06-13",
+      "lastDay": "2024-06-16",
+      "fits": {
+        "2024-06-13": true,
+        "2024-06-16": true,
+        "2024-06-17": false,
+        "2024-06-12": false,
+        "15-06-2024": true,
+        "2019-01-01": false,
+        "2019-12-31": false,
+        "2020-01-01": false,
+        "2024-01-01": false,
+        "2023-12-31": false,
+        "": true,
+        "not a date": false
+      }
+    },
+    {
+      "name": "oneDay",
+      "festival": {
+        "startDate": "2024-09-07",
+        "endDate": "2024-09-07"
+      },
+      "year": 2024,
+      "yearOnly": false,
+      "sortKey": "2024-09-07",
+      "lastDay": "2024-09-07",
+      "fits": {
+        "2024-06-13": false,
+        "2024-06-16": false,
+        "2024-06-17": false,
+        "2024-06-12": false,
+        "15-06-2024": false,
+        "2019-01-01": false,
+        "2019-12-31": false,
+        "2020-01-01": false,
+        "2024-01-01": false,
+        "2023-12-31": false,
+        "": true,
+        "not a date": false
+      }
+    },
+    {
+      "name": "startOnly",
+      "festival": {
+        "startDate": "2024-06-13"
+      },
+      "year": 2024,
+      "yearOnly": false,
+      "sortKey": "2024-06-13",
+      "lastDay": "2024-06-13",
+      "fits": {
+        "2024-06-13": true,
+        "2024-06-16": false,
+        "2024-06-17": false,
+        "2024-06-12": false,
+        "15-06-2024": false,
+        "2019-01-01": false,
+        "2019-12-31": false,
+        "2020-01-01": false,
+        "2024-01-01": false,
+        "2023-12-31": false,
+        "": true,
+        "not a date": false
+      }
+    },
+    {
+      "name": "newYear",
+      "festival": {
+        "startDate": "2023-12-30",
+        "endDate": "2024-01-02"
+      },
+      "year": 2023,
+      "yearOnly": false,
+      "sortKey": "2023-12-30",
+      "lastDay": "2024-01-02",
+      "fits": {
+        "2024-06-13": false,
+        "2024-06-16": false,
+        "2024-06-17": false,
+        "2024-06-12": false,
+        "15-06-2024": false,
+        "2019-01-01": false,
+        "2019-12-31": false,
+        "2020-01-01": false,
+        "2024-01-01": true,
+        "2023-12-31": true,
+        "": true,
+        "not a date": false
+      }
+    },
+    {
+      "name": "yearOnly",
+      "festival": {
+        "year": 2019
+      },
+      "year": 2019,
+      "yearOnly": true,
+      "sortKey": "2019-00-00",
+      "lastDay": "2019-12-31",
+      "fits": {
+        "2024-06-13": false,
+        "2024-06-16": false,
+        "2024-06-17": false,
+        "2024-06-12": false,
+        "15-06-2024": false,
+        "2019-01-01": true,
+        "2019-12-31": true,
+        "2020-01-01": false,
+        "2024-01-01": false,
+        "2023-12-31": false,
+        "": true,
+        "not a date": false
+      }
+    },
+    {
+      "name": "yearOutOfRange",
+      "festival": {
+        "year": 1850
+      },
+      "year": null,
+      "yearOnly": false,
+      "sortKey": "",
+      "lastDay": "",
+      "fits": {
+        "2024-06-13": true,
+        "2024-06-16": true,
+        "2024-06-17": true,
+        "2024-06-12": true,
+        "15-06-2024": true,
+        "2019-01-01": true,
+        "2019-12-31": true,
+        "2020-01-01": true,
+        "2024-01-01": true,
+        "2023-12-31": true,
+        "": true,
+        "not a date": true
+      }
+    },
+    {
+      "name": "yearNotWhole",
+      "festival": {
+        "year": 2019.5
+      },
+      "year": null,
+      "yearOnly": false,
+      "sortKey": "",
+      "lastDay": "",
+      "fits": {
+        "2024-06-13": true,
+        "2024-06-16": true,
+        "2024-06-17": true,
+        "2024-06-12": true,
+        "15-06-2024": true,
+        "2019-01-01": true,
+        "2019-12-31": true,
+        "2020-01-01": true,
+        "2024-01-01": true,
+        "2023-12-31": true,
+        "": true,
+        "not a date": true
+      }
+    },
+    {
+      "name": "unknown",
+      "festival": {},
+      "year": null,
+      "yearOnly": false,
+      "sortKey": "",
+      "lastDay": "",
+      "fits": {
+        "2024-06-13": true,
+        "2024-06-16": true,
+        "2024-06-17": true,
+        "2024-06-12": true,
+        "15-06-2024": true,
+        "2019-01-01": true,
+        "2019-12-31": true,
+        "2020-01-01": true,
+        "2024-01-01": true,
+        "2023-12-31": true,
+        "": true,
+        "not a date": true
+      }
+    }
+  ],
+  "whenFields": [
+    {
+      "input": {
+        "startDate": "2024-06-13",
+        "endDate": "2024-06-16"
+      },
+      "output": {
+        "startDate": "2024-06-13",
+        "endDate": "2024-06-16",
+        "year": 2024
+      }
+    },
+    {
+      "input": {
+        "startDate": "2024-06-13"
+      },
+      "output": {
+        "startDate": "2024-06-13",
+        "endDate": "2024-06-13",
+        "year": 2024
+      }
+    },
+    {
+      "input": {
+        "startDate": "2024-06-13",
+        "endDate": ""
+      },
+      "output": {
+        "startDate": "2024-06-13",
+        "endDate": "2024-06-13",
+        "year": 2024
+      }
+    },
+    {
+      "input": {
+        "startDate": "2024-06-16",
+        "endDate": "2024-06-13"
+      },
+      "output": null
+    },
+    {
+      "input": {
+        "startDate": "13-06-2024",
+        "endDate": "16-06-2024"
+      },
+      "output": null
+    },
+    {
+      "input": {
+        "startDate": "1850-06-13",
+        "endDate": "1850-06-14"
+      },
+      "output": null
+    },
+    {
+      "input": {
+        "year": 2019
+      },
+      "output": {
+        "year": 2019
+      }
+    },
+    {
+      "input": {
+        "year": "2019"
+      },
+      "output": {
+        "year": 2019
+      }
+    },
+    {
+      "input": {
+        "year": 2019,
+        "startDate": ""
+      },
+      "output": {
+        "year": 2019
+      }
+    },
+    {
+      "input": {
+        "year": 1850
+      },
+      "output": null
+    },
+    {
+      "input": {
+        "year": 2101
+      },
+      "output": null
+    },
+    {
+      "input": {
+        "year": "20x9"
+      },
+      "output": null
+    },
+    {
+      "input": {},
+      "output": null
+    }
+  ]
+}
