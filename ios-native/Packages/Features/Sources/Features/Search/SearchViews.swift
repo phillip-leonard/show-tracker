@@ -174,17 +174,23 @@ struct SearchHome: View {
 
 // MARK: - Advanced search
 
-/// The web's Advanced search: every filter, live results, sort, and saving.
+/// The web's Advanced search, results first (Stage 4 TestFlight, native
+/// 4.0.43): a count and the matching shows fill the screen; "Filters" opens
+/// every filter in a sheet; each active filter is a chip above the results
+/// that removes it; saved and recent searches are in the toolbar menu.
+/// With no filter set it lists all your shows.
 struct AdvancedSearchScreen: View {
     @Environment(ShowsStore.self) private var store
     @Environment(SessionStore.self) private var session
     @Environment(FriendsStore.self) private var friendsStore
     @State private var filters: ShowSearchFilters
     @State private var sort = ShowSearch.Sort.newest
+    @State private var editing = false
     @State private var naming = false
     @State private var saveName = ""
     @State private var notice: String?
-    @FocusState private var focused: Bool
+    @State private var saved: [SavedSearch] = []
+    @State private var recent: [RecentSearch] = []
 
     init(initial: ShowSearchFilters) {
         _filters = State(initialValue: initial)
@@ -197,139 +203,176 @@ struct AdvancedSearchScreen: View {
     var body: some View {
         let tours = store.tours.values.sorted { $0.tourName.localizedStandardCompare($1.tourName) == .orderedAscending }
         let festivals = ShowSearch.festivals(store.shows)
-        let friendList = isGuest ? [] : friendsStore.friends
-        let results = results(tours: tours)
+        let friendList: [FriendEdge] = isGuest ? [] : friendsStore.friends
+        let results = results()
+        let chips = chips(tours: tours, festivals: festivals)
         return List {
             Section {
-                HStack(spacing: Space.x2) {
-                    ForEach(ShowSearch.Preset.allCases) { preset in
-                        Button(preset.title) { filters = ShowSearch.apply(preset, to: filters, today: today) }
-                            .buttonStyle(.bordered)
-                            .tint(.brand)
-                            .controlSize(.small)
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                chipRow(chips)
             }
             .listRowBackground(Color.clear)
-            .listRowInsets(EdgeInsets(top: 0, leading: Space.x4, bottom: 0, trailing: Space.x4))
+            .listRowInsets(EdgeInsets(top: Space.x1, leading: 0, bottom: Space.x1, trailing: 0))
 
-            Section("Who and where") {
-                SuggestField("Band", text: $filters.artist, prompt: "Any band",
-                             options: ShowSearch.options(store.shows.map(\.artist)))
-                SuggestField("Venue", text: $filters.venue, prompt: "Any venue",
-                             options: ShowSearch.options(store.shows.map(\.venue)))
-                SuggestField("City", text: $filters.city, prompt: "Any city",
-                             options: ShowSearch.options(store.shows.map(\.city)))
-                SuggestField("Country", text: $filters.country, prompt: "Any country",
-                             options: ShowSearch.options(store.shows.compactMap(\.country)))
-            }
-            .brandRow()
-
-            Section("When") {
-                DayField(title: "From", day: $filters.dateFrom)
-                DayField(title: "To", day: $filters.dateTo)
-            }
-            .brandRow()
-
-            Section("More") {
-                Picker("Tour", selection: $filters.tourKey) {
-                    Text("Any tour").tag("")
-                    ForEach(tours) { Text("\($0.tourName) (\($0.artistName))").tag($0.key) }
-                }
-                if !festivals.isEmpty {
-                    Picker("Festival", selection: $filters.festivalKey) {
-                        Text("Any festival").tag("")
-                        ForEach(festivals) { Text($0.name).tag($0.id) }
+            Section {
+                if !store.showsLoaded {
+                    ProgressView("Loading your shows").frame(maxWidth: .infinity)
+                } else if results.isEmpty {
+                    if filters.isActive {
+                        ContentUnavailableView {
+                            Label("No shows match", systemImage: "magnifyingglass")
+                        } description: {
+                            Text("Remove a filter or two.")
+                        } actions: {
+                            Button("Edit filters") { editing = true }
+                        }
+                    } else {
+                        ContentUnavailableView("No shows yet", systemImage: "music.mic",
+                                               description: Text("Shows you add are searchable here."))
                     }
                 }
-                Picker("Minimum rating", selection: $filters.minRating) {
-                    Text("Any rating").tag(0)
-                    ForEach(1...10, id: \.self) { Text("\($0)★ and up").tag($0) }
-                }
-                if !friendList.isEmpty {
-                    Picker("With friend", selection: $filters.friendUid) {
-                        Text("Any friend").tag("")
-                        ForEach(friendList) { Text($0.friendName ?? "Friend").tag($0.friendUid) }
-                    }
-                }
-                LabeledField("My notes contain", text: $filters.notes, prompt: "Search your notes")
-                LabeledField("Setlist song", text: $filters.song, prompt: "e.g. Tweezer")
-            }
-            .brandRow()
-
-            if filters.isActive {
-                Section {
-                    if results.isEmpty {
-                        ContentUnavailableView("No shows match these filters", systemImage: "magnifyingglass",
-                                               description: Text("Try loosening a filter or two."))
-                    }
-                    ForEach(results) { match in
-                        NavigationLink(value: AppRoute.show(id: match.show.id)) {
-                            VStack(alignment: .leading, spacing: 2) {
-                                ShowRow(show: match.show, today: today)
-                                if let hint = ShowSearch.hint(match.fields) {
-                                    Text(hint)
-                                        .font(.jakarta(size: 12, relativeTo: .caption))
-                                        .foregroundStyle(Color.textSecondary)
-                                }
+                ForEach(results) { match in
+                    NavigationLink(value: AppRoute.show(id: match.show.id)) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            ShowRow(show: match.show, today: today)
+                            if let hint = ShowSearch.hint(match.fields) {
+                                Text(hint)
+                                    .font(.jakarta(size: 12, relativeTo: .caption))
+                                    .foregroundStyle(Color.textSecondary)
                             }
                         }
                     }
-                } header: {
-                    HStack {
-                        Text(ShowSearch.countLine(results.count))
-                        Spacer()
-                        Menu {
-                            Picker("Sort", selection: $sort) {
-                                ForEach(ShowSearch.Sort.allCases) { Text($0.title).tag($0) }
-                            }
-                        } label: {
-                            Label(sort.title, systemImage: "arrow.up.arrow.down")
-                                .font(.footnote)
+                }
+            } header: {
+                HStack {
+                    Text(ShowSearch.countLine(results.count))
+                        .font(.jakarta(size: 15, weight: .semibold, relativeTo: .subheadline))
+                        .foregroundStyle(Color.textPrimary)
+                        .contentTransition(.numericText())
+                        .accessibilityAddTraits(.updatesFrequently)
+                    Spacer()
+                    Menu {
+                        Picker("Sort", selection: $sort) {
+                            ForEach(ShowSearch.Sort.allCases) { Text($0.title).tag($0) }
                         }
-                        .textCase(nil)
+                    } label: {
+                        Label(sort.title, systemImage: "arrow.up.arrow.down")
+                            .font(.footnote)
                     }
+                    .accessibilityLabel("Sort: \(sort.title)")
                 }
-                .brandRow()
-            } else {
-                Section {
-                    Text("Set any filter to see your matching shows.")
-                        .foregroundStyle(Color.textSecondary)
-                }
-                .brandRow()
+                .textCase(nil)
             }
+            .brandRow()
         }
         .brandScreen()
+        .animation(.default, value: chips)
         .navigationTitle("Advanced search")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                Menu {
-                    Button { saveName = ""; naming = true } label: { Label("Save search", systemImage: "bookmark") }
-                        .disabled(!filters.isActive || uid == nil)
-                    Button(role: .destructive) { filters = ShowSearchFilters() } label: { Label("Clear filters", systemImage: "xmark") }
-                        .disabled(!filters.isActive)
-                } label: {
-                    Label("Search options", systemImage: "ellipsis.circle")
+                Button { editing = true } label: {
+                    Text(chips.isEmpty ? "Filters" : "Filters (\(chips.count))")
                 }
+                .accessibilityLabel(chips.isEmpty ? "Filters" : "Filters, \(chips.count) on")
             }
+            ToolbarItem(placement: .primaryAction) { searchesMenu }
+        }
+        .sheet(isPresented: $editing) {
+            SearchFiltersSheet(filters: $filters, resultCount: results.count, tours: tours,
+                               festivals: festivals, friends: friendList)
+                .presentationDetents([.large])
         }
         .alert("Name this search", isPresented: $naming) {
             TextField("Name", text: $saveName)
-            Button("Save") { save(tours: tours, festivals: festivals) }
+            Button("Save") { save() }
                 .disabled(saveName.trimmingCharacters(in: .whitespaces).isEmpty)
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("Saved searches are kept on this iPhone.")
         }
         .notice($notice)
+        .onAppear(perform: reloadSearches)
         // A search you looked at goes into Recent searches when you leave it.
         .onDisappear { record(tours: tours, festivals: festivals) }
     }
 
-    private func results(tours: [TourIndex.Tour]) -> [ShowSearch.Match] {
-        guard filters.isActive else { return [] }
+    // MARK: Chips
+
+    private func chips(tours: [TourIndex.Tour], festivals: [ShowSearch.FestivalOption]) -> [ShowSearch.Chip] {
+        ShowSearch.chips(filters,
+                         tourName: tours.first { $0.key == filters.tourKey }?.tourName,
+                         festivalName: festivals.first { $0.id == filters.festivalKey }?.name,
+                         friendName: friendsStore.friends.first { $0.friendUid == filters.friendUid }?.friendName,
+                         day: ShowDateText.display)
+    }
+
+    /// The active filters, each removable; with none, the date presets.
+    private func chipRow(_ chips: [ShowSearch.Chip]) -> some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: Space.x2) {
+                if chips.isEmpty {
+                    ForEach(ShowSearch.Preset.allCases) { preset in
+                        Button(preset.title) { filters = ShowSearch.apply(preset, to: filters, today: today) }
+                            .buttonStyle(.bordered)
+                            .tint(.brand)
+                            .controlSize(.small)
+                    }
+                } else {
+                    ForEach(chips) { chip in
+                        FilterChip(label: chip.label) { filters = ShowSearch.clearing(chip.field, in: filters) }
+                    }
+                    if chips.count > 1 {
+                        Button("Clear all") { filters = ShowSearchFilters() }
+                            .font(.jakarta(size: 14, weight: .semibold, relativeTo: .subheadline))
+                            .foregroundStyle(Color.brand)
+                            .frame(minHeight: 44)
+                    }
+                }
+            }
+            .padding(.horizontal, Space.x4)
+        }
+    }
+
+    // MARK: Saved and recent
+
+    private var searchesMenu: some View {
+        Menu {
+            Button { saveName = ""; naming = true } label: { Label("Save search", systemImage: "bookmark") }
+                .disabled(!filters.isActive || uid == nil)
+            if !saved.isEmpty {
+                Section("Saved searches") {
+                    ForEach(saved) { search in
+                        Button { filters = search.filters } label: { Label(search.name, systemImage: "bookmark.fill") }
+                    }
+                }
+            }
+            let runs = recent.filter { $0.filters != nil }
+            if !runs.isEmpty {
+                Section("Recent searches") {
+                    ForEach(runs) { item in
+                        Button { if let f = item.filters { filters = f } } label: { Label(item.summary, systemImage: "clock") }
+                    }
+                }
+            }
+            if filters.isActive {
+                Divider()
+                Button(role: .destructive) { filters = ShowSearchFilters() } label: { Label("Clear filters", systemImage: "xmark") }
+            }
+        } label: {
+            Label("Saved and recent searches", systemImage: "bookmark")
+        }
+    }
+
+    private func reloadSearches() {
+        guard let uid else { saved = []; recent = []; return }
+        let store = SavedSearches(uid: uid)
+        saved = store.saved
+        recent = store.recent
+    }
+
+    // MARK: Results
+
+    private func results() -> [ShowSearch.Match] {
         let tourIds: Set<String>? = filters.tourKey.isEmpty ? nil : Set(store.tours[filters.tourKey]?.stops.map(\.showId) ?? [])
         let festivalIds = ShowSearch.festivalShowIds(store.shows, festivalId: filters.festivalKey)
         return ShowSearch.sorted(ShowSearch.filter(store.shows, filters, tourShowIds: tourIds, festivalShowIds: festivalIds), by: sort)
@@ -347,12 +390,129 @@ struct AdvancedSearchScreen: View {
         SavedSearches(uid: uid).push(summary: summary(tours: tours, festivals: festivals), filters: filters)
     }
 
-    private func save(tours: [TourIndex.Tour], festivals: [ShowSearch.FestivalOption]) {
+    private func save() {
         guard let uid else { return }
         let name = saveName.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !name.isEmpty else { return }
-        SavedSearches(uid: uid).save(name: name, filters: filters)
+        saved = SavedSearches(uid: uid).save(name: name, filters: filters)
         notice = "Saved “\(name)”."
+    }
+}
+
+/// An active filter above the results; tapping it removes it.
+private struct FilterChip: View {
+    let label: String
+    let remove: () -> Void
+
+    var body: some View {
+        Button(action: remove) {
+            HStack(spacing: Space.x1) {
+                Text(label).lineLimit(1)
+                Image(systemName: "xmark")
+                    .font(.system(size: 11, weight: .bold))
+                    .accessibilityHidden(true)
+            }
+            .font(.jakarta(size: 14, weight: .medium, relativeTo: .subheadline))
+            .foregroundStyle(Color.brand)
+            .padding(.horizontal, Space.x3)
+            .padding(.vertical, 6)
+            .background(Color.brandSubtle, in: Capsule())
+            .frame(minHeight: 44)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(label)
+        .accessibilityHint("Removes this filter")
+    }
+}
+
+/// Every filter, in a sheet over the results; the count updates as you go.
+private struct SearchFiltersSheet: View {
+    @Environment(ShowsStore.self) private var store
+    @Environment(\.dismiss) private var dismiss
+    @Binding var filters: ShowSearchFilters
+    let resultCount: Int
+    let tours: [TourIndex.Tour]
+    let festivals: [ShowSearch.FestivalOption]
+    let friends: [FriendEdge]
+
+    private var today: String { ShowDate.today() }
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section {
+                    HStack(spacing: Space.x2) {
+                        ForEach(ShowSearch.Preset.allCases) { preset in
+                            Button(preset.title) { filters = ShowSearch.apply(preset, to: filters, today: today) }
+                                .buttonStyle(.bordered)
+                                .tint(.brand)
+                                .controlSize(.small)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .listRowBackground(Color.clear)
+                .listRowInsets(EdgeInsets(top: 0, leading: Space.x4, bottom: 0, trailing: Space.x4))
+
+                Section("Who and where") {
+                    SuggestField("Band", text: $filters.artist, prompt: "Any band",
+                                 options: ShowSearch.options(store.shows.map(\.artist)))
+                    SuggestField("Venue", text: $filters.venue, prompt: "Any venue",
+                                 options: ShowSearch.options(store.shows.map(\.venue)))
+                    SuggestField("City", text: $filters.city, prompt: "Any city",
+                                 options: ShowSearch.options(store.shows.map(\.city)))
+                    SuggestField("Country", text: $filters.country, prompt: "Any country",
+                                 options: ShowSearch.options(store.shows.compactMap(\.country)))
+                }
+                .brandRow()
+
+                Section("When") {
+                    DayField(title: "From", day: $filters.dateFrom)
+                    DayField(title: "To", day: $filters.dateTo)
+                }
+                .brandRow()
+
+                Section("More") {
+                    Picker("Tour", selection: $filters.tourKey) {
+                        Text("Any tour").tag("")
+                        ForEach(tours) { Text("\($0.tourName) (\($0.artistName))").tag($0.key) }
+                    }
+                    if !festivals.isEmpty {
+                        Picker("Festival", selection: $filters.festivalKey) {
+                            Text("Any festival").tag("")
+                            ForEach(festivals) { Text($0.name).tag($0.id) }
+                        }
+                    }
+                    Picker("Minimum rating", selection: $filters.minRating) {
+                        Text("Any rating").tag(0)
+                        ForEach(1...10, id: \.self) { Text("\($0)★ and up").tag($0) }
+                    }
+                    if !friends.isEmpty {
+                        Picker("With friend", selection: $filters.friendUid) {
+                            Text("Any friend").tag("")
+                            ForEach(friends) { Text($0.friendName ?? "Friend").tag($0.friendUid) }
+                        }
+                    }
+                    LabeledField("My notes contain", text: $filters.notes, prompt: "Search your notes")
+                    LabeledField("Setlist song", text: $filters.song, prompt: "e.g. Tweezer")
+                }
+                .brandRow()
+            }
+            .brandScreen()
+            .navigationTitle("Filters")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Clear") { filters = ShowSearchFilters() }
+                        .disabled(!filters.isActive)
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Show \(ShowSearch.countLine(resultCount))") { dismiss() }
+                        .fontWeight(.semibold)
+                }
+            }
+        }
     }
 }
 

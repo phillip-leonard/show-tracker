@@ -4,6 +4,42 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.60.37] — 2026-11-19
+
+Ships in **iOS 3.13.53** (Capacitor, `MARKETING_VERSION` 3.13.52 → 3.13.53)
+and **native 4.0.43**. Two fixes from Stage 4 TestFlight.
+
+**A tour's nights come a page at a time.** `get-tour-shows` takes an
+optional `page=N` and answers for one setlist.fm page (20 rows): that tour's
+nights from the page, plus `page`, `pages`, `seen` of `upstreamTotal` for a
+progress line, and `complete`. Each page is cached for 12 hours on its own
+(`tourshowsp_` in `setlistCache`), and the page that completes a tour also
+writes the whole-tour entry when every earlier page is still cached, so the
+next open (the web's one-shot request included) is a single cached answer.
+Page 1 returns the whole tour at once when that entry is fresh. Without
+`page` nothing changes; the web still asks for the whole tour.
+`tests/setlists/tourShowsPaging.test.js`.
+
+Native (4.0.43):
+
+- **Add shows from a tour lists nights as they arrive**, with "Loading 20 of
+  149 nights…" under them while later pages come in, instead of a blank
+  wait for the whole walk. Pages go one after another with a short pause
+  (setlist.fm allows about two requests a second); a busy answer is tried
+  once more, and if a later page still fails the nights already listed stay
+  with "Load the rest of the tour". From a tour's own page the sheet now
+  goes straight to that tour's nights instead of fetching the band's tour
+  list first; the list is only fetched if setlist.fm has no nights under
+  that exact name, or when you go back to it.
+- **Advanced search shows results first.** A count ("12 shows") and the
+  matching shows fill the screen (all your shows when no filter is set).
+  "Filters" opens every filter in a sheet whose button shows the live count;
+  each active filter is a chip above the results that removes it, with
+  "Clear all"; the date presets sit in the chip row when nothing is set.
+  Saved and recent searches are in the toolbar's bookmark menu, as is Save
+  search, and stay on the Search tab as before. The count line everywhere in
+  Search reads "12 shows" (was "12 shows found").
+
 ## [5.60.36] — 2026-11-19
 
 Ships in **iOS 3.13.52** (Capacitor, `MARKETING_VERSION` 3.13.51 → 3.13.52).

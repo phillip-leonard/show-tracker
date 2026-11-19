@@ -132,12 +132,68 @@ public struct TourShows: Decodable, Sendable {
         truncated = try c.decodeIfPresent(Bool.self, forKey: .truncated) ?? false
     }
 
+    public init(tourName: String, shows: [Night], truncated: Bool) {
+        self.tourName = tourName
+        self.shows = shows
+        self.truncated = truncated
+    }
+
+    /// These nights with a page's added: one row per night, in date order
+    /// (then venue), as the function sorts a whole tour.
+    public func adding(_ page: TourShowsPage) -> TourShows {
+        var ids = Set(shows.map(\.id))
+        var merged = shows
+        for night in page.shows where ids.insert(night.id).inserted { merged.append(night) }
+        merged.sort { ($0.date, $0.venue) < ($1.date, $1.venue) }
+        return TourShows(tourName: tourName.isEmpty ? page.tourName : tourName, shows: merged, truncated: truncated || page.truncated)
+    }
+
     /// One of yours already (`existingShowStatus`): the same setlist.fm
     /// setlist, or the same band on the same day.
     public static func isYours(_ night: Night, in shows: [Show]) -> Bool {
         if let id = night.setlistfmId, shows.contains(where: { $0.setlistfmId == id }) { return true }
         let band = StatsKeys.bandKey(night.artist)
         return !night.date.isEmpty && shows.contains { StatsKeys.bandKey($0.artist) == band && ShowDate.isSameDay($0.date, night.date) }
+    }
+}
+
+/// `get-tour-shows?page=N` (5.60.37): one setlist.fm page of a tour, so the
+/// sheet can list nights as they arrive. Page 1 is the whole tour at once
+/// when the server has it cached (`complete`).
+public struct TourShowsPage: Decodable, Sendable {
+    public var tourName: String
+    public var shows: [TourShows.Night]
+    public var page: Int
+    /// How many pages the walk takes (at most the function's cap of 10).
+    public var pages: Int
+    /// setlist.fm rows walked so far, of `upstreamTotal`: the progress line.
+    public var seen: Int
+    public var upstreamTotal: Int
+    public var truncated: Bool
+    /// No page after this one.
+    public var complete: Bool
+
+    enum CodingKeys: String, CodingKey { case tourName, shows, page, pages, seen, upstreamTotal, truncated, complete }
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        tourName = try c.decodeIfPresent(String.self, forKey: .tourName) ?? ""
+        shows = (try? c.decodeIfPresent([TourShows.Night].self, forKey: .shows)) ?? []
+        page = try c.decodeIfPresent(Int.self, forKey: .page) ?? 1
+        pages = try c.decodeIfPresent(Int.self, forKey: .pages) ?? page
+        upstreamTotal = try c.decodeIfPresent(Int.self, forKey: .upstreamTotal) ?? shows.count
+        seen = try c.decodeIfPresent(Int.self, forKey: .seen) ?? upstreamTotal
+        truncated = try c.decodeIfPresent(Bool.self, forKey: .truncated) ?? false
+        // An answer without the field is a whole tour (an older server).
+        complete = try c.decodeIfPresent(Bool.self, forKey: .complete) ?? true
+    }
+
+    /// The next page to ask for, or nil when this was the last.
+    public var nextPage: Int? { complete || page >= pages ? nil : page + 1 }
+
+    /// "Loading 20 of 149 nights…" while pages are still coming, else nil.
+    public var progressLine: String? {
+        guard nextPage != nil, upstreamTotal > 0 else { return nil }
+        return "Loading \(min(seen, upstreamTotal)) of \(upstreamTotal) nights…"
     }
 }
 
@@ -160,6 +216,11 @@ public enum TourLookups {
 
     public static func tourShows(mbid: String, tourName: String, api: APIClient) async throws(APIError) -> TourShows {
         try await api.get("get-tour-shows", query: ["mbid": mbid, "tourName": tourName], auth: .none, as: TourShows.self)
+    }
+
+    /// One page of a tour's nights (see `TourShowsPage`).
+    public static func tourShowsPage(mbid: String, tourName: String, page: Int, api: APIClient) async throws(APIError) -> TourShowsPage {
+        try await api.get("get-tour-shows", query: ["mbid": mbid, "tourName": tourName, "page": String(page)], auth: .none, as: TourShowsPage.self)
     }
 
     /// The words to show for a failed lookup (the functions send their own

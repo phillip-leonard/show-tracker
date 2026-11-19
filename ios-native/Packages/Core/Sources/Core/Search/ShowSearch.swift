@@ -159,8 +159,66 @@ public enum ShowSearch {
         return words.isEmpty ? nil : words.joined(separator: " · ")
     }
 
-    /// "1 show found", "12 shows found".
-    public static func countLine(_ n: Int) -> String { "\(n) show\(n == 1 ? "" : "s") found" }
+    /// "1 show", "12 shows": the count above the results.
+    public static func countLine(_ n: Int) -> String { "\(n) show\(n == 1 ? "" : "s")" }
+
+    // MARK: Chips
+
+    /// One active filter, shown above the results as a chip that removes it.
+    /// The two dates are one chip.
+    public enum ChipField: String, CaseIterable, Sendable {
+        case artist, venue, city, country, dates, tour, festival, rating, notes, friend, song
+    }
+
+    public struct Chip: Hashable, Sendable, Identifiable {
+        public var field: ChipField
+        public var label: String
+        public var id: String { field.rawValue }
+    }
+
+    /// The active filters as chips, in the filter sheet's order. `day`
+    /// formats a `YYYY-MM-DD` for display.
+    public static func chips(_ f: ShowSearchFilters, tourName: String? = nil, festivalName: String? = nil,
+                             friendName: String? = nil, day: (String) -> String = { $0 }) -> [Chip] {
+        func set(_ value: String) -> Bool { !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+        var chips: [Chip] = []
+        if set(f.artist) { chips.append(Chip(field: .artist, label: f.artist)) }
+        if set(f.venue) { chips.append(Chip(field: .venue, label: "@ \(f.venue)")) }
+        if set(f.city) { chips.append(Chip(field: .city, label: f.city)) }
+        if set(f.country) { chips.append(Chip(field: .country, label: f.country)) }
+        switch (set(f.dateFrom), set(f.dateTo)) {
+        case (true, true): chips.append(Chip(field: .dates, label: "\(day(f.dateFrom)) – \(day(f.dateTo))"))
+        case (true, false): chips.append(Chip(field: .dates, label: "From \(day(f.dateFrom))"))
+        case (false, true): chips.append(Chip(field: .dates, label: "Until \(day(f.dateTo))"))
+        case (false, false): break
+        }
+        if set(f.tourKey) { chips.append(Chip(field: .tour, label: tourName ?? "Tour")) }
+        if set(f.festivalKey) { chips.append(Chip(field: .festival, label: festivalName ?? "Festival")) }
+        if f.minRating > 0 { chips.append(Chip(field: .rating, label: "\(f.minRating)★ and up")) }
+        if set(f.notes) { chips.append(Chip(field: .notes, label: "Notes: “\(f.notes)”")) }
+        if set(f.friendUid) { chips.append(Chip(field: .friend, label: "With \(friendName ?? "friend")")) }
+        if set(f.song) { chips.append(Chip(field: .song, label: "Song: “\(f.song)”")) }
+        return chips
+    }
+
+    /// The filters with one chip's filter set back to "any".
+    public static func clearing(_ field: ChipField, in filters: ShowSearchFilters) -> ShowSearchFilters {
+        var f = filters
+        switch field {
+        case .artist: f.artist = ""
+        case .venue: f.venue = ""
+        case .city: f.city = ""
+        case .country: f.country = ""
+        case .dates: f.dateFrom = ""; f.dateTo = ""
+        case .tour: f.tourKey = ""
+        case .festival: f.festivalKey = ""
+        case .rating: f.minRating = 0
+        case .notes: f.notes = ""
+        case .friend: f.friendUid = ""
+        case .song: f.song = ""
+        }
+        return f
+    }
 
     // MARK: Presets
 

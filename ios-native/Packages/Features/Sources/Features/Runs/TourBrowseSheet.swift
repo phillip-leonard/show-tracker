@@ -9,6 +9,12 @@ import SwiftUI
 // with the text filled in when it can't. Nights already yours are marked
 // and can't be picked; a night that may be yours (same band and day, venue
 // spelled differently) says so and can still be picked.
+//
+// A tour's nights come a setlist.fm page at a time (`get-tour-shows?page=`,
+// 5.60.37): the first nights are listed as soon as they arrive, with
+// "Loading 20 of 149 nights…" under them while the rest come in. From a
+// tour's own page the sheet goes straight to that tour's nights; the band's
+// tour list is only fetched if you go back to it.
 
 struct TourBrowseSheet: View {
     enum Start {
@@ -32,6 +38,10 @@ struct TourBrowseSheet: View {
     @State private var tourFilter = ""
     @State private var tourName: String?
     @State private var nights: TourShows?
+    /// "Loading 20 of 149 nights…" while later pages are on their way.
+    @State private var progress: String?
+    /// The page a walk stopped at (setlist.fm busy, or offline), to resume.
+    @State private var resumePage: Int?
     @State private var nightFilter = ""
     @State private var selected: Set<String> = []
     @State private var failed: Set<String> = []
@@ -220,6 +230,25 @@ struct TourBrowseSheet: View {
                 }
             }
             .brandRow()
+            if let progress {
+                Section {
+                    HStack(spacing: Space.x2) {
+                        ProgressView()
+                        Text(progress).foregroundStyle(Color.textSecondary)
+                    }
+                    .accessibilityElement(children: .combine)
+                }
+                .brandRow()
+            } else if let resumePage {
+                Section {
+                    Button { Task { await loadNights(from: resumePage) } } label: {
+                        Label("Load the rest of the tour", systemImage: "arrow.clockwise")
+                    }
+                } footer: {
+                    Text("Showing the first \(nights.shows.count) nights.")
+                }
+                .brandRow()
+            }
             ForEach(TourBrowse.grouped(visible)) { group in
                 Section {
                     ForEach(group.nights) { night in
@@ -228,7 +257,7 @@ struct TourBrowseSheet: View {
                 } header: {
                     if let label = group.label { Text(label) } else { Text("Tap the nights you were at") }
                 } footer: {
-                    if group.id == TourBrowse.grouped(visible).last?.id, nights.truncated {
+                    if group.id == TourBrowse.grouped(visible).last?.id, nights.truncated, progress == nil {
                         Text("The first 200 nights of the tour.")
                     }
                 }
@@ -280,7 +309,7 @@ struct TourBrowseSheet: View {
         query = name
         if let mbid {
             artist = SetlistfmSearch.Artist(mbid: mbid, name: name)
-            if let resolved = await loadTours(autoTourQuery: tour) { await pickTour(resolved.name) }
+            await openKnownTour(tour)
             return
         }
         // A show stores the band's name, not its id: find which band is
@@ -298,11 +327,23 @@ struct TourBrowseSheet: View {
                 return
             }
             artist = exact[0]
-            if let resolved = await loadTours(autoTourQuery: tour) { await pickTour(resolved.name) }
+            await openKnownTour(tour)
         } catch {
             guard mine == seq else { return }
             busy = false
             problem = TourLookups.message(error)
+        }
+    }
+
+    /// A tour named by your own shows (setlist.fm's own name for it): its
+    /// nights straight away, with no wait on the band's tour list. Only if
+    /// setlist.fm has no nights under that exact name is the list fetched
+    /// to find the tour it means.
+    private func openKnownTour(_ name: String) async {
+        await pickTour(name)
+        guard step == .nights, problem == nil, let nights, nights.shows.isEmpty, progress == nil, resumePage == nil else { return }
+        if let resolved = await loadTours(autoTourQuery: name), !TourBrowse.tourNamesMatch(resolved.name, name) {
+            await pickTour(resolved.name)
         }
     }
 
@@ -364,7 +405,7 @@ struct TourBrowseSheet: View {
         artists = []
         notice = nil
         if case .tour(_, let tour, _) = start {
-            if let resolved = await loadTours(autoTourQuery: tour) { await pickTour(resolved.name) }
+            await openKnownTour(tour)
         } else {
             _ = await loadTours(autoTourQuery: nil)
         }
@@ -397,8 +438,6 @@ struct TourBrowseSheet: View {
     }
 
     private func pickTour(_ name: String) async {
-        guard let artist else { return }
-        let mine = beginLookup()
         tourName = name
         nights = nil
         nightFilter = ""
@@ -406,15 +445,53 @@ struct TourBrowseSheet: View {
         failed = []
         result = nil
         step = .nights
+        await loadNights(from: 1)
+    }
+
+    /// The tour's nights from `page` on, listed as each page arrives.
+    /// setlist.fm allows about two requests a second, so pages go one after
+    /// another with a short pause (as the function's own walk does), and a
+    /// busy answer is tried once more before the walk stops where it is,
+    /// keeping the nights already listed, with "Load the rest" to go on.
+    private func loadNights(from first: Int) async {
+        guard let artist, let name = tourName else { return }
+        let mine = beginLookup()
+        resumePage = nil
         busy = true
-        defer { if mine == seq { busy = false } }
-        do {
-            let found = try await TourLookups.tourShows(mbid: artist.mbid, tourName: name, api: session.api)
-            guard mine == seq else { return }
-            nights = found
-        } catch {
-            guard mine == seq else { return }
-            problem = TourLookups.message(error)
+        defer {
+            if mine == seq {
+                busy = false
+                progress = nil
+            }
+        }
+        var page = first
+        var retried = false
+        while true {
+            do {
+                let answer = try await TourLookups.tourShowsPage(mbid: artist.mbid, tourName: name, page: page, api: session.api)
+                guard mine == seq else { return }
+                nights = (nights ?? TourShows(tourName: name, shows: [], truncated: false)).adding(answer)
+                guard let next = answer.nextPage else { return }
+                progress = answer.progressLine
+                page = next
+                retried = false
+                try? await Task.sleep(for: .milliseconds(250))
+                guard mine == seq else { return }
+            } catch {
+                guard mine == seq else { return }
+                if case .rateLimited = error, !retried, nights != nil {
+                    retried = true
+                    try? await Task.sleep(for: .seconds(2))
+                    guard mine == seq else { return }
+                    continue
+                }
+                if nights == nil {
+                    problem = TourLookups.message(error)
+                } else {
+                    resumePage = page
+                }
+                return
+            }
         }
     }
 
@@ -429,6 +506,8 @@ struct TourBrowseSheet: View {
             step = .tour
             tourName = nil
             nights = nil
+            progress = nil
+            resumePage = nil
             selected = []
             failed = []
             if tours == nil { Task { _ = await loadTours(autoTourQuery: nil) } }
