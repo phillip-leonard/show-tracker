@@ -6,8 +6,8 @@ import SwiftUI
 // FestivalDetailView: your festivals, and one festival's tiles, notes,
 // artists, lineup and shows by day, with "Pick from my shows", remove and
 // leave. Creating, joining, editing details, entering the lineup, the
-// lineup search and your picks come in 5-4. Accounts only (DECISIONS.md
-// "Guests"): a guest gets the account prompt.
+// lineup search and your picks (5-4) are in FestivalEditing.swift.
+// Accounts only (DECISIONS.md "Guests"): a guest gets the account prompt.
 
 /// "Jun 13, 2024 – Jun 16, 2024", "Jun 13, 2024", "2024", or "".
 func festivalWhen(_ f: Festival) -> String {
@@ -46,6 +46,7 @@ struct FestivalsScreen: View {
     @Environment(AppRouter.self) private var router
     @State private var query = ""
     @State private var year: String?
+    @State private var creating = false
 
     var body: some View {
         Group {
@@ -93,10 +94,10 @@ struct FestivalsScreen: View {
                         Text("Create a festival and attach the shows you caught there: multiple artists, one event, all grouped together. If someone's already added the one you went to, you can join theirs instead.")
                             .font(.jakarta(size: 14, relativeTo: .subheadline))
                             .foregroundStyle(Color.textSecondary)
-                        Button { router.show(LibraryDestination.festivals.webURL) } label: {
-                            Label("New festival on mysetlists.net", systemImage: "arrow.up.forward.square")
+                        Button { creating = true } label: {
+                            Label("New festival", systemImage: "plus")
                         }
-                        .buttonStyle(.bordered)
+                        .buttonStyle(.borderedProminent)
                         .tint(.brand)
                         .padding(.top, Space.x1)
                     }
@@ -131,7 +132,13 @@ struct FestivalsScreen: View {
         }
         .searchable(text: $query, prompt: "Filter by band, venue or festival")
         .refreshable { await store.refresh() }
+        .sheet(isPresented: $creating) {
+            FestivalFormSheet(editing: nil) { festival in router.push(.festival(id: festival.id)) }
+        }
         .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button { creating = true } label: { Label("New festival", systemImage: "plus") }
+            }
             ToolbarItem(placement: .topBarTrailing) {
                 let years = FestivalList.years(shows: shows.shows)
                 if !years.isEmpty {
@@ -211,7 +218,10 @@ private struct FestivalPage: View {
     @State private var confirmLeave = false
     @State private var leaving = false
     @State private var notice: String?
-    @State private var lineupAsked = false
+    @State private var lineupLoading = false
+    @State private var editingDetails = false
+    @State private var editingLineup = false
+    @State private var searchingLineup = false
 
     private var attached: [Show] { showsStore.shows.filter { $0.festivalId == festival.id } }
 
@@ -227,7 +237,11 @@ private struct FestivalPage: View {
                 .listRowBackground(Color.clear)
             notesSection
             if !stats.artists.isEmpty { artistsSection(stats.artists) }
-            lineupSection(today: today)
+            if festival.festivalId != nil, FestivalDates.isUpcoming(festival, today: today) || !festival.lineup.isEmpty || !festival.myLineup.isEmpty {
+                FestivalPicksSection(festival: festival, answer: store.lineupAnswers[festival.id], loading: lineupLoading) { editingLineup = true }
+            } else if !festival.myLineup.isEmpty {
+                FestivalPicksSection(festival: festival, answer: nil, loading: false) { editingLineup = true }
+            }
             showsSections(stats: stats, byId: byId, today: today)
         }
         .refreshable { await store.refresh() }
@@ -238,6 +252,15 @@ private struct FestivalPage: View {
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
                     Button { attaching = true } label: { Label("Pick from my shows", systemImage: "music.note.list") }
+                    Button { searchingLineup = true } label: { Label("Search the lineup", systemImage: "magnifyingglass") }
+                    if festival.lineup.isEmpty, festival.festivalId != nil {
+                        Button { editingLineup = true } label: {
+                            Label(festival.myLineup.isEmpty ? "Enter the lineup" : "Edit the lineup", systemImage: "list.bullet")
+                        }
+                    }
+                    if festival.isCreator || festival.unmigrated {
+                        Button { editingDetails = true } label: { Label("Edit festival", systemImage: "pencil") }
+                    }
                     Button { editingNotes = true } label: { Label(festival.notes.isEmpty ? "Add a note" : "Edit your note", systemImage: "square.and.pencil") }
                     Divider()
                     Button(role: .destructive) { confirmLeave = true } label: { Label("Leave festival", systemImage: "rectangle.portrait.and.arrow.right") }
@@ -249,6 +272,9 @@ private struct FestivalPage: View {
         }
         .sheet(isPresented: $attaching) { AttachShowsSheet(festival: festival) }
         .sheet(isPresented: $editingNotes) { FestivalNotesSheet(festival: festival) }
+        .sheet(isPresented: $editingDetails) { FestivalFormSheet(editing: festival) { _ in notice = "Saved. Everyone who added this festival sees the change." } }
+        .sheet(isPresented: $editingLineup) { LineupEditorSheet(festival: festival) { Task { await askLineup() } } }
+        .sheet(isPresented: $searchingLineup) { LineupSearchSheet(festival: festival) }
         .confirmationDialog("Leave this festival?", isPresented: $confirmLeave, titleVisibility: .visible) {
             Button("Leave festival", role: .destructive) { Task { await leave() } }
             Button("Cancel", role: .cancel) {}
@@ -258,11 +284,12 @@ private struct FestivalPage: View {
         }
         .notice($notice)
         .task(id: festival.id) {
-            // The shared lineup: Ticketmaster's, fetched at most daily by the
-            // server, for an upcoming festival (as the web asks).
-            guard !lineupAsked, festival.festivalId != nil, FestivalDates.isUpcoming(festival, today: ShowDate.today()) else { return }
-            lineupAsked = true
-            _ = await store.lineup(for: festival)
+            // The shared lineup (Ticketmaster's, fetched at most daily by the
+            // server, for an upcoming festival) and your picks of it, or of
+            // the one you typed (as the web asks).
+            guard store.lineupAnswers[festival.id] == nil, festival.festivalId != nil,
+                  FestivalDates.isUpcoming(festival, today: ShowDate.today()) || !festival.lineup.isEmpty || !festival.myLineup.isEmpty else { return }
+            await askLineup()
         }
     }
 
@@ -358,41 +385,6 @@ private struct FestivalPage: View {
         .brandRow()
     }
 
-    // MARK: Lineup
-
-    @ViewBuilder
-    private func lineupSection(today: String) -> some View {
-        let shared = festival.lineup
-        let lineup = shared.isEmpty ? festival.myLineup : shared
-        let upcoming = FestivalDates.isUpcoming(festival, today: today)
-        if !lineup.isEmpty {
-            Section {
-                ForEach(lineup, id: \.self) { name in
-                    NavigationLink(value: AppRoute.band(slug: BandDirectory.slug(forArtist: name))) { Text(name) }
-                }
-            } header: {
-                Text("Lineup")
-            } footer: {
-                if shared.isEmpty {
-                    Text("The lineup you entered. Only you can see it.")
-                } else if let url = festival.lineupUrl.flatMap(URL.init(string:)) {
-                    Button(festival.lineupSource == "seed" ? "The announced lineup" : "Lineup from Ticketmaster") { router.show(url) }
-                        .font(.jakarta(size: 12, relativeTo: .caption))
-                } else {
-                    Text(festival.lineupSource == "seed" ? "The announced lineup" : "Lineup from Ticketmaster")
-                }
-            }
-            .brandRow()
-        } else if upcoming, festival.festivalId != nil {
-            Section("Lineup") {
-                Text("We couldn't find this festival's lineup on Ticketmaster yet. Lineups usually appear there once tickets are on sale, so check back closer to the dates.")
-                    .font(.jakarta(size: 14, relativeTo: .subheadline))
-                    .foregroundStyle(Color.textSecondary)
-            }
-            .brandRow()
-        }
-    }
-
     // MARK: Shows
 
     @ViewBuilder
@@ -403,9 +395,17 @@ private struct FestivalPage: View {
                     Text("No shows attached yet.")
                         .font(.jakarta(size: 15, relativeTo: .body))
                         .foregroundStyle(Color.textSecondary)
-                    Button { attaching = true } label: { Label("Pick from my shows", systemImage: "music.note.list") }
+                    VStack(spacing: Space.x2) {
+                        Button { searchingLineup = true } label: {
+                            Label("Search the lineup", systemImage: "magnifyingglass").frame(maxWidth: .infinity)
+                        }
                         .buttonStyle(.borderedProminent)
-                        .tint(.brand)
+                        Button { attaching = true } label: {
+                            Label("Pick from my shows", systemImage: "music.note.list").frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.bordered)
+                    }
+                    .tint(.brand)
                 }
                 .padding(.vertical, Space.x2)
             }
@@ -433,6 +433,12 @@ private struct FestivalPage: View {
                 .brandRow()
             }
         }
+    }
+
+    private func askLineup() async {
+        lineupLoading = true
+        defer { lineupLoading = false }
+        _ = await store.lineup(for: festival)
     }
 
     private func remove(_ show: Show) async {

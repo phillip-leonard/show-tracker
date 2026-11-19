@@ -262,10 +262,10 @@ Two gaps aren't screens, and both should be fixed whatever else is decided:
 | Attach shows ("Pick from my shows"), remove from festival | `AttachShowsModal` | `AttachShowsSheet`, swipe to remove; `festivalId` alone (`ShowsStore.setFestival`) | Native 5-3 | S | none | 5 |
 | Lineup (read) | Yes | Shared lineup with its credit, or the typed one; `festival-lineup` for an upcoming festival | Native 5-3 | S | | 5 |
 | Festival notes | Yes | `FestivalNotesSheet` (one `updateData` of `notes`) | Native 5-3 | S | none | 5 |
-| Create a festival, or join one someone else created | `FestivalFormModal`, `match-festivals` | None | Missing (was v1.x) | M | Confirmed (STAGE5-AUDIT): the web writes `festivals` from the client; create, join, leave and edit move to `festivals.js` (5-2) | 5 |
+| Create a festival, or join one someone else created | `FestivalFormModal`, `match-festivals` | `FestivalFormSheet` (matches with Join; the creator's edit too), `festivals.js` | Native 5-4 | M | Confirmed (STAGE5-AUDIT): the web writes `festivals` from the client; create, join, leave and edit move to `festivals.js` (5-2) | 5 |
 | Leave a festival (shows kept) | `LeaveFestivalModal` | `festivals.js` `leave`, with the web's wording | Native 5-3 | S | | 5 |
-| Search the lineup ("Find who played", setlist.fm) | `FestivalLineupModal`, `search-festival-lineup` | None | Missing (was v1.x) | M | none | 5 |
-| Your picks (lineup ranked by band affinity), enter lineup | `FestivalPicks`, `band-affinity` | None | Missing (was v1.x) | M | Picks scored on the server in `festival-lineup` (STAGE5-AUDIT call B) | 5 |
+| Search the lineup ("Find who played", setlist.fm) | `FestivalLineupModal`, `search-festival-lineup` | `LineupSearchSheet`; import through `normalize-show` preview and commit (`ShowsStore.importLineup`) | Native 5-4 | M | none | 5 |
+| Your picks (lineup ranked by band affinity), enter lineup | `FestivalPicks`, `band-affinity` | `FestivalPicksSection` from `festival-lineup` `picks`; `LineupEditorSheet` (`myLineup`) | Native 5-4 | M | Picks scored on the server in `festival-lineup` (STAGE5-AUDIT call B) | 5 |
 
 ### 2.15 Community (`/community`)
 

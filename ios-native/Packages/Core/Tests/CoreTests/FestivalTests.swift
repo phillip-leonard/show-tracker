@@ -150,4 +150,68 @@ struct FestivalTests {
         #expect(!FestivalDates.isUpcoming(Festival(id: "d", festivalId: "fd", name: "D", startDate: "2026-06-11", endDate: "2026-06-14"), today: "2026-11-19"))
         #expect(!FestivalDates.isUpcoming(Festival(id: "n", festivalId: "fn", name: "N"), today: "2026-11-19"))
     }
+    // MARK: 5-4: the form, the typed lineup, the search, picks
+
+    @Test func theFormChecksWhatTheWebChecks() {
+        var d = FestivalDraft()
+        #expect(d.problem == "Give your festival a name.")
+        d.name = String(repeating: "x", count: 121)
+        #expect(d.problem?.hasPrefix("Festival name is too long") == true)
+        d.name = "Bonnaroo"
+        #expect(d.problem?.hasPrefix("Add the start and end dates") == true)
+        #expect(!d.canMatch)
+        d.startDate = "2026-06-11"; d.endDate = "2026-06-10"
+        #expect(d.problem == "End date can’t be before the start date.")
+        d.endDate = "2026-06-14"
+        #expect(d.problem == nil)
+        #expect(d.when == FestivalDates.When(startDate: "2026-06-11", endDate: "2026-06-14", year: 2026))
+        #expect(d.canMatch)
+        d.yearOnly = true; d.year = "19"
+        #expect(d.problem?.hasPrefix("Enter the year as four digits") == true)
+        d.year = "2019"
+        #expect(d.problem == nil)
+        #expect(d.when == FestivalDates.When(startDate: nil, endDate: nil, year: 2019))
+    }
+
+    @Test func theTypedLineupIsTrimmedDedupedAndCapped() {
+        #expect(FestivalsStore.lineupNames(" Goose \n\nPhish\nGoose\n  moe. ") == ["Goose", "Phish", "moe."])
+        let many = (1...400).map { "Band \($0)" }.joined(separator: "\n")
+        #expect(FestivalsStore.lineupNames(many).count == 300)
+    }
+
+    @Test func aLineupSetReadsTheSearchRowAndKeepsItWhole() throws {
+        let json = #"{"setlistfmId":"abc","url":"https://x","artist":"Goose","artistMbid":null,"date":"2025-06-13","venue":"Great Stage Park","city":"Manchester","country":"US","tour":null,"songCount":12,"sets":{"set":[]}}"#
+        let set = try JSONDecoder().decode(LineupSet.self, from: Data(json.utf8))
+        #expect(set.artist == "Goose" && set.songCount == 12 && set.venue == "Great Stage Park")
+        #expect(set.raw["sets"] != nil, "sent back to normalize-show unchanged")
+        let logged = try show("1", "2025-06-13", "goose", festival: nil, venue: " great stage park")
+        #expect(set.isLogged(in: [logged]))
+        #expect(!set.isLogged(in: [try show("2", "2025-06-14", "Goose", festival: nil)]))
+    }
+
+    @Test func theSearchAsksWithTheFestivalsOwnPlaceAndDays() {
+        let dated = Festival(id: "a", festivalId: "fa", name: "Bonnaroo", startDate: "2025-06-12", endDate: "2025-06-15", location: "Manchester, TN")
+        #expect(FestivalLineupSearch.query(dated, artist: nil) == ["name": "Bonnaroo", "city": "Manchester, TN", "from": "2025-06-12", "to": "2025-06-15"])
+        #expect(FestivalLineupSearch.query(dated, artist: " Goose ")["artist"] == "Goose")
+        let yearOnly = Festival(id: "b", festivalId: "fb", name: "Outside Lands", year: 2019)
+        #expect(FestivalLineupSearch.query(yearOnly, artist: nil) == ["name": "Outside Lands", "year": "2019"])
+    }
+
+    @Test func picksDecodeFromTheLineupAnswer() throws {
+        let json = #"{"lineup":["Goose","Niche"],"source":"ticketmaster","url":null,"fetchedAt":null,"upcoming":true,"picks":{"recommended":[{"key":"niche","name":"Niche","reason":"Because you like Goose"}],"love":[{"key":"goose","name":"Goose","timesSeen":2,"favorite":true}],"everyoneElse":[{"key":"phish","name":"Phish","seenOnce":true}]},"picksFrom":"festival"}"#
+        let answer = try JSONDecoder().decode(FestivalLineupAnswer.self, from: Data(json.utf8))
+        let picks = try #require(answer.picks)
+        #expect(picks.recommended.first?.reason == "Because you like Goose")
+        #expect(picks.love.first?.detail == "Seen 2 times · you follow them")
+        #expect(picks.everyoneElse.first?.seenOnce == true)
+        #expect(answer.picksFrom == "festival")
+        let none = try JSONDecoder().decode(FestivalLineupAnswer.self, from: Data(#"{"lineup":[],"picks":null,"picksFrom":null}"#.utf8))
+        #expect(none.picks == nil)
+        #expect(FestivalPicks.Loved(key: "x", name: "X", timesSeen: 0, favorite: true).detail == "You follow them")
+    }
+
+    @Test func importsGoInBatchesOf25() {
+        #expect(ShowsStore.chunks(Array(0..<60)).map(\.count) == [25, 25, 10])
+        #expect(ShowsStore.chunks([Int]()).isEmpty)
+    }
 }
