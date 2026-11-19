@@ -40,6 +40,9 @@ public enum AppRoute: Hashable, Sendable {
     case bucketList
     /// The community boards (Stage 4, 4-11): `/community`, on Stats.
     case community
+    /// Advanced search over your shows (Stage 4, 4-12): `/advanced-search`,
+    /// on the Search tab.
+    case advancedSearch
     case venue(key: String)
     case yearInReview(user: String, year: String)
     /// Your shows for one band, song or venue, from Stats (Stage 2). Not a
@@ -138,6 +141,8 @@ public extension DeepLink {
             return .open(.me, nil)
         case "/search":
             return .open(.search, nil)
+        case "/advanced-search":
+            return .open(.search, .advancedSearch)
         default:
             break
         }
@@ -181,6 +186,7 @@ public extension AppRoute {
         case .wishlist, .wishlistArtist: path = "/wishlist"
         case .bucketList: path = "/bucket-list"
         case .community: path = "/community"
+        case .advancedSearch: path = "/advanced-search"
         case .venue(let key): path = "/venues"; params.set("venue", key)
         case .yearInReview(let user, let year): path = "/year-in-review"; params.set("user", user); params.set("year", year)
         case .myShows: path = "/stats"

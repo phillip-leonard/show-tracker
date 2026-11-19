@@ -155,21 +155,21 @@ Two gaps aren't screens, and both should be fixed whatever else is decided:
 | Pick among several artists | Yes | Yes | Native #436 | | | |
 | Add by hand | `ShowForm` | Yes | Native #436 | | | |
 | Duplicate check | `classifyDuplicate` | Server answer | Native #436 | | | |
-| "Add all shows" of an artist or tour, tour browser | `TourBrowseModal`, `get-tour-shows`, `addShowsFromTour` | None | Missing | M | none (`get-tour-shows` and `commitShowInputs` exist) | 4 |
+| "Add all shows" of an artist or tour, tour browser | `TourBrowseModal`, `get-tour-shows`, `addShowsFromTour` | `TourBrowseSheet` (Search tab, Tours, a tour page): band, tour, nights; "band + tour" text; maybe-yours nights; select all; by month | Native 4-12 | | none | |
 | Ticket scan | `TicketScanner`, `analyze-tickets` | Yes | Native #438 | | | |
 | Guest scan prompt | `GuestScanPrompt` | Yes | Native #438 | | | |
 | Screenshot import (`/scan-import`) | `ScanImportView`, `analyze-screenshot` | Web link | Web link (was v1.x) | M | none | 6 |
 | CSV / Excel import, template, column matching, preview | `ImportView` | Web link | Web link (was v1.x) | L | Recommended: a server parse function (flag F-10) | 6 |
-| Search tab | Capacitor: add-show search | "Search is coming soon" | Missing | S | none | 4 (flag F-2) |
+| Search tab | Capacitor: add-show search | Search over your shows (F-2): quick search, Advanced search, By artist, Add shows from a tour | Native 4-12 | | none | |
 
 ### 2.6 Advanced search (`/advanced-search`)
 
 | Item | Web / Capacitor | Native today | Status | Size | Server work | Stage |
 |---|---|---|---|---|---|---|
-| Filters: artist, venue, city, country, date range, presets (this month, this year, last year), tour, festival, minimum rating, with friend, notes contain, setlist song | `AdvancedSearchView` | None | Missing | M | none | 4 |
-| Sort: newest, oldest, highest rated, artist A–Z | Yes | None | Missing | (same PR) | | 4 |
-| Saved searches, recent searches | Yes (stored on the device) | None | Missing | (same PR) | | 4 |
-| Empty state: "No shows match these filters" | Yes | None | Missing | (same PR) | | 4 |
+| Filters: artist, venue, city, country, date range, presets (this month, this year, last year), tour, festival, minimum rating, with friend, notes contain, setlist song | `AdvancedSearchView` | `AdvancedSearchScreen` (`ShowSearch`), live results | Native 4-12 | | none | |
+| Sort: newest, oldest, highest rated, artist A–Z | Yes | Yes | Native 4-12 | | | |
+| Saved searches, recent searches | Yes (stored on the device) | Yes, on the device (`SavedSearches`); a recent search reopens its filters | Native 4-12 | | | |
+| Empty state: "No shows match these filters" | Yes | Yes | Native 4-12 | | | |
 
 ### 2.7 Stats (`/stats` and its sub-pages)
 

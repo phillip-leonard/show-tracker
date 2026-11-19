@@ -8,15 +8,7 @@ import SwiftUI
 
 // FriendsHome is Features/Friends/FriendsHome.swift (Stage 3, Part 2b).
 
-/// The system Search tab, until search is built: points to the Shows
-/// tab's own search field meanwhile.
-struct SearchHome: View {
-    var body: some View {
-        ContentUnavailableView("Search", systemImage: "magnifyingglass",
-                               description: Text("Search is coming soon. Use the search field on Shows for now."))
-            .navigationTitle("Search")
-    }
-}
+// SearchHome is Features/Search/SearchViews.swift (Stage 4, 4-12).
 
 /// A screen a link or a tap can reach before it's built: what it will be,
 /// and the same page on the web meanwhile.
@@ -48,6 +40,7 @@ struct RoutePlaceholder: View {
         case .wishlist, .wishlistArtist: "Wishlist"
         case .bucketList: "Bucket List"
         case .community: "Community"
+        case .advancedSearch: "Advanced search"
         case .venue: "Venue"
         case .yearInReview(_, let year): "\(year) in Review"
         case .myShows(let filter): filter.title
@@ -67,6 +60,7 @@ struct RoutePlaceholder: View {
         case .wishlist, .wishlistArtist: "star"
         case .bucketList: "checklist"
         case .community: "person.3"
+        case .advancedSearch: "line.3.horizontal.decrease.circle"
         case .venue: "building.columns"
         case .yearInReview: "sparkles"
         case .myShows: "list.bullet"
@@ -85,7 +79,7 @@ struct RoutePlaceholder: View {
         case .statsList(_, let year): year ?? "All time"
         case .wishlist: ""
         case .wishlistArtist(let artist): artist.name
-        case .bucketList, .community: ""
+        case .bucketList, .community, .advancedSearch: ""
         case .venue(let key): key
         case .yearInReview: "A year of shows"
         case .myShows(let filter): filter.artist ?? ""

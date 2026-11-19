@@ -319,6 +319,13 @@ From the Stage 4 audit ([`STAGE4-AUDIT.md`](STAGE4-AUDIT.md)), approved with the
   - a name opens that person's card (Report and Block, Guideline 1.2); for guests and for your own name it's plain text. "Add" sends a friend request, and a guest's opens the account prompt, as on the web;
   - Total Users shows only from 1,000 users (`UserCount.shouldShow`, now checked against `fixtures/user-count/threshold.json`); below that the tile isn't there at all;
   - guests can look (the rules let anyone read `communityStats`).
+- **Search tab as built (4-12, native 4.0.41):**
+  - the search field finds your past shows by band, venue, city or song at once (the Shows tab's own search rule, `ShowList`);
+  - **Advanced search** is the web's (`lib/advancedSearch.js` as `ShowSearch`): every filter, the three date presets, the four sorts, "matched your notes / a song / tagged friend", and "No shows match these filters". Results update as you type instead of waiting for a Search button, so a search goes into Recent searches when you leave it. Saved searches (20) and recent searches (8) stay on the device per person, as the web keeps them in localStorage; a recent search reopens its filters, where the web only lists it. `/advanced-search` opens it;
+  - **guests can use it** on their own shows (DECISIONS "Guests" allows their own shows and stats); the web asks a guest to sign in because its guest shows aren't in Firestore. The friend filter shows only for accounts with friends;
+  - **By artist** is the Shows page's view: every band with its show count and average rating, sorted by most shows, rating or name, each opening to its shows and band page;
+  - **Add shows from a tour** is the web's TourBrowseModal (`lib/tourBrowse.js` as `TourBrowse`), also from Tours and a tour page: "Goose Summer Tour 2025" goes straight to the tour when the band name is clear, else to the pickers with the text filled in; nights already yours can't be picked, a night that may be yours (same band and day, venue spelled differently) says so and can be picked (sent with `confirmPossible`, as the web sends every tour night); select all, filter, months for a long tour, a warning above 20 nights, "try again" for nights that failed, and the tour's page once everything is in;
+  - searching setlist.fm to add one show stays under + on Shows.
 - **PR order:** 4-1 audit → 4-2 server → 4-3 navigation → 4-4 songs and listening → 4-5 bands → 4-6 runs and tours → 4-7 venues → 4-8 stats → 4-9 wishlist → 4-10 bucket list → 4-11 Community → 4-12 Search tab.
 
 ## Post-launch list
