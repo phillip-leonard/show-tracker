@@ -92,7 +92,7 @@ struct ShowSearchTests {
         #expect(ShowSearch.sorted(all, by: .oldest).map(\.show.id) == ["3", "1", "2", "4"])
         #expect(ShowSearch.sorted(all, by: .rating).map(\.show.id) == ["3", "1", "4", "2"])
         #expect(ShowSearch.sorted(all, by: .artist).map(\.show.id) == ["4", "2", "1", "3"])
-        #expect(ShowSearch.countLine(1) == "1 show found" && ShowSearch.countLine(4) == "4 shows found")
+        #expect(ShowSearch.countLine(1) == "1 show" && ShowSearch.countLine(12) == "12 shows")
     }
 
     @Test func presetsSetTheDates() {
@@ -158,5 +158,30 @@ struct ShowSearchTests {
         #expect(ShowSearch.artistGroups(shows, sort: .rating).map(\.artist) == ["Phish", "Goose", "Arcade Fire"])
         #expect(ShowSearch.artistGroups(shows, sort: .name).map(\.artist) == ["Arcade Fire", "Goose", "Phish"])
         #expect(ShowSearch.average(7) == "7.0/10" && ShowSearch.average(nil) == nil)
+    }
+
+    @Test func activeFiltersAreChipsThatClearOneAtATime() {
+        var f = ShowSearchFilters()
+        #expect(ShowSearch.chips(f).isEmpty)
+        f.artist = "Goose"
+        f.venue = "Red Rocks"
+        f.dateFrom = "2025-01-01"
+        f.dateTo = "2025-12-31"
+        f.minRating = 8
+        f.song = "Arcadia"
+        f.tourKey = "goose:summer-tour-2025"
+        let chips = ShowSearch.chips(f, tourName: "Summer Tour 2025", day: { "d:" + $0 })
+        #expect(chips.map(\.label) == ["Goose", "@ Red Rocks", "d:2025-01-01 – d:2025-12-31", "Summer Tour 2025", "8★ and up", "Song: “Arcadia”"])
+        let noDates = ShowSearch.clearing(.dates, in: f)
+        #expect(noDates.dateFrom.isEmpty && noDates.dateTo.isEmpty && noDates.artist == "Goose")
+        var one = f
+        for chip in chips { one = ShowSearch.clearing(chip.field, in: one) }
+        #expect(!one.isActive, "clearing every chip clears every filter")
+        var from = ShowSearchFilters()
+        from.dateFrom = "2024-06-01"
+        #expect(ShowSearch.chips(from).map(\.label) == ["From 2024-06-01"])
+        var blank = ShowSearchFilters()
+        blank.artist = "  "
+        #expect(ShowSearch.chips(blank).isEmpty, "whitespace isn't a filter")
     }
 }
