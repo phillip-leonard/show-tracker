@@ -11,9 +11,14 @@ public struct FestivalLineupAnswer: Decodable, Equatable, Sendable {
     public var source: String?
     public var url: String?
     public var upcoming: Bool?
+    /// The caller's picks of the shared lineup (`festival`) or of the one
+    /// they typed (`mine`); nil without a lineup (Stage 5 call B).
+    public var picks: FestivalPicks?
+    public var picksFrom: String?
 
-    public init(lineup: [String], source: String?, url: String?, upcoming: Bool?) {
+    public init(lineup: [String], source: String?, url: String?, upcoming: Bool?, picks: FestivalPicks? = nil, picksFrom: String? = nil) {
         self.lineup = lineup; self.source = source; self.url = url; self.upcoming = upcoming
+        self.picks = picks; self.picksFrom = picksFrom
     }
 }
 
@@ -32,14 +37,18 @@ public struct FestivalLineupAnswer: Decodable, Equatable, Sendable {
 @Observable
 public final class FestivalsStore {
     /// Nil until the first read answers (the device's copy or the server's).
-    public private(set) var festivals: [Festival]?
+    public internal(set) var festivals: [Festival]?
     /// The server couldn't be reached; what's shown is the device's copy.
     public private(set) var fromCache = false
     /// Nothing could be read at all.
     public private(set) var loadProblem: String?
+    /// The last `festival-lineup` answer per festival (attendance id): the
+    /// lineup and the caller's picks of it, for this session.
+    public private(set) var lineupAnswers: [String: FestivalLineupAnswer] = [:]
 
     private var uid: String?
-    private var api: APIClient?
+    private(set) var api: APIClient?
+    var currentUid: String? { uid }
     private var loadTask: Task<Void, Never>?
 
     public init() {}
@@ -68,6 +77,7 @@ public final class FestivalsStore {
         festivals = nil
         fromCache = false
         loadProblem = nil
+        lineupAnswers = [:]
     }
 
     /// Reads again: the device's copy at once, then the server's.
@@ -179,12 +189,14 @@ public final class FestivalsStore {
         festivals?.removeAll { $0.id == id }
     }
 
-    /// The shared lineup (`festival-lineup`, attendees only). Nil when it
-    /// can't be reached: the page keeps what the festival already holds.
+    /// The shared lineup and the caller's picks (`festival-lineup`,
+    /// attendees only). Nil when it can't be reached: the page keeps what
+    /// the festival already holds, without picks.
     public func lineup(for festival: Festival) async -> FestivalLineupAnswer? {
         guard let api, let canonical = festival.festivalId else { return nil }
         struct Body: Encodable, Sendable { let festivalId: String }
         guard let answer = try? await api.post("festival-lineup", Body(festivalId: canonical), as: FestivalLineupAnswer.self) else { return nil }
+        lineupAnswers[festival.id] = answer
         setLocal(festival.id) {
             if !answer.lineup.isEmpty {
                 $0.lineup = answer.lineup
