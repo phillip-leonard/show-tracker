@@ -47,6 +47,7 @@ struct RoutePlaceholder: View {
         case .yearInReview(_, let year): "\(year) in Review"
         case .myShows(let filter): filter.title
         case .notifications: "Notifications"
+        case .activity: "Activity"
         }
     }
 
@@ -69,6 +70,7 @@ struct RoutePlaceholder: View {
         case .yearInReview: "sparkles"
         case .myShows: "list.bullet"
         case .notifications: "bell"
+        case .activity: "bolt.heart"
         }
     }
 
@@ -88,7 +90,7 @@ struct RoutePlaceholder: View {
         case .venue(let key): key
         case .yearInReview: "A year of shows"
         case .myShows(let filter): filter.artist ?? ""
-        case .notifications: ""
+        case .notifications, .activity: ""
         }
     }
 }

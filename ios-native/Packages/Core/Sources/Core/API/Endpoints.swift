@@ -33,6 +33,11 @@ public enum FriendsRequest: Encodable, Sendable {
     case revokeUpcomingTags(upcomingId: String, toUid: String?)
     case refreshUpcomingTags(upcomingId: String)
     case respondSuggestion(suggestionId: String, response: SuggestionResponse)
+    /// The friend activity feed (5.60.38): one page, older than `before`
+    /// (ms, the last page's `next`), or the newest.
+    case activity(before: Int64?)
+    /// The "rated" entry for a rating just saved, built from the stored show.
+    case rated(showId: String)
 
     public enum TagTarget: Sendable, Equatable { case show(String), upcoming(String) }
     public enum TagResponse: String, Encodable, Sendable { case accepted, declined }
@@ -51,7 +56,7 @@ public enum FriendsRequest: Encodable, Sendable {
 
     enum Keys: String, CodingKey {
         case action, requestId, ref, email, handle, friendUid, friendUids, showId, toUid, inviteId, targetUid,
-             upcomingId, emails, tagId, response, pendingEmailTagId, suggestionId
+             upcomingId, emails, tagId, response, pendingEmailTagId, suggestionId, before
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -93,6 +98,8 @@ public enum FriendsRequest: Encodable, Sendable {
         case .refreshUpcomingTags(let id): try c.encode("refreshUpcomingTags", forKey: .action); try c.encode(id, forKey: .upcomingId)
         case .respondSuggestion(let id, let response):
             try c.encode("respondSuggestion", forKey: .action); try c.encode(id, forKey: .suggestionId); try c.encode(response, forKey: .response)
+        case .activity(let before): try c.encode("activity", forKey: .action); try c.encodeIfPresent(before, forKey: .before)
+        case .rated(let showId): try c.encode("rated", forKey: .action); try c.encode(showId, forKey: .showId)
         }
     }
 }

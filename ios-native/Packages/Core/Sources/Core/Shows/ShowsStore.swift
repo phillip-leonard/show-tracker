@@ -1,3 +1,5 @@
+import FirebaseAuth
+import FirebaseCore
 import FirebaseCrashlytics
 import FirebaseFirestore
 import Foundation
@@ -302,6 +304,9 @@ public final class ShowsStore {
             do {
                 try await db.collection("users").document(uid).collection("shows").document(showId)
                     .updateData(change.firestoreData)
+                // Your friends' feed: the server reads the stored rating,
+                // so only once it's there (as the web's logRating).
+                if case .set(.rating, _) = change { await self?.logRating(showId: showId) }
             } catch {
                 guard let self, self.uid == uid else { return }
                 self.writeProblem = "That change wasn't saved. \(error.localizedDescription)"
@@ -309,6 +314,18 @@ public final class ShowsStore {
             }
         }
         requestStatsRecompute()
+    }
+
+    /// Asks `friends.js` for the "rated" entry (Stage 6, 6-6). Accounts
+    /// only; best effort, never shown as an error on the rating. The
+    /// server checks "Show my activity to friends".
+    private func logRating(showId: String) async {
+        guard let api, FirebaseApp.app() != nil, Auth.auth().currentUser?.isAnonymous == false else { return }
+        do {
+            _ = try await api.post(FriendsRequest.function, FriendsRequest.rated(showId: showId), as: JSONValue.self)
+        } catch {
+            Self.log(error, stage: "rated")
+        }
     }
 
     /// "It looks right" on an Archive setlist the recordings disagreed on:

@@ -2,7 +2,7 @@
 
 **The requirement (Phillip, 2026-11-17):** before launch, the native app reaches full parity with the web and Capacitor app, except the admin portal. Several "web link" and "v1.x" calls in [`DECISIONS.md`](DECISIONS.md) are reversed by this. This document lists everything the web and Capacitor app does, says where native stands on each item, and proposes the work to close the gap. No code changes.
 
-**Decided 2026-11-17:** Phillip accepted every recommendation in §3 except F-9: **playlists are left out of the native app** and out of the plan. DECISIONS.md records the calls ("Parity before launch").
+**Decided 2026-11-17:** Phillip accepted every recommendation in §3 except F-9: **playlists are left out of the native app** and out of the plan. DECISIONS.md records the calls ("Parity before launch"). **2026-11-19:** meetups are left out of native too, and stay on the web.
 
 Read against `main` at 083e0e8 (#450 merged) plus #451 (native 4.0.25), which has since merged. Ships in native 4.0.27; web and Capacitor unchanged.
 
@@ -144,7 +144,7 @@ Two gaps aren't screens, and both should be fixed whatever else is decided:
 | Posters | `ShowMediaSection` | Yes | Native 6-4 (4.0.49) | (with photos) | | 6 |
 | Setlist photos | `ShowMediaSection` | Yes | Native 6-4 (4.0.49) | (with photos) | | 6 |
 | Comments: post, reply, delete, like, report | `CommentsSection` | `CommentsSection` | Native 6-3 (4.0.48) | L | likes through `engagement-notify` since 5.60.38 (6-2a) | 6 |
-| Meetups on a show | `MeetupCard` | Hidden (C-4) | Missing (was v1.x) | (with meetups) | | 6 |
+| Meetups on a show | `MeetupCard` | None | Left out of native (decided 2026-11-19); stays on the web | | 6-2a's server fixes apply | |
 | Empty setlist: "No setlist yet" | Yes | Yes | Native #433 | | | |
 
 ### 2.5 Adding shows (web `/search`, Capacitor Search tab)
@@ -293,8 +293,8 @@ Two gaps aren't screens, and both should be fixed whatever else is decided:
 | Tagged shows waiting for someone to join | Yes | Yes | Native #448 | | | |
 | Shows Together (`/friends?together=`) | `ShowsTogetherView` | Yes | Native #448 | | | |
 | Referral links (`/?ref=`) credited on sign-up or upgrade | `AppContext` | Yes | Native #451 | | | |
-| Activity feed (`/activity`) | `ActivityFeedView` | None | Missing | M | Confirm in the Stage 6 audit: it reads friends' activity from the client, and 5.60.11 moved friend reads behind `friends.js` | 6 |
-| "Show my activity to friends" setting | Profile | None | Missing | S | none | 6 |
+| Activity feed (`/activity`) | `ActivityFeedView` | Newest three on Friends, `ActivityScreen` with filters and paging | Native 6-6 (4.0.50) | M | `friends.js` `activity` and `rated` (5.60.38, 6-2a) | 6 |
+| "Show my activity to friends" setting | Profile | Me → Activity feed | Native 6-6 (4.0.50) | S | none | 6 |
 
 ### 2.18 Notifications (`/notifications`)
 
@@ -337,7 +337,7 @@ Two gaps aren't screens, and both should be fixed whatever else is decided:
 | Media gallery, zoom, next/previous | `MediaGalleryView` | `MediaViewer`: swipe, pinch and double-tap zoom, video, YouTube opens YouTube | Native 6-4 (4.0.49) | (same PR) | | 6 |
 | Like, report, delete own | Yes | Yes | Native 6-4 (4.0.49) | (same PR) | `engagement-notify` `liked` (5.60.38) | 6 |
 | Setlist photo directory, search | `SetlistPhotoDirectory` | `SetlistPhotosScreen`, the Library row | Native 6-4 (4.0.49) | M | none | 6 |
-| Meetups: create, join, leave, edit details, discussion, delete message | `MeetupDetailView`, `lib/meetups.js` | Notifications link to the web | Web link (was v1.x) | L | none beyond today's (`moderate-content`, `engagement-notify`) | 6 |
+| Meetups: create, join, leave, edit details, discussion, delete message | `MeetupDetailView`, `lib/meetups.js` | Notifications open `/meetups` on the web | Left out of native (decided 2026-11-19); stays on the web | | `meetups.js` and the `attendeeNames` rule (6-2a) | |
 
 ### 2.21 Help, feedback and roadmap
 
@@ -473,7 +473,7 @@ The numbers below are placeholders: each PR takes the next free number from `mai
 | 6-2 | **Server:** the import parse function; any rules change from 6-1. | server |
 | 6-3 | **Comments** on shows: post, reply, like, delete, report. | native |
 | 6-4 | **Photos, videos, posters and setlist photos** on shows: upload, gallery, like, report; the setlist photo directory. | native |
-| 6-5 | **Meetups.** | native |
+| ~~6-5~~ | ~~**Meetups.**~~ Skipped: meetups are left out of native and stay on the web (decided 2026-11-19). | — |
 | 6-6 | **Activity feed** and the "Show my activity" setting. | native |
 | 6-7 | **Imports:** screenshot import and CSV/Excel import (F-10). | native |
 | 6-8 | **Show extras:** play counts, archive backfill card, "Relive this night" card, the anniversary calendar. | native |

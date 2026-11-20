@@ -11,7 +11,7 @@ import Foundation
 /// - Display name and handle: `moderate-content` (the content filter; the
 ///   rules refuse client writes of `displayName`, `firstName`, `handle`).
 ///   Accounts only: the function refuses guests.
-/// - Photo URL, public profile, leaderboard opt-out: one field each on
+/// - Photo URL, public profile, leaderboard opt-out, activity sharing: one field each on
 ///   `userProfiles/{uid}` (`updateData`), never the whole profile. Firestore
 ///   applies the write to its cache at once, so the profile listener shows
 ///   it right away, offline too; the server gets it when it can.
@@ -111,6 +111,13 @@ public struct ProfileSettings: Sendable {
         Task { try? await api.post(RecomputeStatsRequest.function, RecomputeStatsRequest()) }
     }
 
+    /// "Show my activity to friends" (`shareActivity`, on unless turned
+    /// off). Off, the server writes no new entries for you and leaves your
+    /// past ones out of your friends' feeds (lib/activityLog.js).
+    public func setShareActivity(_ on: Bool, uid: String) {
+        Self.write(.shareActivity(on), uid: uid)
+    }
+
     /// One field. The caller doesn't wait: Firestore applies it to its
     /// cache at once (the listener shows it), and only this task waits for
     /// the server, offline included. A refusal (the rules) is logged; the
@@ -131,12 +138,14 @@ public struct ProfileSettings: Sendable {
         case photoURL(String)
         case publicProfile(Bool)
         case showOnLeaderboard(Bool)
+        case shareActivity(Bool)
 
         var key: String {
             switch self {
             case .photoURL: "photoURL"
             case .publicProfile: "publicProfile"
             case .showOnLeaderboard: "showOnLeaderboard"
+            case .shareActivity: "shareActivity"
             }
         }
 
@@ -144,7 +153,7 @@ public struct ProfileSettings: Sendable {
         var data: [String: Any] {
             switch self {
             case .photoURL(let v): [key: v]
-            case .publicProfile(let v), .showOnLeaderboard(let v): [key: v]
+            case .publicProfile(let v), .showOnLeaderboard(let v), .shareActivity(let v): [key: v]
             }
         }
     }
