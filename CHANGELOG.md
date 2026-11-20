@@ -36,6 +36,11 @@ its context: over HTTP from the browser (the web's import now passes
 the server. The web's import behaves as before, including reading a whole
 sheet with no row cap. Tests: `tests/security/importSheet.test.js`.
 
+**SheetJS 0.20.3.** `xlsx` moves from npm's 0.18.5, which has published
+advisories (prototype pollution, a ReDoS) fixed only in SheetJS's own
+builds, to 0.20.3 pinned by URL from SheetJS's CDN. The web's import, the
+admin bulk import and the function all use it; their calls are unchanged.
+
 ---
 
 ## [5.60.38] — 2026-11-19
