@@ -447,6 +447,7 @@ From the Stage 6 audit ([`STAGE6-AUDIT.md`](STAGE6-AUDIT.md)), approved with all
   - the roadmap reads the published items, votes with the rules' transaction, and opens from the roadmap notice and `/roadmap`; `/feedback` and `/how-to-use` open their screens; Release Notes and Community Guidelines are web links in Me;
   - the guest banner sits above the Shows list for a guest with a show, dismissed for seven days, and says the shows are on a guest account on this phone (they're in Firestore, not only on the device as on the web);
   - haptics (F-8): a saved show rating, a song rating picked, a show added, a follow, a vote and sent feedback.
+- **Parity check (6-12, native 4.0.57):** PARITY-AUDIT re-run against `main` after #487. Every row ends native (179), decided not native (7), web by design (4), a decided web link (2) or nothing to build (1). `ParityRoutesTests` pins the pages that open the web on purpose (`/discover`, `/scan-import`, `/venue-dashboard`, `/meetups`, `/release-notes`, the admin pages); `/invite` now opens Friends. Stage 6 is complete; next is internal TestFlight and cutover (Build order item 6), after the Year in Review peak.
 - **PR order:** 6-1 audit → 6-2a → 6-3 comments → 6-4 photos → ~~6-5 meetups~~ (skipped: meetups left out, 2026-11-19) → 6-6 activity → 6-2b → 6-7 imports → 6-8 show extras → 6-2c → 6-9 posters → 6-10 Year in Review → 6-11 profile and help → 6-12 parity check.
 
 ## Post-launch list
