@@ -438,6 +438,14 @@ From the Stage 6 audit ([`STAGE6-AUDIT.md`](STAGE6-AUDIT.md)), approved with all
   - the recap card is `my-poster` with `recap` (E): `RecapCardRequest` is the web's `recapPayload` with `buddyUid`/`buddyShows`, drawn feed and story, shared as a PNG, and `share` for the `/p/` link. The band poster and the card share one view (`ServerPosterImages`);
   - the year picker offers the years you've logged a show in; 2026 isn't native until Jan 16, 2027 (`YearReview.isNative`, `RecapWindow.promoEndsAt`). Stats shows "Your <year> in review" for a picked year that's native; the all-time card still opens the web for 2026 inside Dec 2 – Jan 15 (C-9);
   - `/year-in-review/?year=` (the year-end email's link, now parsed without `user`) and `?user=<you>&year=` open the screen; someone else's review, and 2026 before Jan 16, show the "Open on mysetlists.net" page.
+- **Profile and help as built (6-11, web 5.60.42, Capacitor 3.13.58, native 4.0.56):**
+  - How to Use (F-7) and What's New (F-5) are `public/native/how-to-use.json` and `public/native/whats-new.json`: the website serves them, so they change without a release, and the app reads mysetlists.net first, falling back to the copy bundled at build time (`NativeContent`, a symlink to `public/native/`). `tests/native/nativeContent.test.js` checks their shape in web CI. What's New opens once after an update to a version with an entry (never on a first install); its optional announcement is call H's stand-in for the popups, shown once;
+  - achievements are the web's list from the server's counts (`userStats`), friends and followed bands, at most four; "My Comments" is Me → Your notes (the show's note is "Your note" in native);
+  - the public profile preview is a sheet in Me (the server's counts and the five most recent shows), since `/u/<handle>` is a "not found" page while private;
+  - Send feedback writes `feedback` and, for an account, the draft `roadmapItems` document in one batch, with no address on either (the web still sends `submitterEmail` on feedback, which only its writer and the admin can read); a guest's feedback has no roadmap item;
+  - the roadmap reads the published items, votes with the rules' transaction, and opens from the roadmap notice and `/roadmap`; `/feedback` and `/how-to-use` open their screens; Release Notes and Community Guidelines are web links in Me;
+  - the guest banner sits above the Shows list for a guest with a show, dismissed for seven days, and says the shows are on a guest account on this phone (they're in Firestore, not only on the device as on the web);
+  - haptics (F-8): a saved show rating, a song rating picked, a show added, a follow, a vote and sent feedback.
 - **PR order:** 6-1 audit → 6-2a → 6-3 comments → 6-4 photos → ~~6-5 meetups~~ (skipped: meetups left out, 2026-11-19) → 6-6 activity → 6-2b → 6-7 imports → 6-8 show extras → 6-2c → 6-9 posters → 6-10 Year in Review → 6-11 profile and help → 6-12 parity check.
 
 ## Post-launch list

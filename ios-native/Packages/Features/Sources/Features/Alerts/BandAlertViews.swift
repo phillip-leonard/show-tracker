@@ -107,6 +107,8 @@ struct FollowBandButton: View {
         .disabled(flow.busy || session.user == nil)
         .accessibilityLabel(following ? "Following \(name)" : "Follow \(name)")
         .accessibilityHint(following ? "Unfollows" : "Get tour and on-sale alerts")
+        // A follow (F-8); unfollowing stays quiet.
+        .sensoryFeedback(trigger: following) { was, now in !was && now ? .success : nil }
     }
 }
 

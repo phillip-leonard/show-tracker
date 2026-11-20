@@ -69,14 +69,14 @@ Two gaps aren't screens, and both should be fixed whatever else is decided:
 | Password reset page (`/reset`) | Web page | Opens the web | Web by design | | | |
 | Welcome back after the Capacitor update | none | Native only | Native #429 | | | |
 | Offline: cached shows, outbox, "Waiting to sync" | `lib/liveShows.js`, outbox | Same | Native #432, #436 | | | |
-| Guest rescue banner ("Create a free account to keep your shows") | `GuestRescueBanner` on every page | The prompt is in Me and the Shows empty state; no banner | Native, partly | S | none | 6 |
+| Guest rescue banner ("Create a free account to keep your shows") | `GuestRescueBanner` on every page | `GuestRescueBanner` above the Shows list for a guest with a show, dismissed for seven days; the prompt in Me and the empty state too | **Native 6-11 (4.0.56)** | S | none | 6 |
 | Guest's first show opens the account prompt | `AppContext` (`setShowGuestPrompt`) | No prompt after a guest's first show | Missing | S | none | 4 |
 | Welcome email after a first show | Client calls `send-welcome-email` | Never requested | Missing | S | Move the trigger into `normalize-show` (first show for an account) | 4 (server PR) |
 | "Added X" toast with Open | `announceAddedShow` | "Open it" alert after an add | Native #436 | | | |
 | First-show animation | Removed from the web ("Straight to Your First Show" release note) | None | Nothing to build | | | |
-| Haptics | Only on custom swipe gestures: swipe back, drawer close, sheet drag (`impact('light')` in `lib/capacitor.js`) | System gestures carry their own haptics | Native (by the platform) | | | flag F-8 |
-| Admin announcements popups (`PopupQueue`, `PopupOverlay`, `AdminPopups`) | Shown to users once | None | Missing | M | none (reads what admin writes); confirm the rules let native read them | 6 |
-| What's New modal | `WhatsNewModal`, after an update | None | Missing | S | none | 6 (flag F-5) |
+| Haptics | Only on custom swipe gestures: swipe back, drawer close, sheet drag (`impact('light')` in `lib/capacitor.js`) | System gestures carry their own; `.sensoryFeedback` on a rating, an added show, a follow, a vote and sent feedback | **Native 6-11 (4.0.56)** | | | flag F-8 |
+| Admin announcements popups (`PopupQueue`, `PopupOverlay`, `AdminPopups`) | Shown to users once | No copy (call H); `whats-new.json` can carry one announcement, shown once | Decided flag (H); announcement in 6-11 | M | none | 6 |
+| What's New modal | `WhatsNewModal`, after an update | A sheet once after an update, from `public/native/whats-new.json`; every release in Me → What's new | **Native 6-11 (4.0.56)** | S | none | 6 (flag F-5) |
 | PWA install prompt | `InstallPrompt` | n/a | Web by design | | | |
 | Cookie notice and `/cookies` | Web | n/a (native sets no cookies) | Web by design | | | |
 | Report content or a user; blocked accounts; person sheet | `moderation/*` | All | Native #446 | | | |
@@ -313,20 +313,20 @@ Two gaps aren't screens, and both should be fixed whatever else is decided:
 | Item | Web / Capacitor | Native today | Status | Size | Server work | Stage |
 |---|---|---|---|---|---|---|
 | Profile hero: shows, artists, venues, friends | `ProfileHero` | Stats tab | Native #441 | | | |
-| Achievements (First show, Centurion, Venue hopper…) | `app/profile/page.jsx` | None | Missing | S | none | 6 |
+| Achievements (First show, Centurion, Venue hopper…) | `app/profile/page.jsx` | `AchievementsSection` in Me, from `userStats` counts, friends and followed bands | **Native 6-11 (4.0.56)** | S | none | 6 |
 | Average show rating | Yes | None | Missing | S | none (server stats) | 4 (with Stats) |
 | Display name, photo URL | Yes | Yes | Native #442 | | | |
 | Handle: claim | Yes | Yes | Native #442 | | | |
 | Public profile on or off | Yes | Yes | Native #442 | | | |
-| Preview of the public profile ("what strangers would see") | Yes | None | Missing | S | none (open `/u/<handle>`) | 6 |
+| Preview of the public profile ("what strangers would see") | Yes | "Preview what strangers see" in Me: the server's counts and the five most recent shows | **Native 6-11 (4.0.56)** | S | none | 6 |
 | Leaderboard opt-out | Yes | Yes | Native #442 | | | |
 | Bands you follow | Yes | Yes | Native #451 | | | |
 | Recent shows | Yes | Shows tab | Native #432 | | | |
-| "My Comments" (your show notes, each → the show) | Yes | None | Missing | S | none | 6 |
+| "My Comments" (your show notes, each → the show) | Yes | Me → Your notes (show and song notes, newest first, each opens its show) | **Native 6-11 (4.0.56)** | S | none | 6 |
 | Email preferences | Yes | Yes | Native #442 | | | |
 | Delete account | Yes | Yes | Native #425, #443 | | | |
 | Connected accounts | none | Yes | Native #442 | | | |
-| Help and support: Community Guidelines, How to Use, Send feedback | Links | How to Use (web link), Terms, Privacy | Partly; see §2.21 | | | 6 |
+| Help and support: Community Guidelines, How to Use, Send feedback | Links | Me → Help: How to use, What's new, Send feedback, Roadmap, Release notes (web), Community Guidelines (web), Terms, Privacy | **Native 6-11 (4.0.56)** | | | 6 |
 | Request a copy of your data | Email to support | Email to support | Native #442 | | | |
 
 ### 2.20 User content (`/setlist-photos`, `/meetups`, show media)
@@ -343,11 +343,11 @@ Two gaps aren't screens, and both should be fixed whatever else is decided:
 
 | Item | Web / Capacitor | Native today | Status | Size | Server work | Stage |
 |---|---|---|---|---|---|---|
-| How to Use, FAQ | `/how-to-use` | Web link | Web link | M | none | 6 (flag F-7) |
-| Send feedback: type, category; idea goes on the roadmap | `FeedbackView` (`feedback`, `roadmapItems`) | None | Missing | S | none (rules allow it); stays email-free (security invariant) | 6 |
-| Roadmap, vote, "Most requested" | `RoadmapView` (`roadmapItems`, transaction) | Roadmap notifications link to the web | Web link | S | none | 6 |
-| Release notes | `/release-notes` | None | Missing | S | none | 6 (flag F-5) |
-| Terms, Privacy, Community Guidelines | Web pages | Terms and Privacy as web links | Web link | S | none | 6 (add Community Guidelines; flag F-12) |
+| How to Use, FAQ | `/how-to-use` | `HowToUseScreen` from `public/native/how-to-use.json` (written for the native app); `/how-to-use` opens it | **Native 6-11 (4.0.56)** | M | none | 6 (flag F-7) |
+| Send feedback: type, category; idea goes on the roadmap | `FeedbackView` (`feedback`, `roadmapItems`) | `FeedbackScreen`: one batch, no address; an account's idea becomes a draft roadmap item, a guest's stays feedback | **Native 6-11 (4.0.56)** | S | none | 6 |
+| Roadmap, vote, "Most requested" | `RoadmapView` (`roadmapItems`, transaction) | `RoadmapScreen` with the rules' vote transaction; the roadmap notice and `/roadmap` open it | **Native 6-11 (4.0.56)** | S | none | 6 |
+| Release notes | `/release-notes` | Me → Release notes opens the web page (F-5) | Web link, 6-11 | S | none | 6 (flag F-5) |
+| Terms, Privacy, Community Guidelines | Web pages | Terms, Privacy and Community Guidelines as web links in Me | Web link (F-12), 6-11 | S | none | 6 |
 
 ### 2.22 Posters, share images, Year in Review
 

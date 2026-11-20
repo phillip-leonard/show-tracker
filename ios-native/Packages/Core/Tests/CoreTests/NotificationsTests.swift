@@ -97,7 +97,7 @@ struct NotificationsTests {
         let tour = try note(#"{"type":"followed_band_tour","message":"m"}"#)
         #expect(NotificationDestination.of(tour, myShows: mine) == .none, "its dates carry the links")
         let roadmap = try note(#"{"type":"roadmap_published","message":"m"}"#)
-        #expect(NotificationDestination.of(roadmap, myShows: []) == .web(URL(string: "https://mysetlists.net/roadmap/")!))
+        #expect(NotificationDestination.of(roadmap, myShows: []) == .route(.me, .roadmap), "native since 6-11")
     }
 
     @Test func meetupIdIsTheWebs() {

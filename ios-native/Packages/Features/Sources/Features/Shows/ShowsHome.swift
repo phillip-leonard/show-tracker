@@ -168,6 +168,13 @@ struct ShowsHome: View {
         let sections = ShowList.byYear(filtered)
         return List {
             headerSection
+            // "Keep your shows" for a guest with a show (6-11).
+            if isGuest {
+                Section { GuestRescueBanner { upgrading = true } }
+                    .listRowInsets(EdgeInsets())
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+            }
             if pastFilter.isEmpty, store.showsLoaded, let uid = session.user?.uid {
                 if !reliveDismissed, let relive = ReliveThisNight.show(for: uid, shows: store.shows, today: today) {
                     ReliveThisNightSection(show: relive, today: today) {

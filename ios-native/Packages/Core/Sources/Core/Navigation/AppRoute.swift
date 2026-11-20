@@ -66,6 +66,14 @@ public enum AppRoute: Hashable, Sendable {
     /// "Save these shows to MySetlists" from the Songs I've heard tool:
     /// `/shows/?heard=<slug>.<code>`, kept through sign-up.
     case heardSave(String)
+    /// How to Use, written for the native app (Stage 6, 6-11, F-7):
+    /// `/how-to-use`, in Me.
+    case howToUse
+    /// Send feedback (6-11): `/feedback`, in Me.
+    case feedback
+    /// The roadmap and its votes (6-11): `/roadmap`, in Me; the
+    /// roadmap notice opens it.
+    case roadmap
 }
 
 /// What opening a link does (FOUNDATION-AUDIT.md §1.4).
@@ -144,6 +152,12 @@ public extension DeepLink {
         case "/tours":
             if let key = value("tour") { return .open(.me, .tour(key: key)) }
             return .open(.me, .tours)
+        case "/how-to-use":
+            return .open(.me, .howToUse)
+        case "/feedback":
+            return .open(.me, .feedback)
+        case "/roadmap":
+            return .open(.me, .roadmap)
         case "/wishlist":
             return .open(.me, .wishlist)
         case "/bucket-list":
@@ -226,6 +240,9 @@ public extension AppRoute {
         case .activity: path = "/activity"
         case .myPoster(let artist): path = "/my-poster"; params.set("artist", artist)
         case .heardSave(let value): path = "/shows"; params.set("heard", value)
+        case .howToUse: path = "/how-to-use"
+        case .feedback: path = "/feedback"
+        case .roadmap: path = "/roadmap"
         }
         return DeepLink.webURL(path: path, params: params)
     }

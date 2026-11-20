@@ -3,7 +3,10 @@ import DesignSystem
 import SwiftUI
 
 enum MeLinks {
-    static let howToUse = URL(string: "https://mysetlists.net/how-to-use")!
+    /// The web's changelog, in web version numbers (F-5 keeps it a link).
+    static let releaseNotes = URL(string: "https://mysetlists.net/release-notes")!
+    /// F-12: a web page; the terms gate shows the summary.
+    static let communityGuidelines = URL(string: "https://mysetlists.net/terms#community-guidelines")!
 }
 
 /// Name, handle, photo, public profile, activity sharing and the
@@ -12,6 +15,7 @@ enum MeLinks {
 /// (`SessionStore.profile`), so a change made on the web shows here too.
 struct ProfileSection: View {
     @Environment(SessionStore.self) private var session
+    @State private var previewing = false
 
     private var settings: ProfileSettings { ProfileSettings(api: session.api) }
     private var profile: UserProfile? { session.profile }
@@ -53,6 +57,12 @@ struct ProfileSection: View {
                     Label("mysetlists.net/u/\(handle.lowercased())", systemImage: "globe")
                 }
                 ShareLink("Share your page", item: url)
+            }
+            if let handle = profile?.handle {
+                Button("Preview what strangers see", systemImage: "eye") { previewing = true }
+                    .sheet(isPresented: $previewing) {
+                        PublicProfilePreviewSheet(handle: handle, name: profile?.displayName ?? "Music fan")
+                    }
             }
         } header: {
             Text("Public profile")

@@ -4,6 +4,31 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.60.42] — 2026-11-20
+
+Ships in **iOS 3.13.58** (Capacitor, `MARKETING_VERSION` 3.13.57 → 3.13.58)
+and **native 4.0.56** (4.0.55 is taken by the open sign-out fix, #486).
+Stage 6, Part 11: profile and help in the native app.
+
+**The native app's own How to Use and What's New.** Two new files the
+website serves, `public/native/how-to-use.json` (a guide written for the
+native app, F-7) and `public/native/whats-new.json` (a short list per native
+release, plus an optional one-off announcement in place of the web's popups,
+call H). The app reads mysetlists.net first, so they can change without a
+release, and falls back to the copy bundled at build time. Nothing on the
+website links to them; the web's own How to Use and Release Notes pages are
+unchanged.
+
+**Native app.** Achievements from the server's counts, every note you've
+written (Your notes), a preview of your public profile, Send feedback
+(email-free; an account's idea goes on the roadmap as a draft, in one batch
+with its feedback), the roadmap with voting (the roadmap notice now opens it),
+How to Use and What's New, links to the Release Notes and Community
+Guidelines, the guest "keep your shows" banner, and haptics on a rating, an
+added show and a follow (F-8).
+
+---
+
 ## [5.60.41] — 2026-11-20
 
 Ships in **iOS 3.13.57** (Capacitor, `MARKETING_VERSION` 3.13.56 → 3.13.57).

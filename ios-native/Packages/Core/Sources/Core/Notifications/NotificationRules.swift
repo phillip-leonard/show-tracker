@@ -56,7 +56,7 @@ public enum NotificationDestination: Equatable, Sendable {
             guard let show = ownShow() else { return .none }
             return .route(.shows, .show(id: show.id))
         case .roadmapPublished:
-            return .web(DeepLink.webURL(path: "/roadmap", params: SearchParams(nil)))
+            return .route(.me, .roadmap)
         case .followedBandTour, .onsaleAlert:
             // The band's page (Stage 4, 4-5); the dates and ticket links
             // stay in the row.

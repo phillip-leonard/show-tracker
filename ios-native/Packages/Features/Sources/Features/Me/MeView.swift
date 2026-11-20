@@ -39,10 +39,16 @@ struct MeView: View {
                 }
                 .brandRow()
             } else {
+                AchievementsSection()
                 ProfileSection()
                 EmailPreferencesSection()
                 BlockedAccountsLink()
             }
+
+            Section {
+                YourNotesLink()
+            }
+            .brandRow()
 
             PushSettingsSection()
 
@@ -60,7 +66,12 @@ struct MeView: View {
             ConnectedAccountsSection(user: session.user)
 
             Section("Help") {
-                Button("How to use MySetlists") { router.show(MeLinks.howToUse) }
+                NavigationLink("How to use MySetlists", value: AppRoute.howToUse)
+                NavigationLink("What's new") { WhatsNewScreen().brandScreen() }
+                NavigationLink("Send feedback", value: AppRoute.feedback)
+                NavigationLink("Roadmap", value: AppRoute.roadmap)
+                Button("Release notes (website)") { router.show(MeLinks.releaseNotes) }
+                Button("Community Guidelines") { router.show(MeLinks.communityGuidelines) }
                 Button("Terms of Service") { router.show(Terms.url) }
                 Button("Privacy Policy") { router.show(Terms.privacyURL) }
                 Link("Contact support", destination: URL(string: "mailto:\(Terms.supportEmail)")!)
