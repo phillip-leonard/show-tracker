@@ -35,6 +35,7 @@ public enum UpcomingSaveOutcome: Equatable, Sendable {
 extension ShowsStore {
     public var setlistfmSearch: SetlistfmSearch? { api.map(SetlistfmSearch.init(api:)) }
     public var ticketScan: TicketScan? { api.map(TicketScan.init(api:)) }
+    public var sheetImporter: SheetImporter? { api.map(SheetImporter.init(api:)) }
 
     /// Adds a show: into the outbox, then committed. `display` is what the
     /// "Waiting to sync" row shows until the server has it.
@@ -46,6 +47,69 @@ extension ShowsStore {
         queued.append(QueuedShow(showId: showId, input: input, display: display, enqueuedAt: Date()))
         saveOutbox(uid: uid)
         return await commit(showId: showId, uid: uid, interactive: true)
+    }
+
+    /// Imported shows (Stage 6, 6-7), at most 25 a call: into the outbox,
+    /// then one `normalize-show` batch commit. A `possible` duplicate is
+    /// skipped and dropped, as the web's import does (`onPossible: 'skip'`),
+    /// rather than asked about once per row. Offline, or the server busy,
+    /// they stay in the outbox and finish like any add (`flushOutbox`).
+    /// One answer per item, in order.
+    public func importRows(_ items: [(input: ShowInput, display: QueuedShow.Display)]) async -> [ImportCommit] {
+        guard let uid, let api else { return items.map { _ in .refused("Sign in to add shows.") } }
+        var entries: [QueuedShow] = []
+        for item in items.prefix(NormalizeShowRequest.maxInputs) {
+            var input = item.input
+            if input.showId == nil { input.showId = ShowID.mint() }
+            entries.append(QueuedShow(showId: input.showId!, input: input, display: item.display, enqueuedAt: Date()))
+        }
+        queued.append(contentsOf: entries)
+        saveOutbox(uid: uid)
+        let answer: NormalizeShowBatchResponse
+        do {
+            answer = try await api.post("normalize-show", NormalizeShowRequest.batch(entries.map(\.input), .commit),
+                                        as: NormalizeShowBatchResponse.self)
+        } catch {
+            guard self.uid == uid else { return entries.map { _ in .queued } }
+            switch Self.verdict(error) {
+            case .refused(let text, let drops):
+                if drops { for e in entries { discardQueuedShow(showId: e.showId) } }
+                return entries.map { _ in drops ? .refused(text) : .queued }
+            default:
+                Self.log(error, stage: "normalize-show import")
+                return entries.map { _ in .queued }
+            }
+        }
+        guard self.uid == uid else { return entries.map { _ in .queued } }
+        var outcomes: [ImportCommit] = []
+        for (i, entry) in entries.enumerated() {
+            guard answer.results.indices.contains(i) else { outcomes.append(.queued); continue }
+            let r = answer.results[i]
+            if let error = r.error {
+                discardQueuedShow(showId: entry.showId)
+                outcomes.append(.refused(error.message ?? "That show couldn't be added."))
+                continue
+            }
+            switch Self.verdict(r, showId: entry.showId) {
+            case .added(let id):
+                finishAdd(entry, uid: uid)
+                justAdded.insert(id)
+                outcomes.append(.added)
+            case .alreadyThere:
+                finishAdd(entry, uid: uid)
+                outcomes.append(.alreadyThere)
+            case .needsAnswer:
+                discardQueuedShow(showId: entry.showId)
+                outcomes.append(.skippedPossible)
+            case .refused(let text, _):
+                discardQueuedShow(showId: entry.showId)
+                outcomes.append(.refused(text))
+            case .wait:
+                outcomes.append(.queued)
+            }
+        }
+        if outcomes.contains(.added) { requestStatsRecompute() }
+        return outcomes
     }
 
     /// The answer to "Add this as a separate show?": yes sends it again with
