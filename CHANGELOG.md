@@ -4,6 +4,33 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.60.40] — 2026-11-20
+
+Ships in **iOS 3.13.56** (Capacitor, `MARKETING_VERSION` 3.13.55 → 3.13.56)
+and **native 4.0.52**. Stage 6, Part 8: the show extras come to the native
+app. The website's only change is a test.
+
+**One definition of the anniversary dates.** A new shared fixture,
+`fixtures/anniversaries/cases.json`, pins "Relive this night"
+(`lib/reliveThisNight.js` `pickReliveShow`) and the upcoming anniversaries
+list (`lib/anniversaries.js` `buildUpcomingAnniversaries`): the newest
+earlier year on today's month and day, a legacy DD-MM-YYYY date read rather
+than sliced, a Feb 29 show only on Feb 29, soonest first with ties in list
+order. `lib/__tests__/anniversaryFixtures.test.js` checks the web against
+it; the native app's `AnniversaryTests` read the same file.
+
+**Native (4.0.52):**
+- play counts on the setlist ("Seen 3×", counted as the song page counts
+  them), with a show/hide toggle that's remembered;
+- "Relive this night's magic" at the top of your shows, once a day, until
+  dismissed;
+- the Internet Archive backfill card: shows by the Archive's bands with no
+  setlist, looked up one at a time and saved only after review, only while
+  still empty (`accept-proposal` `onlyIfEmpty`);
+- upcoming anniversaries in Notifications.
+
+---
+
 ## [5.60.39] — 2026-11-20
 
 Ships in **iOS 3.13.55** (Capacitor, `MARKETING_VERSION` 3.13.54 → 3.13.55).

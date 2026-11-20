@@ -416,6 +416,12 @@ From the Stage 6 audit ([`STAGE6-AUDIT.md`](STAGE6-AUDIT.md)), approved with all
   - the result is the web's summary line, the tape setlists to review, the rows not imported with why, and those rows as a CSV to share and fix; a template CSV is shared from the start screen;
   - `/scan-import` links still open the web page (the add sheet isn't a route).
   - a one-photo picker is the `.photosPicker(isPresented:)` modifier, not an inline `PhotosPicker` in a List row: inside the add sheet, the inline one closed the whole sheet when it closed.
+- **Show extras as built (6-8, 5.60.40, iOS 3.13.56, native 4.0.52):**
+  - play counts: "Seen N×" under each song, `SongIndex.timesSeen` with the song page's key (one per show, so it matches the page the song opens); the web's toggle, on by default, remembered on the device (`showPlayCounts`) where the web forgets it per page;
+  - "Relive this night's magic": `ReliveThisNight.pick` (the newest earlier year on today's month and day; Feb 29 only on Feb 29), offered once a day per person on the device (`reliveThisNight.<uid>`), kept for the app's run until dismissed, at the top of past shows when no filter is on;
+  - the upcoming anniversaries list: `Anniversaries.upcoming` (soonest first, ties in list order, at most 8), at the bottom of Notifications as on the web's page;
+  - both date rules are pinned by `fixtures/anniversaries/cases.json`, read by `lib/__tests__/anniversaryFixtures.test.js` and `AnniversaryTests`;
+  - the Internet Archive backfill: a shortlist from the bundled `config/internet-archive.json` (a loose name or MusicBrainz id), each band confirmed once by `setlist-source` (`requiresReview`), so there's no Swift copy of the band registry; accounts only; the review looks each show up with `propose-setlist` 600 ms apart and saves with `accept-proposal` `onlyIfEmpty`; shows not saved (nothing found, skipped, already the same, a setlist since) are remembered per person on the device (`archiveBackfillChecked.<uid>`), as the web remembers them per browser.
 - **PR order:** 6-1 audit → 6-2a → 6-3 comments → 6-4 photos → ~~6-5 meetups~~ (skipped: meetups left out, 2026-11-19) → 6-6 activity → 6-2b → 6-7 imports → 6-8 show extras → 6-2c → 6-9 posters → 6-10 Year in Review → 6-11 profile and help → 6-12 parity check.
 
 ## Post-launch list
