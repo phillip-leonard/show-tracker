@@ -3,7 +3,8 @@ import DesignSystem
 import SwiftUI
 
 /// The + on the Shows tab (Stage 1, Part 4): search setlist.fm, add a show
-/// by hand, add an upcoming show, or import on the web (accounts only).
+/// by hand, add an upcoming show, or import from a spreadsheet or a
+/// screenshot (accounts only; Stage 6, 6-7).
 /// Every past show is an input sent to `normalize-show`
 /// (`ShowsStore.addShow`); what happens next is `AddFlow`'s.
 struct AddShowSheet: View {
@@ -62,11 +63,10 @@ struct AddShowSheet: View {
                             row("Import shows", "Create an account to import from a screenshot or a spreadsheet.", "square.and.arrow.down")
                         }
                     } else {
-                        Button {
-                            dismiss()
-                            router.show(URL(string: "https://mysetlists.net/scan-import/")!)
+                        NavigationLink {
+                            ImportShowsView { dismiss() }
                         } label: {
-                            row("Import on mysetlists.net", "From a screenshot, a ticket or a spreadsheet. You'll sign in on the web once.", "square.and.arrow.down")
+                            row("Import shows", "From a spreadsheet (.csv or .xlsx), or a screenshot of your past events.", "square.and.arrow.down")
                         }
                     }
                 }

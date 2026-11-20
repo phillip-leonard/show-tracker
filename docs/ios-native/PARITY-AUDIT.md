@@ -158,8 +158,8 @@ Two gaps aren't screens, and both should be fixed whatever else is decided:
 | "Add all shows" of an artist or tour, tour browser | `TourBrowseModal`, `get-tour-shows`, `addShowsFromTour` | `TourBrowseSheet` (Search tab, Tours, a tour page): band, tour, nights; "band + tour" text; maybe-yours nights; select all; by month | Native 4-12 | | none | |
 | Ticket scan | `TicketScanner`, `analyze-tickets` | Yes | Native #438 | | | |
 | Guest scan prompt | `GuestScanPrompt` | Yes | Native #438 | | | |
-| Screenshot import (`/scan-import`) | `ScanImportView`, `analyze-screenshot` | Web link | Web link (was v1.x) | M | none | 6 |
-| CSV / Excel import, template, column matching, preview | `ImportView` | Web link | Web link (was v1.x) | L | Recommended: a server parse function (flag F-10) | 6 |
+| Screenshot import (`/scan-import`) | `ScanImportView`, `analyze-screenshot` | Add a show → Import shows → a screenshot, into the same review | Native 6-7 (4.0.51) | M | none | 6 |
+| CSV / Excel import, template, column matching, preview | `ImportView` | `ImportShowsView`: file, columns, review with setlists, import, not-imported CSV, template | Native 6-7 (4.0.51) | L | `import-sheet` (5.60.39, 6-2b) | 6 |
 | Search tab | Capacitor: add-show search | Search over your shows (F-2): quick search, Advanced search, By artist, Add shows from a tour | Native 4-12 | | none | |
 
 ### 2.6 Advanced search (`/advanced-search`)
