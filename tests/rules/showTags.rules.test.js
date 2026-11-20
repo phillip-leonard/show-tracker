@@ -11,7 +11,7 @@
  * touches production.
  *
  * What the rule promises, and every write the app makes (context/AppContext.jsx,
- * lib/moderation.js, lib/yearRecapData.js) is exercised here:
+ * lib/moderation.js, and iOS 3.13.56 and earlier reading their own accepted tags for the recap) is exercised here:
  *   - only the sender and the recipient can read a tag, by get or by the
  *     queries the app runs (toUid ==, fromUid == with status / upcomingShowId
  *     / toUid); a stranger can't, and can't run an unfiltered query

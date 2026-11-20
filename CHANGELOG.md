@@ -4,6 +4,37 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.60.41] — 2026-11-20
+
+Ships in **iOS 3.13.57** (Capacitor, `MARKETING_VERSION` 3.13.56 → 3.13.57).
+Native unchanged. Stage 6, Part 2c: the Year in Review extras and the poster
+record move to the server, so the native app shows the same answers as the
+web (`docs/ios-native/STAGE6-AUDIT.md` §7, §8, calls D and G).
+
+**`year-recap`.** A new `netlify/functions/year-recap.js` (accounts only,
+300 a day): `{ year }` → `{ recap, rarity: { rarest, bustOuts }, buddy }`.
+The recap is the stored one (or computed from your shows); the rarest catch
+and the bust-outs come from the band archives read in-process from the
+band-page snapshot; the show buddy comes from your accepted tags and your
+friends, leaving out anyone you've blocked. Neither the rarity nor the buddy
+goes on the review document, because a public review is readable by anyone.
+**The web's Year in Review switches to it** for a signed-in account, and no
+longer reads its sent tags in the browser (`lib/yearRecapData.js` is gone).
+A guest's rarity is still worked out in the browser from their own shows.
+
+**`my-poster` builds the record.** `{ action: 'record', artist }` →
+`{ record, eligible, name, archive, shows, noSetlist }`, from your stored
+shows with `lib/myPoster.js`, the code the web's poster page runs; `image`
+and `share` take `artist` in place of `record` (and refuse a band without
+two shows with a setlist). The old `record` body still works.
+
+**Shared code.** `lib/myPoster.js` and `lib/yearRecapRarity.js` become
+CommonJS, and the band lookups move to a new `lib/publicBands.js`
+(`lib/bandScreens.js` and `lib/heardLinks.js` re-export them), so the server
+and the browser run one copy. Tests: `tests/security/yearRecapPoster.test.js`.
+
+---
+
 ## [5.60.40] — 2026-11-20
 
 Ships in **iOS 3.13.56** (Capacitor, `MARKETING_VERSION` 3.13.55 → 3.13.56)

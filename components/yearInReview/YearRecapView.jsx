@@ -15,7 +15,7 @@
 // (lib/yearRecap.js), so a show added on New Year's Eve moves every number
 // the moment it's saved. Two things load after first paint and appear only
 // if they have something to say: the band archives (lib/yearRecapRarity.js)
-// and the accepted friend tags (lib/yearRecapData.js).
+// and the accepted friend tags (both from year-recap for an account, 5.60.41).
 
 import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
@@ -30,9 +30,9 @@ import { PosterImages, PosterShareLink } from '@/components/heard/PosterShare';
 import { SetlistfmCreditFor } from '@/components/shows/SetlistfmAttribution';
 import YearSelector from '@/components/yearInReview/YearSelector';
 import useRunIndex from '@/hooks/useRunIndex';
-import { computeYearRecap, computeShowBuddy, showsInYear } from '@/lib/yearRecap';
-import { loadYearRarity, archiveBandsFor } from '@/lib/yearRecapRarity';
-import { loadAcceptedTagsSent } from '@/lib/yearRecapData';
+import { computeYearRecap, showsInYear } from '@/lib/yearRecap';
+import { loadYearRarity } from '@/lib/yearRecapRarity';
+import { apiUrl, authedFetch } from '@/lib/api';
 import { recapHref } from '@/lib/recapLaunch';
 import { showHref } from '@/lib/showRouting';
 import { formatDate } from '@/lib/utils';
@@ -100,35 +100,57 @@ function NoSetlistLine({ shows }) {
   );
 }
 
+// A guest's band archive, for the rarity a guest's own shows earn (their
+// shows aren't on the server, so year-recap can't see them).
+async function loadArchiveInBrowser(slug) {
+  try {
+    const res = await fetch(apiUrl(`/api/artist-shows?slug=${encodeURIComponent(slug)}`));
+    if (!res.ok) return null;
+    const json = await res.json();
+    return json && json.ok !== false && Array.isArray(json.shows) ? json : null;
+  } catch {
+    return null;
+  }
+}
+
+// An account's rarity and show buddy come from year-recap (5.60.41, Stage 6
+// call D), computed on the server from the stored shows, so the web and the
+// native app show the same answer and no buddy is read in the browser.
+async function loadRecapExtras(year, isAccount, yearShows) {
+  if (!isAccount) return { rarity: await loadYearRarity(yearShows, loadArchiveInBrowser), buddy: null };
+  const res = await authedFetch('/.netlify/functions/year-recap', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ year }),
+  });
+  if (!res.ok) throw new Error(`year-recap HTTP ${res.status}`);
+  const data = await res.json();
+  return { rarity: data.rarity || { rarest: null, bustOuts: [] }, buddy: data.buddy || null };
+}
+
 export default function YearRecapView({ year }) {
   const router = useRouter();
-  const { shows, user, friends } = useApp();
+  const { shows, user, guestMode } = useApp();
   const addShow = () => router.push(`/search/?returnTo=${encodeURIComponent(recapHref(year))}`);
   const runIndex = useRunIndex();
   const recap = useMemo(() => computeYearRecap(shows || [], year), [shows, year]);
   const yearShows = useMemo(() => showsInYear(shows || [], year), [shows, year]);
 
-  // Rarity: only refetched when the year's archive-band nights change.
-  const archiveKey = useMemo(() => JSON.stringify(archiveBandsFor(yearShows).map((b) => [b.slug, b.shows])), [yearShows]);
-  const [rarity, setRarity] = useState(null); // null while loading
+  // Rarity and buddy: asked again when the year's shows change.
+  const isAccount = !!user && !guestMode && !user.isAnonymous;
+  const yearKey = useMemo(() => JSON.stringify([isAccount, yearShows.map((s) => [s.id, s.date, s.artist, (s.setlist || []).length])]), [isAccount, yearShows]);
+  const [extras, setExtras] = useState(null); // null while loading
   useEffect(() => {
     let live = true;
-    setRarity(null);
-    loadYearRarity(yearShows).then((r) => { if (live) setRarity(r); }).catch(() => { if (live) setRarity({ rarest: null, bustOuts: [] }); });
+    setExtras(null);
+    loadRecapExtras(year, isAccount, yearShows)
+      .then((e) => { if (live) setExtras(e); })
+      .catch(() => { if (live) setExtras({ rarity: { rarest: null, bustOuts: [] }, buddy: null }); });
     return () => { live = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [archiveKey]);
-
-  const [acceptedTags, setAcceptedTags] = useState(null);
-  useEffect(() => {
-    let live = true;
-    loadAcceptedTagsSent(user?.uid).then((t) => { if (live) setAcceptedTags(t); });
-    return () => { live = false; };
-  }, [user?.uid]);
-  const buddy = useMemo(
-    () => (acceptedTags ? computeShowBuddy(yearShows, acceptedTags, friends || []) : null),
-    [acceptedTags, yearShows, friends],
-  );
+  }, [year, yearKey]);
+  const rarity = extras ? extras.rarity : null;
+  const buddy = extras ? extras.buddy : null;
 
   if (!recap) {
     return (
