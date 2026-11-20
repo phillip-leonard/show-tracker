@@ -6,6 +6,30 @@
 
 Read against `main` at 083e0e8 (#450 merged) plus #451 (native 4.0.25), which has since merged. Ships in native 4.0.27; web and Capacitor unchanged.
 
+## Parity check (6-12, 2026-11-20)
+
+Re-run against `main` at ac8efdc (#487 merged: web 5.60.42, Capacitor 3.13.58, native 4.0.56). **Every row in §2 now ends native, decided, or web by design.** Ships in native 4.0.57; web and Capacitor unchanged.
+
+| Status now | Rows |
+|---|---|
+| Native (including server work the native app relies on) | 179 |
+| Decided: not built natively (playlists F-9; meetups on a show and the meetup screens, 2026-11-19; Hours of live music F-3; Fans also see and Discover F-4, hidden on the web too; the admin popups, call H) | 7 |
+| Web by design (password reset, the PWA install prompt, the cookie notice; venue owner tools F-6) | 4 |
+| Decided web links (Release notes F-5; Terms, Privacy and Community Guidelines F-12) | 2 |
+| Nothing to build (the first-show animation, removed from the web) | 1 |
+| **Total** | **193** |
+
+**How it was checked:**
+- Every row's status read against the code. Eight rows were stale and are corrected below: the menu drawer (F-1's Library, 4-3), the guest's first-show prompt (4-3), the welcome email (server, 4-2), By artist and saved searches (Search, 4-12), artist → band page (4-5), show stats (4-6; the web's Duration never shows, since no source writes a song duration) and the average show rating (4-8).
+- Every Swift type the "Native today" column names exists in `ios-native/` (a script over the table).
+- Every `AppRoute` has a native screen in `AppShell`; none falls through to the placeholder. (`.yearInReview` shows the web page on purpose for someone else's review and for 2026 until Jan 16.)
+- Every page the app claims from mysetlists.net opens a native screen except the decided ones: `/discover`, `/scan-import` (the add sheet isn't a route, 6-7), `/venue-dashboard`, `/meetups`, `/release-notes` and the admin pages. **`ParityRoutesTests` pins that list**, so a new route that opens the web fails CoreTests until it's built or decided.
+- Every remaining link to mysetlists.net in the app is one of those decisions: venue owner tools (F-6), the Songs I've heard tool (F-11), legal pages (F-12), release notes (F-5), a friend's public show page, meetup notifications, and the "Open on mysetlists.net" fallback on a song, band song, run or tour page that isn't in your shows.
+
+**One gap found and closed here:** `/invite` (the web's Invite Friends page) opened the web; it now opens Friends, where Add friend has invites (#446).
+
+**Not parity, seen while checking 6-11** (left for later): the guest empty state's "Add a show" button wraps onto two lines, and the Shows header says "1 Bands".
+
 ## How to read the tables
 
 **Status:**
@@ -23,7 +47,7 @@ Read against `main` at 083e0e8 (#450 merged) plus #451 (native 4.0.25), which ha
 
 ---
 
-## 1. Summary
+## 1. Summary (2026-11-17, before Stages 4 to 6)
 
 Counted from the rows in §2 (the admin portal excluded; the public pages in §2.23 are one paragraph, not rows):
 
@@ -61,7 +85,7 @@ Two gaps aren't screens, and both should be fixed whatever else is decided:
 | Item | Web / Capacitor | Native today | Status | Size | Server work | Stage |
 |---|---|---|---|---|---|---|
 | Tabs | Capacitor: Shows, Search, Stats, Upcoming, Me (`MobileTabBar`). Web: sidebar | Shows (Upcoming inside), Friends, Stats, Me, Search | Native #426 | | | |
-| Menu drawer for secondary pages | `Sidebar.jsx`: My Shows, Stats, Community, Discover (hidden), Tours, Festivals, Wishlist, Bucket List, Profile, Setlist Photos, Feedback, How to Use, Release Notes | None | Missing | S | none | 4 (flag F-1) |
+| Menu drawer for secondary pages | `Sidebar.jsx`: My Shows, Stats, Community, Discover (hidden), Tours, Festivals, Wishlist, Bucket List, Profile, Setlist Photos, Feedback, How to Use, Release Notes | No drawer (F-1): `LibrarySection` at the top of Me, Community on Stats, Activity on Friends, help in Me, the wide-iPad sidebar | Native 4-3 (#457), help 6-11 | S | none | 4 (flag F-1) |
 | Deep links and universal links | `lib/deepLinks.js`, AASA | Ported, shared fixture | Native #426 | | | |
 | Version gate (update required) | `VersionGate` | Same table, `fixtures/app-version/` | Native #425 | | | |
 | Sign in: Apple, Google, email, guest; terms gate; suspended screen | `auth/*` | All | Native #425, #437, #443 | | | |
@@ -70,8 +94,8 @@ Two gaps aren't screens, and both should be fixed whatever else is decided:
 | Welcome back after the Capacitor update | none | Native only | Native #429 | | | |
 | Offline: cached shows, outbox, "Waiting to sync" | `lib/liveShows.js`, outbox | Same | Native #432, #436 | | | |
 | Guest rescue banner ("Create a free account to keep your shows") | `GuestRescueBanner` on every page | `GuestRescueBanner` above the Shows list for a guest with a show, dismissed for seven days; the prompt in Me and the empty state too | **Native 6-11 (4.0.56)** | S | none | 6 |
-| Guest's first show opens the account prompt | `AppContext` (`setShowGuestPrompt`) | No prompt after a guest's first show | Missing | S | none | 4 |
-| Welcome email after a first show | Client calls `send-welcome-email` | Never requested | Missing | S | Move the trigger into `normalize-show` (first show for an account) | 4 (server PR) |
+| Guest's first show opens the account prompt | `AppContext` (`setShowGuestPrompt`) | `FirstShowPrompt` after a guest's first show (`ShowsStore.takeFirstShow`) | Native 4-3 (#457) | S | none | 4 |
+| Welcome email after a first show | Client calls `send-welcome-email` | Sent by the server: `normalize-show` after an account's first show (`welcomeEmailAfterAdd`), and `account-linked` after a guest links | Native (server, 4-2 #456) | S | done in `normalize-show` | 4 (server PR) |
 | "Added X" toast with Open | `announceAddedShow` | "Open it" alert after an add | Native #436 | | | |
 | First-show animation | Removed from the web ("Straight to Your First Show" release note) | None | Nothing to build | | | |
 | Haptics | Only on custom swipe gestures: swipe back, drawer close, sheet drag (`impact('light')` in `lib/capacitor.js`) | System gestures carry their own; `.sensoryFeedback` on a rating, an added show, a follow, a vote and sent feedback | **Native 6-11 (4.0.56)** | | | flag F-8 |
@@ -88,8 +112,8 @@ Two gaps aren't screens, and both should be fixed whatever else is decided:
 |---|---|---|---|---|---|---|
 | Timeline list, search, sort | `app/shows/page.jsx` | Yes | Native #432 | | | |
 | Filters: year, date, artist, venue | `ShowFilters` | Year, band, venue | Native #432 | | | |
-| "By artist" tab (artist table, expand to shows) | `ArtistShowsRow` | None | Missing | S | none | 4 |
-| Saved searches applied to the list | `activeSavedSearch` | None | Missing | S | none | 4 (with advanced search) |
+| "By artist" tab (artist table, expand to shows) | `ArtistShowsRow` | Search → By artist: every band with your shows of each | Native 4-12 | S | none | 4 |
+| Saved searches applied to the list | `activeSavedSearch` | Saved and recent searches on the Search tab (`SavedSearches`), each opening its results | Native 4-12 | S | none | 4 (with advanced search) |
 | `?artist=` / `?venue=` filter links from elsewhere | Yes | Tap-through from Stats | Native #441 | | | |
 | Venue's shows (`?venueKey=`) | `VenueShowsView` | The venue page's "Your shows here" (newest 10, then all in your show list); a `?venueKey=` link still opens the web | Native 4-7 | | | |
 | Empty state: "Your concert journey starts here" | Yes | Yes | Native #432 | | | |
@@ -115,7 +139,7 @@ Two gaps aren't screens, and both should be fixed whatever else is decided:
 | Item | Web / Capacitor | Native today | Status | Size | Server work | Stage |
 |---|---|---|---|---|---|---|
 | Artist, date, venue, city header | Yes | Yes | Native #433 | | | |
-| Artist name → band page | `bandHref` | Band stand-in (Follow + web link) | Planned | | | 4 |
+| Artist name → band page | `bandHref` | The show header's band name opens `BandScreen` | Native 4-5 (#459) | | | 4 |
 | Venue → venue page | Yes | The venue row in the card under the header | Native 4-7 | | | |
 | Tour line → tour page | Yes | Card under the header (your tours only) | Native 4-6 | | | |
 | "Night N of M — view the full run" | Yes | Same card | Native 4-6 | | | |
@@ -135,7 +159,7 @@ Two gaps aren't screens, and both should be fixed whatever else is decided:
 | setlist.fm and band-source attribution | Yes | Yes | Native #433, #435 | | | |
 | "Check this setlist" (needs review, compare with archive.org) | Yes | Yes | Native #435 | | | |
 | Proposal diff, accept, decline; re-sync | Yes | Yes | Native #435 | | | |
-| Show stats: songs, duration, tour, debuts | Sidebar card | Songs and debuts | Native #433, partly | S | none | 4 |
+| Show stats: songs, duration, tour, debuts | Sidebar card | Songs and debut marks on the setlist, the tour and run in the place links card. No duration: no source writes a song's `duration`, so the web never shows it either | Native #433, 4-6 | S | none | 4 |
 | Friends who were there | Yes | Yes | Native #448 | | | |
 | Shows to confirm (suggestions) | Yes | Yes | Native #448 | | | |
 | "Where to stream this show" (nugs.net, playdead, Relisten, archive.org) | `StreamingLinks`, `lib/streamingPlatforms.js` | `StreamingSection`, from the lookup's `streaming` | Native 4-4 | | `archival-audio-lookup` answers the list (Stage 4 call A, 5.60.32) | |
@@ -288,7 +312,7 @@ Two gaps aren't screens, and both should be fixed whatever else is decided:
 | Friends list, remove, block | `FriendsView` | Friends tab | Native #446 | | | |
 | Requests: accept, decline; sent requests, cancel | Yes | Yes | Native #446 | | | |
 | Add by email or handle | Yes | Yes | Native #446 | | | |
-| Invites by email: send, resend, cancel; invite link (`/invite`) | `InviteView` | Yes | Native #446 | | | |
+| Invites by email: send, resend, cancel; invite link (`/invite`) | `InviteView` | In Friends → Add friend; `/invite` opens Friends (6-12) | Native #446, 6-12 | | | |
 | Show tags: "Were you there together?" | Yes | Yes | Native #448 | | | |
 | Tagged shows waiting for someone to join | Yes | Yes | Native #448 | | | |
 | Shows Together (`/friends?together=`) | `ShowsTogetherView` | Yes | Native #448 | | | |
@@ -314,7 +338,7 @@ Two gaps aren't screens, and both should be fixed whatever else is decided:
 |---|---|---|---|---|---|---|
 | Profile hero: shows, artists, venues, friends | `ProfileHero` | Stats tab | Native #441 | | | |
 | Achievements (First show, Centurion, Venue hopper…) | `app/profile/page.jsx` | `AchievementsSection` in Me, from `userStats` counts, friends and followed bands | **Native 6-11 (4.0.56)** | S | none | 6 |
-| Average show rating | Yes | None | Missing | S | none (server stats) | 4 (with Stats) |
+| Average show rating | Yes | "Average show rating" on Stats and "Avg rating" in the Shows header, the server's `avgShowRating` | Native 4-8 | S | none (server stats) | 4 (with Stats) |
 | Display name, photo URL | Yes | Yes | Native #442 | | | |
 | Handle: claim | Yes | Yes | Native #442 | | | |
 | Public profile on or off | Yes | Yes | Native #442 | | | |

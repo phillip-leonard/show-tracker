@@ -173,6 +173,10 @@ public extension DeepLink {
             return .open(.stats, .community)
         case "/friends":
             return .open(.friends, nil)
+        // The web's Invite Friends page; native invites from Friends → Add
+        // friend (6-12).
+        case "/invite":
+            return .open(.friends, nil)
         case "/notifications":
             return .open(.friends, .notifications)
         case "/activity":
