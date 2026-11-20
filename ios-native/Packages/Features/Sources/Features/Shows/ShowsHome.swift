@@ -255,6 +255,7 @@ struct ShowsHome: View {
             } actions: {
                 Button("Try again") { Task { await store.refresh() } }
                     .buttonStyle(.borderedProminent)
+                    .fixedSize()
             }
         } else {
             firstShowEmptyState
@@ -270,6 +271,22 @@ struct ShowsHome: View {
         }
     }
 
+    /// "Add a show" in an empty state. These sit in a list row, where a
+    /// `Label` in a prominent button wrapped onto two lines or drew as a
+    /// tall empty pill; an icon and text in a stack, at its own size, draw
+    /// on one line.
+    private var addShowButton: some View {
+        Button { adding = true } label: {
+            HStack(spacing: Space.x2) {
+                Image(systemName: "plus")
+                Text("Add a show")
+            }
+        }
+        .buttonStyle(.borderedProminent)
+        .tint(.brand)
+        .fixedSize()
+    }
+
     private var firstShowEmptyState: some View {
         ContentUnavailableView {
             Label("Your concert journey starts here", systemImage: "music.note.list")
@@ -278,8 +295,7 @@ struct ShowsHome: View {
                  ? "Add the shows you've been to, with their setlists, ratings and notes. They stay with you when you create an account."
                  : "Add the shows you've been to, with their setlists, ratings and notes.")
         } actions: {
-            Button { adding = true } label: { Label("Add a show", systemImage: "plus") }
-                .buttonStyle(.borderedProminent)
+            addShowButton
             if isGuest {
                 Button("Create your account") { upgrading = true }
                     .buttonStyle(.borderless)
@@ -295,8 +311,7 @@ struct ShowsHome: View {
         } actions: {
             Button("Clear search and filters") { clearFilters() }
                 .buttonStyle(.borderless)
-            Button { adding = true } label: { Label("Add a show", systemImage: "plus") }
-                .buttonStyle(.borderedProminent)
+            addShowButton
         }
     }
 
@@ -318,8 +333,7 @@ struct ShowsHome: View {
                     } actions: {
                         Button("Clear search") { query = "" }
                             .buttonStyle(.borderless)
-                        Button { adding = true } label: { Label("Add a show", systemImage: "plus") }
-                            .buttonStyle(.borderedProminent)
+                        addShowButton
                     }
                 }
             }
@@ -355,8 +369,7 @@ struct ShowsHome: View {
             } description: {
                 Text("Add the shows you have tickets for. After the night, move each one to your shows with its setlist.")
             } actions: {
-                Button { adding = true } label: { Label("Add a show", systemImage: "plus") }
-                    .buttonStyle(.borderedProminent)
+                addShowButton
             }
         }
     }

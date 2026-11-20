@@ -217,8 +217,8 @@ struct ShowsSummary: View {
     var body: some View {
         HStack(spacing: Space.x2) {
             figure("\(showCount)", showCount == 1 ? "Show" : "Shows")
-            figure(stats.map { "\($0.bandCount)" } ?? "–", "Bands")
-            figure(stats.map { "\($0.venueCount)" } ?? "–", "Venues")
+            figure(stats.map { "\($0.bandCount)" } ?? "–", stats?.bandCount == 1 ? "Band" : "Bands")
+            figure(stats.map { "\($0.venueCount)" } ?? "–", stats?.venueCount == 1 ? "Venue" : "Venues")
             figure(stats?.avgShowRating.map { String(format: "%.1f", $0) } ?? "–", "Avg rating")
         }
         .frame(maxWidth: .infinity)
