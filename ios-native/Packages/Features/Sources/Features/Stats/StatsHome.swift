@@ -118,6 +118,28 @@ struct StatsHome: View {
                 }
             }
 
+            // Year in Review (6-10), natively for the year picked: every
+            // year but 2026 before Jan 16 (the card above opens the web).
+            if let picked = year.flatMap(Int.init), !isGuest, YearReview.isNative(year: picked) {
+                Section {
+                    NavigationLink(value: AppRoute.yearInReview(user: "", year: String(picked))) {
+                        Label {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Your \(String(picked)) in review")
+                                    .font(.jakarta(size: 16, weight: .semibold, relativeTo: .body))
+                                    .foregroundStyle(Color.textPrimary)
+                                Text("Top bands and songs, rare ones, your show buddy and a card to share")
+                                    .font(.jakarta(size: 13, relativeTo: .footnote))
+                                    .foregroundStyle(Color.textSecondary)
+                            }
+                        } icon: {
+                            Image(systemName: "sparkles").foregroundStyle(Color.amber)
+                        }
+                    }
+                }
+                .brandRow()
+            }
+
             if !stats.showsByYear.isEmpty {
                 Section {
                     ShowsByYearChart(byYear: stats.showsByYear, pickedYear: year.flatMap(Int.init)) { picked in
@@ -642,7 +664,7 @@ struct MyShowsList: View {
                                        description: Text("This list fills in once your shows have loaded."))
             }
         }
-        .navigationTitle(filter.title)
+        .navigationTitle(filter.year.map { "\(filter.title) · \(String($0))" } ?? filter.title)
         .navigationBarTitleDisplayMode(.inline)
     }
 }

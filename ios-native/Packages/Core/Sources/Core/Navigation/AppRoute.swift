@@ -125,7 +125,8 @@ public extension DeepLink {
         case "/venues":
             if let key = value("venue") { return .open(.shows, .venue(key: key)) }
         case "/year-in-review":
-            if let user = value("user"), let year = value("year") { return .open(.stats, .yearInReview(user: user, year: year)) }
+            // Without `user`, your own (the year-end email's link).
+            if let year = value("year") { return .open(.stats, .yearInReview(user: value("user") ?? "", year: year)) }
         case "/stats":
             return .open(.stats, nil)
         case "/stats/songs":
@@ -216,7 +217,10 @@ public extension AppRoute {
         case .setlistPhotos: path = "/setlist-photos"
         case .advancedSearch: path = "/advanced-search"
         case .venue(let key): path = "/venues"; params.set("venue", key)
-        case .yearInReview(let user, let year): path = "/year-in-review"; params.set("user", user); params.set("year", year)
+        case .yearInReview(let user, let year):
+            path = "/year-in-review"
+            if !user.isEmpty { params.set("user", user) }
+            params.set("year", year)
         case .myShows: path = "/stats"
         case .notifications: path = "/notifications"
         case .activity: path = "/activity"

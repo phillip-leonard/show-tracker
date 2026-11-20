@@ -260,6 +260,8 @@ private struct PosterRecordView: View {
                             }
                             .font(.brand(.sm))
                             .padding(.vertical, Space.x2)
+                            .frame(minHeight: TouchTarget.minimum)
+                            .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
                     }
@@ -289,13 +291,57 @@ private struct PosterImagesView: View {
     let name: String
     let shows: Int
     let songs: Int
+
+    var body: some View {
+        let posters = store.posters
+        ServerPosterImages(
+            requestKey: artist,
+            fileBase: "\(ServerPosterImages.slug(name, fallback: "band"))-songs-heard",
+            alt: "\(name) poster",
+            imageSubject: "\(name): songs I've heard live",
+            linkSubject: "\(name): \(shows) shows, \(songs) songs heard",
+            linkNote: "The link is to your record and poster, with no name or notes on it.",
+            draw: { kind throws(APIError) in
+                guard let posters else { throw .offline }
+                return try await posters.image(artist: artist, kind: kind)
+            },
+            makeLink: { () throws(APIError) in
+                guard let posters else { throw .offline }
+                return try await posters.shareLink(artist: artist)
+            }
+        )
+    }
+}
+
+/// A `my-poster` image in its two sizes (feed and story), the share sheet
+/// with the PNG, and "Get share link": the band poster (6-9) and the Year in
+/// Review recap card (6-10). A new `requestKey` draws afresh.
+struct ServerPosterImages: View {
+    let requestKey: String
+    /// The saved file's name, without the size and extension.
+    let fileBase: String
+    let alt: String
+    let imageSubject: String
+    let linkSubject: String
+    let linkNote: String
+    let draw: @MainActor (PosterClient.Kind) async throws(APIError) -> Data
+    let makeLink: @MainActor () async throws(APIError) -> URL
+    var drawingLabel = "Drawing your poster…"
+
     @State private var kind: PosterClient.Kind = .feed
+    @State private var drawnFor = ""
     @State private var images: [PosterClient.Kind: UIImage] = [:]
     @State private var files: [PosterClient.Kind: URL] = [:]
     @State private var problem: String?
     @State private var link: URL?
     @State private var linking = false
     @State private var linkProblem: String?
+
+    static func slug(_ text: String, fallback: String) -> String {
+        let slug = text.lowercased().replacingOccurrences(of: "[^a-z0-9]+", with: "-", options: .regularExpression)
+            .trimmingCharacters(in: CharacterSet(charactersIn: "-"))
+        return slug.isEmpty ? fallback : slug
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: Space.x3) {
@@ -308,29 +354,29 @@ private struct PosterImagesView: View {
                 if let image = images[kind] {
                     Image(uiImage: image).resizable().scaledToFit()
                         .clipShape(RoundedRectangle.brand(Radius.lg))
-                        .accessibilityLabel("\(name) poster, \(kind == .feed ? "feed" : "story") size")
+                        .accessibilityLabel("\(alt), \(kind == .feed ? "feed" : "story") size")
                 } else if let problem {
                     Text(problem).font(.brand(.sm)).foregroundStyle(Color.amber)
                 } else {
-                    ProgressView("Drawing your poster…").frame(maxWidth: .infinity, minHeight: 220)
+                    ProgressView(drawingLabel).frame(maxWidth: .infinity, minHeight: 220)
                 }
             }
             .frame(maxWidth: 420)
             HStack(spacing: Space.x3) {
                 if let file = files[kind] {
-                    ShareLink(item: file, subject: Text("\(name): songs I've heard live")) {
+                    ShareLink(item: file, subject: Text(imageSubject)) {
                         Label("Share image", systemImage: "square.and.arrow.up")
                     }
                     .buttonStyle(.borderedProminent).tint(.brand)
                 }
                 if let link {
-                    ShareLink(item: link, subject: Text("\(name): \(shows) shows, \(songs) songs heard")) {
+                    ShareLink(item: link, subject: Text(linkSubject)) {
                         Label("Share link", systemImage: "link")
                     }
                     .buttonStyle(.bordered)
                 } else {
                     Button {
-                        Task { await makeLink() }
+                        Task { await getLink() }
                     } label: {
                         if linking { ProgressView() } else { Label("Get share link", systemImage: "link") }
                     }
@@ -341,35 +387,37 @@ private struct PosterImagesView: View {
             if let linkProblem {
                 Text(linkProblem).font(.brand(.sm)).foregroundStyle(Color.amber)
             }
-            Text("The link is to your record and poster, with no name or notes on it.")
-                .font(.caption).foregroundStyle(.secondary)
+            Text(linkNote).font(.caption).foregroundStyle(.secondary)
         }
-        .task(id: kind) { await draw(kind) }
+        .task(id: "\(requestKey)|\(kind.rawValue)") { await drawIfNeeded() }
     }
 
-    private func draw(_ kind: PosterClient.Kind) async {
-        guard images[kind] == nil, let posters = store.posters else { return }
+    private func drawIfNeeded() async {
+        if drawnFor != requestKey {
+            drawnFor = requestKey
+            images = [:]; files = [:]; link = nil; linkProblem = nil
+        }
+        guard images[kind] == nil else { return }
+        let kind = kind
         problem = nil
         do throws(APIError) {
-            let png = try await posters.image(artist: artist, kind: kind)
-            guard let image = UIImage(data: png) else { problem = "Couldn't make the poster. Try again."; return }
+            let png = try await draw(kind)
+            guard let image = UIImage(data: png) else { problem = "Couldn't make the image. Try again."; return }
             images[kind] = image
-            let slug = name.lowercased().replacingOccurrences(of: "[^a-z0-9]+", with: "-", options: .regularExpression)
-                .trimmingCharacters(in: CharacterSet(charactersIn: "-"))
-            let url = FileManager.default.temporaryDirectory.appendingPathComponent("\(slug.isEmpty ? "band" : slug)-songs-heard-\(kind.rawValue).png")
+            let url = FileManager.default.temporaryDirectory.appendingPathComponent("\(fileBase)-\(kind.rawValue).png")
             if (try? png.write(to: url)) != nil { files[kind] = url }
         } catch {
+            if error.isCancellation { return }
             problem = PosterClient.message(for: error)
         }
     }
 
-    private func makeLink() async {
-        guard let posters = store.posters else { return }
+    private func getLink() async {
         linking = true
         linkProblem = nil
         defer { linking = false }
         do throws(APIError) {
-            link = try await posters.shareLink(artist: artist)
+            link = try await makeLink()
         } catch {
             linkProblem = error == .offline
                 ? "You're offline. Connect to get a share link."
