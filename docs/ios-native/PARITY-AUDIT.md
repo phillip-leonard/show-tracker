@@ -187,7 +187,7 @@ Two gaps aren't screens, and both should be fixed whatever else is decided:
 | Runs list (`/stats/runs`) | Yes | `RunListView` (4-6), linked from Stats | Native 4-6, 4-8 | | | |
 | Venue tab: "Rate Venue", community average | `VenueRatingModal` | On the venue page; Stats' venue rows still open your shows there | Native 4-7 (venue page) | | | |
 | "How many Goose songs have you heard?" (Songs I've heard tool) | `HeardToolCard`, a web tool | `HeardToolCard` on Stats, opening the tool with your shows in the link | Native 6-9 (4.0.53); the tool stays web (F-11) | S | none | 6 |
-| Year in Review entry | Card | Card, Dec 2 – Jan 15, opens the web (C-9) | Native #441 (web link) | | | |
+| Year in Review entry | Card | Card, Dec 2 – Jan 15, opens the web (C-9); "Your <year> in review" for a picked year opens the native screen (6-10) | Native #441 (web link), 6-10 | | | |
 | Empty state: "No stats yet" | Yes | Yes | Native #441 | | | |
 
 ### 2.8 Songs (`/songs?song=`)
@@ -356,8 +356,8 @@ Two gaps aren't screens, and both should be fixed whatever else is decided:
 | My poster (`/my-poster?artist=`): your most heard songs for a band, sort, add setlist | `MyPosterView`, `my-poster` | `MyPosterScreen` (`my-poster` `record`, 6-2c) | Native 6-9 (4.0.53) | M | `my-poster` `record` (5.60.41) | 6 |
 | Poster share: download image, share link | `PosterShare`, `heard-share`, `public-poster` | Feed and story PNGs from `my-poster` `artist`, share sheet, share link | Native 6-9 (4.0.53) | (same PR) | none | 6 |
 | Save to "Songs I've heard" | `HeardSaveModal`, `heard-import` | `HeardSaveScreen` for `/shows/?heard=` links (kept through sign-up) | Native 6-9 (4.0.53) | S | none | 6 |
-| Year in Review page: top bands, top songs, rare ones, show buddy, highlights (rarest catch, bust-outs, shows together, first and last show, busiest month, longest run), recap card, year picker, "Missing a show? Add it" | `YearRecapView` (server-written `recap`) | Web link (C-9) | Web link | L | none (the server writes `recap`) | 6 (flag F-13) |
-| Year in Review share image: share, download, email, X | `ShareYearInReview` (drawn in the browser) | None | Missing | M | none (native draws its own with `ImageRenderer`) | 6 |
+| Year in Review page: top bands, top songs, rare ones, show buddy, highlights (rarest catch, bust-outs, shows together, first and last show, busiest month, longest run), recap card, year picker, "Missing a show? Add it" | `YearRecapView` (server-written `recap`) | Native from `year-recap`, every year; 2026 from Jan 16 (C-9 until then) | **Native 6-10 (4.0.54)** | L | none (the server writes `recap`) | 6 (flag F-13) |
+| Year in Review share image: share, download, email, X | `ShareYearInReview` (drawn in the browser) | The recap card from `my-poster` (feed and story), the share sheet and the `/p/` link (E) | **Native 6-10 (4.0.54)** | M | none (the server draws it) | 6 |
 
 ### 2.23 Public and SEO pages (not app screens)
 

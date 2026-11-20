@@ -176,6 +176,7 @@ struct RouteScreen: View {
         case .activity: ActivityScreen()
         case .myPoster(let artist): MyPosterScreen(artist: artist)
         case .heardSave(let value): HeardSaveScreen(value: value)
+        case .yearInReview(let user, let year): YearInReviewRoute(user: user, year: year)
         case .advancedSearch: AdvancedSearchScreen(initial: ShowSearchFilters())
         default: RoutePlaceholder(route: route)
         }
