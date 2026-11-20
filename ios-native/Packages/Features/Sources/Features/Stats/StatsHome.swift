@@ -161,6 +161,10 @@ struct StatsHome: View {
                 }
                 .brandRow()
             }
+            // The Songs I've heard tool for the archive bands you've seen (F-11, 6-9).
+            if year == nil, !HeardTool.bandsFor(store.shows).isEmpty {
+                Section { HeardToolCard() }.brandRow()
+            }
             topSection("Top venues", numbers.topVenues.map { TopEntry(filter: ShowsFilter(kind: .venue, title: $0.name), detail: nil, count: $0.count) },
                        all: numbers.venueCount > numbers.topVenues.count ? (AppRoute.statsList(.venues, year: year), "All \(numbers.venueCount.formatted()) venues") : nil)
 

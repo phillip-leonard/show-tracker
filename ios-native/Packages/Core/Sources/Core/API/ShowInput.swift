@@ -45,8 +45,13 @@ public struct ShowInput: Codable, Hashable, Sendable {
         public var state: String?
         public var date: String
         public var tour: String?
-        public init(artist: String, venue: String, city: String? = nil, country: String? = nil, state: String? = nil, date: String, tour: String? = nil) {
-            self.artist = artist; self.venue = venue; self.city = city; self.country = country; self.state = state; self.date = date; self.tour = tour
+        /// Songs to save with it (a Songs I've heard selection, 6-9); the
+        /// form sends none.
+        public var setlist: [JSONValue]?
+        public init(artist: String, venue: String, city: String? = nil, country: String? = nil, state: String? = nil, date: String,
+                    tour: String? = nil, setlist: [JSONValue]? = nil) {
+            self.artist = artist; self.venue = venue; self.city = city; self.country = country; self.state = state; self.date = date
+            self.tour = tour; self.setlist = setlist
         }
     }
 
@@ -100,7 +105,7 @@ public struct ShowInput: Codable, Hashable, Sendable {
             try c.encode(m.artist, forKey: .artist); try c.encode(m.venue, forKey: .venue)
             try c.encodeIfPresent(m.city, forKey: .city); try c.encodeIfPresent(m.country, forKey: .country)
             try c.encodeIfPresent(m.state, forKey: .state); try c.encode(m.date, forKey: .date)
-            try c.encodeIfPresent(m.tour, forKey: .tour); try user(u)
+            try c.encodeIfPresent(m.tour, forKey: .tour); try c.encodeIfPresent(m.setlist, forKey: .setlist); try user(u)
         case .festivalRow(let s, let festivalId, let u):
             try c.encode("festival-row", forKey: .kind); try source(s); try c.encode(festivalId, forKey: .festivalId); try user(u)
         case .tag(let tagId, let asPastShow):
@@ -133,7 +138,8 @@ public struct ShowInput: Codable, Hashable, Sendable {
                 artist: try c.decode(String.self, forKey: .artist), venue: try c.decode(String.self, forKey: .venue),
                 city: try c.decodeIfPresent(String.self, forKey: .city), country: try c.decodeIfPresent(String.self, forKey: .country),
                 state: try c.decodeIfPresent(String.self, forKey: .state), date: try c.decode(String.self, forKey: .date),
-                tour: try c.decodeIfPresent(String.self, forKey: .tour)), user)
+                tour: try c.decodeIfPresent(String.self, forKey: .tour),
+                setlist: try c.decodeIfPresent([JSONValue].self, forKey: .setlist)), user)
         case "csv-row":
             var all = try [String: JSONValue](from: decoder)
             for k in ["kind", "showId", "confirmPossible"] { all[k] = nil }

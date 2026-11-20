@@ -48,6 +48,8 @@ struct RoutePlaceholder: View {
         case .myShows(let filter): filter.title
         case .notifications: "Notifications"
         case .activity: "Activity"
+        case .myPoster: "My poster"
+        case .heardSave: "Save shows"
         }
     }
 
@@ -71,6 +73,8 @@ struct RoutePlaceholder: View {
         case .myShows: "list.bullet"
         case .notifications: "bell"
         case .activity: "bolt.heart"
+        case .myPoster: "sparkles"
+        case .heardSave: "square.and.arrow.down"
         }
     }
 
@@ -90,7 +94,8 @@ struct RoutePlaceholder: View {
         case .venue(let key): key
         case .yearInReview: "A year of shows"
         case .myShows(let filter): filter.artist ?? ""
-        case .notifications, .activity: ""
+        case .notifications, .activity, .heardSave: ""
+        case .myPoster(let artist): artist
         }
     }
 }
