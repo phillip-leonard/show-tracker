@@ -4,6 +4,40 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.60.39] — 2026-11-20
+
+Ships in **iOS 3.13.55** (Capacitor, `MARKETING_VERSION` 3.13.54 → 3.13.55).
+Native unchanged. Stage 6, Part 2b: the CSV and Excel import gets a server
+function, so the native app can import a spreadsheet with the web's own
+code instead of a Swift copy (`docs/ios-native/STAGE6-AUDIT.md` §5, DECISIONS
+"Stage 6", call C, F-10).
+
+**`import-sheet`.** A new `netlify/functions/import-sheet.js`, accounts
+only, stateless (the app keeps the table and sends it back):
+- `parse` reads a `.csv`, `.txt`, `.xlsx` or `.xls` file of at most 2 MB
+  (the first sheet), keeps at most 2,000 rows, 30 columns and 500
+  characters a cell (and says when it cut something), and finds the columns
+  and the date order;
+- `plan` turns the rows into shows, splitting a bill when asked, with
+  duplicates checked against the caller's stored shows on the server;
+- `match` finds one show's setlist (the band's own source, the Internet
+  Archive, then setlist.fm, as the web's import does) and returns the
+  `csv-row` input to commit through `normalize-show`, or why the show can't
+  be saved.
+Each action has a daily count per account, and `match` counts toward the
+network's setlist.fm proxy limit, as the web's lookups do.
+
+**One copy of the import code.** `lib/importSheet.js` and
+`lib/importMatch.js` become CommonJS, and the CSV parser moves to a new
+`lib/sheetFile.js` (with the Excel reading and the caps), so the browser and
+the function run the same code. `importMatch`'s two network reads come from
+its context: over HTTP from the browser (the web's import now passes
+`apiUrl`, so the Capacitor app keeps reaching mysetlists.net), in-process on
+the server. The web's import behaves as before, including reading a whole
+sheet with no row cap. Tests: `tests/security/importSheet.test.js`.
+
+---
+
 ## [5.60.38] — 2026-11-19
 
 Ships in **iOS 3.13.54** (Capacitor, `MARKETING_VERSION` 3.13.53 → 3.13.54)

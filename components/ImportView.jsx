@@ -18,8 +18,9 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Check, Download, Upload, AlertTriangle, Camera, Loader2, Scissors, FileWarning } from 'lucide-react';
-import { formatDate, parseCSV, resizeImageForUpload } from '@/lib/utils';
-import { authedFetch, apiErrorMessage } from '@/lib/api';
+import { formatDate, resizeImageForUpload } from '@/lib/utils';
+import { csvTable, workbookTable } from '@/lib/sheetFile';
+import { apiUrl, authedFetch, apiErrorMessage } from '@/lib/api';
 import GuestScanPrompt from '@/components/GuestScanPrompt';
 import {
   IMPORT_COLUMNS, detectColumns, headerSignature, inferDateOrder, buildRows, planShows,
@@ -152,20 +153,14 @@ function ImportView({ onImport, existingShows = [], onNavigate, guestMode = fals
     setGuestScreenshot(false);
     const ext = (file.name.match(/\.([^.]+)$/) || [])[1]?.toLowerCase() || '';
     try {
+      // The same reading as import-sheet's for the native app (lib/sheetFile.js).
       if (ext === 'csv' || ext === 'txt' || file.type === 'text/csv') {
-        const text = (await file.text()).replace(/^﻿/, '');
-        const firstLine = text.split(/\r?\n/, 1)[0] || '';
-        const delimiter = (firstLine.match(/;/g) || []).length > (firstLine.match(/,/g) || []).length ? ';' : ',';
-        loadTable(parseCSV(text, delimiter), file.name);
+        loadTable(csvTable(await file.text()), file.name);
       } else if (ext === 'xlsx' || ext === 'xls') {
         const XLSX = await import('xlsx');
-        const workbook = XLSX.read(await file.arrayBuffer(), { type: 'array' });
-        const sheet = workbook.Sheets[workbook.SheetNames[0]];
-        // raw: a date cell comes back as Excel's day number, which
-        // parseShowDate reads exactly; the formatted text ("6/3/19") would
-        // be ambiguous.
-        const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', raw: true });
-        loadTable(rows.map((row) => row.map((c) => (c == null ? '' : String(c)))), file.name);
+        // The web reads the whole sheet, as it always has; the server's
+        // copy stops at its 2,000 rows.
+        loadTable(workbookTable(XLSX, await file.arrayBuffer(), { maxRows: 0 }), file.name);
       } else if (['png', 'jpg', 'jpeg', 'webp', 'heic'].includes(ext) || file.type.startsWith('image/')) {
         // Screenshot import calls Claude and needs an account; a guest's
         // dropped image gets the sign-up prompt instead (5.59.6).
@@ -249,7 +244,7 @@ function ImportView({ onImport, existingShows = [], onNavigate, guestMode = fals
   const runChecks = useCallback(async () => {
     if (checkingNow.current) return;
     checkingNow.current = true;
-    if (!matchCtx.current) matchCtx.current = createMatchContext();
+    if (!matchCtx.current) matchCtx.current = createMatchContext({ apiUrl });
     stopChecking.current = false;
     setChecking({ running: true, stopped: false });
     const queue = [...new Map(toCheck.map((s) => [s.key, s])).values()];
@@ -272,7 +267,7 @@ function ImportView({ onImport, existingShows = [], onNavigate, guestMode = fals
   const startImport = async () => {
     stopChecking.current = true;
     stopImport.current = false;
-    if (!matchCtx.current) matchCtx.current = createMatchContext();
+    if (!matchCtx.current) matchCtx.current = createMatchContext({ apiUrl });
     const total = shows.filter(isPicked).length;
     setStep('importing');
     setProgress({ done: 0, total, label: 'Saving shows' });
