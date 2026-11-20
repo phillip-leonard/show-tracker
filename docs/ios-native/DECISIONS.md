@@ -88,7 +88,7 @@ From Phillip's project copy.
 - **Discover** stays hidden. (Unchanged: it's hidden on the web too.)
 - ~~**Festivals** in v1 are read-and-attach only: list, detail, attach a show, lineup. Create, join and picks are v1.x.~~ **Reversed (parity):** all of Festivals is v1, in Stage 5.
 - ~~**Screenshot and CSV import** are v1.x. Until then, the app links to the web page.~~ **Reversed (parity):** both are v1, in Stage 6.
-- ~~**Comments, photos and meetups** on a show are v1.x (Stage 3, C-4). Until then, the show's row opens its web page.~~ **Reversed (parity):** all three are v1, in Stage 6.
+- ~~**Comments, photos and meetups** on a show are v1.x (Stage 3, C-4). Until then, the show's row opens its web page.~~ **Reversed (parity):** all three are v1, in Stage 6. **Changed again (2026-11-19):** meetups are left out of native and stay on the web ("Parity before launch").
 - ~~**Any v1.x screen** opens its web page in `SFSafariViewController` until it exists natively.~~ **Changed (parity):** there are no v1.x screens. Only the pages "Parity before launch" keeps on the web open there, plus a screen not yet built during development.
 - ~~**Year in Review** is in v1 only if v1 is ready before Dec 2. Otherwise it waits for next season.~~ **Changed (parity):** the 2026 season uses the web link (C-9); native Year in Review is built in Stage 6.
 
@@ -211,7 +211,7 @@ From the Stage 3 Part 1 audit ([`STAGE3-AUDIT.md`](STAGE3-AUDIT.md)), approved w
 - **Reversed by parity:**
   - festivals are all v1 (Stage 5);
   - screenshot and CSV import are v1 (Stage 6);
-  - comments, photos and meetups are v1 (Stage 3 C-4, Stage 6);
+  - comments and photos are v1 (Stage 3 C-4, Stage 6); meetups were too, until they were left out (below);
   - per-year stats are v1 (Stage 2 C-3, Stage 4).
 - **Navigation (F-1):** no drawer.
   - A **Library** section at the top of Me: Tours, Runs, Festivals, Wishlist, Bucket List, Setlist Photos.
@@ -230,6 +230,7 @@ From the Stage 3 Part 1 audit ([`STAGE3-AUDIT.md`](STAGE3-AUDIT.md)), approved w
 - **How to Use (F-7)** is a native screen with content written for the native app, from a JSON file in the repo.
 - **Haptics (F-8):** nothing to copy, since the web's haptics are on its own swipe gestures, which iOS provides. Native adds `.sensoryFeedback` where it suits iOS: saving a rating, adding a show, following a band.
 - **Playlists (F-9) are left out of the native app.** No Spotify or Apple Music playlist creation, and no web link in its place. Phillip didn't accept the MusicKit and Spotify sign-in proposal.
+- **Meetups are left out of the native app** (decided 2026-11-19). Production has no meetups. Unlike playlists, they stay on the web as they are: 6-2a's server fixes still apply (`meetups.js`, attendee names from profiles, the `attendeeNames` rule, the `meetup` report type), and a meetup-join notification keeps opening `/meetups` on the web. 6-5 is skipped.
 - **CSV and Excel import (F-10):** a server function parses the file with the web's code and returns the rows. Native has the file picker and the review screen; no Swift parser.
 - **The "Songs I've heard" tool (F-11)** stays a web link, as it is in the Capacitor app.
 - **Terms, Privacy and Community Guidelines (F-12)** stay web pages in `SFSafariViewController`. Me adds the Community Guidelines link.
@@ -396,7 +397,13 @@ From the Stage 6 audit ([`STAGE6-AUDIT.md`](STAGE6-AUDIT.md)), approved with all
   - the setlist photo directory is the Library row's native screen (Stage 4 call B ends), the web's read: `category == setlist`, newest 300, searched on the phone by band, venue or date;
   - photo-like notifications open the show natively;
   - debug builds with `MYSETLISTS_EMULATORS` use the Storage emulator too (`:9199`), and read download URLs from it.
-- **PR order:** 6-1 audit → 6-2a → 6-3 comments → 6-4 photos → 6-5 meetups → 6-6 activity → 6-2b → 6-7 imports → 6-8 show extras → 6-2c → 6-9 posters → 6-10 Year in Review → 6-11 profile and help → 6-12 parity check.
+- **Activity as built (6-6, native 4.0.50):**
+  - a "Friend activity" section on the Friends list (accounts with friends): the newest three and "All activity", which opens the whole feed (`/activity` links open it too) with the web's filters (All, Shows, Ratings, Comments, Photos), pull to refresh and "Show older";
+  - `ActivityStore` (Core), owned by the shell, accounts only: `friends.js` `activity`, read when the section or the feed appears (at most once a minute unless pulled) and on returning to the app; an entry kind this build doesn't know is skipped, not the page;
+  - a row opens the friend's public page for that show when they had a public profile then (as the web's), otherwise their card; long-press offers both;
+  - a native rating, once the server has it, asks `friends.js` `rated` for the entry (as the web's `logRating`); adds, comments and photos were already written by the server;
+  - Me → Activity feed: "Show my activity to friends" (`shareActivity`, one field, on unless turned off). Its footer says comments and photos are shared too, and that turning it off hides past entries, which is what the server does. The web's card still says "never photos" and only adds and ratings: a web copy fix for the next server PR.
+- **PR order:** 6-1 audit → 6-2a → 6-3 comments → 6-4 photos → ~~6-5 meetups~~ (skipped: meetups left out, 2026-11-19) → 6-6 activity → 6-2b → 6-7 imports → 6-8 show extras → 6-2c → 6-9 posters → 6-10 Year in Review → 6-11 profile and help → 6-12 parity check.
 
 ## Post-launch list
 

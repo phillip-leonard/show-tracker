@@ -58,6 +58,8 @@ public enum AppRoute: Hashable, Sendable {
     /// The inbox (Stage 3, Part 4), on the Friends tab: `/notifications`,
     /// and the link band-alert pushes carry.
     case notifications
+    /// Your friends' activity (Stage 6, 6-6), on the Friends tab: `/activity`.
+    case activity
 }
 
 /// What opening a link does (FOUNDATION-AUDIT.md §1.4).
@@ -149,6 +151,8 @@ public extension DeepLink {
             return .open(.friends, nil)
         case "/notifications":
             return .open(.friends, .notifications)
+        case "/activity":
+            return .open(.friends, .activity)
         case "/profile":
             return .open(.me, nil)
         case "/search":
@@ -206,6 +210,7 @@ public extension AppRoute {
         case .yearInReview(let user, let year): path = "/year-in-review"; params.set("user", user); params.set("year", year)
         case .myShows: path = "/stats"
         case .notifications: path = "/notifications"
+        case .activity: path = "/activity"
         }
         return DeepLink.webURL(path: path, params: params)
     }

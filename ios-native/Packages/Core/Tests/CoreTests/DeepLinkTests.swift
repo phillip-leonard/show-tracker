@@ -71,6 +71,7 @@ import Testing
         #expect(action("https://mysetlists.net/upcoming") == .open(.shows, nil))
         #expect(action("https://mysetlists.net/friends?tab=requests") == .open(.friends, nil))
         #expect(action("https://mysetlists.net/notifications/") == .open(.friends, .notifications), "the inbox (Stage 3, Part 4)")
+        #expect(action("https://mysetlists.net/activity/") == .open(.friends, .activity), "friend activity (Stage 6, 6-6)")
         #expect(action("https://mysetlists.net/stats/") == .open(.stats, nil))
         #expect(action("https://mysetlists.net/profile") == .open(.me, nil))
         #expect(action("https://mysetlists.net/search/") == .open(.search, nil))

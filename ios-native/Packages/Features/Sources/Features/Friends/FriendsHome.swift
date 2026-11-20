@@ -122,6 +122,10 @@ struct FriendsList: View {
                 .brandRow()
             }
 
+            if !store.friends.isEmpty {
+                FriendActivitySection(person: $person)
+            }
+
             Section {
                 if store.friends.isEmpty {
                     Text("No friends yet. Add someone by their email or handle, or share your invite link.")

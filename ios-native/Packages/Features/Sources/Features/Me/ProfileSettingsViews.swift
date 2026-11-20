@@ -6,7 +6,8 @@ enum MeLinks {
     static let howToUse = URL(string: "https://mysetlists.net/how-to-use")!
 }
 
-/// Name, handle, photo, public profile and the leaderboard: accounts only,
+/// Name, handle, photo, public profile, activity sharing and the
+/// leaderboard: accounts only,
 /// as on the web's Profile page. Values come from the live profile
 /// (`SessionStore.profile`), so a change made on the web shows here too.
 struct ProfileSection: View {
@@ -63,6 +64,19 @@ struct ProfileSection: View {
             } else {
                 Text("Off by default. Turning it on makes your page visible to anyone with the link: your shows, dates, venues, artists, setlists and your own ratings. Never your notes.")
             }
+        }
+        .brandRow()
+
+        Section {
+            Toggle("Show my activity to friends", isOn: Binding(
+                get: { profile?.shareActivity ?? true },
+                set: { on in if let uid { settings.setShareActivity(on, uid: uid) } }
+            ))
+            .tint(.brand)
+        } header: {
+            Text("Activity feed")
+        } footer: {
+            Text("When you add or rate a show, comment on one or share a photo, your friends see it in their activity. Never your notes. Turn this off and your friends stop seeing your activity, past entries included.")
         }
         .brandRow()
 

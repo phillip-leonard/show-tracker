@@ -146,6 +146,9 @@ struct FriendsLogicTests {
             (.unblock(targetUid: "u3"), ["action": "unblock", "targetUid": "u3"]),
             (.remove(friendUid: "u2"), ["action": "remove", "friendUid": "u2"]),
             (.referralLink, ["action": "referralLink"]),
+            (.activity(before: nil), ["action": "activity"]),
+            (.activity(before: 1_795_131_311_227), ["action": "activity", "before": 1_795_131_311_227]),
+            (.rated(showId: "s1"), ["action": "rated", "showId": "s1"]),
         ]
         for (request, expected) in cases {
             #expect(try body(request) as NSDictionary == expected)
