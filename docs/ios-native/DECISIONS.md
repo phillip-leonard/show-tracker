@@ -450,6 +450,12 @@ From the Stage 6 audit ([`STAGE6-AUDIT.md`](STAGE6-AUDIT.md)), approved with all
 - **Parity check (6-12, native 4.0.57):** PARITY-AUDIT re-run against `main` after #487. Every row ends native (179), decided not native (7), web by design (4), a decided web link (2) or nothing to build (1). `ParityRoutesTests` pins the pages that open the web on purpose (`/discover`, `/scan-import`, `/venue-dashboard`, `/meetups`, `/release-notes`, the admin pages); `/invite` now opens Friends. Stage 6 is complete; next is internal TestFlight and cutover (Build order item 6), after the Year in Review peak.
 - **PR order:** 6-1 audit → 6-2a → 6-3 comments → 6-4 photos → ~~6-5 meetups~~ (skipped: meetups left out, 2026-11-19) → 6-6 activity → 6-2b → 6-7 imports → 6-8 show extras → 6-2c → 6-9 posters → 6-10 Year in Review → 6-11 profile and help → 6-12 parity check.
 
+## Internal TestFlight (2026-11-20)
+
+- **The plan is [`TESTFLIGHT.md`](TESTFLIGHT.md):** the pipeline as it stands (every `main` merge already reaches internal TestFlight), what to do in App Store Connect before inviting testers, the What to Test text, the test round by area, and the cutover checklist from SCOPING §7.4 with each step's status.
+- **Open before cutover, for Phillip:** Capacitor guests' shows (Q-02; size it with `scripts/count-capacitor-guests.js`), the App Store version for the release (4.0.x or a minor bump), new App Store screenshots, and the privacy labels against the manifest (Q-08).
+- **No native-only version key:** `minSupportedIosVersion` compares every 4.x above every 3.x, so one key retires Capacitor builds and old native builds alike.
+
 ## Post-launch list
 
 Work decided for after cutover, not before:

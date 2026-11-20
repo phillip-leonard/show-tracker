@@ -4,6 +4,22 @@ All notable changes to mysetlists.net are documented here.
 
 ---
 
+## [5.60.43] — 2026-11-20
+
+Ships in **iOS 3.13.59** (Capacitor, `MARKETING_VERSION` 3.13.58 → 3.13.59).
+Native unchanged (4.0.58). Internal TestFlight prep for the native app.
+
+**`scripts/count-capacitor-guests.js`** (new, read-only, counts only): the
+guest sessions that never became an account but added shows in the iOS app.
+Their shows live only in the Capacitor app's storage, so they'd be lost when
+the native app replaces it (Q-02). `tests/native/countCapacitorGuests.test.js`
+covers the counting.
+
+**`docs/ios-native/TESTFLIGHT.md`**: the internal TestFlight round and the
+cutover checklist, with the decisions still open before cutover.
+
+---
+
 ## [5.60.42] — 2026-11-20
 
 Ships in **iOS 3.13.58** (Capacitor, `MARKETING_VERSION` 3.13.57 → 3.13.58)
