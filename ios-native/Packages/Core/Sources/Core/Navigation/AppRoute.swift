@@ -60,6 +60,12 @@ public enum AppRoute: Hashable, Sendable {
     case notifications
     /// Your friends' activity (Stage 6, 6-6), on the Friends tab: `/activity`.
     case activity
+    /// Your own "Songs I've heard" record and poster for a band (Stage 6,
+    /// 6-9): `/my-poster/?artist=<name>`.
+    case myPoster(artist: String)
+    /// "Save these shows to MySetlists" from the Songs I've heard tool:
+    /// `/shows/?heard=<slug>.<code>`, kept through sign-up.
+    case heardSave(String)
 }
 
 /// What opening a link does (FOUNDATION-AUDIT.md §1.4).
@@ -106,6 +112,7 @@ public extension DeepLink {
             return .open(.shows, nil)
         case "/shows":
             if let id = value("show") { return .open(.shows, .show(id: id)) }
+            if let heard = value("heard") { return .open(.shows, .heardSave(heard)) }
             if let id = value("upcoming") { return .open(.shows, .upcomingShow(id: id)) }
             if value("venueKey") == nil { return .open(.shows, nil) } // ?venueKey= is web-only for now
         case "/bands":
@@ -145,6 +152,8 @@ public extension DeepLink {
             return .open(.me, .festivals)
         case "/setlist-photos":
             return .open(.me, .setlistPhotos)
+        case "/my-poster":
+            if let artist = value("artist") { return .open(.stats, .myPoster(artist: artist)) }
         case "/community":
             return .open(.stats, .community)
         case "/friends":
@@ -211,6 +220,8 @@ public extension AppRoute {
         case .myShows: path = "/stats"
         case .notifications: path = "/notifications"
         case .activity: path = "/activity"
+        case .myPoster(let artist): path = "/my-poster"; params.set("artist", artist)
+        case .heardSave(let value): path = "/shows"; params.set("heard", value)
         }
         return DeepLink.webURL(path: path, params: params)
     }

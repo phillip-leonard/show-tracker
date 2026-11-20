@@ -174,6 +174,8 @@ struct RouteScreen: View {
         case .festival(let id): FestivalScreen(id: id)
         case .setlistPhotos: SetlistPhotosScreen()
         case .activity: ActivityScreen()
+        case .myPoster(let artist): MyPosterScreen(artist: artist)
+        case .heardSave(let value): HeardSaveScreen(value: value)
         case .advancedSearch: AdvancedSearchScreen(initial: ShowSearchFilters())
         default: RoutePlaceholder(route: route)
         }

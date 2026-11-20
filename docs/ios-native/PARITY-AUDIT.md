@@ -186,7 +186,7 @@ Two gaps aren't screens, and both should be fixed whatever else is decided:
 | Top-rated shows | `StatsView` | Top 3 on Stats, all 10 behind it, for the period | Native 4-8 | | none | |
 | Runs list (`/stats/runs`) | Yes | `RunListView` (4-6), linked from Stats | Native 4-6, 4-8 | | | |
 | Venue tab: "Rate Venue", community average | `VenueRatingModal` | On the venue page; Stats' venue rows still open your shows there | Native 4-7 (venue page) | | | |
-| "How many Goose songs have you heard?" (Songs I've heard tool) | `HeardToolCard`, a web tool | None | Missing | S | none; the tool is a web page (flag F-11) | 6 |
+| "How many Goose songs have you heard?" (Songs I've heard tool) | `HeardToolCard`, a web tool | `HeardToolCard` on Stats, opening the tool with your shows in the link | Native 6-9 (4.0.53); the tool stays web (F-11) | S | none | 6 |
 | Year in Review entry | Card | Card, Dec 2 – Jan 15, opens the web (C-9) | Native #441 (web link) | | | |
 | Empty state: "No stats yet" | Yes | Yes | Native #441 | | | |
 
@@ -207,7 +207,7 @@ Two gaps aren't screens, and both should be fixed whatever else is decided:
 | Artist info: Wikipedia summary, members, MusicBrainz and Discogs links | `EntityInfoPanel`, `get-entity-info` | "About <band>" on the band page (`get-entity-info`, `enrich-artist`) | Native 4-5 | | none | |
 | Follow | Yes | Yes | Native #451 | | | |
 | "Fans also see" | `FansAlsoSee` (Discover) | None | Flag F-4 | | | |
-| Make my poster | `MakePosterButton` | None | Missing | (with posters) | | 6 |
+| Make my poster | `MakePosterButton` | `MakePosterButton` on the band page | Native 6-9 (4.0.53) | (with posters) | | 6 |
 | "Band stats" link from Stats | `BandStatsLink` | "<band>'s page" on your shows of a band | Native 4-5 | | | |
 
 ### 2.10 Runs and tours (`/runs?run=`, `/tours?tour=`)
@@ -353,9 +353,9 @@ Two gaps aren't screens, and both should be fixed whatever else is decided:
 
 | Item | Web / Capacitor | Native today | Status | Size | Server work | Stage |
 |---|---|---|---|---|---|---|
-| My poster (`/my-poster?artist=`): your most heard songs for a band, sort, add setlist | `MyPosterView`, `my-poster` | None | Missing | M | none | 6 |
-| Poster share: download image, share link | `PosterShare`, `heard-share`, `public-poster` | None | Missing | (same PR) | none | 6 |
-| Save to "Songs I've heard" | `HeardSaveModal`, `heard-import` | None | Missing | S | none | 6 |
+| My poster (`/my-poster?artist=`): your most heard songs for a band, sort, add setlist | `MyPosterView`, `my-poster` | `MyPosterScreen` (`my-poster` `record`, 6-2c) | Native 6-9 (4.0.53) | M | `my-poster` `record` (5.60.41) | 6 |
+| Poster share: download image, share link | `PosterShare`, `heard-share`, `public-poster` | Feed and story PNGs from `my-poster` `artist`, share sheet, share link | Native 6-9 (4.0.53) | (same PR) | none | 6 |
+| Save to "Songs I've heard" | `HeardSaveModal`, `heard-import` | `HeardSaveScreen` for `/shows/?heard=` links (kept through sign-up) | Native 6-9 (4.0.53) | S | none | 6 |
 | Year in Review page: top bands, top songs, rare ones, show buddy, highlights (rarest catch, bust-outs, shows together, first and last show, busiest month, longest run), recap card, year picker, "Missing a show? Add it" | `YearRecapView` (server-written `recap`) | Web link (C-9) | Web link | L | none (the server writes `recap`) | 6 (flag F-13) |
 | Year in Review share image: share, download, email, X | `ShareYearInReview` (drawn in the browser) | None | Missing | M | none (native draws its own with `ImageRenderer`) | 6 |
 

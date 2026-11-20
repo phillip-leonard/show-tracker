@@ -87,6 +87,7 @@ struct BandScreen: View {
                 Spacer(minLength: Space.x2)
                 FollowBandButton(name: name, flow: follow)
             }
+            MakePosterButton(artist: name)
             if case .ready(let s) = snapshot {
                 let stats = s.band
                 Text(BandText.showsLine(stats))
