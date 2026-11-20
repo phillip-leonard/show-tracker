@@ -94,9 +94,9 @@ Two gaps aren't screens, and both should be fixed whatever else is decided:
 | Venue's shows (`?venueKey=`) | `VenueShowsView` | The venue page's "Your shows here" (newest 10, then all in your show list); a `?venueKey=` link still opens the web | Native 4-7 | | | |
 | Empty state: "Your concert journey starts here" | Yes | Yes | Native #432 | | | |
 | Loading skeleton | `ShowsListSkeleton` | Progress view | Native #432 | | | |
-| "Relive this night" card (show anniversaries) | `ReliveThisNightCard` | None | Missing | S | none | 6 |
+| "Relive this night" card (show anniversaries) | `ReliveThisNightCard` | `ReliveThisNightSection` at the top of your shows, once a day | Native 6-8 (4.0.52) | S | none; `fixtures/anniversaries/` | 6 |
 | Year in Review card on the list | `YearInReviewCard` | On Stats instead (C-9) | Native #441 | | | |
-| Internet Archive backfill card ("Look them up") | `ArchiveBackfillCard` → `ArchiveSetlistReview` | None (`scan-missing-setlists` endpoint defined, no UI) | Missing | M | none | 6 |
+| Internet Archive backfill card ("Look them up") | `ArchiveBackfillCard` → `ArchiveSetlistReview` | `ArchiveBackfillSection` → `ArchiveBackfillSheet` (`propose-setlist`, `accept-proposal` `onlyIfEmpty`) | Native 6-8 (4.0.52) | M | none | 6 |
 | Archive proposals to review | `ArchiveProposalReview` | Yes | Native #435 | | | |
 | Delete a show from a row | Yes | Swipe and show menu | Native #433 | | | |
 
@@ -124,7 +124,7 @@ Two gaps aren't screens, and both should be fixed whatever else is decided:
 | Tag friends | Yes | Yes | Native #448 | | | |
 | Share | Owner link | Public show page, or how to get one | Native #451 | | | |
 | Create playlist (Spotify, Apple Music) | `PlaylistCreatorModal`, `/spotify-callback` | None | Left out of native (F-9, decided) | | | |
-| Play counts toggle (#: how many times you've seen each song) | Yes | None | Missing | S | none (counts from cached shows with the shared song key) | 6 |
+| Play counts toggle (#: how many times you've seen each song) | Yes | "Seen N×" from `SongIndex`, toggle remembered | Native 6-8 (4.0.52) | S | none | 6 |
 | Delete show | Yes | Yes | Native #433 | | | |
 | Show rating, venue rating | Yes | Yes | Native #433 | | | |
 | Show note | Yes | Yes | Native #433 | | | |
@@ -305,7 +305,7 @@ Two gaps aren't screens, and both should be fixed whatever else is decided:
 | Push offer after a follow | `PushOfferModal` | Yes (flag-gated, off) | Native #451 | | | |
 | Alert settings: four alerts × push, email, in-app; replies and likes | `NotificationSettings` | Yes | Native #451 | | | |
 | On-sale settings: home city, radius, time zone | `OnsaleAlertSettings` | Yes | Native #451 | | | |
-| Upcoming anniversaries calendar | `AnniversaryCalendar` | None | Missing | S | none | 6 |
+| Upcoming anniversaries calendar | `AnniversaryCalendar` | `AnniversaryCalendarSection` in Notifications | Native 6-8 (4.0.52) | S | none; `fixtures/anniversaries/` | 6 |
 | Empty states: "No notifications yet", "No band alerts yet" | Yes | Yes | Native #449 | | | |
 
 ### 2.19 Profile and Me (`/profile`)

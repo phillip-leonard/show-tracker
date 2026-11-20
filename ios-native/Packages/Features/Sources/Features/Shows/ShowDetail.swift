@@ -598,6 +598,8 @@ struct SetlistSection: View {
     @State private var editingSong: Song?
     @State private var addingSong = false
     @State private var ratingUnrated = false
+    /// "Seen 3×" on each song (the web's play counts toggle), remembered.
+    @AppStorage("showPlayCounts") private var showPlayCounts = true
 
     var body: some View {
         let groups = SetGroups.group(show.setlist)
@@ -637,7 +639,8 @@ struct SetlistSection: View {
                             .accessibilityAddTraits(.isHeader)
                         VStack(spacing: 0) {
                             ForEach(Array(group.songs.enumerated()), id: \.element.id) { index, song in
-                                SongRow(number: numbers[song.id] ?? index + 1, song: song) { editingSong = song }
+                                SongRow(number: numbers[song.id] ?? index + 1, song: song,
+                                        seen: showPlayCounts ? timesSeen(song) : nil) { editingSong = song }
                                     .contextMenu { songMenu(song, group: group, index: index, options: options) }
                                 if index < group.songs.count - 1 { Divider().overlay(Color.borderSubtle) }
                             }
@@ -669,11 +672,9 @@ struct SetlistSection: View {
                 }
             }
 
-            HStack(spacing: Space.x3) {
-                Button { addingSong = true } label: { Label("Add a song", systemImage: "plus") }
-                if show.setlist.contains(where: { $0.rating == nil }) {
-                    Button { ratingUnrated = true } label: { Label("Rate unrated", systemImage: "star") }
-                }
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: Space.x3) { setlistButtons }
+                VStack(alignment: .leading, spacing: Space.x2) { setlistButtons }
             }
             .font(.jakarta(size: 14, weight: .semibold, relativeTo: .subheadline))
             .buttonStyle(.bordered)
@@ -695,6 +696,25 @@ struct SetlistSection: View {
         .sheet(isPresented: $ratingUnrated) {
             RateUnratedSheet(showId: show.id, count: show.setlist.filter { $0.rating == nil }.count)
         }
+    }
+
+    @ViewBuilder private var setlistButtons: some View {
+        Button { addingSong = true } label: { Label("Add a song", systemImage: "plus") }
+        if show.setlist.contains(where: { $0.rating == nil }) {
+            Button { ratingUnrated = true } label: { Label("Rate unrated", systemImage: "star") }
+        }
+        if !show.setlist.isEmpty {
+            Button { showPlayCounts.toggle() } label: {
+                Label(showPlayCounts ? "Hide play counts" : "Show play counts", systemImage: "number")
+            }
+        }
+    }
+
+    /// Shows you've seen this song at, counted as its song page counts
+    /// them (`SongIndex`: one per show, with the song page's key).
+    private func timesSeen(_ song: Song) -> Int? {
+        guard let key = SongIndex.key(artist: show.artist, title: song.name), let entry = store.song(key: key) else { return nil }
+        return entry.timesSeen > 0 ? entry.timesSeen : nil
     }
 
     @ViewBuilder
@@ -760,6 +780,8 @@ struct SetlistSection: View {
 struct SongRow: View {
     let number: Int
     let song: Song
+    /// Shows you've seen it at, when play counts are on.
+    var seen: Int? = nil
     let onTap: () -> Void
 
     var body: some View {
@@ -774,6 +796,14 @@ struct SongRow: View {
                     (Text(song.name.isEmpty ? "Untitled" : song.name).foregroundStyle(Color.textPrimary)
                      + Text(segue.map { " \($0)" } ?? "").foregroundStyle(Color.brandLight).fontWeight(.bold))
                         .font(.jakarta(size: 15, weight: .medium, relativeTo: .body))
+                    if let seen {
+                        Text("Seen \(seen)×")
+                            .font(.jakarta(size: 11, weight: .semibold, relativeTo: .caption2))
+                            .foregroundStyle(Color.brand)
+                            .padding(.horizontal, 6).padding(.vertical, 1)
+                            .background(Color.brand.opacity(0.12), in: Capsule())
+                            .accessibilityLabel(seen == 1 ? "Seen at 1 show" : "Seen at \(seen) shows")
+                    }
                     let marks = self.marks
                     if !marks.isEmpty {
                         Text(marks.joined(separator: " · "))

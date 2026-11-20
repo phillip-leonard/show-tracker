@@ -1,0 +1,159 @@
+{
+  "description": "The show-anniversary date rules: \"Relive this night\" (lib/reliveThisNight.js pickReliveShow) and the upcoming anniversaries list (lib/anniversaries.js buildUpcomingAnniversaries). Read by lib/__tests__/anniversaryFixtures.test.js and the native AnniversaryTests. `today` is the device's local day.",
+  "shows": [
+    {
+      "id": "older-same-day",
+      "date": "2019-11-20"
+    },
+    {
+      "id": "newest-same-day",
+      "date": "2022-11-20"
+    },
+    {
+      "id": "this-year",
+      "date": "2026-11-20"
+    },
+    {
+      "id": "legacy-date",
+      "date": "20-11-2015"
+    },
+    {
+      "id": "next-month",
+      "date": "2020-12-01"
+    },
+    {
+      "id": "next-year",
+      "date": "2021-01-05"
+    },
+    {
+      "id": "yesterday",
+      "date": "2018-11-19"
+    },
+    {
+      "id": "unreadable",
+      "date": "sometime in 1999"
+    },
+    {
+      "id": "leap-day",
+      "date": "2016-02-29"
+    }
+  ],
+  "cases": [
+    {
+      "name": "today has shows from earlier years",
+      "description": "Relive picks the newest earlier year on today's month and day; this year's show is not history yet. A legacy DD-MM-YYYY date is read, not sliced. Upcoming: soonest first, ties in list order, today counts as upcoming, yesterday wraps to next year, this year's show and an unreadable date are left out.",
+      "today": "2026-11-20",
+      "showIds": [
+        "older-same-day",
+        "newest-same-day",
+        "this-year",
+        "legacy-date",
+        "next-month",
+        "next-year",
+        "yesterday",
+        "unreadable"
+      ],
+      "expected": {
+        "relive": "newest-same-day",
+        "upcoming": [
+          {
+            "id": "older-same-day",
+            "occurrence": "2026-11-20",
+            "yearsAgo": 7
+          },
+          {
+            "id": "newest-same-day",
+            "occurrence": "2026-11-20",
+            "yearsAgo": 4
+          },
+          {
+            "id": "legacy-date",
+            "occurrence": "2026-11-20",
+            "yearsAgo": 11
+          },
+          {
+            "id": "next-month",
+            "occurrence": "2026-12-01",
+            "yearsAgo": 6
+          },
+          {
+            "id": "next-year",
+            "occurrence": "2027-01-05",
+            "yearsAgo": 6
+          },
+          {
+            "id": "yesterday",
+            "occurrence": "2027-11-19",
+            "yearsAgo": 9
+          }
+        ]
+      }
+    },
+    {
+      "name": "nothing on today",
+      "description": "No show on this month and day: nothing to relive.",
+      "today": "2026-07-04",
+      "showIds": [
+        "older-same-day",
+        "next-month"
+      ],
+      "expected": {
+        "relive": null,
+        "upcoming": [
+          {
+            "id": "older-same-day",
+            "occurrence": "2026-11-20",
+            "yearsAgo": 7
+          },
+          {
+            "id": "next-month",
+            "occurrence": "2026-12-01",
+            "yearsAgo": 6
+          }
+        ]
+      }
+    },
+    {
+      "name": "a leap-day show",
+      "description": "A Feb 29 show matches only on Feb 29; there is no Feb 28 stand-in.",
+      "today": "2028-02-29",
+      "showIds": [
+        "leap-day",
+        "next-year"
+      ],
+      "expected": {
+        "relive": "leap-day",
+        "upcoming": [
+          {
+            "id": "leap-day",
+            "occurrence": "2028-02-29",
+            "yearsAgo": 12
+          },
+          {
+            "id": "next-year",
+            "occurrence": "2029-01-05",
+            "yearsAgo": 8
+          }
+        ]
+      }
+    },
+    {
+      "name": "the day before a leap day",
+      "description": "Feb 28 does not relive a Feb 29 show.",
+      "today": "2028-02-28",
+      "showIds": [
+        "leap-day"
+      ],
+      "expected": {
+        "relive": null,
+        "upcoming": [
+          {
+            "id": "leap-day",
+            "occurrence": "2028-02-29",
+            "yearsAgo": 12
+          }
+        ]
+      }
+    }
+  ]
+}

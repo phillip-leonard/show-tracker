@@ -17,6 +17,12 @@ struct ShowsHome: View {
     @State private var upgrading = false
     /// The list has come from the cache for a while: say it's offline.
     @State private var showOfflineNote = false
+    /// "Relive this night" dismissed (also kept for the app's run by `ReliveThisNight`).
+    @State private var reliveDismissed = false
+    /// Shows the Internet Archive may have setlists for (the backfill card).
+    @State private var backfill: [Show] = []
+    @State private var backfillChecked: Set<String> = []
+    @State private var backfillReview: ArchiveBackfillSection.ReviewList?
 
     private var isGuest: Bool { session.user?.isAnonymous == true }
     private var today: String { ShowDate.today() }
@@ -162,6 +168,17 @@ struct ShowsHome: View {
         let sections = ShowList.byYear(filtered)
         return List {
             headerSection
+            if pastFilter.isEmpty, store.showsLoaded, let uid = session.user?.uid {
+                if !reliveDismissed, let relive = ReliveThisNight.show(for: uid, shows: store.shows, today: today) {
+                    ReliveThisNightSection(show: relive, today: today) {
+                        ReliveThisNight.dismiss()
+                        reliveDismissed = true
+                    }
+                }
+                if !isGuest {
+                    ArchiveBackfillSection(candidates: backfill, checked: backfillChecked) { backfillReview = .init(shows: $0) }
+                }
+            }
             if store.shows.isEmpty, store.waitingShows.isEmpty {
                 stateSection { pastEmptyState }
             } else if !store.shows.isEmpty, filtered.isEmpty {
@@ -204,6 +221,18 @@ struct ShowsHome: View {
                     YearHeader(year: section.year, count: section.shows.count)
                 }
                 .brandRow()
+            }
+        }
+        // Again when the shows without a setlist change.
+        .task(id: store.shows.filter(\.setlist.isEmpty).map(\.id)) {
+            guard let user = session.user, !user.isAnonymous, store.showsLoaded else { backfill = []; return }
+            backfillChecked = ArchiveBackfill.checked(uid: user.uid)
+            backfill = await ArchiveBackfillSection.find(in: store, uid: user.uid)
+        }
+        .sheet(item: $backfillReview) { list in
+            ArchiveBackfillSheet(shows: list.shows) { showId in
+                if let uid = session.user?.uid { ArchiveBackfill.remember(showId, uid: uid) }
+                backfillChecked.insert(showId)
             }
         }
     }

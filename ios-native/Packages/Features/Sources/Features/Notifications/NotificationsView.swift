@@ -67,6 +67,8 @@ struct NotificationsView: View {
                 .padding(.bottom, Space.x2)
             }
             .brandRow()
+
+            AnniversaryCalendarSection()
         }
         .navigationTitle("Notifications")
         .navigationBarTitleDisplayMode(.inline)

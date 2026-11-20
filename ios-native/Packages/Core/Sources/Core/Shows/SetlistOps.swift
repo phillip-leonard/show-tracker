@@ -24,8 +24,11 @@ public struct SetlistOps: Sendable {
 
     /// `accept-proposal { showId, result }`: what `propose` returned, after
     /// the person looked at it. Re-merged against the stored show.
-    public func accept(showId: String, result: JSONValue) async throws(APIError) -> SetlistOpAnswer {
-        try await api.post(SetlistOperation.acceptFunction, SetlistOperation.acceptBody(showId: showId, result: result), as: SetlistOpAnswer.self)
+    /// `onlyIfEmpty`: the Internet Archive backfill saves only while the
+    /// show still has no setlist (`has-setlist` otherwise).
+    public func accept(showId: String, result: JSONValue, onlyIfEmpty: Bool = false) async throws(APIError) -> SetlistOpAnswer {
+        try await api.post(SetlistOperation.acceptFunction,
+                           SetlistOperation.acceptBody(showId: showId, result: result, onlyIfEmpty: onlyIfEmpty), as: SetlistOpAnswer.self)
     }
 
     /// `accept-proposal { showId }`: the stored proposal (`setlistProposal`).
@@ -45,8 +48,10 @@ public struct SetlistOps: Sendable {
 
 extension SetlistOperation {
     static let acceptFunction = "accept-proposal"
-    static func acceptBody(showId: String, result: JSONValue) -> [String: JSONValue] {
-        ["showId": .string(showId), "result": result]
+    static func acceptBody(showId: String, result: JSONValue, onlyIfEmpty: Bool = false) -> [String: JSONValue] {
+        var body: [String: JSONValue] = ["showId": .string(showId), "result": result]
+        if onlyIfEmpty { body["onlyIfEmpty"] = .bool(true) }
+        return body
     }
 }
 
