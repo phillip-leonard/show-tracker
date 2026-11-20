@@ -69,11 +69,14 @@ public struct ShowsFilter: Hashable, Sendable {
     public var title: String
     /// The band, for a song.
     public var artist: String?
+    /// Only this year's shows (Year in Review's top bands), or every year.
+    public var year: Int?
 
-    public init(kind: Kind, title: String, artist: String? = nil) {
+    public init(kind: Kind, title: String, artist: String? = nil, year: Int? = nil) {
         self.kind = kind
         self.title = title
         self.artist = artist
+        self.year = year
     }
 
     /// The shows it matches, newest first. A venue's title is the server's
@@ -101,7 +104,8 @@ public struct ShowsFilter: Hashable, Sendable {
                 return Self.venueLabelKey(Self.venueLabel(show)) == target
             }
         }
-        return ShowList.pastOrder(all.filter(matches))
+        let inYear: (Show) -> Bool = { show in year.map { ShowDate.year(show.date) == String($0) } ?? true }
+        return ShowList.pastOrder(all.filter { inYear($0) && matches($0) })
     }
 
     /// The server's topVenues name for a show: "Venue, City", or "Venue".
