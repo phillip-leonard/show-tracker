@@ -19,6 +19,15 @@
 //   { action: 'share', recap, buddyUid?, buddyShows? }       -> { ok, code, url }
 // The show buddy's first name is added here, from Firestore, only for a
 // friend of the caller whose profile is public; never from the request.
+//
+// Built from the caller's own stored shows (5.60.41, Stage 6, call G), so
+// the app needn't build the record itself (lib/myPoster.js, the same code
+// the web's page runs):
+//   { action: 'record', artist }        -> { ok, record, eligible, name, archive, shows, noSetlist }
+//   { action: 'image', kind, artist }   -> image/png
+//   { action: 'share', artist }         -> { ok, code, url }
+// `eligible` is MIN_SHOWS_WITH_SETLIST shows with a setlist; image and
+// share with `artist` refuse a band that isn't (400 not_eligible).
 
 const { withCors } = require('./lib/cors');
 const heard = require('./lib/heardRecord');
@@ -28,6 +37,8 @@ const { openPosterStore, storeRecord, storeRecap, posterPath } = require('./lib/
 const { withBuddy, firestoreBuddyLookup, recapSvg } = require('./lib/yearRecapCard');
 const { SITE_URL } = require('./lib/publicPageHtml');
 const { takeDailyQuota } = require('./lib/rateLimit');
+const { userShows } = require('./lib/normalizeShowServer');
+const { buildMyPoster, MIN_SHOWS_WITH_SETLIST } = require('../../lib/myPoster');
 
 const CORS = {
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
@@ -37,7 +48,7 @@ const IMAGE_KINDS = new Set(['feed', 'story']);
 // Per user per UTC day (5.59.12, #398 follow-ups). Drawing is CPU on every
 // call; a share is stored for good. Far above real use: a poster screen
 // draws two images, and sharing is one tap.
-const DAILY_LIMITS = { image: 100, share: 20 };
+const DAILY_LIMITS = { image: 100, share: 20, record: 300 };
 
 // The poster drawing never fetches anything: posterSvg / recapSvg emit
 // text and shapes only (no <image>, no href, no url()), and resvg runs
@@ -82,7 +93,27 @@ exports.handler = async function (event) {
 
     if (body && body.recap) return await handleRecap(event, body, decoded);
 
-    const record = heard.cleanPersonalRecord(body && body.record);
+    let record;
+    if (typeof body.artist === 'string' && body.artist.trim()) {
+      const mine = buildMyPoster(await userShows(getDb(), decoded.uid), body.artist.trim().slice(0, 200));
+      const eligible = !!mine.record && mine.record.showsWithSetlist >= MIN_SHOWS_WITH_SETLIST;
+      if (body.action === 'record') {
+        return reply(200, {
+          ok: true,
+          record: mine.record,
+          eligible,
+          name: mine.name,
+          archive: mine.archive ? { slug: mine.archive.slug, name: mine.archive.name } : null,
+          shows: mine.shows.length,
+          noSetlist: mine.noSetlist.map((s) => ({ id: s.id, date: s.date || '', venue: s.venue || '', city: s.city || '' })),
+        });
+      }
+      if (!eligible) return reply(400, { ok: false, error: 'not_eligible' });
+      record = mine.record;
+    } else {
+      if (body.action === 'record') return reply(400, { ok: false, error: 'bad_request' });
+      record = heard.cleanPersonalRecord(body && body.record);
+    }
     if (!record) return reply(400, { ok: false, error: 'bad_request' });
 
     if (body.action === 'image') {
