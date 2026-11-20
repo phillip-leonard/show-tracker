@@ -7,7 +7,7 @@ All notable changes to mysetlists.net are documented here.
 ## [5.60.42] — 2026-11-20
 
 Ships in **iOS 3.13.58** (Capacitor, `MARKETING_VERSION` 3.13.57 → 3.13.58)
-and **native 4.0.56** (4.0.55 is taken by the open sign-out fix, #486).
+and **native 4.0.56** (4.0.55 was the sign-out fix, #486).
 Stage 6, Part 11: profile and help in the native app.
 
 **The native app's own How to Use and What's New.** Two new files the

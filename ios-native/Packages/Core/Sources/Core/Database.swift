@@ -15,6 +15,17 @@ import Foundation
 /// so the next `Firestore.firestore()` builds a new one in the same process.
 /// `MySetlistsTests` checks that on a real SDK.
 ///
+/// Firebase Auth signs out *between* the termination and the clearing
+/// (`clearCache(onceTerminated:)`), never before the termination. Firestore's
+/// token request retries itself when the signed-in user changes while it's
+/// in flight, and that retry asserts once `terminate()` has removed
+/// Firestore's Auth listener ("GetToken cannot be called after listener
+/// removed", 2026-11-20): an Auth sign-out first, then `terminate()`, then a
+/// token answer that was still on its way crashed the app. Terminated first,
+/// the old instance no longer hears the sign-out, so a late answer just
+/// completes. `ResetSequence` keeps that order; `CacheResetOrderTests` and
+/// `AppTests/FirestoreTokenRaceTests.swift` (MySetlistsTests) check it.
+///
 /// Every read goes through `ready()`, which waits for a reset in flight.
 /// Without that, a sign-in during the reset could start the new instance
 /// with default settings before they're applied, and setting them on a
@@ -31,6 +42,8 @@ public enum Database {
         /// A different instance from the one that was terminated.
         public var freshInstance = false
         public var failure: String?
+        /// What `onceTerminated` (the Firebase Auth sign-out) threw.
+        public var onceTerminatedFailure: String?
     }
 
     /// Once, at launch (`AppBootstrap`) or by a test host, before any read.
@@ -53,24 +66,21 @@ public enum Database {
         }
     }
 
-    /// Terminate, clear the persisted cache, start a fresh instance with the
-    /// launch settings. Pending writes that haven't reached the server are
-    /// dropped with the cache (sign-out waits for them first, bounded).
-    /// A second call while one is running waits for it.
+    /// Terminate, run `onceTerminated` (the Firebase Auth sign-out), clear
+    /// the persisted cache, start a fresh instance with the launch settings.
+    /// Pending writes that haven't reached the server are dropped with the
+    /// cache (sign-out waits for them first, bounded). A second call while
+    /// one is running waits for it (and doesn't run its `onceTerminated`).
     @discardableResult
-    public static func clearCache() async -> CacheReset {
+    public static func clearCache(onceTerminated: @escaping @MainActor () throws -> Void = {}) async -> CacheReset {
         if let resetting { return await resetting.value }
         let old = Firestore.firestore()
         let task = Task { @MainActor () -> CacheReset in
-            var outcome = CacheReset()
-            do {
-                try await old.terminate()
-                outcome.terminated = true
-                try await old.clearPersistence()
-                outcome.cleared = true
-            } catch {
-                outcome.failure = "\(error)"
-            }
+            var outcome = await ResetSequence.run(
+                terminate: { try await old.terminate() },
+                onceTerminated: onceTerminated,
+                clearPersistence: { try await old.clearPersistence() }
+            )
             let fresh = Firestore.firestore()
             outcome.freshInstance = fresh !== old
             // Only a new, unstarted instance takes settings: on the old one
@@ -89,5 +99,37 @@ public enum Database {
         let outcome = await task.value
         resetting = nil
         return outcome
+    }
+
+    /// The order of a reset, apart from Firestore so it can be tested
+    /// (`CacheResetOrderTests`): `onceTerminated` runs only after
+    /// `terminate` has finished, and runs even when it fails (sign-out must
+    /// still happen); clearing runs after both, and only on a terminated
+    /// instance.
+    @MainActor enum ResetSequence {
+        static func run(terminate: @MainActor () async throws -> Void,
+                        onceTerminated: @MainActor () throws -> Void,
+                        clearPersistence: @MainActor () async throws -> Void) async -> CacheReset {
+            var outcome = CacheReset()
+            do {
+                try await terminate()
+                outcome.terminated = true
+            } catch {
+                outcome.failure = "\(error)"
+            }
+            do {
+                try onceTerminated()
+            } catch {
+                outcome.onceTerminatedFailure = "\(error)"
+            }
+            guard outcome.terminated else { return outcome }
+            do {
+                try await clearPersistence()
+                outcome.cleared = true
+            } catch {
+                outcome.failure = "\(error)"
+            }
+            return outcome
+        }
     }
 }

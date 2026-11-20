@@ -466,12 +466,16 @@ public final class SessionStore {
     }
 
     /// Never hangs (`SignOutRunner`): what needs the session first (the push
-    /// token's document, writes still on their way), then Firebase, the
-    /// offline cache, Google, and local state.
+    /// token's document, writes still on their way), then the offline cache
+    /// with Firebase's sign-out inside it, Google, and local state.
     ///
-    /// The cache step runs after Firebase's sign-out and before anyone can
-    /// sign in again (`Database.ready()` waits for it): the next person on
-    /// this device starts from an empty cache.
+    /// Firebase's sign-out happens inside the cache step, after Firestore
+    /// is terminated and before its cache is cleared (`Database`, on the
+    /// token race that crashed sign-out), and the cache step finishes before
+    /// anyone can sign in again (`Database.ready()` waits for it): the next
+    /// person on this device starts from an empty cache. The "firebase"
+    /// step after it signs out only if the cache step didn't get that far
+    /// (it timed out on a stuck termination): never block sign-out.
     @discardableResult
     public func signOut() async -> [(String, SignOutRunner.Outcome)] {
         let steps: [SignOutRunner.Step] = [
@@ -493,11 +497,13 @@ public final class SessionStore {
                     self?.termsRecord.forget(uid: user.uid)
                 }
             },
-            .init("firebase") { @MainActor in try Auth.auth().signOut() },
             .init("offline cache") { @MainActor [weak self] in
                 self?.stopListening()
-                let reset = await Database.clearCache()
+                let reset = await Database.clearCache(onceTerminated: { try Auth.auth().signOut() })
                 if let failure = reset.failure { throw CacheResetFailed(message: failure) }
+            },
+            .init("firebase") { @MainActor in
+                if Auth.auth().currentUser != nil { try Auth.auth().signOut() }
             },
             .init("google") { @MainActor in GIDSignIn.sharedInstance.signOut() },
             .init("local") { @MainActor [weak self] in self?.resetLocalState() },
