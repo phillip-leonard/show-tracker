@@ -78,7 +78,10 @@ import Testing
     }
 
     @Test func claimedPathsWithoutAScreenOpenTheWeb() {
-        #expect(action("https://mysetlists.net/roadmap") == .web(URL(string: "https://mysetlists.net/roadmap/")!))
+        #expect(action("https://mysetlists.net/release-notes") == .web(URL(string: "https://mysetlists.net/release-notes/")!))
+        #expect(action("https://mysetlists.net/roadmap") == .open(.me, .roadmap), "native since 6-11")
+        #expect(action("https://mysetlists.net/how-to-use/") == .open(.me, .howToUse))
+        #expect(action("https://mysetlists.net/feedback") == .open(.me, .feedback))
         #expect(action("https://mysetlists.net/festivals/f9") == .open(.me, .festival(id: "f9")))
         #expect(action("https://mysetlists.net/festivals/?festival=f9") == .open(.me, .festival(id: "f9")))
         #expect(action("https://mysetlists.net/festivals/") == .open(.me, .festivals))
@@ -139,8 +142,8 @@ import Testing
         #expect(home == .init(action: .open(.shows, nil), referral: "signed.tok"))
         let show = DeepLink.resolve(URL(string: "https://mysetlists.net/shows/?show=a&ref=r1")!)
         #expect(show == .init(action: .open(.shows, .show(id: "a")), referral: "r1"))
-        let web = DeepLink.resolve(URL(string: "https://mysetlists.net/roadmap/?ref=r2&x=1")!)
-        #expect(web == .init(action: .web(URL(string: "https://mysetlists.net/roadmap/?x=1")!), referral: "r2"))
+        let web = DeepLink.resolve(URL(string: "https://mysetlists.net/release-notes/?ref=r2&x=1")!)
+        #expect(web == .init(action: .web(URL(string: "https://mysetlists.net/release-notes/?x=1")!), referral: "r2"))
         #expect(DeepLink.resolve(URL(string: "https://mysetlists.net/?ref=")!)?.referral == nil)
     }
 

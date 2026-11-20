@@ -1,0 +1,89 @@
+{
+  "updated": "2026-11-20",
+  "sections": [
+    {
+      "id": "adding",
+      "title": "Adding shows",
+      "symbol": "plus.circle",
+      "topics": [
+        { "title": "Find the night on setlist.fm", "body": "Tap + on Shows, then Search setlist.fm. Pick the band, then the night you were there. The setlist comes with it." },
+        { "title": "Add a show by hand", "body": "Tap + and Add by hand: band, venue and date. If the band has a setlist archive, the setlist fills in by itself." },
+        { "title": "Scan a ticket", "body": "Tap + and Scan a ticket, then take or pick a photo of a ticket stub, wristband or mobile ticket. Check each show it finds before adding it. Scanning needs an account." },
+        { "title": "Shows you have tickets for", "body": "Tap + and Add an upcoming show. They're under Upcoming on Shows. After the night, tap I went and it moves to your shows with its setlist." },
+        { "title": "Import a list", "body": "Tap + and Import shows to bring in a spreadsheet (.csv or .xlsx) or a screenshot of past events. Match the columns, check the list, then import." },
+        { "title": "Adding without a connection", "body": "A show you add offline waits under Waiting to sync and is added when you're back online." }
+      ]
+    },
+    {
+      "id": "shows",
+      "title": "Your shows",
+      "symbol": "music.note.list",
+      "topics": [
+        { "title": "Past and Upcoming", "body": "Shows has your past shows by year and the ones coming up. Tap a show to open it." },
+        { "title": "Rate the night", "body": "On a show, rate the show and the venue from 1 to 10 and add a note. Only you see your note. Every note you've written is in Me under Your notes." },
+        { "title": "Rate songs", "body": "Tap a song to rate it or write about it. Rate unrated goes through the songs you haven't rated yet." },
+        { "title": "Fix the setlist", "body": "Add a song, move one or take one out from the setlist, and undo if you change your mind. When a source has a newer setlist, the show offers it for you to accept or skip. Your ratings are never lost." },
+        { "title": "Photos, videos and comments", "body": "Add photos and videos from the night, and talk about the show with other people who were there. These need an account." },
+        { "title": "Relive this night", "body": "On the anniversary of a show, Shows brings it back. The anniversary calendar is in Notifications." }
+      ]
+    },
+    {
+      "id": "stats",
+      "title": "Stats, Year in Review and posters",
+      "symbol": "chart.bar",
+      "topics": [
+        { "title": "All time or one year", "body": "Stats shows all time or a year you pick: totals, your top bands, songs and venues, and shows by month. Tap a band, song or venue to see those shows." },
+        { "title": "Year in Review", "body": "Pick a year on Stats, then Your year in review: your top bands and songs, rare ones, your show buddy, highlights and a card to share." },
+        { "title": "Songs", "body": "All your songs is on Stats. A song's page shows every time you've seen it, the gaps between them and where it landed in the set." },
+        { "title": "Your poster", "body": "On a band's page, Make my poster draws every song you've heard them play, ready to share. For Goose, Phish, Umphrey's McGee and King Gizzard it opens the Songs I've heard tool, with your rarest catches." }
+      ]
+    },
+    {
+      "id": "friends",
+      "title": "Friends",
+      "symbol": "person.2",
+      "topics": [
+        { "title": "Add friends", "body": "On Friends, add someone by their handle or send an invite. Requests wait there for you to accept." },
+        { "title": "Tag friends at a show", "body": "On a show, tag the friends who were there. They confirm it, and the show appears in Shows together." },
+        { "title": "Activity and notifications", "body": "Friends shows what your friends have been adding and rating. Turn sharing your own activity on or off in Me. The bell has your notifications." }
+      ]
+    },
+    {
+      "id": "search",
+      "title": "Search",
+      "symbol": "magnifyingglass",
+      "topics": [
+        { "title": "Search your shows", "body": "The Search tab searches your own shows by band, venue, city, song, date and rating. Save a search you use often; recent ones are kept too." }
+      ]
+    },
+    {
+      "id": "me",
+      "title": "Me",
+      "symbol": "person.crop.circle",
+      "topics": [
+        { "title": "Library", "body": "Tours, Runs, Festivals, Wishlist, Bucket List and Setlist Photos are at the top of Me." },
+        { "title": "Your profile", "body": "Set your name and claim a handle. Turn on a public profile to give your shows a page at mysetlists.net/u/your-handle, and use Preview to see what strangers would see first." },
+        { "title": "Bands you follow", "body": "Follow a band from its page to hear about tours and on-sales. Choose which alerts you get in Alert settings." },
+        { "title": "Feedback and the roadmap", "body": "Send feedback from Me. Ideas from accounts go on the roadmap for review, and you can vote for the features you want." }
+      ]
+    },
+    {
+      "id": "guests",
+      "title": "Guests and your account",
+      "symbol": "person.badge.key",
+      "topics": [
+        { "title": "Using MySetlists as a guest", "body": "As a guest, your shows are kept on a guest account tied to this phone. Create an account to keep them for good and use them anywhere. Your shows come with you." },
+        { "title": "What needs an account", "body": "Ticket scanning, friends, comments, photos, a public profile and anything other people see need a free account." },
+        { "title": "Your data", "body": "Request a copy of your data or delete your account at the bottom of Me." }
+      ]
+    },
+    {
+      "id": "safety",
+      "title": "Safety",
+      "symbol": "hand.raised",
+      "topics": [
+        { "title": "Report and block", "body": "Every comment, photo and profile can be reported. Block someone and their content disappears from your app at once. Blocked accounts are listed in Me." }
+      ]
+    }
+  ]
+}

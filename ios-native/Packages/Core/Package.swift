@@ -30,7 +30,7 @@ let package = Package(
             // (public-artists.json) and their song title aliases
             // (song-title-aliases.json), the same files the web and the
             // snapshot job read, so the band page matches them (Stage 4, 4-5).
-            resources: [.copy("Config")]
+            resources: [.copy("Config"), .copy("NativeContent")]
         ),
         .testTarget(
             name: "CoreTests",

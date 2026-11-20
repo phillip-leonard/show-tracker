@@ -1,0 +1,15 @@
+{
+  "releases": [
+    {
+      "version": "4.0.56",
+      "title": "Profile and help",
+      "items": [
+        "Achievements and every note you've written, in Me.",
+        "Preview your public profile before you turn it on.",
+        "How to Use, written for this app.",
+        "Send feedback, and vote on the roadmap."
+      ]
+    }
+  ],
+  "announcement": null
+}

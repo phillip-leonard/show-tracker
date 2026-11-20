@@ -423,6 +423,8 @@ struct YourRatingsCard: View {
     @Environment(ShowsStore.self) private var store
     let show: Show
     let editNote: () -> Void
+    /// Counts saved ratings, for the haptic (F-8).
+    @State private var rated = 0
 
     var body: some View {
         VStack(alignment: .leading, spacing: Space.x3) {
@@ -449,6 +451,7 @@ struct YourRatingsCard: View {
             note
         }
         .brandCard(radius: Radius.xl2)
+        .sensoryFeedback(.success, trigger: rated)
     }
 
     @ViewBuilder private var note: some View {
@@ -482,6 +485,7 @@ struct YourRatingsCard: View {
         // 1–10 or nil from the menu: never refused.
         if case .success(let change) = ShowFieldEdit.rating(field, value) {
             store.update(change, showId: show.id)
+            rated += 1
         }
     }
 }

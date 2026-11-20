@@ -57,6 +57,7 @@ struct RatingGrid: View {
                 .accessibilityAddTraits(rating == n ? .isSelected : [])
             }
         }
+        .sensoryFeedback(.selection, trigger: rating)
     }
 }
 

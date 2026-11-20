@@ -136,6 +136,8 @@ struct AddOutcomeHandling: ViewModifier {
     /// The show to open once the prompt closes (kept apart from `firstShow`,
     /// which the sheet clears before `onDismiss` runs).
     @State private var openAfterPrompt: String?
+    /// Counts shows added, for the haptic (F-8).
+    @State private var added = 0
 
     struct FirstShow: Identifiable { let id: String }
 
@@ -144,6 +146,7 @@ struct AddOutcomeHandling: ViewModifier {
             .onChange(of: flow.outcome) { _, outcome in
                 guard case .added(let id)? = outcome else { return }
                 flow.outcome = nil
+                added += 1
                 // Taken for accounts too, so it never lingers.
                 if store.takeFirstShow(id), session.user?.isAnonymous == true {
                     openAfterPrompt = id
@@ -152,6 +155,7 @@ struct AddOutcomeHandling: ViewModifier {
                     finish(.show(id: id))
                 }
             }
+            .sensoryFeedback(.success, trigger: added)
             .sheet(item: $firstShow, onDismiss: {
                 if let id = openAfterPrompt { openAfterPrompt = nil; finish(.show(id: id)) }
             }) { _ in

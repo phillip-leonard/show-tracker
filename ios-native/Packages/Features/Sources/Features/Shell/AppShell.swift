@@ -118,6 +118,8 @@ public struct AppShell: View {
         // Registers this device for push for whoever is signed in (guests
         // too), when notifications are allowed (Stage 3, Part 5).
         .task(id: session.user?.uid) { await PushCenter.shared.signedIn(uid: session.user?.uid) }
+        // What's New once after an update (6-11, F-5).
+        .modifier(WhatsNewPresenter())
         .onDisappear { shows.stop(); friends.stop(); inbox.stop(); favoriteTours.stop(); festivals.stop(); activity.stop() }
         .sheet(item: $router.web) { page in
             SafariView(url: page.url).ignoresSafeArea()
@@ -177,6 +179,9 @@ struct RouteScreen: View {
         case .myPoster(let artist): MyPosterScreen(artist: artist)
         case .heardSave(let value): HeardSaveScreen(value: value)
         case .yearInReview(let user, let year): YearInReviewRoute(user: user, year: year)
+        case .howToUse: HowToUseScreen()
+        case .feedback: FeedbackScreen()
+        case .roadmap: RoadmapScreen()
         case .advancedSearch: AdvancedSearchScreen(initial: ShowSearchFilters())
         default: RoutePlaceholder(route: route)
         }
